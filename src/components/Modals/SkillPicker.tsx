@@ -1,8 +1,7 @@
 // src/components/Modals/SkillPicker.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useGameStore } from '../../store/gameStore';
-import { GameMove } from '../../types/game';
 
 export const SkillPicker: React.FC = () => {
   const { skillChoice, setSkillChoice, updateTower } = useGameStore(state => ({
