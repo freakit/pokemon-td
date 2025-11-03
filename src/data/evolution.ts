@@ -89,3 +89,49 @@ export const EVOLUTION_STAT_BOOST = {
   hp: 1.35, attack: 1.35, defense: 1.3,
   specialAttack: 1.35, specialDefense: 1.3, speed: 1.25,
 };
+
+// 레어도 타입
+export type Rarity = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend';
+
+// 최종 진화체인지 확인
+export function isFinalEvolution(pokemonId: number): boolean {
+  // 이 포켓몬이 다른 포켓몬의 'from'에 해당하지 않으면 최종 진화체
+  return !EVOLUTION_CHAINS.some(e => e.from === pokemonId);
+}
+
+// 최종 진화체 ID 가져오기
+export function getFinalEvolutionId(pokemonId: number): number {
+  const evolution = EVOLUTION_CHAINS.find(e => e.from === pokemonId);
+  if (!evolution) return pokemonId; // 이미 최종 진화체
+  return getFinalEvolutionId(evolution.to); // 재귀적으로 탐색
+}
+
+// 종족값 총합으로 레어도 계산
+export function calculateRarity(statTotal: number): Rarity {
+  if (statTotal < 450) return 'Bronze';
+  if (statTotal < 500) return 'Silver';
+  if (statTotal < 550) return 'Gold';
+  if (statTotal < 600) return 'Diamond';
+  if (statTotal < 650) return 'Master';
+  return 'Legend';
+}
+
+// 레어도별 가중치 (역수 관계 - 낮은 가중치 = 낮은 확률)
+export const RARITY_WEIGHTS: Record<Rarity, number> = {
+  'Bronze': 100,   // 가장 높은 확률
+  'Silver': 50,
+  'Gold': 25,
+  'Diamond': 12,
+  'Master': 6,
+  'Legend': 3,     // 가장 낮은 확률
+};
+
+// 레어도별 색상
+export const RARITY_COLORS: Record<Rarity, string> = {
+  'Bronze': '#cd7f32',
+  'Silver': '#c0c0c0',
+  'Gold': '#ffd700',
+  'Diamond': '#b9f2ff',
+  'Master': '#e040fb',
+  'Legend': '#ff6b00',
+};

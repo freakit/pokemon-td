@@ -50,15 +50,20 @@ export class WaveSystem {
   
   private async spawnEnemy(wave: number, path: any[], isBoss: boolean, mult: any) {
     try {
-      const pokemonId = pokeAPI.getRandomPokemonId(1); // 1세대만
+      // Wave에 따라 더 강한 포켓몬 등장 (종족값이 높은 포켓몬)
+      const pokemonId = this.getEnemyPokemonId(wave);
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
       
       const { addEnemy } = useGameStore.getState();
-      const baseHp = (pokemonData.stats.hp * (1 + wave * 0.3)) * mult.hp;
-      const baseAttack = (pokemonData.stats.attack * (1 + wave * 0.15)) * mult.attack; // 0.2 → 0.15로 감소
-      const baseDefense = pokemonData.stats.defense * (1 + wave * 0.1);
-      const baseSpecialAttack = (pokemonData.stats.specialAttack * (1 + wave * 0.15)) * mult.attack; // 0.2 → 0.15로 감소
-      const baseSpecialDefense = pokemonData.stats.specialDefense * (1 + wave * 0.1);
+      
+      // 기하급수적 난이도 증가 (exponential scaling)
+      const waveMultiplier = Math.pow(1.15, wave - 1); // 1.15^(wave-1)
+      
+      const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
+      const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
+      const baseDefense = pokemonData.stats.defense * Math.pow(1.1, wave - 1);
+      const baseSpecialAttack = (pokemonData.stats.specialAttack * waveMultiplier) * mult.attack;
+      const baseSpecialDefense = pokemonData.stats.specialDefense * Math.pow(1.1, wave - 1);
       
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,
@@ -77,7 +82,7 @@ export class WaveSystem {
         pathIndex: 0,
         isNamed: isBoss,
         isBoss,
-        reward: Math.floor((isBoss ? wave * 50 : wave * 5) * mult.reward),
+        reward: Math.floor((isBoss ? wave * 50 : wave * 5) * mult.reward * waveMultiplier * 0.3), // 보상도 증가
         moveSpeed: 60,
         types: pokemonData.types,
         sprite: pokemonData.sprite,
@@ -90,6 +95,57 @@ export class WaveSystem {
       console.error('Failed to spawn enemy pokemon:', e);
       // 실패 시 기본 적 생성
       this.spawnFallbackEnemy(wave, path, isBoss, mult);
+    }
+  }
+  
+  // Wave에 따라 적절한 포켓몬 ID 선택 (종족값 고려)
+  private getEnemyPokemonId(wave: number): number {
+    // Wave 1-5: Bronze/Silver 등급 (종족값 낮음)
+    // Wave 6-10: Silver/Gold 등급
+    // Wave 11-15: Gold/Diamond 등급
+    // Wave 16+: Diamond/Master/Legend 등급
+    
+    let minStatTotal = 200;
+    let maxStatTotal = 400;
+    
+    if (wave <= 5) {
+      minStatTotal = 200;
+      maxStatTotal = 350;
+    } else if (wave <= 10) {
+      minStatTotal = 300;
+      maxStatTotal = 450;
+    } else if (wave <= 15) {
+      minStatTotal = 400;
+      maxStatTotal = 520;
+    } else if (wave <= 20) {
+      minStatTotal = 480;
+      maxStatTotal = 580;
+    } else {
+      minStatTotal = 520;
+      maxStatTotal = 680;
+    }
+    
+    // 캐시된 포켓몬 중에서 종족값이 적절한 것을 찾기
+    const cache = (pokeAPI as any).pokemonCache as Map<number, any>;
+    const suitablePokemon: number[] = [];
+    
+    for (let i = 1; i <= 151; i++) {
+      if (cache.has(i)) {
+        const poke = cache.get(i)!;
+        const statTotal = poke.stats.hp + poke.stats.attack + poke.stats.defense +
+                         poke.stats.specialAttack + poke.stats.specialDefense + poke.stats.speed;
+        
+        if (statTotal >= minStatTotal && statTotal <= maxStatTotal) {
+          suitablePokemon.push(i);
+        }
+      }
+    }
+    
+    // 적절한 포켓몬이 있으면 그 중 랜덤 선택, 없으면 전체 범위에서 랜덤
+    if (suitablePokemon.length > 0) {
+      return suitablePokemon[Math.floor(Math.random() * suitablePokemon.length)];
+    } else {
+      return Math.floor(Math.random() * 151) + 1;
     }
   }
   

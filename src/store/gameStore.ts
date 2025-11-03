@@ -11,6 +11,7 @@ interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
   updateTower: (id: string, updates: Partial<GamePokemon>) => void;
   removeTower: (id: string) => void;
+  sellTower: (id: string) => boolean; // 포켓몬 판매 기능 추가
   addEnemy: (enemy: Enemy) => void;
   updateEnemy: (id: string, updates: Partial<Enemy>) => void;
   removeEnemy: (id: string) => void;
@@ -37,7 +38,7 @@ interface GameStore extends GameState {
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  wave: 1,
+  wave: 0,
   money: 200,
   lives: 20,
   towers: [],
@@ -58,12 +59,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pokemonToPlace: null,
   skillChoice: null,
   waveEndItemPick: null,
+  evolutionToast: null,
   
   addTower: (tower) => set((state) => ({ towers: [...state.towers, tower] })),
   updateTower: (id, updates) => set((state) => ({
     towers: state.towers.map(t => t.id === id ? { ...t, ...updates } : t)
   })),
   removeTower: (id) => set((state) => ({ towers: state.towers.filter(t => t.id !== id) })),
+  
+  // 포켓몬 판매 (레벨 * 20원)
+  sellTower: (id) => {
+    const tower = get().towers.find(t => t.id === id);
+    if (!tower) return false;
+    
+    const sellPrice = tower.level * 20;
+    get().addMoney(sellPrice);
+    get().removeTower(id);
+    return true;
+  },
   
   addEnemy: (enemy) => set((state) => ({ enemies: [...state.enemies, enemy] })),
   updateEnemy: (id, updates) => set((state) => ({
@@ -108,6 +121,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     pokemonToPlace: null,
     skillChoice: null,
     waveEndItemPick: null,
+    evolutionToast: null,
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
@@ -229,6 +243,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     try {
+      const oldName = tower.name;
       const newData = await pokeAPI.getPokemon(evolution.to);
       get().updateTower(tower.id, {
         pokemonId: evolution.to,
@@ -244,6 +259,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialDefense: Math.floor(tower.specialDefense * EVOLUTION_STAT_BOOST.specialDefense),
       });
       soundService.playEvolutionSound();
+      
+      // 진화 토스트 표시
+      set({
+        evolutionToast: {
+          fromName: oldName,
+          toName: newData.name,
+          timestamp: Date.now()
+        }
+      });
+      
+      // 3초 후 토스트 제거
+      setTimeout(() => {
+        const current = useGameStore.getState().evolutionToast;
+        if (current && Date.now() - current.timestamp >= 3000) {
+          set({ evolutionToast: null });
+        }
+      }, 3000);
+      
       saveService.updateStats({
         evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
       });

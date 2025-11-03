@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { pokeAPI } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
 import { GameMove, StatusEffectType, MoveEffect } from '../../types/game';
+import { Rarity, RARITY_COLORS } from '../../data/evolution';
 
 // 타입별 상태이상 매핑
 const TYPE_TO_STATUS: Record<string, StatusEffectType> = {
@@ -20,6 +21,7 @@ const REROLL_COST = 20;
 interface PokemonChoice {
   data: any;
   cost: number;
+  rarity: Rarity;
 }
 
 export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -33,18 +35,28 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   
   const loadChoices = async () => {
     setIsLoading(true);
-    const ids = [pokeAPI.getRandomPokemonId(), pokeAPI.getRandomPokemonId(), pokeAPI.getRandomPokemonId()];
-    const data = await Promise.all(ids.map(id => pokeAPI.getPokemon(id)));
     
-    // 종족값 총합으로 가격 계산 (100 ~ 300원)
-    const withCost = data.map(p => {
+    // 레어도 기반 포켓몬 3마리 선택
+    const id1 = await pokeAPI.getRandomPokemonIdWithRarity();
+    const id2 = await pokeAPI.getRandomPokemonIdWithRarity();
+    const id3 = await pokeAPI.getRandomPokemonIdWithRarity();
+    
+    const data = await Promise.all([
+      pokeAPI.getPokemon(id1),
+      pokeAPI.getPokemon(id2),
+      pokeAPI.getPokemon(id3)
+    ]);
+    
+    // 종족값 총합으로 가격 계산 및 레어도 가져오기
+    const withCostAndRarity = await Promise.all(data.map(async (p) => {
       const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
                        p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
       const cost = Math.floor(25 + (statTotal / 600) * 200);
-      return { data: p, cost };
-    });
+      const rarity = await pokeAPI.getRarity(p.id);
+      return { data: p, cost, rarity };
+    }));
     
-    setChoices(withCost);
+    setChoices(withCostAndRarity);
     setIsLoading(false);
   };
   
@@ -59,45 +71,54 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
     try {
       const poke = choice.data;
-      // 'status' 기술 제외하고 4개 필터링
-      const moveNames = poke.moves.slice(0, 20); // 20개 탐색
-      let usableMoves: any[] = [];
+      // 'status' 기술 제외하고 1개만 필터링
+      const moveNames = poke.moves.slice(0, 10); // 10개 탐색
+      let usableMove: any = null;
       
       for (const name of moveNames) {
-        if (usableMoves.length >= 4) break;
         const move = await pokeAPI.getMove(name);
         if (move.damageClass !== 'status') {
-          usableMoves.push(move);
+          usableMove = move;
+          break; // 첫 번째 사용 가능한 기술만 선택
         }
       }
       
-      const equippedMoves: GameMove[] = usableMoves.map(m => {
-        const effect: MoveEffect = { type: 'damage' };
-        
-        // 30% 확률로 타입에 맞는 상태이상 부여
-        const status = TYPE_TO_STATUS[m.type];
-        if (status && Math.random() < 0.3) {
-          effect.statusInflict = status;
-          effect.statusChance = 30; // 30%
-        }
-
-        // 20% 확률로 광역기(AOE) 부여
-        const isAOE = Math.random() < 0.2;
-
-        return {
-          name: m.name,
-          type: m.type,
-          power: m.power || 40, // 기본값 40
-          accuracy: m.accuracy || 100,
-          damageClass: m.damageClass,
-          effect: effect,
-          cooldown: 2.0,
-          currentCooldown: 0,
-          isAOE: isAOE,
-          aoeRadius: isAOE ? 100 : undefined, // 100px 반경
-          manualCast: false,
+      if (!usableMove) {
+        // 사용 가능한 기술이 없으면 기본 기술 부여
+        usableMove = {
+          name: 'tackle',
+          type: 'normal',
+          power: 40,
+          accuracy: 100,
+          damageClass: 'physical'
         };
-      });
+      }
+      
+      const effect: MoveEffect = { type: 'damage' };
+      
+      // 30% 확률로 타입에 맞는 상태이상 부여
+      const status = TYPE_TO_STATUS[usableMove.type];
+      if (status && Math.random() < 0.3) {
+        effect.statusInflict = status;
+        effect.statusChance = 30; // 30%
+      }
+
+      // 20% 확률로 광역기(AOE) 부여
+      const isAOE = Math.random() < 0.2;
+
+      const equippedMoves: GameMove[] = [{
+        name: usableMove.name,
+        type: usableMove.type,
+        power: usableMove.power || 40, // 기본값 40
+        accuracy: usableMove.accuracy || 100,
+        damageClass: usableMove.damageClass,
+        effect: effect,
+        cooldown: 2.0,
+        currentCooldown: 0,
+        isAOE: isAOE,
+        aoeRadius: isAOE ? 100 : undefined, // 100px 반경
+        manualCast: false,
+      }];
       
       setPokemonToPlace({
         ...poke,
@@ -135,7 +156,16 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <div key={idx} style={s.card} onClick={() => handleSelect(choice)}>
               <div style={s.cardInner}>
                 <img src={choice.data.sprite} alt={choice.data.name} style={s.img} />
-                <h3 style={s.pokeName}>{choice.data.name}</h3>
+                <div style={s.nameRow}>
+                  <h3 style={s.pokeName}>{choice.data.name}</h3>
+                  <span style={{
+                    ...s.rarityBadge,
+                    backgroundColor: RARITY_COLORS[choice.rarity],
+                    color: choice.rarity === 'Silver' || choice.rarity === 'Gold' ? '#1a1f2e' : '#fff'
+                  }}>
+                    {choice.rarity}
+                  </span>
+                </div>
                 <div style={s.statsGrid}>
                   <div style={s.statItem}>
                     <span style={s.statLabel}>HP</span>
@@ -285,10 +315,28 @@ const s: Record<string, React.CSSProperties> = {
   pokeName: {
     fontSize: '20px',
     fontWeight: '700',
-    marginBottom: '12px',
+    margin: 0,
     textTransform: 'capitalize' as 'capitalize',
     color: '#e8edf3',
     textShadow: '0 2px 8px rgba(0,0,0,0.8)'
+  },
+  nameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    flexWrap: 'wrap' as 'wrap',
+  },
+  rarityBadge: {
+    padding: '4px 10px',
+    borderRadius: '8px',
+    fontSize: '11px',
+    fontWeight: '800',
+    textTransform: 'uppercase' as 'uppercase',
+    letterSpacing: '0.5px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
+    border: '1px solid rgba(255,255,255,0.2)',
   },
   stats: { 
     display: 'flex', 

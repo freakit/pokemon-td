@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { GameCanvas } from './components/Game/GameCanvas';
 import { HUD } from './components/UI/HUD';
 import { PokemonPicker } from './components/UI/PokemonPicker';
+import { PokemonManager } from './components/UI/PokemonManager';
 import { MapSelector } from './components/UI/MapSelector';
 import { Shop } from './components/UI/Shop';
 import { Pokedex } from './components/Modals/Pokedex';
@@ -21,6 +22,7 @@ import { WaveEndPicker } from './components/Modals/WaveEndPicker';
 function App() {
   const [showPicker, setShowPicker] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showPokemonManager, setShowPokemonManager] = useState(false);
   const [showPokedex, setShowPokedex] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -78,6 +80,7 @@ function App() {
               onStartWave={handleStartWave}
               onOpenShop={() => setShowShop(true)}
               onAddPokemon={handleOpenPicker}
+              onManagePokemon={() => setShowPokemonManager(true)}
             />
             
             {/* 추가 버튼들 */}
@@ -92,6 +95,7 @@ function App() {
       
       {showPicker && <PokemonPicker onClose={() => setShowPicker(false)} />}
       {showShop && <Shop onClose={() => setShowShop(false)} />}
+      {showPokemonManager && <PokemonManager onClose={() => setShowPokemonManager(false)} />}
       {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
       {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}

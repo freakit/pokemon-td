@@ -11,36 +11,28 @@ export const SkillPicker: React.FC = () => {
     updateTower: state.updateTower,
   }));
 
-  const [selectedNewMove, setSelectedNewMove] = useState<GameMove | null>(null);
-
   if (!skillChoice) return null;
 
   const { towerId, newMoves } = skillChoice;
   const tower = useGameStore.getState().towers.find(t => t.id === towerId);
-  if (!tower) return null;
+  if (!tower || newMoves.length === 0) return null;
 
-  const handleSelectNewMove = (move: GameMove) => {
-    setSelectedNewMove(move);
-  };
+  // 새로 배울 기술은 첫 번째 것만 사용
+  const newMove = newMoves[0];
+  const currentMove = tower.equippedMoves[0]; // 현재 기술
 
-  const handleReplaceMove = (index: number) => {
-    if (!selectedNewMove) return;
-    
-    const newMoveList = [...tower.equippedMoves];
-    newMoveList[index] = selectedNewMove;
-    
-    updateTower(towerId, { equippedMoves: newMoveList });
+  const handleLearnNewMove = () => {
+    // 새 기술 배우기
+    updateTower(towerId, { equippedMoves: [newMove] });
     
     // 모달 닫기 및 게임 재개
     setSkillChoice(null);
-    setSelectedNewMove(null);
     useGameStore.setState({ isPaused: false });
   };
 
-  const handleSkip = () => {
-    // 기술 배우지 않고 스킵
+  const handleKeepCurrentMove = () => {
+    // 기존 기술 유지
     setSkillChoice(null);
-    setSelectedNewMove(null);
     useGameStore.setState({ isPaused: false });
   };
 
@@ -51,68 +43,74 @@ export const SkillPicker: React.FC = () => {
           <h2 style={s.title}>⭐ {tower.name} (Lv.{tower.level}) 레벨업!</h2>
         </div>
         
-        {!selectedNewMove ? (
-          <>
-            <p style={s.subtitle}>✨ 새로 배울 기술을 선택하세요</p>
-            <div style={s.grid}>
-              {newMoves.map((move, idx) => (
-                <div key={idx} style={s.card} onClick={() => handleSelectNewMove(move)}>
-                  <div style={s.cardHeader}>
-                    <h3 style={s.moveName}>{move.name}</h3>
-                    <span style={s.moveType}>{move.type}</span>
-                  </div>
-                  <div style={s.cardContent}>
-                    <div style={s.statRow}>
-                      <span>⚔️ 위력</span>
-                      <span style={s.statValue}>{move.power}</span>
-                    </div>
-                    <div style={s.statRow}>
-                      <span>📊 분류</span>
-                      <span style={s.statValue}>{move.damageClass === 'physical' ? '물리' : '특수'}</span>
-                    </div>
-                    {move.effect.statusInflict && (
-                      <div style={s.effectBadge}>
-                        💫 {move.effect.statusInflict} ({move.effect.statusChance}%)
-                      </div>
-                    )}
-                    {move.isAOE && <div style={s.aoeBadge}>🌀 광역기</div>}
-                  </div>
+        <p style={s.subtitle}>🔄 기술을 교체하시겠습니까?</p>
+        
+        <div style={s.compareContainer}>
+          {/* 현재 기술 */}
+          <div style={s.compareSection}>
+            <h3 style={s.sectionTitle}>현재 기술</h3>
+            <div style={s.cardCurrent}>
+              <div style={s.cardHeader}>
+                <h3 style={s.moveName}>{currentMove.name}</h3>
+                <span style={s.moveType}>{currentMove.type}</span>
+              </div>
+              <div style={s.cardContent}>
+                <div style={s.statRow}>
+                  <span>⚔️ 위력</span>
+                  <span style={s.statValue}>{currentMove.power}</span>
                 </div>
-              ))}
-            </div>
-            <button style={s.skipBtn} onClick={handleSkip}>⏭️ 기술 배우지 않기</button>
-          </>
-        ) : (
-          <>
-            <p style={s.subtitle}>🔄 "{selectedNewMove.name}" - 교체할 기존 기술을 선택하세요</p>
-            <div style={s.grid}>
-              {tower.equippedMoves.map((move, idx) => (
-                <div key={idx} style={s.cardExisting} onClick={() => handleReplaceMove(idx)}>
-                  <div style={s.cardHeader}>
-                    <h3 style={s.moveName}>{move.name}</h3>
-                    <span style={s.moveType}>{move.type}</span>
-                  </div>
-                  <div style={s.cardContent}>
-                    <div style={s.statRow}>
-                      <span>⚔️ 위력</span>
-                      <span style={s.statValue}>{move.power}</span>
-                    </div>
-                    <div style={s.statRow}>
-                      <span>📊 분류</span>
-                      <span style={s.statValue}>{move.damageClass === 'physical' ? '물리' : '특수'}</span>
-                    </div>
-                    {move.effect.statusInflict && (
-                      <div style={s.effectBadge}>
-                        💫 {move.effect.statusInflict}
-                      </div>
-                    )}
-                  </div>
+                <div style={s.statRow}>
+                  <span>📊 분류</span>
+                  <span style={s.statValue}>{currentMove.damageClass === 'physical' ? '물리' : '특수'}</span>
                 </div>
-              ))}
+                {currentMove.effect.statusInflict && (
+                  <div style={s.effectBadge}>
+                    💫 {currentMove.effect.statusInflict} ({currentMove.effect.statusChance}%)
+                  </div>
+                )}
+                {currentMove.isAOE && <div style={s.aoeBadge}>🌀 광역기</div>}
+              </div>
             </div>
-            <button style={s.backBtn} onClick={() => setSelectedNewMove(null)}>← 뒤로 가기</button>
-          </>
-        )}
+            <button style={s.keepBtn} onClick={handleKeepCurrentMove}>
+              ✅ 현재 기술 유지
+            </button>
+          </div>
+
+          {/* 화살표 */}
+          <div style={s.arrowContainer}>
+            <div style={s.arrow}>⇄</div>
+          </div>
+
+          {/* 새로운 기술 */}
+          <div style={s.compareSection}>
+            <h3 style={s.sectionTitle}>새로운 기술</h3>
+            <div style={s.cardNew}>
+              <div style={s.cardHeader}>
+                <h3 style={s.moveName}>{newMove.name}</h3>
+                <span style={s.moveType}>{newMove.type}</span>
+              </div>
+              <div style={s.cardContent}>
+                <div style={s.statRow}>
+                  <span>⚔️ 위력</span>
+                  <span style={s.statValue}>{newMove.power}</span>
+                </div>
+                <div style={s.statRow}>
+                  <span>📊 분류</span>
+                  <span style={s.statValue}>{newMove.damageClass === 'physical' ? '물리' : '특수'}</span>
+                </div>
+                {newMove.effect.statusInflict && (
+                  <div style={s.effectBadge}>
+                    💫 {newMove.effect.statusInflict} ({newMove.effect.statusChance}%)
+                  </div>
+                )}
+                {newMove.isAOE && <div style={s.aoeBadge}>🌀 광역기</div>}
+              </div>
+            </div>
+            <button style={s.learnBtn} onClick={handleLearnNewMove}>
+              ⭐ 새 기술 배우기
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -139,7 +137,7 @@ const s: Record<string, React.CSSProperties> = {
     color: '#e8edf3', 
     borderRadius: '24px', 
     padding: '0',
-    maxWidth: '1200px',
+    maxWidth: '1100px',
     width: '90%',
     maxHeight: '90vh',
     overflowY: 'auto' as 'auto',
@@ -170,33 +168,56 @@ const s: Record<string, React.CSSProperties> = {
     color: '#a8b8c8',
     fontWeight: '600'
   },
-  grid: { 
-    display: 'flex', 
-    gap: '24px', 
+  compareContainer: {
+    display: 'flex',
+    gap: '32px',
     padding: '0 32px 32px',
-    flexWrap: 'wrap' as 'wrap',
+    alignItems: 'stretch',
     justifyContent: 'center'
   },
-  card: { 
-    flex: '0 0 220px',
+  compareSection: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as 'column',
+    alignItems: 'center',
+    gap: '16px',
+    maxWidth: '400px'
+  },
+  sectionTitle: {
+    fontSize: '22px',
+    fontWeight: '700',
+    color: '#4cafff',
+    margin: 0,
+    textAlign: 'center' as 'center'
+  },
+  arrowContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '60px'
+  },
+  arrow: {
+    fontSize: '48px',
+    color: '#9b59b6',
+    textShadow: '0 0 20px rgba(155, 89, 182, 0.8)',
+    animation: 'pulse 2s ease-in-out infinite'
+  },
+  cardCurrent: { 
+    width: '100%',
     background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
     border: '2px solid rgba(52, 152, 219, 0.4)',
     borderRadius: '18px', 
     padding: '0',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
     boxShadow: '0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
     overflow: 'hidden'
   },
-  cardExisting: { 
-    flex: '0 0 220px',
-    background: 'linear-gradient(145deg, rgba(60, 30, 40, 0.9), rgba(35, 15, 20, 0.95))',
-    border: '2px solid rgba(231, 76, 60, 0.4)',
+  cardNew: { 
+    width: '100%',
+    background: 'linear-gradient(145deg, rgba(60, 40, 80, 0.9), rgba(35, 20, 45, 0.95))',
+    border: '2px solid rgba(155, 89, 182, 0.5)',
     borderRadius: '18px', 
     padding: '0',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 8px 24px rgba(231, 76, 60, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+    boxShadow: '0 8px 24px rgba(155, 89, 182, 0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
     overflow: 'hidden'
   },
   cardHeader: {
@@ -257,21 +278,8 @@ const s: Record<string, React.CSSProperties> = {
     textAlign: 'center' as 'center',
     fontWeight: '600'
   },
-  skipBtn: { 
-    margin: '0 32px 32px',
-    padding: '16px 32px',
-    fontSize: '18px',
-    background: 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)',
-    color: '#fff',
-    border: '2px solid rgba(149, 165, 166, 0.4)',
-    borderRadius: '14px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-  },
-  backBtn: { 
-    margin: '0 32px 32px',
+  keepBtn: { 
+    width: '100%',
     padding: '16px 32px',
     fontSize: '18px',
     background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
@@ -281,6 +289,21 @@ const s: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontWeight: 'bold',
     boxShadow: '0 6px 20px rgba(52, 152, 219, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    transition: 'all 0.3s ease'
+  },
+  learnBtn: { 
+    width: '100%',
+    padding: '16px 32px',
+    fontSize: '18px',
+    background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+    color: '#fff',
+    border: '2px solid rgba(155, 89, 182, 0.4)',
+    borderRadius: '14px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 6px 20px rgba(155, 89, 182, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    transition: 'all 0.3s ease'
   },
 };

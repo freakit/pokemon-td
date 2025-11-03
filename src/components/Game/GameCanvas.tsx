@@ -106,18 +106,22 @@ const HPBar: React.FC<{ x: number, y: number, current: number, max: number, widt
 
 
 export const GameCanvas: React.FC = () => {
-  const { pokemonToPlace, setPokemonToPlace, addTower, spendMoney } = useGameStore(state => ({
+  const { pokemonToPlace, setPokemonToPlace, addTower, spendMoney, isWaveActive } = useGameStore(state => ({
     pokemonToPlace: state.pokemonToPlace,
     setPokemonToPlace: state.setPokemonToPlace,
     addTower: state.addTower,
     spendMoney: state.spendMoney,
+    isWaveActive: state.isWaveActive,
   }));
   
-  const { towers, enemies, projectiles, damageNumbers, currentMap } = useGameStore.getState();
+  const { towers, enemies, projectiles, damageNumbers, currentMap, evolutionToast } = useGameStore.getState();
   
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(null); // 배치 미리보기 이미지
+  const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
+  const [hoveredTower, setHoveredTower] = useState<GamePokemon | null>(null);
+  const [repositionMode, setRepositionMode] = useState(false); // 재배치 모드
+  const [selectedTowerForReposition, setSelectedTowerForReposition] = useState<GamePokemon | null>(null);
   
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +142,7 @@ export const GameCanvas: React.FC = () => {
       const scaleX = (containerWidth - 32) / canvasWidth;
       const scaleY = (containerHeight - 32) / canvasHeight;
       
-      const scale = Math.min(scaleX, scaleY, 1.5); // 최대 1.5배
+      const scale = Math.min(scaleX, scaleY, 1.5);
       setCanvasScale(scale);
     };
     
@@ -174,12 +178,28 @@ export const GameCanvas: React.FC = () => {
     }
   }, [pokemonToPlace]);
 
+  // Wave 종료 시 재배치 모드 자동 활성화
+  useEffect(() => {
+    if (!isWaveActive && towers.length > 0) {
+      setRepositionMode(true);
+    } else {
+      setRepositionMode(false);
+      setSelectedTowerForReposition(null);
+    }
+  }, [isWaveActive]);
+
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
     
     if (pokemonToPlace && pos) {
-      // 격자에 스냅
+      const gridX = Math.floor(pos.x / TILE_SIZE);
+      const gridY = Math.floor(pos.y / TILE_SIZE);
+      const snappedX = gridX * TILE_SIZE + TILE_SIZE / 2;
+      const snappedY = gridY * TILE_SIZE + TILE_SIZE / 2;
+      
+      setMousePos({ x: snappedX, y: snappedY });
+    } else if (selectedTowerForReposition && pos) {
       const gridX = Math.floor(pos.x / TILE_SIZE);
       const gridY = Math.floor(pos.y / TILE_SIZE);
       const snappedX = gridX * TILE_SIZE + TILE_SIZE / 2;
@@ -188,6 +208,16 @@ export const GameCanvas: React.FC = () => {
       setMousePos({ x: snappedX, y: snappedY });
     } else {
       setMousePos(pos || { x: 0, y: 0 });
+      
+      // 호버된 타워 찾기
+      if (pos) {
+        const found = towers.find(t => {
+          const dx = Math.abs(t.position.x - pos.x);
+          const dy = Math.abs(t.position.y - pos.y);
+          return dx < 32 && dy < 32;
+        });
+        setHoveredTower(found || null);
+      }
     }
   };
 
@@ -199,7 +229,6 @@ export const GameCanvas: React.FC = () => {
       const start = map.path[i];
       const end = map.path[i + 1];
       
-      // 경로를 따라 타일 체크
       const minX = Math.min(start.x, end.x) - TILE_SIZE;
       const maxX = Math.max(start.x, end.x) + TILE_SIZE;
       const minY = Math.min(start.y, end.y) - TILE_SIZE;
@@ -213,19 +242,17 @@ export const GameCanvas: React.FC = () => {
   };
 
   // 격자 위치 유효성 검사
-  const isValidPlacement = (x: number, y: number): boolean => {
-    // 맵 범위 체크
+  const isValidPlacement = (x: number, y: number, excludeTowerId?: string): boolean => {
     if (x < 0 || x >= MAP_WIDTH * TILE_SIZE || y < 0 || y >= MAP_HEIGHT * TILE_SIZE) {
       return false;
     }
     
-    // 경로 체크
     if (isPathTile(x, y)) {
       return false;
     }
     
-    // 다른 타워와 겹침 체크
     for (const tower of towers) {
+      if (excludeTowerId && tower.id === excludeTowerId) continue;
       const dx = Math.abs(tower.position.x - x);
       const dy = Math.abs(tower.position.y - y);
       if (dx < TILE_SIZE / 2 && dy < TILE_SIZE / 2) {
@@ -237,11 +264,43 @@ export const GameCanvas: React.FC = () => {
   };
 
   const handleCanvasClick = () => {
+    // 재배치 모드
+    if (repositionMode && !pokemonToPlace) {
+      if (selectedTowerForReposition) {
+        // 위치 변경
+        if (!isValidPlacement(mousePos.x, mousePos.y, selectedTowerForReposition.id)) {
+          alert('여기에는 배치할 수 없습니다!');
+          return;
+        }
+        
+        useGameStore.getState().updateTower(selectedTowerForReposition.id, {
+          position: { x: mousePos.x, y: mousePos.y }
+        });
+        setSelectedTowerForReposition(null);
+      } else {
+        // 타워 선택
+        const clicked = towers.find(t => {
+          const dx = Math.abs(t.position.x - mousePos.x);
+          const dy = Math.abs(t.position.y - mousePos.y);
+          return dx < 32 && dy < 32;
+        });
+        if (clicked) {
+          setSelectedTowerForReposition(clicked);
+        }
+      }
+      return;
+    }
+    
     if (!pokemonToPlace) return;
 
-    const cost = pokemonToPlace.cost || 100; // 동적 가격
+    // 포켓몬 6마리 제한
+    if (towers.length >= 6) {
+      alert('포켓몬은 최대 6마리까지만 배치할 수 있습니다!');
+      return;
+    }
+
+    const cost = pokemonToPlace.cost || 100;
     
-    // 배치 유효성 검사
     if (!isValidPlacement(mousePos.x, mousePos.y)) {
       alert('여기에는 배치할 수 없습니다!');
       return;
@@ -293,8 +352,103 @@ export const GameCanvas: React.FC = () => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        position: 'relative',
       }}
     >
+      {/* 진화 토스트 */}
+      {evolutionToast && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, rgba(155, 89, 182, 0.95), rgba(142, 68, 173, 0.95))',
+          padding: '12px 24px',
+          borderRadius: '12px',
+          border: '2px solid rgba(155, 89, 182, 0.6)',
+          boxShadow: '0 8px 24px rgba(155, 89, 182, 0.6)',
+          zIndex: 1000,
+          animation: 'slideInDown 0.3s ease-out',
+          color: '#fff',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+        }}>
+          ✨ {evolutionToast.fromName} → {evolutionToast.toName} 진화!
+        </div>
+      )}
+      
+      {/* 재배치 모드 안내 */}
+      {repositionMode && !isWaveActive && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'linear-gradient(135deg, rgba(52, 152, 219, 0.95), rgba(41, 128, 185, 0.95))',
+          padding: '12px 24px',
+          borderRadius: '12px',
+          border: '2px solid rgba(52, 152, 219, 0.6)',
+          boxShadow: '0 8px 24px rgba(52, 152, 219, 0.6)',
+          zIndex: 1000,
+          color: '#fff',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+        }}>
+          🔄 재배치 모드: 포켓몬을 클릭하여 위치 변경
+        </div>
+      )}
+      
+      {/* 호버 툴팁 */}
+      {hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
+        <div style={{
+          position: 'absolute',
+          left: `${mousePos.x * canvasScale + 40}px`,
+          top: `${mousePos.y * canvasScale - 20}px`,
+          background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.98), rgba(15, 20, 35, 0.98))',
+          border: '2px solid rgba(76, 175, 255, 0.5)',
+          borderRadius: '10px',
+          padding: '8px 12px',
+          color: '#e8edf3',
+          fontSize: '11px',
+          fontWeight: 'bold',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          pointerEvents: 'none',
+          zIndex: 999,
+          minWidth: '180px',
+          maxWidth: '220px',
+        }}>
+          <div style={{ marginBottom: '4px', color: '#4cafff', fontSize: '12px' }}>
+            {hoveredTower.name} (Lv.{hoveredTower.level})
+          </div>
+          <div style={{ fontSize: '10px', color: '#a8b8c8', marginBottom: '4px' }}>
+            {hoveredTower.types.map(t => (
+              <span key={t} style={{ 
+                background: 'rgba(76, 175, 255, 0.2)', 
+                padding: '2px 6px', 
+                borderRadius: '4px',
+                marginRight: '4px',
+                textTransform: 'uppercase',
+                fontSize: '9px'
+              }}>
+                {t}
+              </span>
+            ))}
+          </div>
+          <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+            <div>HP: {Math.floor(hoveredTower.currentHp)}/{hoveredTower.maxHp}</div>
+            <div>공격: {hoveredTower.attack} | 방어: {hoveredTower.defense}</div>
+            <div>특공: {hoveredTower.specialAttack} | 특방: {hoveredTower.specialDefense}</div>
+            <div>스피드: {hoveredTower.speed}</div>
+            {hoveredTower.equippedMoves[0] && (
+              <div style={{ marginTop: '4px', color: '#f39c12' }}>
+                ⚔️ {hoveredTower.equippedMoves[0].name} ({hoveredTower.equippedMoves[0].power})
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div style={{ 
         border: '3px solid #1a242f', 
         borderRadius: '8px', 
@@ -316,7 +470,9 @@ export const GameCanvas: React.FC = () => {
               const tileX = x * TILE_SIZE + TILE_SIZE / 2;
               const tileY = y * TILE_SIZE + TILE_SIZE / 2;
               const isPath = isPathTile(tileX, tileY);
-              const isValid = pokemonToPlace ? isValidPlacement(tileX, tileY) : true;
+              const isValid = (pokemonToPlace || selectedTowerForReposition) 
+                ? isValidPlacement(tileX, tileY, selectedTowerForReposition?.id) 
+                : true;
               
               return (
                 <Rect
@@ -327,12 +483,12 @@ export const GameCanvas: React.FC = () => {
                   height={TILE_SIZE}
                   fill={
                     isPath 
-                      ? '#2c3e50'  // 경로는 어둡게
-                      : pokemonToPlace && !isValid
-                        ? 'rgba(231, 76, 60, 0.3)'  // 배치 불가는 빨강
-                        : pokemonToPlace
-                          ? 'rgba(46, 204, 113, 0.2)'  // 배치 가능은 초록
-                          : (x + y) % 2 === 0 ? '#3A5369' : '#3E5A71'  // 기본 체커보드
+                      ? '#2c3e50'
+                      : (pokemonToPlace || selectedTowerForReposition) && !isValid
+                        ? 'rgba(231, 76, 60, 0.3)'
+                        : (pokemonToPlace || selectedTowerForReposition)
+                          ? 'rgba(46, 204, 113, 0.2)'
+                          : (x + y) % 2 === 0 ? '#3A5369' : '#3E5A71'
                   }
                   stroke="#2c3e50"
                   strokeWidth={0.5}
@@ -356,6 +512,18 @@ export const GameCanvas: React.FC = () => {
           {/* 타워 (이미지) */}
           {towers.map(tower => (
             <React.Fragment key={tower.id}>
+              {/* 재배치 모드에서 선택된 타워 강조 */}
+              {selectedTowerForReposition?.id === tower.id && (
+                <Circle
+                  x={tower.position.x}
+                  y={tower.position.y}
+                  radius={40}
+                  stroke="#4cafff"
+                  strokeWidth={3}
+                  dash={[10, 5]}
+                  opacity={0.8}
+                />
+              )}
               <PokemonImage
                 src={tower.sprite}
                 x={tower.position.x}
@@ -458,6 +626,21 @@ export const GameCanvas: React.FC = () => {
               <Circle
                 x={mousePos.x} y={mousePos.y} radius={3 * TILE_SIZE}
                 stroke="#fff" strokeWidth={2} opacity={0.4} dash={[10, 5]}
+              />
+            </>
+          )}
+          
+          {/* 재배치 모드 미리보기 */}
+          {selectedTowerForReposition && (
+            <>
+              <KonvaImage
+                image={placementImage || undefined}
+                x={mousePos.x - 32}
+                y={mousePos.y - 32}
+                width={64}
+                height={64}
+                opacity={0.6}
+                imageSmoothingEnabled={false}
               />
             </>
           )}

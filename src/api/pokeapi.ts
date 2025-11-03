@@ -1,7 +1,7 @@
 // src/api/pokeapi.ts
 
 import axios from 'axios';
-import { EVOLUTION_CHAINS } from '../data/evolution';
+import { EVOLUTION_CHAINS, getFinalEvolutionId, calculateRarity, RARITY_WEIGHTS, Rarity } from '../data/evolution';
 import { GameMove, MoveEffect, StatusEffectType } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
@@ -40,6 +40,7 @@ const EVOLVED_POKEMON_IDS = new Set(EVOLUTION_CHAINS.map(e => e.to));
 class PokeAPIService {
   private pokemonCache = new Map<number, PokemonData>();
   private moveCache = new Map<string, MoveData>();
+  private rarityCache = new Map<number, Rarity>(); // 기본형 포켓몬의 레어도 캐시
 
   async getPokemon(id: number): Promise<PokemonData> {
     if (this.pokemonCache.has(id)) return this.pokemonCache.get(id)!;
@@ -86,6 +87,66 @@ class PokeAPIService {
     } catch {
       throw new Error(`Failed to fetch move ${name}`);
     }
+  }
+
+  // 특정 포켓몬의 레어도 계산 (기본형만)
+  async getRarity(basePokemonId: number): Promise<Rarity> {
+    if (this.rarityCache.has(basePokemonId)) {
+      return this.rarityCache.get(basePokemonId)!;
+    }
+    
+    try {
+      // 최종 진화체 ID 가져오기
+      const finalEvolutionId = getFinalEvolutionId(basePokemonId);
+      
+      // 최종 진화체 데이터 가져오기
+      const finalPokemon = await this.getPokemon(finalEvolutionId);
+      const statTotal = finalPokemon.stats.hp + finalPokemon.stats.attack + 
+                       finalPokemon.stats.defense + finalPokemon.stats.specialAttack +
+                       finalPokemon.stats.specialDefense + finalPokemon.stats.speed;
+      
+      const rarity = calculateRarity(statTotal);
+      this.rarityCache.set(basePokemonId, rarity);
+      return rarity;
+    } catch {
+      return 'Bronze'; // 오류 시 기본값
+    }
+  }
+
+  // 레어도 기반 가중치 랜덤 선택
+  async getRandomPokemonIdWithRarity(maxGen: number = 1): Promise<number> {
+    const max = maxGen === 1 ? 151 : maxGen === 2 ? 251 : 386;
+    
+    // 기본형 포켓몬 목록 생성
+    const basePokemonIds: number[] = [];
+    for (let i = 1; i <= max; i++) {
+      if (!EVOLVED_POKEMON_IDS.has(i)) {
+        basePokemonIds.push(i);
+      }
+    }
+    
+    // 각 포켓몬의 레어도와 가중치 계산
+    const pokemonWithWeights: Array<{ id: number; weight: number }> = [];
+    
+    for (const id of basePokemonIds) {
+      const rarity = await this.getRarity(id);
+      const weight = RARITY_WEIGHTS[rarity];
+      pokemonWithWeights.push({ id, weight });
+    }
+    
+    // 가중치 기반 랜덤 선택
+    const totalWeight = pokemonWithWeights.reduce((sum, p) => sum + p.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    for (const pokemon of pokemonWithWeights) {
+      random -= pokemon.weight;
+      if (random <= 0) {
+        return pokemon.id;
+      }
+    }
+    
+    // 폴백: 첫 번째 포켓몬
+    return basePokemonIds[0];
   }
 
   getRandomPokemonId(maxGen: number = 1): number {

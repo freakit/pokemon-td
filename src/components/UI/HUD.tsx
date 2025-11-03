@@ -7,10 +7,11 @@ interface Props {
   onStartWave: () => void;
   onOpenShop: () => void;
   onAddPokemon: () => void;
+  onManagePokemon: () => void;
 }
 
-export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon }) => {
-  const { wave, money, lives, isWaveActive, gameSpeed } = useGameStore();
+export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon, onManagePokemon }) => {
+  const { wave, money, lives, isWaveActive, gameSpeed, towers } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
   
   return (
@@ -45,6 +46,9 @@ export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon }) 
         </button>
         <button onClick={onAddPokemon} style={{...s.btn, ...s.btnPokemon}}>
           ➕ 포켓몬
+        </button>
+        <button onClick={onManagePokemon} style={{...s.btn, ...s.btnManage}}>
+          🎒 관리 ({towers.length}/6)
         </button>
         <button onClick={() => setSpeed(gameSpeed === 3 ? 1 : gameSpeed + 1)} style={{...s.btn, ...s.btnSpeed}}>
           ⏩ 속도
@@ -122,6 +126,11 @@ const s: Record<string, React.CSSProperties> = {
   btnPokemon: {
     background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
     borderColor: 'rgba(155, 89, 182, 0.4)',
+    color: '#fff'
+  },
+  btnManage: {
+    background: 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)',
+    borderColor: 'rgba(46, 204, 113, 0.4)',
     color: '#fff'
   },
   btnSpeed: {

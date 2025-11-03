@@ -194,16 +194,29 @@ export function getTypeColor(type: string): string {
   return colors[type] || '#68A090';
 }
 
+// 자속 보정 (STAB - Same Type Attack Bonus) 계산
+// 포켓몬의 타입과 기술 타입이 같으면 1.5배
+export function hasSTAB(attackerTypes: string[], moveType: string): boolean {
+  return attackerTypes.includes(moveType);
+}
+
 export function calculateDamage(
   attackerAttack: number,
   defenderDefense: number,
   movePower: number,
   typeEffectiveness: number,
-  isCrit: boolean = false
+  isCrit: boolean = false,
+  stab: boolean = false // 자속 보정 여부
 ): number {
   const level = 50;
   const base = ((2 * level / 5 + 2) * movePower * attackerAttack / defenderDefense / 50 + 2);
   let damage = base * typeEffectiveness;
+  
+  // 자속 보정 적용 (1.5배)
+  if (stab) damage *= 1.5;
+  
+  // 크리티컬 (1.5배)
   if (isCrit) damage *= 1.5;
+  
   return Math.max(1, Math.floor(damage));
 }

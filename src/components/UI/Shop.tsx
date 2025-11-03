@@ -9,12 +9,13 @@ const REVIVE_COST = 100; // 기력의 조각 가격
 type ItemMode = 'none' | 'potion' | 'potion_full' | 'candy' | 'revive' | 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord';
 
 export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { money, spendMoney, useItem, towers, evolvePokemon } = useGameStore(state => ({
+  const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
     useItem: state.useItem,
     towers: state.towers,
     evolvePokemon: state.evolvePokemon,
+    isWaveActive: state.isWaveActive,
   }));
 
   const [itemMode, setItemMode] = useState<ItemMode>('none');
@@ -165,64 +166,70 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }
 
   return (
-    <div style={s.overlay}>
-      <div style={s.modal}>
+    <div style={isWaveActive ? s.overlayCompact : s.overlay}>
+      <div style={isWaveActive ? s.modalCompact : s.modal}>
         <div style={s.header}>
-          <h2>🏪 상점</h2>
+          <h2 style={isWaveActive ? {fontSize: '18px', margin: 0} : undefined}>🏪 상점</h2>
           <button style={s.closeBtnHeader} onClick={onClose}>×</button>
         </div>
-        <p style={s.money}>보유 금액: 💰 {money}원</p>
-        <div style={s.items}>
-          <div style={s.item}>
-            <h3>상처약</h3>
-            <p>HP 50 회복 (타겟 선택)</p>
-            <button style={s.btn} onClick={handleBuyPotion}>구매 (20원)</button>
+        <p style={isWaveActive ? {...s.money, fontSize: '16px', padding: '8px', margin: '10px 16px'} : s.money}>
+          보유 금액: 💰 {money}원
+        </p>
+        <div style={isWaveActive ? s.itemsCompact : s.items}>
+          <div style={isWaveActive ? s.itemCompact : s.item}>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>상처약</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 50 회복</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotion}>20원</button>
           </div>
-          <div style={s.item}>
-            <h3>고급 상처약</h3>
-            <p>HP 200 회복 (타겟 선택)</p>
-            <button style={s.btn} onClick={handleBuyPotionFull}>구매 (80원)</button>
+          <div style={isWaveActive ? s.itemCompact : s.item}>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급 상처약</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 200 회복</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionFull}>80원</button>
           </div>
-          <div style={s.item}>
-            <h3>이상한사탕</h3>
-            <p>레벨 1 상승 (타겟 선택)</p>
-            <button style={s.btn} onClick={handleBuyCandy}>구매 (100원)</button>
+          <div style={isWaveActive ? s.itemCompact : s.item}>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨 1 상승</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>100원</button>
           </div>
-          <div style={s.item}>
-            <h3>기력의 조각</h3>
-            <p>기절한 아군 50% HP로 부활 (타겟 선택)</p>
-            <button style={s.btn} onClick={handleBuyRevive}>구매 ({REVIVE_COST}원)</button>
+          <div style={isWaveActive ? s.itemCompact : s.item}>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>기절 부활</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>{REVIVE_COST}원</button>
           </div>
-          <div style={s.item}>
-            <h3>🔥 불의 돌</h3>
-            <p>특정 포켓몬 진화</p>
-            <button style={s.btn} onClick={() => handleBuyStone('fire-stone')}>구매 (300원)</button>
-          </div>
-          <div style={s.item}>
-            <h3>💧 물의 돌</h3>
-            <p>특정 포켓몬 진화</p>
-            <button style={s.btn} onClick={() => handleBuyStone('water-stone')}>구매 (300원)</button>
-          </div>
-          <div style={s.item}>
-            <h3>⚡ 천둥의 돌</h3>
-            <p>특정 포켓몬 진화</p>
-            <button style={s.btn} onClick={() => handleBuyStone('thunder-stone')}>구매 (300원)</button>
-          </div>
-          <div style={s.item}>
-            <h3>🍃 리프의 돌</h3>
-            <p>특정 포켓몬 진화</p>
-            <button style={s.btn} onClick={() => handleBuyStone('leaf-stone')}>구매 (300원)</button>
-          </div>
-          <div style={s.item}>
-            <h3>🌙 달의 돌</h3>
-            <p>특정 포켓몬 진화</p>
-            <button style={s.btn} onClick={() => handleBuyStone('moon-stone')}>구매 (300원)</button>
-          </div>
-          <div style={s.item}>
-            <h3>🔗 연결의 끈</h3>
-            <p>통신 교환 진화 (윤겔라, 근육몬, 고우스트)</p>
-            <button style={s.btn} onClick={() => handleBuyStone('linking-cord')}>구매 (300원)</button>
-          </div>
+          {!isWaveActive && (
+            <>
+              <div style={s.item}>
+                <h3>🔥 불의 돌</h3>
+                <p>특정 포켓몬 진화</p>
+                <button style={s.btn} onClick={() => handleBuyStone('fire-stone')}>구매 (300원)</button>
+              </div>
+              <div style={s.item}>
+                <h3>💧 물의 돌</h3>
+                <p>특정 포켓몬 진화</p>
+                <button style={s.btn} onClick={() => handleBuyStone('water-stone')}>구매 (300원)</button>
+              </div>
+              <div style={s.item}>
+                <h3>⚡ 천둥의 돌</h3>
+                <p>특정 포켓몬 진화</p>
+                <button style={s.btn} onClick={() => handleBuyStone('thunder-stone')}>구매 (300원)</button>
+              </div>
+              <div style={s.item}>
+                <h3>🍃 리프의 돌</h3>
+                <p>특정 포켓몬 진화</p>
+                <button style={s.btn} onClick={() => handleBuyStone('leaf-stone')}>구매 (300원)</button>
+              </div>
+              <div style={s.item}>
+                <h3>🌙 달의 돌</h3>
+                <p>특정 포켓몬 진화</p>
+                <button style={s.btn} onClick={() => handleBuyStone('moon-stone')}>구매 (300원)</button>
+              </div>
+              <div style={s.item}>
+                <h3>🔗 연결의 끈</h3>
+                <p>통신 교환 진화 (윤겔라, 근육몬, 고우스트)</p>
+                <button style={s.btn} onClick={() => handleBuyStone('linking-cord')}>구매 (300원)</button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -245,6 +252,19 @@ const s: Record<string, React.CSSProperties> = {
     zIndex: 999,
     animation: 'fadeIn 0.3s ease-out'
   },
+  overlayCompact: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'transparent',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    zIndex: 999,
+    pointerEvents: 'none',
+  },
   modal: { 
     background: 'linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%)',
     color: '#e8edf3', 
@@ -257,6 +277,20 @@ const s: Record<string, React.CSSProperties> = {
     boxShadow: '0 25px 80px rgba(0,0,0,0.6), 0 0 1px 1px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)', 
     border: '2px solid rgba(76, 175, 255, 0.2)',
     animation: 'slideInUp 0.4s ease-out'
+  },
+  modalCompact: {
+    background: 'linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98))',
+    color: '#e8edf3',
+    borderRadius: '16px',
+    padding: '0',
+    maxWidth: '320px',
+    width: '320px',
+    maxHeight: '70vh',
+    overflowY: 'auto' as 'auto',
+    boxShadow: '0 15px 40px rgba(0,0,0,0.8), 0 0 1px 1px rgba(76, 175, 255, 0.3)',
+    border: '2px solid rgba(76, 175, 255, 0.2)',
+    margin: '20px',
+    pointerEvents: 'auto',
   },
   header: { 
     display: 'flex', 
@@ -299,6 +333,12 @@ const s: Record<string, React.CSSProperties> = {
     gap: '24px', 
     padding: '0 32px 32px'
   },
+  itemsCompact: {
+    display: 'flex',
+    flexDirection: 'column' as 'column',
+    gap: '12px',
+    padding: '0 16px 16px',
+  },
   item: { 
     background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
     border: '2px solid rgba(76, 175, 255, 0.3)',
@@ -312,6 +352,16 @@ const s: Record<string, React.CSSProperties> = {
     position: 'relative' as 'relative',
     overflow: 'hidden'
   },
+  itemCompact: {
+    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
+    border: '1px solid rgba(76, 175, 255, 0.3)',
+    borderRadius: '12px',
+    padding: '10px',
+    display: 'flex',
+    flexDirection: 'column' as 'column',
+    gap: '6px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  },
   btn: { 
     padding: '14px 20px', 
     background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
@@ -324,6 +374,17 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '16px', 
     boxShadow: '0 4px 15px rgba(243, 156, 18, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
     textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+  },
+  btnCompact: {
+    padding: '8px 12px',
+    background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
+    color: '#fff',
+    border: '1px solid rgba(243, 156, 18, 0.4)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '12px',
+    boxShadow: '0 2px 8px rgba(243, 156, 18, 0.3)',
   },
   towerGrid: { 
     display: 'grid', 

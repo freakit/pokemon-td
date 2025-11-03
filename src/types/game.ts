@@ -3,6 +3,7 @@
 export type StatusEffectType = 'burn' | 'poison' | 'paralysis' | 'freeze' | 'sleep' | 'confusion';
 export type DamageClass = 'physical' | 'special' | 'status';
 export type Difficulty = 'easy' | 'normal' | 'hard' | 'expert';
+export type PokemonRarity = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend';
 
 export interface Position {
   x: number;
@@ -113,6 +114,7 @@ export interface Projectile {
   aoeRadius?: number;
   attackPower: number; // 공격력 (물리 or 특수)
   damageClass: DamageClass; // 물리 or 특수
+  attackerTypes: string[]; // 자속 보정을 위한 공격자 타입
 }
 
 export interface DamageNumber {
@@ -212,4 +214,11 @@ export interface GameState {
   
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
+  
+  // 진화 알림 (작은 토스트 메시지)
+  evolutionToast: {
+    fromName: string;
+    toName: string;
+    timestamp: number;
+  } | null;
 }

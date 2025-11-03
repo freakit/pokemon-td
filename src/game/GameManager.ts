@@ -2,7 +2,7 @@
 
 import { useGameStore } from '../store/gameStore';
 import { GamePokemon, Enemy, Projectile, Position, Item, GameMove } from '../types/game';
-import { calculateDamage, getTypeEffectiveness } from '../utils/typeEffectiveness';
+import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
 import { canEvolve, EVOLUTION_STAT_BOOST } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { saveService } from '../services/SaveService';
@@ -221,7 +221,14 @@ export class GameManager {
   
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
     const m = tower.equippedMoves.find(m => m.name === move.name);
-    if (m) m.currentCooldown = m.cooldown;
+    if (m) {
+      // 스피드에 따라 공격 속도 조정 (스피드가 높을수록 쿨다운 짧음)
+      // 기본 쿨다운에서 스피드에 비례하여 감소 (최대 50% 감소)
+      // 공식: 쿨다운 * (1 - (speed / 300))
+      // 스피드 150이면 쿨다운 50% 감소
+      const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
+      m.currentCooldown = m.cooldown * speedMultiplier;
+    }
     
     const attackPower = move.damageClass === 'physical' ? tower.attack : tower.specialAttack;
     
@@ -239,6 +246,7 @@ export class GameManager {
       aoeRadius: move.aoeRadius,
       attackPower,
       damageClass: move.damageClass,
+      attackerTypes: tower.types, // 자속 보정을 위한 타입 정보
     });
   }
   
@@ -294,8 +302,11 @@ export class GameManager {
     const eff = getTypeEffectiveness(proj.type, enemy.types);
     const isCrit = Math.random() < 0.1;
     
+    // 자속 보정 확인
+    const stab = hasSTAB(proj.attackerTypes, proj.type);
+    
     const defense = proj.damageClass === 'physical' ? enemy.defense : enemy.specialDefense;
-    const dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit);
+    const dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit, stab);
     
     enemy.hp = Math.max(0, enemy.hp - dmg);
     
@@ -360,6 +371,7 @@ export class GameManager {
       const evo = canEvolve(tower.pokemonId, tower.level);
       if (evo) {
         try {
+          const oldName = tower.name;
           const newData = await pokeAPI.getPokemon(evo.to);
           updateTower(tower.id, {
             pokemonId: evo.to,
@@ -373,6 +385,24 @@ export class GameManager {
             defense: Math.floor(tower.defense * EVOLUTION_STAT_BOOST.defense),
           });
           soundService.playEvolutionSound();
+          
+          // 진화 토스트 표시
+          useGameStore.setState({
+            evolutionToast: {
+              fromName: oldName,
+              toName: newData.name,
+              timestamp: Date.now()
+            }
+          });
+          
+          // 3초 후 토스트 제거
+          setTimeout(() => {
+            const current = useGameStore.getState().evolutionToast;
+            if (current && current.timestamp === Date.now() - 3000) {
+              useGameStore.setState({ evolutionToast: null });
+            }
+          }, 3000);
+          
           saveService.updateStats({
             evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
           });
