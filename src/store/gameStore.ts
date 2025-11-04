@@ -239,13 +239,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().updateTower(tower.id, {
         level: newLevel,
         experience: newExperience,
-        maxHp: Math.floor(tower.maxHp * 1.05),
-        currentHp: Math.floor(tower.currentHp * 1.05),
-        attack: Math.floor(tower.attack * 1.05),
-        baseAttack: Math.floor(tower.baseAttack * 1.05),
-        defense: Math.floor(tower.defense * 1.05),
-        specialAttack: Math.floor(tower.specialAttack * 1.05),
-        specialDefense: Math.floor(tower.specialDefense * 1.05),
+        maxHp: Math.floor(tower.maxHp * 1.02),
+        currentHp: Math.floor(tower.currentHp * 1.02),
+        attack: Math.floor(tower.attack * 1.02),
+        baseAttack: Math.floor(tower.baseAttack * 1.02),
+        defense: Math.floor(tower.defense * 1.02),
+        specialAttack: Math.floor(tower.specialAttack * 1.02),
+        specialDefense: Math.floor(tower.specialDefense * 1.02),
       });
 
       // 실제 레벨업 기술 가져오기
