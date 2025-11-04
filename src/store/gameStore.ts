@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove } from '../types/game';
-import { EVOLUTION_STAT_BOOST, EVOLUTION_CHAINS } from '../data/evolution';
+import { EVOLUTION_CHAINS, canMegaEvolve } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
@@ -247,13 +247,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       get().updateTower(tower.id, {
         level: newLevel,
         experience: newExperience,
-        maxHp: Math.floor(tower.maxHp * 1.02),
-        currentHp: Math.floor(tower.currentHp * 1.02),
-        attack: Math.floor(tower.attack * 1.02),
-        baseAttack: Math.floor(tower.baseAttack * 1.02),
-        defense: Math.floor(tower.defense * 1.02),
-        specialAttack: Math.floor(tower.specialAttack * 1.02),
-        specialDefense: Math.floor(tower.specialDefense * 1.02),
+        maxHp: Math.floor(tower.maxHp * 1.05),
+        currentHp: Math.floor(tower.currentHp * 1.05),
+        attack: Math.floor(tower.attack * 1.05),
+        baseAttack: Math.floor(tower.baseAttack * 1.05),
+        defense: Math.floor(tower.defense * 1.05),
+        specialAttack: Math.floor(tower.specialAttack * 1.05),
+        specialDefense: Math.floor(tower.specialDefense * 1.05),
       });
 
       // 실제 레벨업 기술 가져오기
@@ -284,11 +284,71 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  // 진화의 돌을 사용한 진화
+  // 진화의 돌을 사용한 진화 (일반 진화 + 메가진화)
   evolvePokemon: async (towerId, item) => {
     const tower = get().towers.find(t => t.id === towerId);
     if (!tower) return false;
+    
+    // item이 없으면 진화 불가
+    if (!item) {
+      console.log('진화 아이템이 필요합니다.');
+      return false;
+    }
 
+    // 🔴 메가진화 체크 먼저
+    const megaEvolution = canMegaEvolve(tower.pokemonId, item);
+    if (megaEvolution) {
+      try {
+        const oldName = tower.name;
+        const newData = await pokeAPI.getPokemon(megaEvolution.to);
+        
+        // 메가진화: 메가폼의 고유 스탯으로 덮어씀
+        // 레벨 보정 적용 (레벨당 5% 증가)
+        const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+        
+        get().updateTower(tower.id, {
+          pokemonId: megaEvolution.to,
+          name: newData.name,
+          sprite: newData.sprite,
+          types: newData.types,
+          maxHp: Math.floor(newData.stats.hp * levelMultiplier),
+          currentHp: Math.floor(newData.stats.hp * levelMultiplier),
+          baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
+          attack: Math.floor(newData.stats.attack * levelMultiplier),
+          defense: Math.floor(newData.stats.defense * levelMultiplier),
+          specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
+          specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
+        });
+        soundService.playEvolutionSound();
+        
+        // 진화 토스트 표시
+        set({
+          evolutionToast: {
+            fromName: oldName,
+            toName: `메가${newData.name}`,
+            timestamp: Date.now()
+          }
+        });
+        
+        // 3초 후 토스트 제거
+        setTimeout(() => {
+          const current = useGameStore.getState().evolutionToast;
+          if (current && Date.now() - current.timestamp >= 3000) {
+            set({ evolutionToast: null });
+          }
+        }, 3000);
+        
+        saveService.updateStats({
+          evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
+        });
+        return true;
+      } catch (e) {
+        console.error('Mega Evolution failed:', e);
+        return false;
+      }
+    }
+
+    // 🔴 일반 진화 체크
     const evolution = EVOLUTION_CHAINS.find(e => e.from === tower.pokemonId && e.item === item);
     if (!evolution) {
       console.log(`진화 불가: ${tower.name} (ID: ${tower.pokemonId})는 ${item}으로 진화할 수 없습니다.`);
@@ -298,18 +358,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const oldName = tower.name;
       const newData = await pokeAPI.getPokemon(evolution.to);
+      
+      // 일반 진화: 진화체의 고유 스탯으로 덮어씀
+      // 레벨 보정 적용 (레벨당 5% 증가)
+      const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+      
       get().updateTower(tower.id, {
         pokemonId: evolution.to,
         name: newData.name,
         sprite: newData.sprite,
         types: newData.types,
-        maxHp: Math.floor(tower.maxHp * EVOLUTION_STAT_BOOST.hp),
-        currentHp: Math.floor(tower.currentHp * EVOLUTION_STAT_BOOST.hp),
-        baseAttack: Math.floor(tower.baseAttack * EVOLUTION_STAT_BOOST.attack),
-        attack: Math.floor(tower.attack * EVOLUTION_STAT_BOOST.attack),
-        defense: Math.floor(tower.defense * EVOLUTION_STAT_BOOST.defense),
-        specialAttack: Math.floor(tower.specialAttack * EVOLUTION_STAT_BOOST.specialAttack),
-        specialDefense: Math.floor(tower.specialDefense * EVOLUTION_STAT_BOOST.specialDefense),
+        maxHp: Math.floor(newData.stats.hp * levelMultiplier),
+        currentHp: Math.floor(newData.stats.hp * levelMultiplier),
+        baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
+        attack: Math.floor(newData.stats.attack * levelMultiplier),
+        defense: Math.floor(newData.stats.defense * levelMultiplier),
+        specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
+        specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
       });
       soundService.playEvolutionSound();
       

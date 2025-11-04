@@ -3,7 +3,7 @@
 import { useGameStore } from '../store/gameStore';
 import { GamePokemon, Enemy, Projectile, Position, Item, GameMove } from '../types/game';
 import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
-import { canEvolve, EVOLUTION_STAT_BOOST } from '../data/evolution';
+import { canEvolve, hasMegaEvolution, MEGA_EVOLUTIONS } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { saveService } from '../services/SaveService';
 import { soundService } from '../services/SoundService';
@@ -222,6 +222,25 @@ export class GameManager {
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
     const m = tower.equippedMoves.find(m => m.name === move.name);
     if (m) {
+      // 🔴 명중률 체크 추가
+      const hitChance = m.accuracy / 100; // accuracy는 0-100 범위
+      if (Math.random() > hitChance) {
+        // Miss!
+        const { addDamageNumber } = useGameStore.getState();
+        addDamageNumber({
+          id: `miss-${Date.now()}-${Math.random()}`,
+          value: 0,
+          position: { ...target.position },
+          isCrit: false,
+          lifetime: 1.0,
+        });
+        
+        // 쿨다운만 적용하고 공격 실패
+        const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
+        m.currentCooldown = m.cooldown * speedMultiplier;
+        return;
+      }
+      
       // 스피드에 따라 공격 속도 조정 (스피드가 높을수록 쿨다운 짧음)
       // 기본 쿨다운에서 스피드에 비례하여 감소 (최대 50% 감소)
       // 공식: 쿨다운 * (1 - (speed / 300))
@@ -381,16 +400,23 @@ export class GameManager {
         try {
           const oldName = tower.name;
           const newData = await pokeAPI.getPokemon(evo.to);
+          
+          // 🔴 수정: 스탯을 % 증가가 아닌 진화체의 고유 스탯으로 덮어씀
+          // 레벨 보정 적용 (레벨당 5% 증가)
+          const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+          
           updateTower(tower.id, {
             pokemonId: evo.to,
             name: newData.name,
             sprite: newData.sprite,
             types: newData.types,
-            maxHp: Math.floor(tower.maxHp * EVOLUTION_STAT_BOOST.hp),
-            currentHp: Math.floor(tower.currentHp * EVOLUTION_STAT_BOOST.hp),
-            baseAttack: Math.floor(tower.baseAttack * EVOLUTION_STAT_BOOST.attack),
-            attack: Math.floor(tower.attack * EVOLUTION_STAT_BOOST.attack),
-            defense: Math.floor(tower.defense * EVOLUTION_STAT_BOOST.defense),
+            maxHp: Math.floor(newData.stats.hp * levelMultiplier),
+            currentHp: Math.floor(newData.stats.hp * levelMultiplier),
+            baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
+            attack: Math.floor(newData.stats.attack * levelMultiplier),
+            defense: Math.floor(newData.stats.defense * levelMultiplier),
+            specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
+            specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
           });
           soundService.playEvolutionSound();
           
@@ -423,7 +449,7 @@ export class GameManager {
   
   // 🔴 수정된 부분
   private checkWaveComplete() {
-    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick } = useGameStore.getState();
+    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers } = useGameStore.getState();
     
     // 적이 실제로 소환된 적이 있고, 현재 웨이브가 활성화되어 있으며, 모든 적이 사라졌을 때만 보상
     if (isWaveActive && this.waveEnemiesSpawned && enemies.length === 0) {
@@ -432,9 +458,31 @@ export class GameManager {
       healAllTowers();
 
       const itemChoices: Item[] = [
-        { id: 'rare_candy', name: '이상한사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },
+        { id: 'rare_candy', name: '이상한 사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },
         { id: 'revive_shard', name: '기력의 조각', type: 'revive', cost: 0, effect: '기절한 아군 1마리를 50% HP로 부활' },
       ];
+      
+      // 🔴 메가스톤 드랍 로직 (5% 확률)
+      // 엔트리에 메가진화 가능한 최종진화형이 있는지 확인
+      const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
+      
+      if (megaEligiblePokemon.length > 0 && Math.random() < 0.05) {
+        // 5% 확률로 메가스톤 드랍
+        const randomPokemon = megaEligiblePokemon[Math.floor(Math.random() * megaEligiblePokemon.length)];
+        const megaData = MEGA_EVOLUTIONS.find(m => m.from === randomPokemon.pokemonId);
+        
+        if (megaData) {
+          itemChoices.push({
+            id: `mega_stone_${megaData.item}`,
+            name: `${randomPokemon.name}의 메가스톤`,
+            type: 'mega-stone',
+            cost: 0,
+            effect: `${randomPokemon.name}을 메가진화시킵니다`,
+            targetPokemonId: randomPokemon.pokemonId,
+          });
+        }
+      }
+      
       setWaveEndItemPick(itemChoices);
       
       // 플래그 초기화

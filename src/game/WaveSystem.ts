@@ -57,7 +57,7 @@ export class WaveSystem {
       const { addEnemy } = useGameStore.getState();
       
       // 기하급수적 난이도 증가 (exponential scaling)
-      const waveMultiplier = Math.pow(1.1, wave - 1); // 1.1^(wave-1)
+      const waveMultiplier = Math.pow(1.15, wave - 1); // 1.15^(wave-1)
       
       const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
       const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
@@ -103,28 +103,28 @@ export class WaveSystem {
     let minStatTotal = 1;
     let maxStatTotal = 350;
     
-    if (wave <= 10) {
+    if (wave <= 5) {
       minStatTotal = 1;
       maxStatTotal = 350;
-    } else if (wave <= 20) {
+    } else if (wave <= 10) {
       minStatTotal = 250;
       maxStatTotal = 400;
-    } else if (wave <= 30) {
+    } else if (wave <= 15) {
       minStatTotal = 300;
       maxStatTotal = 450;
-    } else if (wave <= 40) {
+    } else if (wave <= 20) {
       minStatTotal = 350;
       maxStatTotal = 500; 
-    } else if (wave <= 50) {
+    } else if (wave <= 25) {
       minStatTotal = 400;
       maxStatTotal = 550; 
-    } else if (wave <= 60) {
+    } else if (wave <= 30) {
       minStatTotal = 450;
       maxStatTotal = 600;
-    } else if (wave <= 70) {
+    } else if (wave <= 35) {
       minStatTotal = 500;
       maxStatTotal = 650;
-    } else if (wave <= 80) {
+    } else if (wave <= 40) {
       minStatTotal = 550;
       maxStatTotal = 700;
     }
@@ -137,7 +137,7 @@ export class WaveSystem {
     const cache = (pokeAPI as any).pokemonCache as Map<number, any>;
     const suitablePokemon: number[] = [];
     
-    for (let i = 1; i <= 151; i++) {
+    for (let i = 1; i <= 1025; i++) { // 🔴 9세대까지 확장
       if (cache.has(i)) {
         const poke = cache.get(i)!;
         const statTotal = poke.stats.hp + poke.stats.attack + poke.stats.defense +
@@ -153,7 +153,7 @@ export class WaveSystem {
     if (suitablePokemon.length > 0) {
       return suitablePokemon[Math.floor(Math.random() * suitablePokemon.length)];
     } else {
-      return Math.floor(Math.random() * 151) + 1;
+      return Math.floor(Math.random() * 1025) + 1; // 🔴 9세대까지 확장
     }
   }
   

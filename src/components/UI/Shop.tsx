@@ -109,7 +109,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setSelectedCost(0);
       }
     } else if (itemMode === 'candy') {
-      // 이상한 사탕: 대상의 레벨 * 50원
+      // 이상한 사탕: 대상의 레벨 * 25원
       const tower = towers.find(t => t.id === towerId);
       if (!tower) {
         alert('대상을 찾을 수 없습니다.');
@@ -117,7 +117,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
       }
       
-      const candyCost = tower.level * 50;
+      const candyCost = tower.level * 25;
       if (spendMoney(candyCost)) {
         const success = useItem('candy', towerId);
         if (success) {
@@ -168,7 +168,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {itemMode === 'potion' && '상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'potion_good' && '좋은상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'candy' && '이상한사탕을 사용할 아군을 클릭하세요. (레벨 × 50원)'}
+            {itemMode === 'candy' && '이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)'}
             {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
             {itemMode === 'linking-cord' && '연결의 끈을 사용할 아군을 클릭하세요. (통신 교환 진화)'}
             {itemMode.endsWith('-stone') && '진화의 돌을 사용할 아군을 클릭하세요.'}
@@ -185,7 +185,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 // 진화의 돌: 해당 아이템으로 진화 가능한 포켓몬만
                 isSelectable = !tower.isFainted && canEvolveWithItem(tower.pokemonId, itemMode) !== null;
               } else {
-                // 상처약, 이상한사탕: 기절하지 않은 포켓몬만
+                // 상처약, 이상한 사탕: 기절하지 않은 포켓몬만
                 isSelectable = !tower.isFainted;
               }
               
@@ -260,7 +260,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div style={isWaveActive ? s.itemCompact : s.item}>
             <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
             <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨 1 상승</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>레벨×50원</button>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>레벨×25원</button>
           </div>
           <div style={isWaveActive ? s.itemCompact : s.item}>
             <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
@@ -296,7 +296,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </div>
               <div style={s.item}>
                 <h3>🔗 연결의 끈</h3>
-                <p>통신 교환 진화 (윤겔라, 근육몬, 고우스트)</p>
+                <p>통신 교환 진화 (& 기타 진화)</p>
                 <button style={s.btn} onClick={() => handleBuyStone('linking-cord')}>구매 (300원)</button>
               </div>
             </>

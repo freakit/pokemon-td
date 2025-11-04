@@ -129,10 +129,11 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: 'heal' | 'revive' | 'candy' | 'egg' | 'stone' | 'gold';
+  type: 'heal' | 'revive' | 'candy' | 'egg' | 'stone' | 'gold' | 'mega-stone';
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)
+  targetPokemonId?: number; // 메가스톤의 경우 특정 포켓몬 ID
 }
 
 export interface Achievement {
