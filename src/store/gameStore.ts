@@ -1,7 +1,7 @@
 // src/store/gameStore.ts
 
 import { create } from 'zustand';
-import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item } from '../types/game';
+import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove } from '../types/game';
 import { EVOLUTION_STAT_BOOST, EVOLUTION_CHAINS } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
@@ -29,7 +29,8 @@ interface GameStore extends GameState {
   tick: () => void;
   setPokemonToPlace: (pokemon: any | null) => void;
   
-  setSkillChoice: (choice: GameState['skillChoice']) => void;
+  addSkillChoice: (choice: { towerId: string; newMoves: GameMove[] }) => void;
+  removeCurrentSkillChoice: () => void;
   setWaveEndItemPick: (items: Item[] | null) => void;
   useItem: (itemType: string, targetTowerId?: string) => boolean; // 타겟 지원
   healAllTowers: () => void;
@@ -39,7 +40,7 @@ interface GameStore extends GameState {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   wave: 0,
-  money: 200,
+  money: 400,
   lives: 20,
   towers: [],
   enemies: [],
@@ -57,7 +58,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   combo: 0,
   gameTick: 0,
   pokemonToPlace: null,
-  skillChoice: null,
+  skillChoiceQueue: [],
   waveEndItemPick: null,
   evolutionToast: null,
   
@@ -107,7 +108,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   reset: () => set({
     wave: 0,
-    money: 200,
+    money: 400,
     lives: 20,
     towers: [],
     enemies: [],
@@ -119,7 +120,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     combo: 0,
     gameTick: 0,
     pokemonToPlace: null,
-    skillChoice: null,
+    skillChoiceQueue: [],
     waveEndItemPick: null,
     evolutionToast: null,
   }),
@@ -127,7 +128,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
   setPokemonToPlace: (pokemon) => set({ pokemonToPlace: pokemon }),
 
-  setSkillChoice: (choice) => set({ skillChoice: choice }),
+  // 스킬 선택 큐 관리
+  addSkillChoice: (choice) => set((state) => {
+    const newQueue = [...state.skillChoiceQueue, choice];
+    // 큐에 추가하고, 현재 일시정지가 아니면 일시정지
+    if (!state.isPaused && newQueue.length === 1) {
+      return { skillChoiceQueue: newQueue, isPaused: true };
+    }
+    return { skillChoiceQueue: newQueue };
+  }),
+  
+  removeCurrentSkillChoice: () => set((state) => {
+    const newQueue = state.skillChoiceQueue.slice(1);
+    // 큐에서 제거하고, 큐가 비어있으면 게임 재개
+    if (newQueue.length === 0) {
+      return { skillChoiceQueue: newQueue, isPaused: false };
+    }
+    return { skillChoiceQueue: newQueue };
+  }),
   
   setWaveEndItemPick: (items) => set({ waveEndItemPick: items }),
 
@@ -218,7 +236,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       // 실제 레벨업 기술 가져오기
       pokeAPI.getLearnableMoves(tower.pokemonId, newLevel).then(moves => {
         if (moves.length > 0) {
-          get().setSkillChoice({ towerId: tower.id, newMoves: moves });
+          // 거부한 기술 + 현재 장착된 기술 필터링
+          const rejectedMoves = tower.rejectedMoves || [];
+          const equippedMoveNames = tower.equippedMoves.map(m => m.name);
+          const availableMoves = moves.filter(move => 
+            !rejectedMoves.includes(move.name) && 
+            !equippedMoveNames.includes(move.name)
+          );
+          
+          if (availableMoves.length > 0) {
+            get().addSkillChoice({ towerId: tower.id, newMoves: availableMoves });
+          } else {
+            set({ isPaused: false }); // 모든 기술이 거부되었거나 이미 보유한 경우 바로 재개
+          }
         } else {
           set({ isPaused: false }); // 기술이 없으면 바로 재개
         }

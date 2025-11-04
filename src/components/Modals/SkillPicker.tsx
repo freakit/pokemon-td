@@ -4,17 +4,23 @@ import React from 'react';
 import { useGameStore } from '../../store/gameStore';
 
 export const SkillPicker: React.FC = () => {
-  const { skillChoice, setSkillChoice, updateTower } = useGameStore(state => ({
-    skillChoice: state.skillChoice,
-    setSkillChoice: state.setSkillChoice,
+  const { skillChoiceQueue, removeCurrentSkillChoice, updateTower } = useGameStore(state => ({
+    skillChoiceQueue: state.skillChoiceQueue,
+    removeCurrentSkillChoice: state.removeCurrentSkillChoice,
     updateTower: state.updateTower,
   }));
 
-  if (!skillChoice) return null;
-
-  const { towerId, newMoves } = skillChoice;
+  // 큐의 첫 번째 항목 가져오기
+  if (!skillChoiceQueue || skillChoiceQueue.length === 0) return null;
+  
+  const currentChoice = skillChoiceQueue[0];
+  const { towerId, newMoves } = currentChoice;
   const tower = useGameStore.getState().towers.find(t => t.id === towerId);
-  if (!tower || newMoves.length === 0) return null;
+  if (!tower || newMoves.length === 0) {
+    // 유효하지 않은 경우 큐에서 제거
+    removeCurrentSkillChoice();
+    return null;
+  }
 
   // 새로 배울 기술은 첫 번째 것만 사용
   const newMove = newMoves[0];
@@ -24,15 +30,20 @@ export const SkillPicker: React.FC = () => {
     // 새 기술 배우기
     updateTower(towerId, { equippedMoves: [newMove] });
     
-    // 모달 닫기 및 게임 재개
-    setSkillChoice(null);
-    useGameStore.setState({ isPaused: false });
+    // 큐에서 현재 선택 제거 (큐가 비면 자동으로 게임 재개)
+    removeCurrentSkillChoice();
   };
 
   const handleKeepCurrentMove = () => {
-    // 기존 기술 유지
-    setSkillChoice(null);
-    useGameStore.setState({ isPaused: false });
+    // 새 기술을 거부한 목록에 추가
+    const tower = useGameStore.getState().towers.find(t => t.id === towerId);
+    if (tower) {
+      const rejectedMoves = [...(tower.rejectedMoves || []), newMove.name];
+      updateTower(towerId, { rejectedMoves });
+    }
+    
+    // 기존 기술 유지하고 큐에서 제거 (큐가 비면 자동으로 게임 재개)
+    removeCurrentSkillChoice();
   };
 
   return (

@@ -28,12 +28,12 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(true);
   
-  const { nextWave, isWaveActive, gameOver, reset, skillChoice, waveEndItemPick, spendMoney } = useGameStore(state => ({
+  const { nextWave, isWaveActive, gameOver, reset, skillChoiceQueue, waveEndItemPick, spendMoney } = useGameStore(state => ({
     nextWave: state.nextWave,
     isWaveActive: state.isWaveActive,
     gameOver: state.gameOver,
     reset: state.reset,
-    skillChoice: state.skillChoice,
+    skillChoiceQueue: state.skillChoiceQueue,
     waveEndItemPick: state.waveEndItemPick,
     spendMoney: state.spendMoney,
   }));
@@ -101,7 +101,7 @@ function App() {
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
       
       {/* 레벨업 시 기술 선택 모달 */}
-      {skillChoice && <SkillPicker />}
+      {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
 
       {/* 웨이브 종료 시 아이템 선택 모달 */}
       {waveEndItemPick && <WaveEndPicker />}

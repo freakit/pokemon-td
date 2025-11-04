@@ -332,10 +332,10 @@ export class GameManager {
   }
   
   private killEnemy(id: string) {
-    const { enemies, removeEnemy, addMoney, combo, addXpToTower } = useGameStore.getState();
+    const { enemies, removeEnemy, addMoney, addXpToTower } = useGameStore.getState();
     const enemy = enemies.find(e => e.id === id);
     if (enemy) {
-      const reward = Math.floor(enemy.reward * (1 + combo * 0.1));
+      const reward = 10; // 고정 보상 10원
       addMoney(reward);
       removeEnemy(id);
       useGameStore.setState(state => ({ combo: state.combo + 1 }));
@@ -424,7 +424,6 @@ export class GameManager {
       healAllTowers();
 
       const itemChoices: Item[] = [
-        { id: 'gold_100', name: '100 골드', type: 'gold', cost: 0, effect: '즉시 100골드 획득', value: 100 },
         { id: 'rare_candy', name: '이상한사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },
         { id: 'revive_shard', name: '기력의 조각', type: 'revive', cost: 0, effect: '기절한 아군 1마리를 50% HP로 부활' },
       ];

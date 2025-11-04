@@ -5,10 +5,9 @@ import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
 
 export const WaveEndPicker: React.FC = () => {
-  const { waveEndItemPick, setWaveEndItemPick, addMoney, useItem, towers } = useGameStore(state => ({
+  const { waveEndItemPick, setWaveEndItemPick, useItem, towers } = useGameStore(state => ({
     waveEndItemPick: state.waveEndItemPick,
     setWaveEndItemPick: state.setWaveEndItemPick,
-    addMoney: state.addMoney,
     useItem: state.useItem,
     towers: state.towers,
   }));
@@ -18,15 +17,8 @@ export const WaveEndPicker: React.FC = () => {
   if (!waveEndItemPick) return null;
 
   const handleSelect = (item: Item) => {
-    // 골드는 바로 적용
-    if (item.type === 'gold') {
-      addMoney(item.value || 0);
-      setWaveEndItemPick(null);
-      useGameStore.setState({ isPaused: false });
-    } else {
-      // 그 외 아이템은 타겟 선택 모드로 전환
-      setSelectedItem(item);
-    }
+    // 모든 아이템은 타겟 선택 모드로 전환
+    setSelectedItem(item);
   };
 
   const handleTargetSelect = (towerId: string) => {

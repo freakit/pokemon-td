@@ -82,7 +82,7 @@ export class WaveSystem {
         pathIndex: 0,
         isNamed: isBoss,
         isBoss,
-        reward: Math.floor((isBoss ? wave * 50 : wave * 5) * mult.reward * waveMultiplier * 0.3), // 보상도 증가
+        reward: 10, // 고정 보상 10원
         moveSpeed: 60,
         types: pokemonData.types,
         sprite: pokemonData.sprite,
@@ -172,7 +172,7 @@ export class WaveSystem {
       pathIndex: 0,
       isNamed: isBoss,
       isBoss,
-      reward: Math.floor((isBoss ? wave * 50 : wave * 5) * mult.reward),
+      reward: 10, // 고정 보상 10원
       moveSpeed: 60,
       types: ['normal'],
       sprite: '',

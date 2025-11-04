@@ -331,6 +331,7 @@ export const GameCanvas: React.FC = () => {
       types: poke.types,
       position: { x: mousePos.x, y: mousePos.y },
       equippedMoves: poke.equippedMoves,
+      rejectedMoves: poke.rejectedMoves || [], // 거부한 기술 목록
       isFainted: false,
       sprite: poke.sprite,
       range: 3,
@@ -375,27 +376,6 @@ export const GameCanvas: React.FC = () => {
           textShadow: '0 2px 4px rgba(0,0,0,0.5)',
         }}>
           ✨ {evolutionToast.fromName} → {evolutionToast.toName} 진화!
-        </div>
-      )}
-      
-      {/* 재배치 모드 안내 */}
-      {repositionMode && !isWaveActive && (
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          background: 'linear-gradient(135deg, rgba(52, 152, 219, 0.95), rgba(41, 128, 185, 0.95))',
-          padding: '12px 24px',
-          borderRadius: '12px',
-          border: '2px solid rgba(52, 152, 219, 0.6)',
-          boxShadow: '0 8px 24px rgba(52, 152, 219, 0.6)',
-          zIndex: 1000,
-          color: '#fff',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-        }}>
-          🔄 재배치 모드: 포켓몬을 클릭하여 위치 변경
         </div>
       )}
       

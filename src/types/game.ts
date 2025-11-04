@@ -62,6 +62,7 @@ export interface GamePokemon {
   types: string[];
   position: Position;
   equippedMoves: GameMove[];
+  rejectedMoves: string[]; // 거부한 기술 이름 목록
   ability?: PokemonAbility;
   statusEffect?: StatusEffect;
   isFainted: boolean;
@@ -206,11 +207,11 @@ export interface GameState {
   gameTick: number;
   pokemonToPlace: any | null;
 
-  // 레벨업 시 기술 선택
-  skillChoice: {
+  // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
+  skillChoiceQueue: Array<{
     towerId: string;
     newMoves: GameMove[];
-  } | null;
+  }>;
   
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
