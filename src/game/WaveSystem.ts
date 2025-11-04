@@ -100,29 +100,43 @@ export class WaveSystem {
   
   // Wave에 따라 적절한 포켓몬 ID 선택 (종족값 고려)
   private getEnemyPokemonId(wave: number): number {
-    // Wave 1-5: Bronze/Silver 등급 (종족값 낮음)
-    // Wave 6-10: Silver/Gold 등급
-    // Wave 11-15: Gold/Diamond 등급
-    // Wave 16+: Diamond/Master/Legend 등급
+    // Wave 1-10: Bronze/Silver 등급 (종족값 낮음)
+    // Wave 11-20: Silver/Gold 등급
+    // Wave 21-30: Gold/Diamond 등급
+    // Wave 31-40: Diamond/Master 등급
+    // Wave 41+: Master/Legend 등급 (종족값 높음)
     
-    let minStatTotal = 200;
-    let maxStatTotal = 400;
+    let minStatTotal = 1;
+    let maxStatTotal = 350;
     
-    if (wave <= 5) {
-      minStatTotal = 200;
+    if (wave <= 10) {
+      minStatTotal = 1;
       maxStatTotal = 350;
-    } else if (wave <= 10) {
+    } else if (wave <= 20) {
+      minStatTotal = 250;
+      maxStatTotal = 400;
+    } else if (wave <= 30) {
       minStatTotal = 300;
       maxStatTotal = 450;
-    } else if (wave <= 15) {
+    } else if (wave <= 40) {
+      minStatTotal = 350;
+      maxStatTotal = 500; 
+    } else if (wave <= 50) {
       minStatTotal = 400;
-      maxStatTotal = 520;
-    } else if (wave <= 20) {
-      minStatTotal = 480;
-      maxStatTotal = 580;
-    } else {
-      minStatTotal = 520;
-      maxStatTotal = 680;
+      maxStatTotal = 550; 
+    } else if (wave <= 60) {
+      minStatTotal = 450;
+      maxStatTotal = 600;
+    } else if (wave <= 70) {
+      minStatTotal = 500;
+      maxStatTotal = 650;
+    } else if (wave <= 80) {
+      minStatTotal = 550;
+      maxStatTotal = 700;
+    }
+    else {
+      minStatTotal = 600;
+      maxStatTotal = 800;
     }
     
     // 캐시된 포켓몬 중에서 종족값이 적절한 것을 찾기
