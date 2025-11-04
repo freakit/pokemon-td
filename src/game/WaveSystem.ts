@@ -61,9 +61,9 @@ export class WaveSystem {
       
       const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
       const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
-      const baseDefense = (pokemonData.stats.defense * waveMultiplier) * mult.defense;
-      const baseSpecialAttack = (pokemonData.stats.specialAttack * waveMultiplier) * mult.specialAttack;
-      const baseSpecialDefense = (pokemonData.stats.specialDefense * waveMultiplier) * mult.specialDefense;
+      const baseDefense = (pokemonData.stats.defense * waveMultiplier) * mult.attack;
+      const baseSpecialAttack = (pokemonData.stats.specialAttack * waveMultiplier) * mult.attack;
+      const baseSpecialDefense = (pokemonData.stats.specialDefense * waveMultiplier) * mult.attack;
       
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,

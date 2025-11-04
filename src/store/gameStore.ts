@@ -228,11 +228,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 경험치 추가 및 레벨업 처리
   addXpToTower: (towerId, xp) => {
     const tower = get().towers.find(t => t.id === towerId);
-    if (!tower || tower.isFainted) return;
+    if (!tower || tower.isFainted || tower.level >= 100) {
+      return;
+    }
 
     const oldLevel = tower.level;
     const newExperience = tower.experience + xp;
-    const newLevel = Math.floor(newExperience / 100) + 1; // 100 XP당 1레벨
+    let newLevel = Math.floor(newExperience / 100) + 1; // 100 XP당 1레벨
+
+    let finalExperience = newExperience;
+    if (newLevel > 100) {
+      newLevel = 100;
+      finalExperience = 9900; // 100레벨에 필요한 최대 경험치
+    }
 
     if (newLevel > oldLevel) {
       set({ isPaused: true }); // 게임 일시정지
@@ -272,7 +280,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
       
     } else {
-      tower.experience = newExperience;
+      get().updateTower(tower.id, { experience: finalExperience });
     }
   },
 

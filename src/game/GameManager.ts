@@ -300,7 +300,7 @@ export class GameManager {
   private applyDamage(proj: Projectile, enemy: Enemy) {
     const { addDamageNumber } = useGameStore.getState();
     const eff = getTypeEffectiveness(proj.type, enemy.types);
-    const isCrit = Math.random() < 0.1;
+    const isCrit = Math.random() < (1 / 24);
     
     // 자속 보정 확인
     const stab = hasSTAB(proj.attackerTypes, proj.type);
