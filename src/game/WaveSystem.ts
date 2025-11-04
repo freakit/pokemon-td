@@ -100,12 +100,6 @@ export class WaveSystem {
   
   // Wave에 따라 적절한 포켓몬 ID 선택 (종족값 고려)
   private getEnemyPokemonId(wave: number): number {
-    // Wave 1-10: Bronze/Silver 등급 (종족값 낮음)
-    // Wave 11-20: Silver/Gold 등급
-    // Wave 21-30: Gold/Diamond 등급
-    // Wave 31-40: Diamond/Master 등급
-    // Wave 41+: Master/Legend 등급 (종족값 높음)
-    
     let minStatTotal = 1;
     let maxStatTotal = 350;
     
