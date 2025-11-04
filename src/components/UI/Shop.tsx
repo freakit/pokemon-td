@@ -260,7 +260,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'candy' && '이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)'}
             {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
-            {itemMode === 'exp_candy' && '경험 사탕을 사용할 아군을 클릭하세요. (가장 낮은 레벨 × 50원)'}
+            {itemMode === 'exp_candy' && '경험 사탕에 버그가 있습니다. 사용 금지! (적용 레벨 × 50원)'}
             {currentItem && `${currentItem.name}을(를) 사용할 아군을 클릭하세요.`}
           </p>
           <div style={s.towerGrid}>
@@ -270,7 +270,6 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               if (itemMode === 'revive') {
                 isSelectable = tower.isFainted;
               } else if (itemMode === 'exp_candy') {
-                // 경험 사탕: 기절하지 않고, 다른 포켓몬보다 레벨이 높은 포켓몬만
                 const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
                 const lowestLevel = otherTowers.length > 0 ? Math.min(...otherTowers.map(t => t.level)) : 999;
                 isSelectable = !tower.isFainted && tower.level > lowestLevel;
