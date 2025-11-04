@@ -232,6 +232,7 @@ export class GameManager {
           value: 0,
           position: { ...target.position },
           isCrit: false,
+          isMiss: true, // 🎯 Miss 표시
           lifetime: 1.0,
         });
         

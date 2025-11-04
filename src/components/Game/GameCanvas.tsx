@@ -358,25 +358,51 @@ export const GameCanvas: React.FC = () => {
     >
       {/* 진화 토스트 */}
       {evolutionToast && (
-        <div style={{
-          position: 'absolute',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'linear-gradient(135deg, rgba(155, 89, 182, 0.95), rgba(142, 68, 173, 0.95))',
-          padding: '12px 24px',
-          borderRadius: '12px',
-          border: '2px solid rgba(155, 89, 182, 0.6)',
-          boxShadow: '0 8px 24px rgba(155, 89, 182, 0.6)',
-          zIndex: 1000,
-          animation: 'slideInDown 0.3s ease-out',
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        background: 'linear-gradient(135deg, rgba(155, 89, 182, 0.95), rgba(142, 68, 173, 0.95))',
+        padding: '12px 24px',
+        borderRadius: '12px',
+        border: '2px solid rgba(155, 89, 182, 0.6)',
+        boxShadow: '0 8px 24px rgba(155, 89, 182, 0.6)',
+        zIndex: 1000,
+        animation: 'slideInDown 0.3s ease-out',
+        color: '#fff',
+        fontSize: '16px',
+        fontWeight: 'bold',
+        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+      }}>
+        <span>✨ {evolutionToast.fromName} → {evolutionToast.toName} 진화!</span>
+        <button
+        onClick={() => useGameStore.setState({ evolutionToast: null })}
+        style={{
+          background: 'rgba(255, 255, 255, 0.2)',
+          border: 'none',
+          borderRadius: '50%',
+          width: '20px',
+          height: '20px',
           color: '#fff',
-          fontSize: '16px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
           fontWeight: 'bold',
-          textShadow: '0 2px 4px rgba(0,0,0,0.5)',
-        }}>
-          ✨ {evolutionToast.fromName} → {evolutionToast.toName} 진화!
-        </div>
+          padding: 0,
+          transition: 'background 0.2s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+        >
+        ×
+        </button>
+      </div>
       )}
       
       {/* 호버 툴팁 */}
@@ -569,9 +595,9 @@ export const GameCanvas: React.FC = () => {
               key={dmg.id}
               x={dmg.position.x - 20}
               y={dmg.position.y - 30}
-              text={dmg.value.toString()}
-              fontSize={dmg.isCrit ? 26 : 20}
-              fill={dmg.isCrit ? '#f39c12' : '#fff'}
+              text={dmg.isMiss ? 'MISS' : dmg.value.toString()}
+              fontSize={dmg.isMiss ? 22 : dmg.isCrit ? 26 : 20}
+              fill={dmg.isMiss ? '#95a5a6' : dmg.isCrit ? '#f39c12' : '#fff'}
               fontStyle="bold"
               stroke="#000"
               strokeWidth={2}

@@ -218,7 +218,7 @@ class PokeAPIService {
             name: m.name,
             type: m.type,
             power: m.power || 40,
-            accuracy: m.accuracy || 100,
+            accuracy: m.accuracy || 100, // 명중률 (100 = 100%)
             damageClass: m.damageClass,
             effect,
             cooldown: 2.0,

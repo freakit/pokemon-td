@@ -28,13 +28,12 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 27, to: 28, level: 22 }, { from: 29, to: 30, level: 16 },
   { from: 32, to: 33, level: 16 }, { from: 41, to: 42, level: 22 },
   { from: 43, to: 44, level: 21 },
-  // { from: 44, to: 45, level: 21 }, // 냄새꼬 -> 라플레시아 (레벨 진화가 아님)
   { from: 46, to: 47, level: 24 },
   { from: 48, to: 49, level: 31 }, { from: 50, to: 51, level: 26 },
-  { from: 52, to: 53, level: 28 }, { from: 54, to: 55, level: 33 },
+  { from: 52, to: 53, item: 'friendship-evolution' }, // 나옹(A) -> 페르시온(A) (친밀도)
+  { from: 54, to: 55, level: 33 },
   { from: 56, to: 57, level: 28 }, 
   { from: 60, to: 61, level: 25 }, 
-  // { from: 61, to: 186, level: 25 }, // 수륙챙이 -> 왕구리 (레벨 진화가 아님)
   { from: 63, to: 64, level: 16 },
   { from: 66, to: 67, level: 28 },
   { from: 69, to: 70, level: 21 },
@@ -51,7 +50,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 138, to: 139, level: 40 }, { from: 140, to: 141, level: 40 },
   { from: 147, to: 148, level: 30 }, { from: 148, to: 149, level: 55 },
   
-  // 통신 교환 진화 → 연결의 끈
+  // 통신 교환 진화 → linking-cord
   { from: 64, to: 65, item: 'linking-cord' },
   { from: 67, to: 68, item: 'linking-cord' },
   { from: 75, to: 76, item: 'linking-cord' },
@@ -84,21 +83,21 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 165, to: 166, level: 18 },
   { from: 167, to: 168, level: 22 },
   { from: 170, to: 171, level: 27 },
-  { from: 172, to: 25, item: 'linking-cord' }, // 피츄 → 피카츄 (친밀도)
-  { from: 173, to: 35, item: 'linking-cord' }, // 삐 → 삐삐 (친밀도)
-  { from: 174, to: 39, item: 'linking-cord' }, // 푸푸린 → 푸린 (친밀도)
-  { from: 175, to: 176, item: 'linking-cord' }, // 토게피 → 토게틱 (친밀도)
+  { from: 172, to: 25, item: 'friendship-evolution' }, // 피츄 → 피카츄 (친밀도)
+  { from: 173, to: 35, item: 'friendship-evolution' }, // 삐 → 삐삐 (친밀도)
+  { from: 174, to: 39, item: 'friendship-evolution' }, // 푸푸린 → 푸린 (친밀도)
+  { from: 175, to: 176, item: 'friendship-evolution' }, // 토게피 → 토게틱 (친밀도)
   { from: 177, to: 178, level: 25 },
   { from: 179, to: 180, level: 15 }, { from: 180, to: 181, level: 30 },
   { from: 187, to: 188, level: 18 }, { from: 188, to: 189, level: 27 },
-  { from: 190, to: 424, item: 'linking-cord' }, // 에이팜 → 겟핸보숭 (기술 습득 후 레벨업)
-  { from: 194, to: 195, level: 20 },
+  { from: 190, to: 424, item: 'special-evolution' }, // 에이팜 → 겟핸보숭 (기술 습득)
+  { from: 194, to: 195, level: 20 }, // 우파 (P) -> 토오 진화는 9세대에
   { from: 204, to: 205, level: 31 },
   { from: 209, to: 210, level: 23 },
   { from: 216, to: 217, level: 30 },
   { from: 218, to: 219, level: 38 },
   { from: 220, to: 221, level: 33 },
-  { from: 221, to: 473, item: 'linking-cord' }, // 메꾸리 → 맘모꾸리 (기술 습득 후 레벨업)
+  { from: 221, to: 473, item: 'special-evolution' }, // 메꾸리 → 맘모꾸리 (기술 습득)
   { from: 223, to: 224, level: 25 },
   { from: 228, to: 229, level: 24 },
   { from: 231, to: 232, level: 25 },
@@ -110,11 +109,11 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 240, to: 126, level: 30 }, // 마그비 → 마그마
   
   // 아이템 진화 (2세대)
-  { from: 42, to: 169, item: 'linking-cord' }, // 골뱃 -> 크로뱃 (친밀도)
-  { from: 61, to: 186, item: 'kings-rock' }, // 수륙챙이 -> 왕구리 (왕의징표석+교환 -> 여기서는 아이템 사용으로 간주)
+  { from: 42, to: 169, item: 'friendship-evolution' }, // 골뱃 -> 크로뱃 (친밀도)
+  { from: 61, to: 186, item: 'kings-rock' }, // 수륙챙이 -> 왕구리 (왕의징표석+교환)
   { from: 79, to: 199, item: 'kings-rock' }, // 야돈 -> 야도킹 (왕의징표석+교환)
   { from: 95, to: 208, item: 'metal-coat' }, // 롱스톤 -> 강철톤 (금속코트+교환)
-  { from: 113, to: 242, item: 'linking-cord' }, // 럭키 -> 해피너스 (친밀도)
+  { from: 113, to: 242, item: 'friendship-evolution' }, // 럭키 -> 해피너스 (친밀도)
   { from: 117, to: 230, item: 'dragon-scale' }, // 시드라 -> 킹드라 (용의비늘+교환)
   { from: 123, to: 212, item: 'metal-coat' }, // 스라크 -> 핫삼 (금속코트+교환)
   { from: 133, to: 196, item: 'sun-stone' }, // 이브이 → 에브이 (친밀도 낮/밤을 돌로 대체)
@@ -133,7 +132,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 261, to: 262, level: 18 },
   { from: 263, to: 264, level: 20 },
   { from: 265, to: 266, level: 7 }, { from: 266, to: 267, level: 10 }, // 개무소 -> 실쿤 -> 뷰티플라이
-  { from: 265, to: 268, level: 7 }, { from: 268, to: 269, level: 10 }, // 개무소 -> 카스쿤 -> 독케일 (분기 진화, 여기서는 하나만 표기)
+  { from: 265, to: 268, level: 7 }, { from: 268, to: 269, level: 10 }, // 개무소 -> 카스쿤 -> 독케일
   { from: 270, to: 271, level: 14 }, { from: 271, to: 272, item: 'water-stone' }, // 연꽃몬 -> 로파파
   { from: 273, to: 274, level: 14 }, { from: 274, to: 275, item: 'leaf-stone' }, // 도토링 -> 다탱구
   { from: 276, to: 277, level: 22 },
@@ -146,8 +145,8 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 290, to: 292, level: 20 }, // 토중몬 -> 껍질몬 (특수 진화)
   { from: 293, to: 294, level: 20 }, { from: 294, to: 295, level: 40 },
   { from: 296, to: 297, level: 24 },
-  { from: 298, to: 183, item: 'linking-cord' }, // 루리리 -> 마릴 (친밀도)
-  // { from: 300, to: 301, level: 18 }, // [REMOVED] - 517(몽나) -> 518(몽얌나)의 중복/오류 데이터
+  { from: 298, to: 183, item: 'friendship-evolution' }, // 루리리 -> 마릴 (친밀도)
+  { from: 300, to: 301, item: 'moon-stone' }, // 에나비 -> 델케티
   { from: 304, to: 305, level: 32 }, { from: 305, to: 306, level: 42 },
   { from: 307, to: 308, level: 37 },
   { from: 309, to: 310, level: 26 },
@@ -182,7 +181,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 399, to: 400, level: 15 },
   { from: 401, to: 402, level: 10 },
   { from: 403, to: 404, level: 15 }, { from: 404, to: 405, level: 30 },
-  { from: 406, to: 315, item: 'linking-cord' }, // 꼬몽울 → 로젤리아 (친밀도)
+  { from: 406, to: 315, item: 'friendship-evolution' }, // 꼬몽울 → 로젤리아 (친밀도)
   { from: 408, to: 409, level: 30 },
   { from: 410, to: 411, level: 30 },
   { from: 412, to: 413, level: 20 }, // 도롱충치 → 도롱마담 (암컷)
@@ -192,22 +191,22 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 420, to: 421, level: 25 },
   { from: 422, to: 423, level: 30 },
   { from: 425, to: 426, level: 28 },
-  { from: 427, to: 428, item: 'linking-cord' }, // 이어롤 -> 이어롭 (친밀도)
+  { from: 427, to: 428, item: 'friendship-evolution' }, // 이어롤 -> 이어롭 (친밀도)
   { from: 431, to: 432, level: 38 },
-  { from: 433, to: 358, item: 'linking-cord' }, // 랑딸랑 -> 치렁 (친밀도+밤)
+  { from: 433, to: 358, item: 'friendship-evolution' }, // 랑딸랑 -> 치렁 (친밀도)
   { from: 434, to: 435, level: 34 },
   { from: 436, to: 437, level: 33 }, // 동미러 -> 동탁군
-  { from: 438, to: 185, item: 'linking-cord' }, // 꼬지지 -> 꼬마돌 (기술 습득)
-  { from: 439, to: 122, item: 'linking-cord' }, // 흉내내 -> 마임맨 (기술 습득)
-  { from: 440, to: 113, item: 'linking-cord' }, // 핑복 -> 럭키 (동글동글돌+낮)
+  { from: 438, to: 185, item: 'special-evolution' }, // 꼬지지 -> 꼬마돌 (기술 습득)
+  { from: 439, to: 122, item: 'special-evolution' }, // 흉내내 -> 마임맨 (기술 습득)
+  { from: 440, to: 113, item: 'special-evolution' }, // 핑복 -> 럭키 (동글동글돌+낮)
   { from: 443, to: 444, level: 24 }, { from: 444, to: 445, level: 48 },
-  { from: 446, to: 143, item: 'linking-cord' }, // 먹고자 -> 잠만보 (친밀도)
-  { from: 447, to: 448, item: 'linking-cord' }, // 리오르 -> 루카리오 (친밀도+낮)
+  { from: 446, to: 143, item: 'friendship-evolution' }, // 먹고자 -> 잠만보 (친밀도)
+  { from: 447, to: 448, item: 'friendship-evolution' }, // 리오르 -> 루카리오 (친밀도)
   { from: 449, to: 450, level: 34 },
   { from: 451, to: 452, level: 40 },
   { from: 453, to: 454, level: 37 },
   { from: 456, to: 457, level: 31 },
-  { from: 458, to: 226, item: 'linking-cord' }, // 타만타 -> 만타인 (총어 소지)
+  { from: 458, to: 226, item: 'special-evolution' }, // 타만타 -> 만타인 (총어 소지)
   { from: 459, to: 460, level: 40 },
   
   // 아이템 진화 (4세대)
@@ -239,11 +238,11 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 519, to: 520, level: 21 }, { from: 520, to: 521, level: 32 },
   { from: 522, to: 523, level: 27 },
   { from: 524, to: 525, level: 25 }, { from: 525, to: 526, item: 'linking-cord' }, // 암트르 -> 기가이어스 (교환)
-  { from: 527, to: 528, item: 'linking-cord' }, // 또르박쥐 -> 맘박쥐 (친밀도)
+  { from: 527, to: 528, item: 'friendship-evolution' }, // 또르박쥐 -> 맘박쥐 (친밀도)
   { from: 529, to: 530, level: 31 },
   { from: 532, to: 533, level: 25 }, { from: 533, to: 534, item: 'linking-cord' }, // 토쇠골 -> 노보청 (교환)
   { from: 535, to: 536, level: 25 }, { from: 536, to: 537, level: 36 },
-  { from: 540, to: 541, level: 20 }, { from: 541, to: 542, item: 'linking-cord' }, // 두르보 -> 두르쿤 -> 모아머 (친밀도)
+  { from: 540, to: 541, level: 20 }, { from: 541, to: 542, item: 'friendship-evolution' }, // 두르보 -> 두르쿤 -> 모아머 (친밀도)
   { from: 543, to: 544, level: 22 }, { from: 544, to: 545, level: 30 },
   { from: 546, to: 547, item: 'sun-stone' }, // 소미안 -> 엘풍
   { from: 548, to: 549, item: 'sun-stone' }, // 치릴리 -> 드레디어
@@ -302,7 +301,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 694, to: 695, item: 'sun-stone' }, // 목도리키텔 -> 일레도리자드
   { from: 696, to: 697, level: 39 }, // 티고라스 -> 견고라스 (낮)
   { from: 698, to: 699, level: 39 }, // 아마루스 -> 아마루르가 (밤)
-  { from: 133, to: 700, item: 'linking-cord' }, // 이브이 → 님피아 (페어리 기술 + 친밀도)
+  { from: 133, to: 700, item: 'friendship-evolution' }, // 이브이 → 님피아 (페어리 기술 + 친밀도)
   { from: 704, to: 705, level: 40 }, { from: 705, to: 706, level: 50 }, // 미끄메라 -> 미끄네일 -> 미끄래곤 (비)
   { from: 708, to: 709, item: 'linking-cord' }, // 대로트 -> 대로트 (교환)
   { from: 710, to: 711, item: 'linking-cord' }, // 호바귀 -> 펌킨인 (교환)
@@ -316,7 +315,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 731, to: 732, level: 14 }, { from: 732, to: 733, level: 28 },
   { from: 734, to: 735, level: 20 }, // 영구스 -> 형사구스 (낮)
   { from: 736, to: 737, level: 20 }, { from: 737, to: 738, item: 'thunder-stone' }, // 턱지충이 -> 전지충이 -> 투구뿌논 (특수자기장 -> 돌)
-  { from: 739, to: 740, item: 'linking-cord' }, // 오기지게 -> 모단단게 (특정 장소)
+  { from: 739, to: 740, item: 'special-evolution' }, // 오기지게 -> 모단단게 (특정 장소)
   { from: 742, to: 743, level: 25 },
   { from: 744, to: 745, level: 25 }, // 암멍이 -> 루가루암 (폼 다수)
   { from: 747, to: 748, level: 38 },
@@ -326,7 +325,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 755, to: 756, level: 24 },
   { from: 757, to: 758, level: 33 }, // 야도뇽 -> 염뉴트 (암컷)
   { from: 759, to: 760, level: 27 },
-  { from: 761, to: 762, level: 18 }, { from: 762, to: 763, item: 'linking-cord' }, // 달콤아 -> 달무리나 -> 달코퀸 (기술 습득)
+  { from: 761, to: 762, level: 18 }, { from: 762, to: 763, item: 'special-evolution' }, // 달콤아 -> 달무리나 -> 달코퀸 (기술 습득)
   { from: 767, to: 768, level: 30 },
   { from: 769, to: 770, level: 42 },
   { from: 782, to: 783, level: 35 }, { from: 783, to: 784, level: 45 },
@@ -334,17 +333,17 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 790, to: 792, level: 53 }, // 코스모움 -> 루나아라 (문)
   
   // 알로라폼 진화 (기존 포켓몬 ID 사용)
-  { from: 19, to: 20, level: 20 }, // 꼬렛(A) -> 레트라(A) (밤)
-  { from: 25, to: 26, item: 'thunder-stone' }, // 피카츄 -> 라이츄(A) (알로라에서)
+  // { from: 19, to: 20, level: 20 }, // 꼬렛(A) -> 레트라(A) (기본 19->20과 동일)
+  // { from: 25, to: 26, item: 'thunder-stone' }, // 피카츄 -> 라이츄(A) (기본 25->26과 동일)
   { from: 27, to: 28, item: 'ice-stone' }, // 모래두지(A) -> 고지(A)
   { from: 37, to: 38, item: 'ice-stone' }, // 식스테일(A) -> 나인테일(A)
-  { from: 50, to: 51, level: 26 }, // 디그다(A) -> 닥트리오(A)
-  { from: 52, to: 53, level: 28 }, // 나옹(A) -> 페르시온(A) (친밀도)
-  { from: 74, to: 75, level: 25 }, // 꼬마돌(A) -> 데구리(A)
-  { from: 75, to: 76, item: 'linking-cord' }, // 데구리(A) ->  딱구리(A) (교환)
-  { from: 88, to: 89, level: 38 }, // 질퍽이(A) -> 질뻐기(A)
-  { from: 102, to: 103, item: 'leaf-stone' }, // 아라리 -> 나시(A) (알로라에서)
-  { from: 104, to: 105, level: 28 }, // 탕구리 -> 텅구리(A) (밤)
+  // { from: 50, to: 51, level: 26 }, // 디그다(A) -> 닥트리오(A) (기본 50->51과 동일)
+  // { from: 52, to: 53, item: 'friendship-evolution' }, // 나옹(A) -> 페르시온(A) (위에서 1세대로 이동)
+  // { from: 74, to: 75, level: 25 }, // 꼬마돌(A) -> 데구리(A) (기본 74->75와 동일)
+  // { from: 75, to: 76, item: 'linking-cord' }, // 데구리(A) -> 딱구리(A) (기본 75->76과 동일)
+  // { from: 88, to: 89, level: 38 }, // 질퍽이(A) -> 질뻐기(A) (기본 88->89와 동일)
+  // { from: 102, to: 103, item: 'leaf-stone' }, // 아라리 -> 나시(A) (기본 102->103과 동일)
+  // { from: 104, to: 105, level: 28 }, // 탕구리 -> 텅구리(A) (기본 104->105와 동일, 밤 조건은 special-evolution으로 X)
   
   // === 8세대 (810-905) ===
   { from: 810, to: 811, level: 16 }, { from: 811, to: 812, level: 35 },
@@ -366,85 +365,88 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 848, to: 849, level: 30 }, // 일레즌 -> 스트린더 (폼 2개)
   { from: 850, to: 851, level: 30 }, // 태우지네 -> 다태우지네
   { from: 852, to: 853, level: 38 }, // 대여르 -> 배열
-  { from: 854, to: 855, item: 'linking-cord' }, // 데인차 -> 포트데스 (깨진포트/이빠진포트)
+  { from: 854, to: 855, item: 'special-evolution' }, // 데인차 -> 포트데스 (깨진포트/이빠진포트)
   { from: 856, to: 857, level: 32 }, { from: 857, to: 858, level: 42 }, // 몸지브림 -> 손지브림 -> 브리무음
   { from: 859, to: 860, level: 32 }, { from: 860, to: 861, level: 42 }, // 메롱꿍 -> 쏘겨모 -> 오롱털
-  { from: 868, to: 869, item: 'linking-cord' }, // 마빌크 -> 마휘핑 (사탕공예)
+  { from: 868, to: 869, item: 'special-evolution' }, // 마빌크 -> 마휘핑 (사탕공예)
   { from: 872, to: 873, level: 34 },
   { from: 878, to: 879, level: 34 },
-  // { from: 884, to: 885, level: 38 }, // [REMOVED] - 884(두랄루돈) -> 885(드라꼰) 오류
   { from: 885, to: 886, level: 50 }, { from: 886, to: 887, level: 60 }, // 드라꼰 -> 드래런치 -> 드래펄트
   
   // 가라르폼 진화
   { from: 52, to: 863, level: 28 }, // 나옹(G) -> 나이킹
-  { from: 77, to: 78, level: 40 }, // 포니타(G) -> 날쌩마(G)
+  // { from: 77, to: 78, level: 40 }, // 포니타(G) -> 날쌩마(G) (기본 77->78과 동일)
   { from: 79, to: 80, item: 'galarica-cuff' }, // 야돈(G) -> 야도란(G)
   { from: 79, to: 199, item: 'galarica-wreath' }, // 야돈(G) -> 야도킹(G)
-  { from: 110, to: 110, level: 35 }, // 또가스 -> 또도가스(G) (가라르에서)
+  // { from: 110, to: 110, level: 35 }, // 또가스 -> 또도가스(G) (진화 아님)
   { from: 122, to: 866, level: 42 }, // 마임맨(G) -> 마임꽁꽁
   { from: 263, to: 264, level: 20 }, { from: 264, to: 862, level: 35 }, // 지그제구리(G) -> 직구리(G) -> 가로막구리 (밤)
   { from: 554, to: 555, level: 37 }, // 달막화(G) -> 불비달마(G)
-  { from: 562, to: 867, item: 'linking-cord' }, // 데스마스(G) -> 데스판 (특수 조건)
+  { from: 562, to: 867, item: 'special-evolution' }, // 데스마스(G) -> 데스판 (특수 조건)
   
   // 히스이폼 진화
-  { from: 58, to: 59, item: 'fire-stone' }, // 히스이 가디 -> 윈디 (히스이에서)
-  { from: 100, to: 101, item: 'leaf-stone' }, // 히스이 찌리리공 -> 붐볼 (히스이에서)
+  // { from: 58, to: 59, item: 'fire-stone' }, // 히스이 가디 -> 윈디(H) (기본 58->59와 동일)
+  // { from: 100, to: 101, item: 'leaf-stone' }, // 히스이 찌리리공 -> 붐볼(H) (기본 100->101과 동일)
   { from: 123, to: 900, item: 'black-augurite' }, // 스라크 -> 사마자르
-  { from: 157, to: 157, level: 36 }, // 블레이범(H)
-  { from: 211, to: 903, item: 'linking-cord' }, // 침바루(H) -> 장침바루 (기술)
-  { from: 215, to: 904, item: 'linking-cord' }, // 포푸니(H) -> 포푸니크 (낮)
-  { from: 503, to: 503, level: 36 }, // 대검귀(H)
-  { from: 549, to: 549, item: 'sun-stone' }, // 드레디어(H)
+  // { from: 157, to: 157, level: 36 }, // 블레이범(H) (진화 아님)
+  { from: 211, to: 903, item: 'special-evolution' }, // 침바루(H) -> 장침바루 (기술)
+  { from: 215, to: 904, item: 'special-evolution' }, // 포푸니(H) -> 포푸니크 (예리한손톱+낮)
+  // { from: 503, to: 503, level: 36 }, // 대검귀(H) (진화 아님)
+  // { from: 549, to: 549, item: 'sun-stone' }, // 드레디어(H) (진화 아님)
   { from: 570, to: 571, level: 30 }, // 조로아(H) -> 조로아크(H)
-  { from: 628, to: 628, level: 54 }, // 워글(H)
-  { from: 705, to: 706, level: 50 }, // 미끄네일(H) -> 미끄래곤(H) (비)
-  { from: 713, to: 713, level: 37 }, // 크레베이스(H)
-  { from: 724, to: 724, level: 34 }, // 모크나이퍼(H)
+  // { from: 628, to: 628, level: 54 }, // 워글(H) (진화 아님)
+  // { from: 705, to: 706, level: 50 }, // 미끄네일(H) -> 미끄래곤(H) (기본 705->706과 동일)
+  // { from: 713, to: 713, level: 37 }, // 크레베이스(H) (진화 아님)
+  // { from: 724, to: 724, level: 34 }, // 모크나이퍼(H) (진화 아님)
   
   // === 9세대 (906-1025) ===
-  { from: 906, to: 907, level: 16 }, { from: 907, to: 908, level: 36 },
-  { from: 909, to: 910, level: 16 }, { from: 910, to: 911, level: 36 },
-  { from: 912, to: 913, level: 16 }, { from: 913, to: 914, level: 36 },
-  { from: 915, to: 916, level: 18 },
-  { from: 917, to: 918, level: 25 },
-  { from: 919, to: 920, level: 21 }, // 맛보돈 -> 퍼퓨돈 (폼 2개)
-  { from: 921, to: 922, level: 20 }, { from: 922, to: 923, level: 30 }, // 파밀리쥐 (3마리/4마리 폼)
-  { from: 924, to: 925, item: 'linking-cord' }, // 빠모 -> 빠모트 (친밀도)
-  { from: 925, to: 926, item: 'linking-cord' }, // 빠모트 -> 빠르모트 (레츠고 1000보)
-  { from: 928, to: 929, level: 25 }, // 그푸리 -> 올리르바
-  { from: 932, to: 933, level: 24 }, { from: 933, to: 934, level: 30 }, // 탄돈 -> 탄차곤 -> 석탄산
-  { from: 935, to: 936, level: 30 }, // 카르본 -> 카디나르마 (축복의갑옷)
-  { from: 935, to: 937, level: 30 }, // 카르본 -> 파라블레이즈 (저주의갑옷)
-  { from: 938, to: 939, level: 25 },
-  { from: 940, to: 941, level: 30 }, // 빈나두 -> 찌리배리
-  { from: 942, to: 943, level: 35 },
-  { from: 946, to: 947, level: 30 }, // 그우린 -> 공푸린
-  { from: 951, to: 952, level: 38 }, // 캡싸이 -> 스코빌런
-  { from: 953, to: 954, level: 26 },
-  { from: 955, to: 956, level: 30 }, // 실벗 -> 베라카스
-  { from: 957, to: 958, level: 30 }, { from: 958, to: 959, item: 'linking-cord' }, // 들눈해 -> 포요틱 -> 두드리짱 (기술)
-  { from: 960, to: 961, level: 28 },
-  { from: 963, to: 964, level: 38 }, // 맨돌핀 -> 돌핀맨 (유니언 서클)
-  { from: 965, to: 966, item: 'linking-cord' }, // 묘두기 -> 묘티프 (밤)
-  { from: 968, to: 969, level: 32 }, // 부르롱 -> 부르르룸
-  { from: 971, to: 972, level: 30 }, // 어리짱 -> 도래짱
-  { from: 973, to: 974, level: 30 }, // 바다그다 -> 바다트리오
-  { from: 976, to: 977, item: 'linking-cord' }, // 꿈트렁 -> 엑스레그
-  // { from: 979, to: 979, level: 1 }, // [REMOVED] - 978 -> 979의 중복/오류 데이터
-  { from: 978, to: 979, level: 25 }, // 떨구새 -> 찍먹새
-  { from: 194, to: 980, item: 'linking-cord' }, // 우파(P) -> 토오
-  { from: 203, to: 981, item: 'linking-cord' }, // 키링키 -> 키키링 (기술)
-  { from: 625, to: 983, item: 'linking-cord' }, // 절각참 -> 대도각참 (특수 조건)
-  { from: 996, to: 997, level: 52 }, { from: 997, to: 998, level: 60 }, // 드니차 -> 드니꽁 -> 드닐레이브
-  { from: 999, to: 1000, item: 'linking-cord' }, // 모으령 -> 타부자고 (코인 999)
+  { from: 906, to: 907, level: 16 }, { from: 907, to: 908, level: 36 }, // 뜨아거 라인
+  { from: 909, to: 910, level: 16 }, { from: 910, to: 911, level: 36 }, // 꾸왁스 라인
+  { from: 912, to: 913, level: 16 }, { from: 913, to: 914, level: 36 }, // 나오하 라인
+  { from: 915, to: 916, level: 18 }, // 맛보돈 -> 퍼퓨돈
+  { from: 917, to: 918, level: 25 }, // 타랜툴라 -> 트래피더
+  { from: 919, to: 920, level: 24 }, // 콩알뚜기 -> 엑스레그
+  { from: 921, to: 922, level: 18 }, // 빠모 -> 빠모트
+  { from: 922, to: 923, item: 'special-evolution' }, // 빠모트 -> 빠르모트 (레츠고 1000보)
+  { from: 924, to: 925, level: 25 }, // 두리쥐 -> 파밀리쥐 (특수, 레벨업)
+  { from: 926, to: 927, level: 26 }, // 쫀도기 -> 바우첼
+  { from: 928, to: 929, level: 25 }, // 미니브 -> 올리뇨
+  { from: 929, to: 930, level: 35 }, // 올리뇨 -> 올리르바
+  { from: 932, to: 933, level: 24 }, // 암염소금 -> 스태솔트
+  { from: 933, to: 934, level: 38 }, // 스태솔트 -> 콜로솔트
+  { from: 935, to: 936, item: 'auspicious-armor' }, // 카르본 -> 카디나르마
+  { from: 935, to: 937, item: 'malicious-armor' }, // 카르본 -> 파라블레이즈
+  { from: 938, to: 939, item: 'thunder-stone' }, // 빈나두 -> 찌리배리
+  { from: 940, to: 941, level: 25 }, // 찌리비 -> 찌리비크
+  { from: 942, to: 943, level: 30 }, // 오라티프 -> 마피티프
+  { from: 944, to: 945, level: 28 }, // 땃주르 -> 태깅구르
+  { from: 946, to: 947, item: 'special-evolution' }, // 그우린 -> 공푸린 (레츠고 1000보)
+  { from: 948, to: 949, level: 30 }, // 들눈해 -> 陸(육)파리
+  { from: 951, to: 952, item: 'fire-stone' }, // 캡싸이 -> 스코빌런
+  { from: 953, to: 954, item: 'special-evolution' }, // 구르돈 -> 베라카스 (레츠고 1000보)
+  { from: 955, to: 956, level: 35 }, // 하느라 -> 클레스퍼트라
+  { from: 957, to: 958, level: 24 }, // 어리짱 -> 벼리짱
+  { from: 958, to: 959, level: 38 }, // 벼리짱 -> 두드리짱
+  { from: 960, to: 961, level: 26 }, // 바다그다 -> 바다트리오
+  { from: 963, to: 964, item: 'special-evolution' }, // 맨돌핀 -> 돌핀맨 (유니언 서클)
+  { from: 965, to: 966, level: 40 }, // 부르롱 -> 부르르룸
+  { from: 969, to: 970, level: 35 }, // 초롱순 -> 킬라플로르
+  { from: 971, to: 972, level: 30 }, // 묘두기 -> 묘티프 (밤)
+  { from: 974, to: 975, item: 'ice-stone' }, // 터벅고래 -> 우락고래
+  { from: 996, to: 997, level: 35 }, // 드니차 -> 드니꽁
+  { from: 997, to: 998, level: 54 }, // 드니꽁 -> 드닐레이브
+  { from: 999, to: 1000, item: 'special-evolution' }, // 모으령 -> 타부자고 (코인 999)
   
-  // 팔데아 진화 (기존 포켓몬)
-  { from: 57, to: 979, item: 'linking-cord' }, // 성원숭 -> 저승갓숭 (기술 20회)
+  // 팔데아/DLC 진화 (기존 포켓몬)
+  { from: 57, to: 979, item: 'special-evolution' }, // 성원숭 -> 저승갓숭 (분노의주먹 20회)
+  { from: 194, to: 980, level: 20 }, // 우파(P) -> 토오
+  { from: 203, to: 981, item: 'special-evolution' }, // 키링키 -> 키키링 (트윈빔)
+  { from: 206, to: 982, item: 'special-evolution' }, // 노고치 -> 노고고치 (하이퍼드릴)
+  { from: 625, to: 983, item: 'special-evolution' }, // 절각참 -> 대도각참 (대장의징표)
   { from: 840, to: 1011, item: 'syrupy-apple' }, // 과사삭벌레 -> 과미드라 (DLC)
-  { from: 1011, to: 1019, item: 'linking-cord' }, // 과미드라 -> 드래펄트 (DLC, 기술) -> (ID 정정) 1019는 Hydrapple
-  { from: 61, to: 1017, item: 'kings-rock' }, // 수륙챙이 -> 강챙이 (DLC, 왕의징표석) -> (ID 정정) 1017은 Poltchageist
-  { from: 299, to: 476, item: 'thunder-stone' }, // 코코파스 -> 대코파스 (DLC, 천둥의돌)
+  { from: 1012, to: 1013, item: 'special-evolution' }, // 차데스 -> 그우린차 (범작/걸작 찻잔)
   { from: 884, to: 1018, item: 'metal-alloy' }, // 두랄루돈 -> 브리두라스 (DLC)
+  { from: 1011, to: 1019, item: 'special-evolution' }, // 과미르 -> 과미드라 (드래곤옐)
 ];
 
 // 메가진화 데이터 (10000번대 ID 사용)
@@ -549,12 +551,6 @@ export function getMegaStones(): string[] {
   return [...new Set(MEGA_EVOLUTIONS.map(e => e.item))];
 }
 
-// (호환성을 위해 남겨둠)
-export const EVOLUTION_STAT_BOOST = {
-  hp: 1.35, attack: 1.35, defense: 1.3,
-  specialAttack: 1.35, specialDefense: 1.3, speed: 1.25,
-};
-
 // 레어도 타입
 export type Rarity = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend';
 
@@ -603,12 +599,12 @@ export function calculateRarity(statTotal: number): Rarity {
 
 // 레어도별 가중치 (역수 관계 - 낮은 가중치 = 낮은 확률)
 export const RARITY_WEIGHTS: Record<Rarity, number> = {
-  'Bronze': 100,   // 가장 높은 확률
-  'Silver': 50,
-  'Gold': 25,
-  'Diamond': 12,
-  'Master': 6,
-  'Legend': 3,     // 가장 낮은 확률
+  'Bronze': 500,   // 가장 높은 확률
+  'Silver': 200,
+  'Gold': 40,
+  'Diamond': 6,
+  'Master': 3,
+  'Legend': 1,     // 가장 낮은 확률
 };
 
 // 레어도별 색상

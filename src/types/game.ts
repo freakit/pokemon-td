@@ -123,6 +123,7 @@ export interface DamageNumber {
   value: number;
   position: Position;
   isCrit: boolean;
+  isMiss?: boolean; // 🎯 Miss 여부
   lifetime: number;
 }
 

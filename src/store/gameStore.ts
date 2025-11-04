@@ -40,8 +40,8 @@ interface GameStore extends GameState {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   wave: 0,
-  money: 400,
-  lives: 20,
+  money: 500,
+  lives: 50,
   towers: [],
   enemies: [],
   projectiles: [],
@@ -108,8 +108,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   reset: () => set({
     wave: 0,
-    money: 400,
-    lives: 20,
+    money: 500,
+    lives: 50,
     towers: [],
     enemies: [],
     projectiles: [],
@@ -210,6 +210,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // 50% HP로 부활
         get().updateTower(target.id, { isFainted: false, currentHp: target.maxHp * 0.5 });
         return true;
+      }
+    }
+    if (itemType === 'exp_candy') {
+      const target = targetTowerId 
+        ? towers.find(t => t.id === targetTowerId && !t.isFainted)
+        : null;
+        
+      if (target) {
+        // 대상을 제외한 나머지 포켓몬 중 가장 낮은 레벨 찾기
+        const otherTowers = towers.filter(t => t.id !== target.id && !t.isFainted);
+        if (otherTowers.length === 0) return false; // 다른 포켓몬이 없으면 사용 불가
+        
+        const lowestLevel = Math.min(...otherTowers.map(t => t.level));
+        
+        // 대상 포켓몬의 레벨을 가장 낮은 레벨로 변경
+        if (lowestLevel < target.level) {
+          const xpNeeded = (lowestLevel - 1) * 100; // 목표 레벨에 필요한 경험치
+          const currentXp = (target.level - 1) * 100 + target.experience;
+          const xpToAdd = xpNeeded - currentXp;
+          if (xpToAdd < 0) {
+            // 이미 더 낮은 레벨이거나 같음
+            return false;
+          }
+          
+          // 레벨을 직접 설정
+          get().updateTower(target.id, {
+            level: lowestLevel,
+            experience: 0,
+          });
+          
+          // 스탯 재계산 (레벨 차이만큼 5%씩 감소)
+          const levelDiff = target.level - lowestLevel;
+          const statMultiplier = Math.pow(0.95, levelDiff);
+          
+          get().updateTower(target.id, {
+            maxHp: Math.floor(target.maxHp * statMultiplier),
+            currentHp: Math.floor(target.currentHp * statMultiplier),
+            attack: Math.floor(target.attack * statMultiplier),
+            baseAttack: Math.floor(target.baseAttack * statMultiplier),
+            defense: Math.floor(target.defense * statMultiplier),
+            specialAttack: Math.floor(target.specialAttack * statMultiplier),
+            specialDefense: Math.floor(target.specialDefense * statMultiplier),
+          });
+          
+          return true;
+        }
+        return false; // 이미 가장 낮은 레벨이거나 더 낮음
       }
     }
     return false; // 해당 아이템을 사용할 대상이 없음
