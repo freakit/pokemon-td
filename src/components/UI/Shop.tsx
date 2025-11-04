@@ -260,7 +260,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'candy' && '이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)'}
             {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
-            {itemMode === 'exp_candy' && '경험 사탕에 버그가 있습니다. 사용 금지! (적용 레벨 × 50원)'}
+            {itemMode === 'exp_candy' && '경험 사탕을 사용할 아군을 클릭하세요. (적용 레벨 × 50원)'}
             {currentItem && `${currentItem.name}을(를) 사용할 아군을 클릭하세요.`}
           </p>
           <div style={s.towerGrid}>
@@ -392,8 +392,8 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </div>
             <div style={isWaveActive ? s.itemCompact : s.item}>
               <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>경험 사탕</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨을 가장 낮은 레벨로 변경</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyExpCandy}>가장낮은레벨×50원</button>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>버그 있음! 사용 X</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyExpCandy}>적용 레벨×50원</button>
             </div>
           </div>
         )}
