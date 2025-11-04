@@ -160,18 +160,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
       
       if (target) {
-        const newHp = Math.min(target.maxHp, target.currentHp + 50);
+        const newHp = Math.min(target.maxHp, target.currentHp + 30);
         get().updateTower(target.id, { currentHp: newHp });
         return true;
       }
     }
-    if (itemType === 'potion_full') {
+    if (itemType === 'potion_good') {
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
       
       if (target) {
-        const newHp = Math.min(target.maxHp, target.currentHp + 200);
+        // max(150, maxHP * 0.1) 회복
+        const healAmount = Math.max(150, Math.floor(target.maxHp * 0.1));
+        const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
+        get().updateTower(target.id, { currentHp: newHp });
+        return true;
+      }
+    }
+    if (itemType === 'potion_super') {
+      const target = targetTowerId 
+        ? towers.find(t => t.id === targetTowerId && !t.isFainted)
+        : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
+      
+      if (target) {
+        // maxHP * 0.5 회복
+        const healAmount = Math.floor(target.maxHp * 0.5);
+        const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
         get().updateTower(target.id, { currentHp: newHp });
         return true;
       }

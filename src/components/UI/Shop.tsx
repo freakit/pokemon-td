@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { canEvolveWithItem } from '../../data/evolution';
 
-const REVIVE_COST = 100; // 기력의 조각 가격
-
-type ItemMode = 'none' | 'potion' | 'potion_full' | 'candy' | 'revive' | 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord';
+type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord';
 
 export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
@@ -30,10 +28,19 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   };
 
-  const handleBuyPotionFull = () => {
-    if (spendMoney(80)) {
-      setItemMode('potion_full');
-      setSelectedCost(80);
+  const handleBuyPotionGood = () => {
+    if (spendMoney(100)) {
+      setItemMode('potion_good');
+      setSelectedCost(100);
+    } else {
+      alert('돈이 부족합니다!');
+    }
+  };
+
+  const handleBuyPotionSuper = () => {
+    if (spendMoney(500)) {
+      setItemMode('potion_super');
+      setSelectedCost(500);
     } else {
       alert('돈이 부족합니다!');
     }
@@ -46,12 +53,9 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleBuyRevive = () => {
-    if (spendMoney(REVIVE_COST)) {
-      setItemMode('revive');
-      setSelectedCost(REVIVE_COST);
-    } else {
-      alert('돈이 부족합니다!');
-    }
+    // 기력의 조각도 타겟 선택 후 가격 계산 (레벨 * 10원)
+    setItemMode('revive');
+    setSelectedCost(0); // 초기 비용은 0, 타겟 선택 시 계산
   };
 
   const handleBuyStone = (stone: 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord') => {
@@ -65,7 +69,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleTargetSelect = async (towerId: string) => {
-    if (itemMode === 'potion' || itemMode === 'potion_full' || itemMode === 'revive') {
+    if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super') {
       const success = useItem(itemMode, towerId);
       if (success) {
         setItemMode('none');
@@ -74,6 +78,33 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         alert('해당 아이템을 사용할 수 없는 대상입니다.');
         // 환불
         useGameStore.getState().addMoney(selectedCost);
+        setItemMode('none');
+        setSelectedCost(0);
+      }
+    } else if (itemMode === 'revive') {
+      // 기력의 조각: 대상의 레벨 * 10원
+      const tower = towers.find(t => t.id === towerId);
+      if (!tower) {
+        alert('대상을 찾을 수 없습니다.');
+        setItemMode('none');
+        return;
+      }
+      
+      const reviveCost = tower.level * 10;
+      if (spendMoney(reviveCost)) {
+        const success = useItem('revive', towerId);
+        if (success) {
+          setItemMode('none');
+          setSelectedCost(0);
+        } else {
+          alert('해당 아이템을 사용할 수 없는 대상입니다.');
+          // 환불
+          useGameStore.getState().addMoney(reviveCost);
+          setItemMode('none');
+          setSelectedCost(0);
+        }
+      } else {
+        alert(`돈이 부족합니다! (필요: ${reviveCost}원)`);
         setItemMode('none');
         setSelectedCost(0);
       }
@@ -135,9 +166,10 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <h2>🎯 타겟 선택</h2>
           <p>
             {itemMode === 'potion' && '상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'potion_full' && '고급 상처약을 사용할 아군을 클릭하세요.'}
+            {itemMode === 'potion_good' && '좋은상처약을 사용할 아군을 클릭하세요.'}
+            {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'candy' && '이상한사탕을 사용할 아군을 클릭하세요. (레벨 × 50원)'}
-            {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요.'}
+            {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
             {itemMode === 'linking-cord' && '연결의 끈을 사용할 아군을 클릭하세요. (통신 교환 진화)'}
             {itemMode.endsWith('-stone') && '진화의 돌을 사용할 아군을 클릭하세요.'}
           </p>
@@ -179,6 +211,11 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       💰 {tower.level * 50}원
                     </p>
                   )}
+                  {isSelectable && itemMode === 'revive' && (
+                    <p style={{color: '#e74c3c', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
+                      💰 {tower.level * 10}원
+                    </p>
+                  )}
                   {isSelectable && (itemMode.endsWith('-stone') || itemMode === 'linking-cord') && (
                     <p style={{color: '#2ecc71', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
                       ✨ 진화 가능!
@@ -207,13 +244,18 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div style={isWaveActive ? s.itemsCompact : s.items}>
           <div style={isWaveActive ? s.itemCompact : s.item}>
             <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>상처약</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 50 회복</p>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 30 회복</p>
             <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotion}>20원</button>
           </div>
           <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급 상처약</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 200 회복</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionFull}>80원</button>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>좋은상처약</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 150 or 10%</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionGood}>100원</button>
+          </div>
+          <div style={isWaveActive ? s.itemCompact : s.item}>
+            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급상처약</h3>
+            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 50% 회복</p>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionSuper}>500원</button>
           </div>
           <div style={isWaveActive ? s.itemCompact : s.item}>
             <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
@@ -223,7 +265,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div style={isWaveActive ? s.itemCompact : s.item}>
             <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
             <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>기절 부활</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>{REVIVE_COST}원</button>
+            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>레벨×10원</button>
           </div>
           {!isWaveActive && (
             <>

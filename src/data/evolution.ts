@@ -28,7 +28,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 66, to: 67, level: 28 },
   { from: 69, to: 70, level: 21 },
   { from: 72, to: 73, level: 30 }, { from: 74, to: 75, level: 25 },
-  { from: 75, to: 76, level: 36 }, { from: 77, to: 78, level: 40 },
+  { from: 77, to: 78, level: 40 },
   { from: 79, to: 80, level: 37 }, { from: 81, to: 82, level: 30 },
   { from: 84, to: 85, level: 31 }, { from: 86, to: 87, level: 34 },
   { from: 88, to: 89, level: 38 }, { from: 92, to: 93, level: 25 },
@@ -43,6 +43,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   // 1세대 통신 교환 진화 → 연결의 끈
   { from: 64, to: 65, item: 'linking-cord' }, // 윤겔라 → 후딘
   { from: 67, to: 68, item: 'linking-cord' }, // 근육몬 → 괴력몬
+  { from: 75, to: 76, item: 'linking-cord' }, // 데구리 → 딱구리
   { from: 93, to: 94, item: 'linking-cord' }, // 고우스트 → 팬텀
   
   // 1세대 진화의 돌 진화

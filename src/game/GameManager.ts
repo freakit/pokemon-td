@@ -320,9 +320,17 @@ export class GameManager {
 
     if (proj.effect.statusInflict && proj.effect.statusChance) {
       if (Math.random() * 100 < proj.effect.statusChance) {
+        // 상태이상별 지속시간 차별화
+        let duration = 5.0; // 기본 5초 (화상, 독, 마비 등)
+        
+        // 얼음, 수면은 적을 완전히 멈추므로 2초로 단축
+        if (proj.effect.statusInflict === 'freeze' || proj.effect.statusInflict === 'sleep') {
+          duration = 2.0;
+        }
+        
         enemy.statusEffect = {
           type: proj.effect.statusInflict,
-          duration: 5.0,
+          duration: duration,
           tickDamage: (proj.effect.statusInflict === 'poison') ? 10 : undefined,
         };
       }
