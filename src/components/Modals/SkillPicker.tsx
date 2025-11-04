@@ -70,6 +70,10 @@ export const SkillPicker: React.FC = () => {
                   <span style={s.statValue}>{currentMove.power}</span>
                 </div>
                 <div style={s.statRow}>
+                  <span>🎯 명중률</span>
+                  <span style={s.statValue}>{currentMove.accuracy}%</span>
+                </div>
+                <div style={s.statRow}>
                   <span>📊 분류</span>
                   <span style={s.statValue}>{currentMove.damageClass === 'physical' ? '물리' : '특수'}</span>
                 </div>
@@ -103,6 +107,10 @@ export const SkillPicker: React.FC = () => {
                 <div style={s.statRow}>
                   <span>⚔️ 위력</span>
                   <span style={s.statValue}>{newMove.power}</span>
+                </div>
+                <div style={s.statRow}>
+                  <span>🎯 명중률</span>
+                  <span style={s.statValue}>{newMove.accuracy}%</span>
                 </div>
                 <div style={s.statRow}>
                   <span>📊 분류</span>

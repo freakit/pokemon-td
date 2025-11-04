@@ -3,8 +3,10 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { canEvolveWithItem } from '../../data/evolution';
+import { EVOLUTION_ITEMS, EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../../data/evolutionItems';
 
-type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord';
+type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'exp_candy' | string;
+type ShopTab = 'general' | 'evolution';
 
 export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
@@ -18,6 +20,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const [itemMode, setItemMode] = useState<ItemMode>('none');
   const [selectedCost, setSelectedCost] = useState(0);
+  const [activeTab, setActiveTab] = useState<ShopTab>('general');
 
   const handleBuyPotion = () => {
     if (spendMoney(20)) {
@@ -47,21 +50,24 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleBuyCandy = () => {
-    // 사탕은 타겟 선택 후 가격 계산
     setItemMode('candy');
-    setSelectedCost(0); // 초기 비용은 0, 타겟 선택 시 계산
+    setSelectedCost(0);
   };
 
   const handleBuyRevive = () => {
-    // 기력의 조각도 타겟 선택 후 가격 계산 (레벨 * 10원)
     setItemMode('revive');
-    setSelectedCost(0); // 초기 비용은 0, 타겟 선택 시 계산
+    setSelectedCost(0);
   };
 
-  const handleBuyStone = (stone: 'fire-stone' | 'water-stone' | 'thunder-stone' | 'leaf-stone' | 'moon-stone' | 'linking-cord') => {
-    const cost = 300;
+  const handleBuyExpCandy = () => {
+    setItemMode('exp_candy');
+    setSelectedCost(0);
+  };
+
+  const handleBuyEvolutionItem = (item: EvolutionItem) => {
+    const cost = item.price;
     if (spendMoney(cost)) {
-      setItemMode(stone);
+      setItemMode(item.id);
       setSelectedCost(cost);
     } else {
       alert('돈이 부족합니다!');
@@ -76,13 +82,11 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setSelectedCost(0);
       } else {
         alert('해당 아이템을 사용할 수 없는 대상입니다.');
-        // 환불
         useGameStore.getState().addMoney(selectedCost);
         setItemMode('none');
         setSelectedCost(0);
       }
     } else if (itemMode === 'revive') {
-      // 기력의 조각: 대상의 레벨 * 10원
       const tower = towers.find(t => t.id === towerId);
       if (!tower) {
         alert('대상을 찾을 수 없습니다.');
@@ -98,7 +102,6 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           setSelectedCost(0);
         } else {
           alert('해당 아이템을 사용할 수 없는 대상입니다.');
-          // 환불
           useGameStore.getState().addMoney(reviveCost);
           setItemMode('none');
           setSelectedCost(0);
@@ -109,7 +112,6 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setSelectedCost(0);
       }
     } else if (itemMode === 'candy') {
-      // 이상한 사탕: 대상의 레벨 * 50원
       const tower = towers.find(t => t.id === towerId);
       if (!tower) {
         alert('대상을 찾을 수 없습니다.');
@@ -117,7 +119,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return;
       }
       
-      const candyCost = tower.level * 50;
+      const candyCost = tower.level * 25;
       if (spendMoney(candyCost)) {
         const success = useItem('candy', towerId);
         if (success) {
@@ -125,7 +127,6 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           setSelectedCost(0);
         } else {
           alert('해당 아이템을 사용할 수 없는 대상입니다.');
-          // 환불
           useGameStore.getState().addMoney(candyCost);
           setItemMode('none');
           setSelectedCost(0);
@@ -135,8 +136,49 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setItemMode('none');
         setSelectedCost(0);
       }
-    } else if (itemMode.endsWith('-stone') || itemMode === 'linking-cord') {
-      // 진화 시도
+    } else if (itemMode === 'exp_candy') {
+      const tower = towers.find(t => t.id === towerId);
+      if (!tower) {
+        alert('대상을 찾을 수 없습니다.');
+        setItemMode('none');
+        return;
+      }
+      
+      // 대상을 제외한 나머지 포켓몬 중 가장 낮은 레벨 찾기
+      const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
+      if (otherTowers.length === 0) {
+        alert('다른 포켓몬이 없어 사용할 수 없습니다.');
+        setItemMode('none');
+        return;
+      }
+      
+      const lowestLevel = Math.min(...otherTowers.map(t => t.level));
+      const expCandyCost = lowestLevel * 50;
+      
+      if (lowestLevel >= tower.level) {
+        alert('이미 가장 낮은 레벨이거나 더 낮습니다.');
+        setItemMode('none');
+        return;
+      }
+      
+      if (spendMoney(expCandyCost)) {
+        const success = useItem('exp_candy', towerId);
+        if (success) {
+          alert(`레벨이 ${tower.level}에서 ${lowestLevel}로 변경되었습니다.`);
+          setItemMode('none');
+          setSelectedCost(0);
+        } else {
+          alert('해당 아이템을 사용할 수 없는 대상입니다.');
+          useGameStore.getState().addMoney(expCandyCost);
+          setItemMode('none');
+          setSelectedCost(0);
+        }
+      } else {
+        alert(`돈이 부족합니다! (필요: ${expCandyCost}원)`);
+        setItemMode('none');
+        setSelectedCost(0);
+      }
+    } else if (itemMode !== 'none') {
       const success = await evolvePokemon(towerId, itemMode);
       if (success) {
         alert('진화 성공!');
@@ -144,7 +186,6 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setSelectedCost(0);
       } else {
         alert('이 포켓몬은 해당 아이템으로 진화할 수 없습니다.');
-        // 환불
         useGameStore.getState().addMoney(selectedCost);
         setItemMode('none');
         setSelectedCost(0);
@@ -153,13 +194,62 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleCancel = () => {
-    // 환불
     useGameStore.getState().addMoney(selectedCost);
     setItemMode('none');
     setSelectedCost(0);
   };
 
+  const getItemIcon = (itemId: string): string => {
+    const iconMap: Record<string, string> = {
+      'fire-stone': '🔥',
+      'water-stone': '💧',
+      'thunder-stone': '⚡',
+      'leaf-stone': '🍃',
+      'moon-stone': '🌙',
+      'sun-stone': '☀️',
+      'shiny-stone': '✨',
+      'dusk-stone': '🌑',
+      'dawn-stone': '🌅',
+      'ice-stone': '❄️',
+      'linking-cord': '🔗',
+      'kings-rock': '👑',
+      'metal-coat': '⚙️',
+      'dragon-scale': '🐉',
+      'upgrade': '🔧',
+      'protector': '🛡️',
+      'electirizer': '⚡',
+      'magmarizer': '🔥',
+      'dubious-disc': '💿',
+      'reaper-cloth': '👻',
+      'razor-claw': '🗡️',
+      'razor-fang': '🦷',
+      'friendship-evolution': '💝',
+      'special-evolution': '✨',
+      'deep-sea-tooth': '🦈',
+      'deep-sea-scale': '🐚',
+      'sachet': '🌸',
+      'whipped-dream': '🍰',
+      'tart-apple': '🍎',
+      'sweet-apple': '🍏',
+      'galarica-cuff': '📿',
+      'galarica-wreath': '🎀',
+      'black-augurite': '⚫',
+    };
+    return iconMap[itemId] || '💎';
+  };
+
+  const getCategoryName = (category: string): string => {
+    const names: Record<string, string> = {
+      stone: '진화의 돌',
+      special: '특수 아이템',
+      friendship: '친밀도 아이템',
+      trade: '통신교환 아이템',
+    };
+    return names[category] || category;
+  };
+
   if (itemMode !== 'none') {
+    const currentItem = EVOLUTION_ITEMS[itemMode];
     return (
       <div style={s.overlay}>
         <div style={s.modal}>
@@ -168,24 +258,24 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {itemMode === 'potion' && '상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'potion_good' && '좋은상처약을 사용할 아군을 클릭하세요.'}
             {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'candy' && '이상한사탕을 사용할 아군을 클릭하세요. (레벨 × 50원)'}
+            {itemMode === 'candy' && '이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)'}
             {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
-            {itemMode === 'linking-cord' && '연결의 끈을 사용할 아군을 클릭하세요. (통신 교환 진화)'}
-            {itemMode.endsWith('-stone') && '진화의 돌을 사용할 아군을 클릭하세요.'}
+            {itemMode === 'exp_candy' && '경험 사탕에 버그가 있습니다. 사용 금지! (적용 레벨 × 50원)'}
+            {currentItem && `${currentItem.name}을(를) 사용할 아군을 클릭하세요.`}
           </p>
           <div style={s.towerGrid}>
             {towers.map(tower => {
-              // 각 아이템 타입별로 사용 가능 여부 확인
               let isSelectable = false;
               
               if (itemMode === 'revive') {
-                // 기력의 조각: 기절한 포켓몬만
                 isSelectable = tower.isFainted;
-              } else if (itemMode.endsWith('-stone') || itemMode === 'linking-cord') {
-                // 진화의 돌: 해당 아이템으로 진화 가능한 포켓몬만
+              } else if (itemMode === 'exp_candy') {
+                const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
+                const lowestLevel = otherTowers.length > 0 ? Math.min(...otherTowers.map(t => t.level)) : 999;
+                isSelectable = !tower.isFainted && tower.level > lowestLevel;
+              } else if (currentItem) {
                 isSelectable = !tower.isFainted && canEvolveWithItem(tower.pokemonId, itemMode) !== null;
               } else {
-                // 상처약, 이상한사탕: 기절하지 않은 포켓몬만
                 isSelectable = !tower.isFainted;
               }
               
@@ -196,7 +286,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     ...s.towerCard,
                     opacity: isSelectable ? 1 : 0.3,
                     cursor: isSelectable ? 'pointer' : 'not-allowed',
-                    border: isSelectable && itemMode.endsWith('-stone') || itemMode === 'linking-cord' 
+                    border: isSelectable && currentItem
                       ? '3px solid #2ecc71' 
                       : '2px solid rgba(52, 152, 219, 0.4)',
                   }}
@@ -208,7 +298,7 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   {tower.isFainted && <p style={{color: '#e74c3c', fontWeight: 'bold'}}>기절</p>}
                   {isSelectable && itemMode === 'candy' && (
                     <p style={{color: '#f39c12', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                      💰 {tower.level * 50}원
+                      💰 {tower.level * 25}원
                     </p>
                   )}
                   {isSelectable && itemMode === 'revive' && (
@@ -216,7 +306,16 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       💰 {tower.level * 10}원
                     </p>
                   )}
-                  {isSelectable && (itemMode.endsWith('-stone') || itemMode === 'linking-cord') && (
+                  {isSelectable && itemMode === 'exp_candy' && (() => {
+                    const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
+                    const lowestLevel = Math.min(...otherTowers.map(t => t.level));
+                    return (
+                      <p style={{color: '#9b59b6', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
+                        💰 {lowestLevel * 50}원 (Lv.{tower.level}→{lowestLevel})
+                      </p>
+                    );
+                  })()}
+                  {isSelectable && currentItem && (
                     <p style={{color: '#2ecc71', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
                       ✨ 진화 가능!
                     </p>
@@ -236,78 +335,97 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div style={isWaveActive ? s.modalCompact : s.modal}>
         <div style={s.header}>
           <h2 style={isWaveActive ? {fontSize: '18px', margin: 0} : undefined}>🏪 상점</h2>
-          <button style={s.closeBtnHeader} onClick={onClose}>×</button>
+          <button style={s.closeBtnHeader} onClick={onClose}>✕</button>
         </div>
-        <p style={isWaveActive ? {...s.money, fontSize: '16px', padding: '8px', margin: '10px 16px'} : s.money}>
-          보유 금액: 💰 {money}원
-        </p>
-        <div style={isWaveActive ? s.itemsCompact : s.items}>
-          <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>상처약</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 30 회복</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotion}>20원</button>
+        
+        <div style={s.money}>💰 보유 골드: {money}원</div>
+        
+        {!isWaveActive && (
+          <div style={s.tabContainer}>
+            <button 
+              style={{
+                ...s.tabButton,
+                ...(activeTab === 'general' ? s.tabButtonActive : {}),
+              }}
+              onClick={() => setActiveTab('general')}
+            >
+              🛒 일반 상점
+            </button>
+            <button 
+              style={{
+                ...s.tabButton,
+                ...(activeTab === 'evolution' ? s.tabButtonActive : {}),
+              }}
+              onClick={() => setActiveTab('evolution')}
+            >
+              ✨ 진화 상점
+            </button>
           </div>
-          <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>좋은상처약</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 150 or 10%</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionGood}>100원</button>
+        )}
+
+        {activeTab === 'general' && (
+          <div style={isWaveActive ? s.itemsCompact : s.items}>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>상처약</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 30 회복</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotion}>구매 (20원)</button>
+            </div>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>좋은상처약</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 150 또는 10% 회복</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionGood}>구매 (100원)</button>
+            </div>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급상처약</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>최대 HP의 50% 회복</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionSuper}>구매 (500원)</button>
+            </div>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨 1 상승</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>레벨×25원</button>
+            </div>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>기절 부활</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>레벨×10원</button>
+            </div>
+            <div style={isWaveActive ? s.itemCompact : s.item}>
+              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>경험 사탕</h3>
+              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨을 가장 낮은 레벨로 변경</p>
+              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyExpCandy}>가장낮은레벨×50원</button>
+            </div>
           </div>
-          <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급상처약</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 50% 회복</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionSuper}>500원</button>
+        )}
+
+        {activeTab === 'evolution' && !isWaveActive && (
+          <div style={s.evolutionShopContainer}>
+            {Object.entries(EVOLUTION_ITEMS_BY_CATEGORY).map(([category, items]) => (
+              <div key={category} style={s.categorySection}>
+                <h3 style={s.categoryTitle}>{getCategoryName(category)}</h3>
+                <div style={s.items}>
+                  {items.map(item => (
+                    <div key={item.id} style={s.item}>
+                      <h3>{getItemIcon(item.id)} {item.name}</h3>
+                      <p style={{fontSize: '13px', color: '#a0aec0', marginTop: '8px'}}>{item.description}</p>
+                      <button 
+                        style={s.btn} 
+                        onClick={() => handleBuyEvolutionItem(item)}
+                      >
+                        구매 ({item.price}원)
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨 1 상승</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>레벨×50원</button>
-          </div>
-          <div style={isWaveActive ? s.itemCompact : s.item}>
-            <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
-            <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>기절 부활</p>
-            <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>레벨×10원</button>
-          </div>
-          {!isWaveActive && (
-            <>
-              <div style={s.item}>
-                <h3>🔥 불의 돌</h3>
-                <p>특정 포켓몬 진화</p>
-                <button style={s.btn} onClick={() => handleBuyStone('fire-stone')}>구매 (300원)</button>
-              </div>
-              <div style={s.item}>
-                <h3>💧 물의 돌</h3>
-                <p>특정 포켓몬 진화</p>
-                <button style={s.btn} onClick={() => handleBuyStone('water-stone')}>구매 (300원)</button>
-              </div>
-              <div style={s.item}>
-                <h3>⚡ 천둥의 돌</h3>
-                <p>특정 포켓몬 진화</p>
-                <button style={s.btn} onClick={() => handleBuyStone('thunder-stone')}>구매 (300원)</button>
-              </div>
-              <div style={s.item}>
-                <h3>🍃 리프의 돌</h3>
-                <p>특정 포켓몬 진화</p>
-                <button style={s.btn} onClick={() => handleBuyStone('leaf-stone')}>구매 (300원)</button>
-              </div>
-              <div style={s.item}>
-                <h3>🌙 달의 돌</h3>
-                <p>특정 포켓몬 진화</p>
-                <button style={s.btn} onClick={() => handleBuyStone('moon-stone')}>구매 (300원)</button>
-              </div>
-              <div style={s.item}>
-                <h3>🔗 연결의 끈</h3>
-                <p>통신 교환 진화 (윤겔라, 근육몬, 고우스트)</p>
-                <button style={s.btn} onClick={() => handleBuyStone('linking-cord')}>구매 (300원)</button>
-              </div>
-            </>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
 };
 
-// 고급 게임 UI 스타일
 const s: Record<string, React.CSSProperties> = {
   overlay: { 
     position: 'fixed', 
@@ -398,17 +516,58 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
     borderRadius: '12px'
   },
+  tabContainer: {
+    display: 'flex',
+    gap: '16px',
+    padding: '0 32px 24px',
+    borderBottom: '2px solid rgba(76, 175, 255, 0.2)',
+  },
+  tabButton: {
+    flex: 1,
+    padding: '14px 20px',
+    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.5), rgba(15, 20, 35, 0.5))',
+    color: '#a0aec0',
+    border: '2px solid rgba(76, 175, 255, 0.2)',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  },
+  tabButtonActive: {
+    background: 'linear-gradient(135deg, #4ca7ff 0%, #3498db 100%)',
+    color: '#fff',
+    border: '2px solid rgba(76, 175, 255, 0.6)',
+    boxShadow: '0 6px 20px rgba(76, 175, 255, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+  },
   items: { 
     display: 'grid', 
     gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
     gap: '24px', 
-    padding: '0 32px 32px'
+    padding: '32px'
   },
   itemsCompact: {
     display: 'flex',
     flexDirection: 'column' as 'column',
     gap: '12px',
     padding: '0 16px 16px',
+  },
+  evolutionShopContainer: {
+    padding: '24px 32px 32px',
+  },
+  categorySection: {
+    marginBottom: '40px',
+  },
+  categoryTitle: {
+    fontSize: '20px',
+    fontWeight: 'bold',
+    color: '#4ca7ff',
+    marginBottom: '16px',
+    paddingBottom: '8px',
+    borderBottom: '2px solid rgba(76, 175, 255, 0.3)',
+    textShadow: '0 0 10px rgba(76, 175, 255, 0.5)',
   },
   item: { 
     background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
@@ -444,7 +603,8 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 'bold', 
     fontSize: '16px', 
     boxShadow: '0 4px 15px rgba(243, 156, 18, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+    transition: 'all 0.2s ease',
   },
   btnCompact: {
     padding: '8px 12px',

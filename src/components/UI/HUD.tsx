@@ -50,7 +50,7 @@ export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon, on
         <button onClick={onManagePokemon} style={{...s.btn, ...s.btnManage}}>
           🎒 관리 ({towers.length}/6)
         </button>
-        <button onClick={() => setSpeed(gameSpeed === 3 ? 1 : gameSpeed + 1)} style={{...s.btn, ...s.btnSpeed}}>
+        <button onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed + 1)} style={{...s.btn, ...s.btnSpeed}}>
           ⏩ 속도
         </button>
       </div>

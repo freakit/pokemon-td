@@ -114,8 +114,16 @@ class PokeAPIService {
   }
 
   // 레어도 기반 가중치 랜덤 선택
-  async getRandomPokemonIdWithRarity(maxGen: number = 1): Promise<number> {
-    const max = maxGen === 1 ? 151 : maxGen === 2 ? 251 : 386;
+  async getRandomPokemonIdWithRarity(maxGen: number = 9): Promise<number> {
+    const max = maxGen === 1 ? 151 : 
+                maxGen === 2 ? 251 : 
+                maxGen === 3 ? 386 : 
+                maxGen === 4 ? 493 :
+                maxGen === 5 ? 649 :
+                maxGen === 6 ? 721 :
+                maxGen === 7 ? 809 :
+                maxGen === 8 ? 905 :
+                1025; // 9세대
     
     // 기본형 포켓몬 목록 생성
     const basePokemonIds: number[] = [];
@@ -149,9 +157,16 @@ class PokeAPIService {
     return basePokemonIds[0];
   }
 
-  getRandomPokemonId(maxGen: number = 1): number {
-    // 1세대: 1-151, 2세대: 152-251, 3세대: 252-386
-    const max = maxGen === 1 ? 151 : maxGen === 2 ? 251 : 386;
+  getRandomPokemonId(maxGen: number = 9): number {
+    const max = maxGen === 1 ? 151 : 
+                maxGen === 2 ? 251 : 
+                maxGen === 3 ? 386 : 
+                maxGen === 4 ? 493 :
+                maxGen === 5 ? 649 :
+                maxGen === 6 ? 721 :
+                maxGen === 7 ? 809 :
+                maxGen === 8 ? 905 :
+                1025; // 9세대
     let randomId = 0;
     
     // 기본형(진화형이 아닌) 포켓몬이 나올 때까지 반복
@@ -203,7 +218,7 @@ class PokeAPIService {
             name: m.name,
             type: m.type,
             power: m.power || 40,
-            accuracy: m.accuracy || 100,
+            accuracy: m.accuracy || 100, // 명중률 (100 = 100%)
             damageClass: m.damageClass,
             effect,
             cooldown: 2.0,

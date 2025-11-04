@@ -19,14 +19,10 @@ class SoundService {
     'defeat': '/sounds/sfx/defeat.wav',
   };
 
-  private bgmMap: Record<string, string> = {
-    'grass': '/sounds/bgm/bgm_grass.mp3',
-    'desert': '/sounds/bgm/bgm_desert.mp3',
-    'cave': '/sounds/bgm/bgm_cave.mp3',
-  };
-
   private constructor() {
     Howler.volume(0.7); // 경고 해결: 글로벌 볼륨 설정
+    // 게임 시작 시 BGM 자동 재생
+    this.playBGM();
   }
   
   static getInstance() {
@@ -49,21 +45,31 @@ class SoundService {
     // 재생 시점에 개별 볼륨을 설정해야 합니다. (현재: 개별 설정)
   }
   
-  playBGM(mapType: string) {
-    this.stopBGM();
+  playBGM() {
+    // 이미 BGM이 재생 중이면 중단하지 않음 (끊김 없이 계속 재생)
+    if (this.currentBGM && this.currentBGM.playing()) {
+      return;
+    }
     
-    const track = this.bgmMap[mapType] || this.bgmMap['grass'];
-    if (!track) return;
-
+    // 기존 Howl 인스턴스가 있으면 재사용
+    if (this.currentBGM) {
+      this.currentBGM.play();
+      console.log('BGM 재생 재개');
+      return;
+    }
+    
+    const track = '/sounds/dj-pikachu.m4a'; // 모든 맵에서 동일한 BGM
     const bgm = new Howl({
       src: [track],
       volume: this.musicVolume,
       loop: true,
-      html5: true,
+      html5: false, // html5를 false로 설정하여 Web Audio API 사용
     });
-    
-    bgm.play();
+
+    // currentBGM을 먼저 설정하여 중복 재생 방지
     this.currentBGM = bgm;
+    const playId = bgm.play();
+    console.log('BGM 재생 시도:', track, 'Play ID:', playId);
   }
   
   stopBGM() {
