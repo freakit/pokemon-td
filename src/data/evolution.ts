@@ -89,6 +89,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 175, to: 176, item: 'friendship-evolution' }, // 토게피 → 토게틱 (친밀도)
   { from: 177, to: 178, level: 25 },
   { from: 179, to: 180, level: 15 }, { from: 180, to: 181, level: 30 },
+  { from: 183, to: 184, level: 18 }, 
   { from: 187, to: 188, level: 18 }, { from: 188, to: 189, level: 27 },
   { from: 190, to: 424, item: 'special-evolution' }, // 에이팜 → 겟핸보숭 (기술 습득)
   { from: 194, to: 195, level: 20 }, // 우파 (P) -> 토오 진화는 9세대에

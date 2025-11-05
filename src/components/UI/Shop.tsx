@@ -390,18 +390,18 @@ export const Shop: React.FC = () => {
               <button style={s.btnCompact} onClick={handleBuyPotionSuper}>500원</button>
             </div>
             <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>이상한사탕</h3>
-              <p style={s.itemDescCompact}>레벨 1 상승</p>
-              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
-            </div>
-            <div style={s.itemCompact}>
               <h3 style={s.itemTitleCompact}>기력의 조각</h3>
               <p style={s.itemDescCompact}>기절 부활</p>
               <button style={s.btnCompact} onClick={handleBuyRevive}>Lv×10원</button>
             </div>
             <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>이상한 사탕</h3>
+              <p style={s.itemDescCompact}>레벨 1 상승</p>
+              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
+            </div>
+            <div style={s.itemCompact}>
               <h3 style={s.itemTitleCompact}>경험 사탕</h3>
-              <p style={{...s.itemDescCompact, color: '#e74c3c'}}>버그 있음 X</p>
+              <p style={{...s.itemDescCompact, color: '#e74c3c'}}>버그 있음 사용 X</p>
               <button style={s.btnCompact} onClick={handleBuyExpCandy}>Lv×50원</button>
             </div>
           </div>

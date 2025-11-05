@@ -459,12 +459,12 @@ export class GameManager {
         { id: 'revive_shard', name: '기력의 조각', type: 'revive', cost: 0, effect: '기절한 아군 1마리를 50% HP로 부활' },
       ];
       
-      // 🔴 메가스톤 드랍 로직 (5% 확률)
+      // 🔴 메가스톤 드랍 로직 (10% 확률)
       // 엔트리에 메가진화 가능한 최종진화형이 있는지 확인
       const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
       
-      if (megaEligiblePokemon.length > 0 && Math.random() < 0.05) {
-        // 5% 확률로 메가스톤 드랍
+      if (megaEligiblePokemon.length > 0 && Math.random() < 0.1) {
+        // 10% 확률로 메가스톤 드랍
         const randomPokemon = megaEligiblePokemon[Math.floor(Math.random() * megaEligiblePokemon.length)];
         const megaData = MEGA_EVOLUTIONS.find(m => m.from === randomPokemon.pokemonId);
         
