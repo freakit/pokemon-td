@@ -1,9 +1,21 @@
 // src/types/game.ts
 
-export type StatusEffectType = 'burn' | 'poison' | 'paralysis' | 'freeze' | 'sleep' | 'confusion';
-export type DamageClass = 'physical' | 'special' | 'status';
-export type Difficulty = 'easy' | 'normal' | 'hard' | 'expert';
-export type PokemonRarity = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend';
+export type StatusEffectType =
+  | "burn"
+  | "poison"
+  | "paralysis"
+  | "freeze"
+  | "sleep"
+  | "confusion";
+export type DamageClass = "physical" | "special" | "status";
+export type Difficulty = "easy" | "normal" | "hard" | "expert";
+export type PokemonRarity =
+  | "Bronze"
+  | "Silver"
+  | "Gold"
+  | "Diamond"
+  | "Master"
+  | "Legend";
 
 export interface Position {
   x: number;
@@ -19,7 +31,7 @@ export interface StatusEffect {
 export interface PokemonAbility {
   name: string;
   description: string;
-  effect: 'crit' | 'lifesteal' | 'aoe' | 'speed' | 'tank';
+  effect: "crit" | "lifesteal" | "aoe" | "speed" | "tank";
   value: number;
 }
 
@@ -38,11 +50,23 @@ export interface GameMove {
 }
 
 export interface MoveEffect {
-  type: 'damage' | 'status' | 'heal' | 'buff' | 'debuff';
+  type: "damage" | "status" | "heal" | "buff" | "debuff";
   statusInflict?: StatusEffectType; // 상태이상
   statusChance?: number; // 확률
   damageMultiplier?: number;
   additionalEffects?: string;
+}
+
+export interface MapData {
+  id: string;
+  name: string;
+  difficulty: "easy" | "medium" | "hard" | "expert";
+  paths: Position[][];
+  spawns: Position[];
+  objectives: Position[];
+  description: string;
+  unlockWave: number;
+  backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
 
 export interface GamePokemon {
@@ -130,7 +154,7 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: 'heal' | 'revive' | 'candy' | 'egg' | 'stone' | 'gold' | 'mega-stone';
+  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone";
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)
@@ -177,7 +201,7 @@ export interface GameSettings {
   showDamageNumbers: boolean;
   showGrid: boolean;
   autoSave: boolean;
-  language: 'ko' | 'en';
+  language: "ko" | "en";
 }
 
 export interface HighScore {
@@ -215,17 +239,17 @@ export interface GameState {
     towerId: string;
     newMoves: GameMove[];
   }>;
-  
+
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
-  
+
   // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
     toName: string;
     timestamp: number;
   } | null;
-  
+
   // 웨이브 50 클리어 모달 표시 여부
   wave50Clear: boolean;
 }
