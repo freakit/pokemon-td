@@ -422,7 +422,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 926, to: 927, level: 26 }, // 쫀도기 -> 바우첼
   { from: 928, to: 929, level: 25 }, // 미니브 -> 올리뇨
   { from: 929, to: 930, level: 35 }, // 올리뇨 -> 올리르바
-  { from: 932, to: 933, level: 24 }, // 암염소금 -> 스태솔트
+  { from: 932, to: 933, level: 24 }, // 베베솔트 -> 스태솔트
   { from: 933, to: 934, level: 38 }, // 스태솔트 -> 콜로솔트
   { from: 935, to: 936, item: 'auspicious-armor' }, // 카르본 -> 카디나르마
   { from: 935, to: 937, item: 'malicious-armor' }, // 카르본 -> 파라블레이즈
