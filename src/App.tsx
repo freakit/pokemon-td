@@ -18,6 +18,7 @@ import './index.css';
 // 새 모달 임포트
 import { SkillPicker } from './components/Modals/SkillPicker';
 import { WaveEndPicker } from './components/Modals/WaveEndPicker';
+import { Wave50ClearModal } from './components/Modals/Wave50ClearModal';
 
 function App() {
   const [showPicker, setShowPicker] = useState(false);
@@ -27,7 +28,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(true);
   
-  const { nextWave, isWaveActive, gameOver, reset, skillChoiceQueue, waveEndItemPick, spendMoney } = useGameStore(state => ({
+  const { nextWave, isWaveActive, gameOver, reset, skillChoiceQueue, waveEndItemPick, spendMoney, wave50Clear } = useGameStore(state => ({
     nextWave: state.nextWave,
     isWaveActive: state.isWaveActive,
     gameOver: state.gameOver,
@@ -35,6 +36,7 @@ function App() {
     skillChoiceQueue: state.skillChoiceQueue,
     waveEndItemPick: state.waveEndItemPick,
     spendMoney: state.spendMoney,
+    wave50Clear: state.wave50Clear,
   }));
 
   const handleOpenPicker = () => {
@@ -106,6 +108,18 @@ function App() {
 
       {/* 웨이브 종료 시 아이템 선택 모달 */}
       {waveEndItemPick && <WaveEndPicker />}
+      
+      {/* 웨이브 50 클리어 모달 */}
+      {wave50Clear && (
+        <Wave50ClearModal
+          onContinue={() => {
+            useGameStore.setState({ wave50Clear: false, isPaused: false });
+          }}
+          onRestart={() => {
+            window.location.reload();
+          }}
+        />
+      )}
       
       {gameOver && (
         <div style={styles.gameOverOverlay}>

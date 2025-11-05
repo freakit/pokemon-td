@@ -225,4 +225,7 @@ export interface GameState {
     toName: string;
     timestamp: number;
   } | null;
+  
+  // 웨이브 50 클리어 모달 표시 여부
+  wave50Clear: boolean;
 }

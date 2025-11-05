@@ -282,7 +282,11 @@ export const Shop: React.FC = () => {
               } else if (currentItem) {
                 isSelectable = !tower.isFainted && canEvolveWithItem(tower.pokemonId, itemMode) !== null;
               } else {
-                isSelectable = !tower.isFainted;
+                if (itemMode === 'candy') {
+                  isSelectable = !tower.isFainted && tower.level < 100;
+                } else {
+                  isSelectable = !tower.isFainted;
+                }
               }
               
               return (

@@ -107,10 +107,10 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 238, to: 124, level: 30 }, // 뽀뽀라 → 루주라
   { from: 239, to: 125, level: 30 }, // 에레키드 → 에레브
   { from: 240, to: 126, level: 30 }, // 마그비 → 마그마
+  { from: 246, to: 247, level: 30 }, { from: 247, to: 248, level: 55 },
   
   // 아이템 진화 (2세대)
   { from: 42, to: 169, item: 'friendship-evolution' }, // 골뱃 -> 크로뱃 (친밀도)
-  { from: 61, to: 186, item: 'kings-rock' }, // 수륙챙이 -> 왕구리 (왕의징표석+교환)
   { from: 79, to: 199, item: 'kings-rock' }, // 야돈 -> 야도킹 (왕의징표석+교환)
   { from: 95, to: 208, item: 'metal-coat' }, // 롱스톤 -> 강철톤 (금속코트+교환)
   { from: 113, to: 242, item: 'friendship-evolution' }, // 럭키 -> 해피너스 (친밀도)
@@ -142,7 +142,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 285, to: 286, level: 23 },
   { from: 287, to: 288, level: 18 }, { from: 288, to: 289, level: 36 },
   { from: 290, to: 291, level: 20 },
-  { from: 290, to: 292, level: 20 }, // 토중몬 -> 껍질몬 (특수 진화)
+  { from: 290, to: 292, item: 'special-evolution' }, // 토중몬 -> 껍질몬 (특수 진화)
   { from: 293, to: 294, level: 20 }, { from: 294, to: 295, level: 40 },
   { from: 296, to: 297, level: 24 },
   { from: 298, to: 183, item: 'friendship-evolution' }, // 루리리 -> 마릴 (친밀도)
@@ -344,6 +344,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   // { from: 88, to: 89, level: 38 }, // 질퍽이(A) -> 질뻐기(A) (기본 88->89와 동일)
   // { from: 102, to: 103, item: 'leaf-stone' }, // 아라리 -> 나시(A) (기본 102->103과 동일)
   // { from: 104, to: 105, level: 28 }, // 탕구리 -> 텅구리(A) (기본 104->105와 동일, 밤 조건은 special-evolution으로 X)
+  { from: 808, to: 809, item: 'special-evolution' }, // 멜탄 -> 멜메탈 (특수 조건)
   
   // === 8세대 (810-905) ===
   { from: 810, to: 811, level: 16 }, { from: 811, to: 812, level: 35 },
@@ -372,6 +373,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 872, to: 873, level: 34 },
   { from: 878, to: 879, level: 34 },
   { from: 885, to: 886, level: 50 }, { from: 886, to: 887, level: 60 }, // 드라꼰 -> 드래런치 -> 드래펄트
+  { from: 891, to: 892, item: 'special-evolution' }, // 치고마 -> 우라오스 (특수 조건)
   
   // 가라르폼 진화
   { from: 52, to: 863, level: 28 }, // 나옹(G) -> 나이킹
@@ -421,7 +423,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 942, to: 943, level: 30 }, // 오라티프 -> 마피티프
   { from: 944, to: 945, level: 28 }, // 땃주르 -> 태깅구르
   { from: 946, to: 947, item: 'special-evolution' }, // 그우린 -> 공푸린 (레츠고 1000보)
-  { from: 948, to: 949, level: 30 }, // 들눈해 -> 陸(육)파리
+  { from: 948, to: 949, level: 30 }, // 들눈해 -> 육파리
   { from: 951, to: 952, item: 'fire-stone' }, // 캡싸이 -> 스코빌런
   { from: 953, to: 954, item: 'special-evolution' }, // 구르돈 -> 베라카스 (레츠고 1000보)
   { from: 955, to: 956, level: 35 }, // 하느라 -> 클레스퍼트라

@@ -63,6 +63,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   skillChoiceQueue: [],
   waveEndItemPick: null,
   evolutionToast: null,
+  wave50Clear: false,
   
   addTower: (tower) => set((state) => ({ towers: [...state.towers, tower] })),
   updateTower: (id, updates) => set((state) => ({
@@ -126,6 +127,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     skillChoiceQueue: [],
     waveEndItemPick: null,
     evolutionToast: null,
+    wave50Clear: false,
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
@@ -193,6 +195,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : towers.sort((a, b) => a.level - b.level)[0];
         
       if (target) {
+        if (target.level >= 100) {
+          // 100레벨이면 사용 실패
+          return false; 
+        }
         get().addXpToTower(target.id, 100); // 100 XP = 1 레벨
         return true;
       }
@@ -339,10 +345,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       try {
         const oldName = tower.name;
         const newData = await pokeAPI.getPokemon(megaEvolution.to);
-        
-        // 메가진화: 메가폼의 고유 스탯으로 덮어씀
-        // 레벨 보정 적용 (레벨당 5% 증가)
-        const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+        const levelMultiplier = Math.pow(1.05, tower.level - 1);
         
         get().updateTower(tower.id, {
           pokemonId: megaEvolution.to,
@@ -396,10 +399,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     try {
       const oldName = tower.name;
       const newData = await pokeAPI.getPokemon(evolution.to);
-      
-      // 일반 진화: 진화체의 고유 스탯으로 덮어씀
-      // 레벨 보정 적용 (레벨당 5% 증가)
-      const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+      const levelMultiplier = Math.pow(1.05, tower.level - 1);
       
       get().updateTower(tower.id, {
         pokemonId: evolution.to,
