@@ -10,7 +10,6 @@ import { soundService } from '../services/SoundService';
 
 export class GameManager {
   private static instance: GameManager;
-  private waveEnemiesSpawned = false; // 🔴 추가: 웨이브 적 소환 플래그
   
   static getInstance() {
     if (!GameManager.instance) {
@@ -83,12 +82,7 @@ export class GameManager {
 
   private updateEnemies(dt: number) {
     const { enemies, towers, removeEnemy } = useGameStore.getState();
-    
-    // 🔴 추가: 적이 소환되었음을 표시
-    if (enemies.length > 0) {
-      this.waveEnemiesSpawned = true;
-    }
-    
+
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       if (!e) continue;
@@ -450,12 +444,11 @@ export class GameManager {
   
   // 🔴 수정된 부분
   private checkWaveComplete() {
-    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers } = useGameStore.getState();
+    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers, isSpawning } = useGameStore.getState();
     
     // 적이 실제로 소환된 적이 있고, 현재 웨이브가 활성화되어 있으며, 모든 적이 사라졌을 때만 보상
-    if (isWaveActive && this.waveEnemiesSpawned && enemies.length === 0) {
+    if (isWaveActive && !isSpawning && enemies.length === 0) {
       useGameStore.setState({ isWaveActive: false, combo: 0, isPaused: true });
-      
       healAllTowers();
 
       const itemChoices: Item[] = [
@@ -485,9 +478,6 @@ export class GameManager {
       }
       
       setWaveEndItemPick(itemChoices);
-      
-      // 플래그 초기화
-      this.waveEnemiesSpawned = false;
     }
   }
 }

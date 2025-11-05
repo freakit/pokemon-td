@@ -1,6 +1,6 @@
 // src/components/UI/Shop.tsx
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { canEvolveWithItem } from '../../data/evolution';
 import { EVOLUTION_ITEMS, EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../../data/evolutionItems';
@@ -8,7 +8,7 @@ import { EVOLUTION_ITEMS, EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../
 type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'exp_candy' | string;
 type ShopTab = 'general' | 'evolution';
 
-export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const Shop: React.FC = () => {
   const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
@@ -21,6 +21,12 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [itemMode, setItemMode] = useState<ItemMode>('none');
   const [selectedCost, setSelectedCost] = useState(0);
   const [activeTab, setActiveTab] = useState<ShopTab>('general');
+
+  useEffect(() => {
+    if (isWaveActive) {
+      setActiveTab('general');
+    }
+  }, [isWaveActive]);
 
   const handleBuyPotion = () => {
     if (spendMoney(20)) {
@@ -331,92 +337,89 @@ export const Shop: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }
 
   return (
-    <div style={isWaveActive ? s.overlayCompact : s.overlay}>
-      <div style={isWaveActive ? s.modalCompact : s.modal}>
-        <div style={s.header}>
-          <h2 style={isWaveActive ? {fontSize: '18px', margin: 0} : undefined}>🏪 상점</h2>
-          <button style={s.closeBtnHeader} onClick={onClose}>✕</button>
+    <div style={s.overlayCompact}>
+      <div style={s.modalCompact}>
+        <div style={s.headerCompact}>
+          <h2 style={s.titleCompact}>🏪 상점</h2>
         </div>
         
-        <div style={s.money}>💰 보유 골드: {money}원</div>
+        <div style={s.moneyCompact}>💰 {money}원</div>
         
         {!isWaveActive && (
-          <div style={s.tabContainer}>
+          <div style={s.tabContainerCompact}>
             <button 
               style={{
-                ...s.tabButton,
-                ...(activeTab === 'general' ? s.tabButtonActive : {}),
+                ...s.tabButtonCompact,
+                ...(activeTab === 'general' ? s.tabButtonActiveCompact : {}),
               }}
               onClick={() => setActiveTab('general')}
             >
-              🛒 일반 상점
+              🛒 일반
             </button>
             <button 
               style={{
-                ...s.tabButton,
-                ...(activeTab === 'evolution' ? s.tabButtonActive : {}),
+                ...s.tabButtonCompact,
+                ...(activeTab === 'evolution' ? s.tabButtonActiveCompact : {}),
               }}
               onClick={() => setActiveTab('evolution')}
             >
-              ✨ 진화 상점
+              ✨ 진화
             </button>
           </div>
         )}
 
         {activeTab === 'general' && (
-          <div style={isWaveActive ? s.itemsCompact : s.items}>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>상처약</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 30 회복</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotion}>구매 (20원)</button>
+          <div style={s.itemsCompact}>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>상처약</h3>
+              <p style={s.itemDescCompact}>HP 30 회복</p>
+              <button style={s.btnCompact} onClick={handleBuyPotion}>20원</button>
             </div>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>좋은상처약</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>HP 150 또는 10% 회복</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionGood}>구매 (100원)</button>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>좋은상처약</h3>
+              <p style={s.itemDescCompact}>HP 150 또는 10%</p>
+              <button style={s.btnCompact} onClick={handleBuyPotionGood}>100원</button>
             </div>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>고급상처약</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>최대 HP의 50% 회복</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyPotionSuper}>구매 (500원)</button>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>고급상처약</h3>
+              <p style={s.itemDescCompact}>최대 HP 50%</p>
+              <button style={s.btnCompact} onClick={handleBuyPotionSuper}>500원</button>
             </div>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>이상한사탕</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>레벨 1 상승</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyCandy}>레벨×25원</button>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>이상한사탕</h3>
+              <p style={s.itemDescCompact}>레벨 1 상승</p>
+              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
             </div>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>기력의 조각</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>기절 부활</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyRevive}>레벨×10원</button>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>기력의 조각</h3>
+              <p style={s.itemDescCompact}>기절 부활</p>
+              <button style={s.btnCompact} onClick={handleBuyRevive}>Lv×10원</button>
             </div>
-            <div style={isWaveActive ? s.itemCompact : s.item}>
-              <h3 style={isWaveActive ? {fontSize: '13px', margin: '0 0 4px 0'} : undefined}>경험 사탕</h3>
-              <p style={isWaveActive ? {fontSize: '10px', margin: '0 0 6px 0'} : undefined}>버그 있음! 사용 X</p>
-              <button style={isWaveActive ? s.btnCompact : s.btn} onClick={handleBuyExpCandy}>적용 레벨×50원</button>
+            <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>경험 사탕</h3>
+              <p style={{...s.itemDescCompact, color: '#e74c3c'}}>버그 있음 X</p>
+              <button style={s.btnCompact} onClick={handleBuyExpCandy}>Lv×50원</button>
             </div>
           </div>
         )}
 
         {activeTab === 'evolution' && !isWaveActive && (
-          <div style={s.evolutionShopContainer}>
+          <div style={s.evolutionShopCompact}>
             {Object.entries(EVOLUTION_ITEMS_BY_CATEGORY).map(([category, items]) => (
-              <div key={category} style={s.categorySection}>
-                <h3 style={s.categoryTitle}>{getCategoryName(category)}</h3>
-                <div style={s.items}>
-                  {items.map(item => (
-                    <div key={item.id} style={s.item}>
-                      <h3>{getItemIcon(item.id)} {item.name}</h3>
-                      <p style={{fontSize: '13px', color: '#a0aec0', marginTop: '8px'}}>{item.description}</p>
-                      <button 
-                        style={s.btn} 
-                        onClick={() => handleBuyEvolutionItem(item)}
-                      >
-                        구매 ({item.price}원)
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div key={category} style={s.categorySectionCompact}>
+                <h3 style={s.categoryTitleCompact}>{getCategoryName(category)}</h3>
+                {items.map(item => (
+                  <div key={item.id} style={s.itemCompact}>
+                    <h3 style={s.itemTitleCompact}>{getItemIcon(item.id)} {item.name}</h3>
+                    <p style={s.itemDescCompact}>{item.description}</p>
+                    <button 
+                      style={s.btnCompact} 
+                      onClick={() => handleBuyEvolutionItem(item)}
+                    >
+                      {item.price}원
+                    </button>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -442,17 +445,11 @@ const s: Record<string, React.CSSProperties> = {
     animation: 'fadeIn 0.3s ease-out'
   },
   overlayCompact: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'transparent',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
+    position: 'fixed' as 'fixed',
+    right: '16px',
+    top: '16px',
     zIndex: 999,
-    pointerEvents: 'none',
+    pointerEvents: 'auto' as 'auto',
   },
   modal: { 
     background: 'linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%)',
@@ -472,14 +469,13 @@ const s: Record<string, React.CSSProperties> = {
     color: '#e8edf3',
     borderRadius: '16px',
     padding: '0',
-    maxWidth: '320px',
-    width: '320px',
+    width: '280px',
     maxHeight: '70vh',
     overflowY: 'auto' as 'auto',
-    boxShadow: '0 15px 40px rgba(0,0,0,0.8), 0 0 1px 1px rgba(76, 175, 255, 0.3)',
-    border: '2px solid rgba(76, 175, 255, 0.2)',
-    margin: '20px',
-    pointerEvents: 'auto',
+    boxShadow: '0 20px 60px rgba(243, 156, 18, 0.4), 0 0 2px 1px rgba(243, 156, 18, 0.3)',
+    border: '3px solid rgba(243, 156, 18, 0.4)',
+    backdropFilter: 'blur(10px)',
+    animation: 'slideInRight 0.3s ease-out',
   },
   header: { 
     display: 'flex', 
@@ -488,6 +484,19 @@ const s: Record<string, React.CSSProperties> = {
     padding: '24px 32px',
     background: 'linear-gradient(90deg, rgba(243, 156, 18, 0.15), transparent)',
     borderBottom: '2px solid rgba(243, 156, 18, 0.2)'
+  },
+  headerCompact: {
+    padding: '16px',
+    background: 'linear-gradient(90deg, rgba(243, 156, 18, 0.2), transparent)',
+    borderBottom: '2px solid rgba(243, 156, 18, 0.3)',
+    textAlign: 'center' as 'center',
+  },
+  titleCompact: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    margin: 0,
+    color: '#f39c12',
+    textShadow: '0 0 10px rgba(243, 156, 18, 0.6)',
   },
   closeBtnHeader: { 
     width: '48px',
@@ -516,11 +525,27 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
     borderRadius: '12px'
   },
+  moneyCompact: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+    margin: '12px 16px',
+    textAlign: 'center' as 'center',
+    textShadow: '0 0 10px rgba(255, 215, 0, 0.7)',
+    padding: '8px',
+    background: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: '8px',
+  },
   tabContainer: {
     display: 'flex',
     gap: '16px',
     padding: '0 32px 24px',
     borderBottom: '2px solid rgba(76, 175, 255, 0.2)',
+  },
+  tabContainerCompact: {
+    display: 'flex',
+    gap: '8px',
+    padding: '0 16px 12px',
   },
   tabButton: {
     flex: 1,
@@ -535,12 +560,30 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
   },
+  tabButtonCompact: {
+    flex: 1,
+    padding: '8px 12px',
+    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.6), rgba(15, 20, 35, 0.6))',
+    color: '#a0aec0',
+    border: '2px solid rgba(243, 156, 18, 0.2)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '12px',
+    transition: 'all 0.2s ease',
+  },
   tabButtonActive: {
     background: 'linear-gradient(135deg, #4ca7ff 0%, #3498db 100%)',
     color: '#fff',
     border: '2px solid rgba(76, 175, 255, 0.6)',
     boxShadow: '0 6px 20px rgba(76, 175, 255, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
     textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+  },
+  tabButtonActiveCompact: {
+    background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
+    color: '#fff',
+    border: '2px solid rgba(243, 156, 18, 0.6)',
+    boxShadow: '0 4px 12px rgba(243, 156, 18, 0.4)',
   },
   items: { 
     display: 'grid', 
@@ -551,14 +594,20 @@ const s: Record<string, React.CSSProperties> = {
   itemsCompact: {
     display: 'flex',
     flexDirection: 'column' as 'column',
-    gap: '12px',
+    gap: '10px',
     padding: '0 16px 16px',
   },
   evolutionShopContainer: {
     padding: '24px 32px 32px',
   },
+  evolutionShopCompact: {
+    padding: '0 16px 16px',
+  },
   categorySection: {
     marginBottom: '40px',
+  },
+  categorySectionCompact: {
+    marginBottom: '20px',
   },
   categoryTitle: {
     fontSize: '20px',
@@ -568,6 +617,14 @@ const s: Record<string, React.CSSProperties> = {
     paddingBottom: '8px',
     borderBottom: '2px solid rgba(76, 175, 255, 0.3)',
     textShadow: '0 0 10px rgba(76, 175, 255, 0.5)',
+  },
+  categoryTitleCompact: {
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: '#f39c12',
+    marginBottom: '10px',
+    paddingBottom: '6px',
+    borderBottom: '1px solid rgba(243, 156, 18, 0.3)',
   },
   item: { 
     background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
@@ -584,13 +641,24 @@ const s: Record<string, React.CSSProperties> = {
   },
   itemCompact: {
     background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
-    border: '1px solid rgba(76, 175, 255, 0.3)',
-    borderRadius: '12px',
+    border: '1px solid rgba(243, 156, 18, 0.3)',
+    borderRadius: '10px',
     padding: '10px',
     display: 'flex',
     flexDirection: 'column' as 'column',
     gap: '6px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+  },
+  itemTitleCompact: {
+    fontSize: '13px',
+    margin: '0 0 4px 0',
+    fontWeight: 'bold',
+    color: '#4cafff',
+  },
+  itemDescCompact: {
+    fontSize: '10px',
+    margin: '0 0 6px 0',
+    color: '#a0aec0',
   },
   btn: { 
     padding: '14px 20px', 
@@ -607,14 +675,14 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'all 0.2s ease',
   },
   btnCompact: {
-    padding: '8px 12px',
+    padding: '6px 10px',
     background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
     color: '#fff',
     border: '1px solid rgba(243, 156, 18, 0.4)',
-    borderRadius: '8px',
+    borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: 'bold',
-    fontSize: '12px',
+    fontSize: '11px',
     boxShadow: '0 2px 8px rgba(243, 156, 18, 0.3)',
   },
   towerGrid: { 

@@ -5,12 +5,11 @@ import { useGameStore } from '../../store/gameStore';
 
 interface Props {
   onStartWave: () => void;
-  onOpenShop: () => void;
   onAddPokemon: () => void;
   onManagePokemon: () => void;
 }
 
-export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon, onManagePokemon }) => {
+export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
   const { wave, money, lives, isWaveActive, gameSpeed, towers } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
   
@@ -40,9 +39,6 @@ export const HUD: React.FC<Props> = ({ onStartWave, onOpenShop, onAddPokemon, on
       <div style={s.buttonSection}>
         <button onClick={onStartWave} disabled={isWaveActive} style={{...s.btn, ...s.btnWave}}>
           🎯 웨이브 시작
-        </button>
-        <button onClick={onOpenShop} style={{...s.btn, ...s.btnShop}}>
-          🏪 상점
         </button>
         <button onClick={onAddPokemon} style={{...s.btn, ...s.btnPokemon}}>
           ➕ 포켓몬

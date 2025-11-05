@@ -21,7 +21,6 @@ import { WaveEndPicker } from './components/Modals/WaveEndPicker';
 
 function App() {
   const [showPicker, setShowPicker] = useState(false);
-  const [showShop, setShowShop] = useState(false);
   const [showPokemonManager, setShowPokemonManager] = useState(false);
   const [showPokedex, setShowPokedex] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -61,6 +60,7 @@ function App() {
   const handleReset = () => {
     reset();
     setShowMapSelector(true);
+    window.location.reload();
   };
 
   return (
@@ -78,7 +78,6 @@ function App() {
           <div style={styles.bottomPanel}>
             <HUD
               onStartWave={handleStartWave}
-              onOpenShop={() => setShowShop(true)}
               onAddPokemon={handleOpenPicker}
               onManagePokemon={() => setShowPokemonManager(true)}
             />
@@ -90,17 +89,19 @@ function App() {
               <button onClick={() => setShowSettings(true)} style={styles.bottomBtn}>⚙️ 설정</button>
             </div>
           </div>
+          
+          {/* 우측 상점 사이드바 - 항상 표시 */}
+          <Shop />
         </div>
       )}
       
       {showPicker && <PokemonPicker onClose={() => setShowPicker(false)} />}
-      {showShop && <Shop onClose={() => setShowShop(false)} />}
       {showPokemonManager && <PokemonManager onClose={() => setShowPokemonManager(false)} />}
       {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
       {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
       
-      {/* 레벨업 시 기술 선택 모달 */}
+      {/* 좌측 기술 선택 사이드바 - 레벨업 시 표시 */}
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
 
       {/* 웨이브 종료 시 아이템 선택 모달 */}

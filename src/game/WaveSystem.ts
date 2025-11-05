@@ -24,37 +24,46 @@ export class WaveSystem {
   }
   
   startWave(wave: number) {
-    const { currentMap, difficulty } = useGameStore.getState();
+    const { currentMap, difficulty, addEnemy, setSpawning } = useGameStore.getState();
     const map = getMapById(currentMap);
     if (!map) return;
     
+    setSpawning(true);
+    
     const count = this.getEnemyCount(wave);
     const mult = DIFFICULTY_MULTIPLIERS[difficulty];
+    let lastSpawnTime = 0;
     
     for (let i = 0; i < count; i++) {
+      const spawnTime = i * 800;
       setTimeout(() => {
-        this.spawnEnemy(wave, map.path, false, mult);
-      }, i * 800);
+        this.spawnEnemy(wave, map.path, false, mult, addEnemy);
+      }, spawnTime);
+      lastSpawnTime = spawnTime;
     }
     
     if (wave % 5 === 0) {
+      const bossSpawnTime = count * 800 + 2000;
       setTimeout(() => {
-        this.spawnBoss(wave, map.path, mult);
-      }, count * 800 + 2000);
+        this.spawnBoss(wave, map.path, mult, addEnemy);
+      }, bossSpawnTime);
+      lastSpawnTime = bossSpawnTime;
     }
+    
+    setTimeout(() => {
+      setSpawning(false);
+    }, lastSpawnTime + 100);
   }
   
   private getEnemyCount(wave: number) {
     return Math.floor(5 + wave * 1.5);
   }
   
-  private async spawnEnemy(wave: number, path: any[], isBoss: boolean, mult: any) {
+  private async spawnEnemy(wave: number, path: any[], isBoss: boolean, mult: any, addEnemy: (enemy: Enemy) => void) {
     try {
       // Wave에 따라 더 강한 포켓몬 등장 (종족값이 높은 포켓몬)
       const pokemonId = this.getEnemyPokemonId(wave);
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
-      
-      const { addEnemy } = useGameStore.getState();
       
       // 기하급수적 난이도 증가 (exponential scaling)
       const waveMultiplier = Math.pow(1.15, wave - 1); // 1.15^(wave-1)
@@ -94,7 +103,7 @@ export class WaveSystem {
     } catch (e) {
       console.error('Failed to spawn enemy pokemon:', e);
       // 실패 시 기본 적 생성
-      this.spawnFallbackEnemy(wave, path, isBoss, mult);
+      this.spawnFallbackEnemy(wave, path, isBoss, mult, addEnemy);
     }
   }
   
@@ -137,7 +146,7 @@ export class WaveSystem {
     const cache = (pokeAPI as any).pokemonCache as Map<number, any>;
     const suitablePokemon: number[] = [];
     
-    for (let i = 1; i <= 1025; i++) { // 🔴 9세대까지 확장
+    for (let i = 1; i <= 1025; i++) { 
       if (cache.has(i)) {
         const poke = cache.get(i)!;
         const statTotal = poke.stats.hp + poke.stats.attack + poke.stats.defense +
@@ -153,12 +162,11 @@ export class WaveSystem {
     if (suitablePokemon.length > 0) {
       return suitablePokemon[Math.floor(Math.random() * suitablePokemon.length)];
     } else {
-      return Math.floor(Math.random() * 1025) + 1; // 🔴 9세대까지 확장
+      return Math.floor(Math.random() * 1025) + 1; 
     }
   }
   
-  private spawnFallbackEnemy(wave: number, path: any[], isBoss: boolean, mult: any) {
-    const { addEnemy } = useGameStore.getState();
+  private spawnFallbackEnemy(wave: number, path: any[], isBoss: boolean, mult: any, addEnemy: (enemy: Enemy) => void) {
     const baseHp = (50 + wave * 12) * mult.hp;
     const baseAttack = (10 + wave * 2) * mult.attack;
     const baseDefense = 5 + wave;
@@ -191,7 +199,7 @@ export class WaveSystem {
     addEnemy(enemy);
   }
   
-  private spawnBoss(wave: number, path: any[], mult: any) {
-    this.spawnEnemy(wave, path, true, mult);
+  private spawnBoss(wave: number, path: any[], mult: any, addEnemy: (enemy: Enemy) => void) {
+    this.spawnEnemy(wave, path, true, mult, addEnemy);
   }
 }
