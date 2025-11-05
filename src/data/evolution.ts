@@ -451,53 +451,58 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
 
 // 메가진화 데이터 (10000번대 ID 사용)
 export const MEGA_EVOLUTIONS: MegaEvolutionData[] = [
-  { from: 3, to: 10003, item: 'venusaurite' }, // 이상해꽃 메가진화
-  { from: 6, to: 10006, item: 'charizardite-x' }, // 리자몽 메가진화 X
-  { from: 6, to: 10106, item: 'charizardite-y' }, // 리자몽 메가진화 Y
-  { from: 9, to: 10009, item: 'blastoisinite' }, // 거북왕 메가진화
-  { from: 15, to: 10015, item: 'beedrillite' }, // 독침붕 메가진화
-  { from: 18, to: 10018, item: 'pidgeotite' }, // 피죤투 메가진화
-  { from: 65, to: 10065, item: 'alakazite' }, // 후딘 메가진화
-  { from: 80, to: 10080, item: 'slowbronite' }, // 야도란 메가진화
-  { from: 94, to: 10094, item: 'gengarite' }, // 팬텀 메가진화
-  { from: 115, to: 10115, item: 'kangaskhanite' }, // 캥카 메가진화
-  { from: 127, to: 10127, item: 'pinsirite' }, // 쁘사이저 메가진화
-  { from: 130, to: 10130, item: 'gyaradosite' }, // 갸라도스 메가진화
-  { from: 142, to: 10142, item: 'aerodactylite' }, // 프테라 메가진화
-  { from: 150, to: 10150, item: 'mewtwonite-x' }, // 뮤츠 메가진화 X
-  { from: 150, to: 10250, item: 'mewtwonite-y' }, // 뮤츠 메가진화 Y
-  { from: 181, to: 10181, item: 'ampharosite' }, // 전룡 메가진화
-  { from: 212, to: 10212, item: 'scizorite' }, // 핫삼 메가진화
-  { from: 214, to: 10214, item: 'heracronite' }, // 헤라크로스 메가진화
-  { from: 229, to: 10229, item: 'houndoomite' }, // 헬가 메가진화
-  { from: 248, to: 10248, item: 'tyranitarite' }, // 마기라스 메가진화
-  { from: 254, to: 10254, item: 'sceptilite' }, // 나무킹 메가진화
-  { from: 257, to: 10257, item: 'blazikenite' }, // 번치코 메가진화
-  { from: 260, to: 10260, item: 'swampertite' }, // 대짱이 메가진화
-  { from: 282, to: 10282, item: 'gardevoirite' }, // 가디안 메가진화
-  { from: 302, to: 10302, item: 'sablenite' }, // 깜까미 메가진화
-  { from: 303, to: 10303, item: 'mawilite' }, // 입치트 메가진화
-  { from: 306, to: 10306, item: 'aggronite' }, // 보스로라 메가진화
-  { from: 308, to: 10308, item: 'medichamite' }, // 요가램 메가진화
-  { from: 310, to: 10310, item: 'manectite' }, // 썬더볼트 메가진화
-  { from: 319, to: 10319, item: 'sharpedite' }, // 샤크니아 메가진화
-  { from: 323, to: 10323, item: 'cameruptite' }, // 폭타 메가진화
-  { from: 334, to: 10334, item: 'altarianite' }, // 파비코리 메가진화
-  { from: 354, to: 10354, item: 'banettite' }, // 다크펫 메가진화
-  { from: 359, to: 10359, item: 'absolite' }, // 앱솔 메가진화
-  { from: 362, to: 10362, item: 'glalitite' }, // 얼음귀신 메가진화
-  { from: 373, to: 10373, item: 'salamencite' }, // 보만다 메가진화
-  { from: 376, to: 10376, item: 'metagrossite' }, // 메타그로스 메가진화
-  { from: 380, to: 10380, item: 'latiasite' }, // 라티아스 메가진화
-  { from: 381, to: 10381, item: 'latiosite' }, // 라티오스 메가진화
-  { from: 384, to: 10384, item: 'rayquazite' }, // 레쿠쟈 메가진화 (기술 '화룡점정' 필요)
-  { from: 428, to: 10428, item: 'lopunnite' }, // 이어롭 메가진화
-  { from: 445, to: 10445, item: 'garchompite' }, // 한카리아스 메가진화
-  { from: 448, to: 10448, item: 'lucarionite' }, // 루카리오 메가진화
-  { from: 460, to: 10460, item: 'abomasite' }, // 눈설왕 메가진화
-  { from: 475, to: 10475, item: 'galladite' }, // 엘레이드 메가진화
-  { from: 531, to: 10531, item: 'audinite' }, // 다부니 메가진화
-  { from: 719, to: 10719, item: 'diancite' }, // 디안시 메가진화
+  { from: 3, to: 10033, item: 'venusaurite' },
+  { from: 6, to: 10034, item: 'charizardite-x' },
+  { from: 6, to: 10035, item: 'charizardite-y' },
+  { from: 9, to: 10036, item: 'blastoisinite' },
+
+  { from: 15, to: 10090, item: 'beedrillite' },
+  { from: 18, to: 10073, item: 'pidgeotite' },
+  { from: 65, to: 10037, item: 'alakazite' },
+  { from: 80, to: 10071, item: 'slowbronite' },
+  { from: 94, to: 10038, item: 'gengarite' },
+  { from: 115, to: 10039, item: 'kangaskhanite' },
+  { from: 127, to: 10040, item: 'pinsirite' },
+  { from: 130, to: 10041, item: 'gyaradosite' },
+  { from: 142, to: 10042, item: 'aerodactylite' },
+  { from: 150, to: 10043, item: 'mewtwonite-x' },
+  { from: 150, to: 10044, item: 'mewtwonite-y' },
+
+  { from: 181, to: 10045, item: 'ampharosite' },
+  { from: 208, to: 10072, item: 'steelixite' },
+  { from: 212, to: 10046, item: 'scizorite' },
+  { from: 214, to: 10047, item: 'heracronite' },
+  { from: 229, to: 10048, item: 'houndoominite' },
+  { from: 248, to: 10049, item: 'tyranitarite' },
+
+  { from: 254, to: 10065, item: 'sceptilite' },
+  { from: 257, to: 10050, item: 'blazikenite' },
+  { from: 260, to: 10064, item: 'swampertite' },
+  { from: 282, to: 10051, item: 'gardevoirite' },
+  { from: 302, to: 10066, item: 'sablenite' },
+  { from: 303, to: 10052, item: 'mawilite' },
+  { from: 306, to: 10053, item: 'aggronite' },
+  { from: 308, to: 10054, item: 'medichamite' },
+  { from: 310, to: 10055, item: 'manectite' },
+  { from: 319, to: 10070, item: 'sharpedonite' },
+  { from: 323, to: 10087, item: 'cameruptite' },
+  { from: 334, to: 10067, item: 'altarianite' },
+  { from: 354, to: 10056, item: 'banettite' },
+  { from: 359, to: 10057, item: 'absolite' },
+  { from: 362, to: 10074, item: 'glalitite' },
+  { from: 373, to: 10089, item: 'salamencite' },
+  { from: 376, to: 10076, item: 'metagrossite' },
+  { from: 380, to: 10062, item: 'latiasite' },
+  { from: 381, to: 10063, item: 'latiosite' },
+  { from: 384, to: 10079, item: 'rayquazite' }, // 공식으론 돌 없고 드래곤어센트지만, 편의상 아이템 명 유지
+
+  { from: 428, to: 10088, item: 'lopunnite' },
+  { from: 445, to: 10058, item: 'garchompite' },
+  { from: 448, to: 10059, item: 'lucarionite' },
+  { from: 460, to: 10060, item: 'abomasite' },
+  { from: 475, to: 10068, item: 'galladite' },
+  { from: 531, to: 10069, item: 'audinite' },
+  { from: 719, to: 10075, item: 'diancite' },
 ];
 
 // 레벨로 진화 가능한지 확인
@@ -589,11 +594,11 @@ export function getFinalEvolutionId(pokemonId: number): number {
 
 // 종족값 총합으로 레어도 계산
 export function calculateRarity(statTotal: number): Rarity {
-  if (statTotal >= 670) return 'Legend'; // 초전설급
+  if (statTotal >= 660) return 'Legend'; // 초전설급
   if (statTotal >= 600) return 'Master'; // 600족
-  if (statTotal >= 530) return 'Diamond';
-  if (statTotal >= 470) return 'Gold';
-  if (statTotal >= 350) return 'Silver';
+  if (statTotal >= 540) return 'Diamond';
+  if (statTotal >= 480) return 'Gold';
+  if (statTotal >= 400) return 'Silver';
   return 'Bronze';
 }
 

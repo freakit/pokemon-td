@@ -36,6 +36,7 @@ interface GameStore extends GameState {
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
   evolvePokemon: (towerId: string, item?: string) => Promise<boolean>; // 진화의 돌 - 성공 여부 반환
+  setSpawning: (isSpawning: boolean) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -57,6 +58,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameSpeed: 1,
   combo: 0,
   gameTick: 0,
+  isSpawning: false,
   pokemonToPlace: null,
   skillChoiceQueue: [],
   waveEndItemPick: null,
@@ -119,6 +121,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     victory: false,
     combo: 0,
     gameTick: 0,
+    isSpawning: false,
     pokemonToPlace: null,
     skillChoiceQueue: [],
     waveEndItemPick: null,
@@ -126,24 +129,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
+  setSpawning: (isSpawning) => set({ isSpawning }),
   setPokemonToPlace: (pokemon) => set({ pokemonToPlace: pokemon }),
 
-  // 스킬 선택 큐 관리
+  // 스킬 선택 큐 관리 - 게임을 멈추지 않음
   addSkillChoice: (choice) => set((state) => {
     const newQueue = [...state.skillChoiceQueue, choice];
-    // 큐에 추가하고, 현재 일시정지가 아니면 일시정지
-    if (!state.isPaused && newQueue.length === 1) {
-      return { skillChoiceQueue: newQueue, isPaused: true };
-    }
     return { skillChoiceQueue: newQueue };
   }),
   
   removeCurrentSkillChoice: () => set((state) => {
     const newQueue = state.skillChoiceQueue.slice(1);
-    // 큐에서 제거하고, 큐가 비어있으면 게임 재개
-    if (newQueue.length === 0) {
-      return { skillChoiceQueue: newQueue, isPaused: false };
-    }
     return { skillChoiceQueue: newQueue };
   }),
   
@@ -290,7 +286,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     if (newLevel > oldLevel) {
-      set({ isPaused: true }); // 게임 일시정지
       get().updateTower(tower.id, {
         level: newLevel,
         experience: newExperience,
@@ -316,14 +311,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
           
           if (availableMoves.length > 0) {
             get().addSkillChoice({ towerId: tower.id, newMoves: availableMoves });
-          } else {
-            set({ isPaused: false }); // 모든 기술이 거부되었거나 이미 보유한 경우 바로 재개
           }
-        } else {
-          set({ isPaused: false }); // 기술이 없으면 바로 재개
         }
       }).catch(() => {
-        set({ isPaused: false }); // 오류 시 재개
+        // 오류 시 무시
       });
       
     } else {

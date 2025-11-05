@@ -207,6 +207,7 @@ export interface GameState {
   gameSpeed: number;
   combo: number;
   gameTick: number;
+  isSpawning: boolean;
   pokemonToPlace: any | null;
 
   // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
