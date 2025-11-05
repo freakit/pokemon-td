@@ -28,27 +28,27 @@ export const MAPS: MapData[] = [
   {
     id: "medium_straight_wide",
     name: "넓은 초원",
-    difficulty: "easy",
-    description: "경로 폭이 넓어(5칸) 타워 사거리에 따른 딜로스가 발생합니다.",
+    difficulty: "medium",
+    description:
+      '중앙의 "뚱뚱한" 통로(폭 4칸)로 적이 지나갑니다. 딜로스에 주의하세요.',
     unlockWave: 5,
     backgroundType: "grass",
-    spawns: [
-      { x: -T, y: 3 * T },
-      { x: -T, y: 5 * T },
-    ], // 스폰은 2개지만
-    objectives: [
-      { x: 16 * T, y: 3 * T },
-      { x: 16 * T, y: 5 * T },
-    ],
+    spawns: [{ x: -T, y: 4 * T }], // 🔵 스폰은 중앙 1개
+    objectives: [{ x: 16 * T, y: 4 * T }], // 🔵 목적지도 중앙 1개
     paths: [
+      // 🔵 3개의 경로 선을 촘촘히 배치하여 폭 4칸(3,4,5,6줄)의 배치 불가 구역 생성
       [
         { x: -T, y: 3.5 * T },
         { x: 16 * T, y: 3.5 * T },
-      ], // 경로 1 (2,3,4번 줄 차단)
+      ], // 적들이 이 라인을 따라감
+      [
+        { x: -T, y: 4.5 * T },
+        { x: 16 * T, y: 4.5 * T },
+      ], // 적들이 이 라인을 따라감
       [
         { x: -T, y: 5.5 * T },
         { x: 16 * T, y: 5.5 * T },
-      ], // 경로 2 (4,5,6번 줄 차단)
+      ], // 적들이 이 라인을 따라감
     ],
   },
 
