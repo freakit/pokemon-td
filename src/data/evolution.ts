@@ -111,7 +111,6 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   
   // 아이템 진화 (2세대)
   { from: 42, to: 169, item: 'friendship-evolution' }, // 골뱃 -> 크로뱃 (친밀도)
-  { from: 61, to: 186, item: 'kings-rock' }, // 수륙챙이 -> 왕구리 (왕의징표석+교환)
   { from: 79, to: 199, item: 'kings-rock' }, // 야돈 -> 야도킹 (왕의징표석+교환)
   { from: 95, to: 208, item: 'metal-coat' }, // 롱스톤 -> 강철톤 (금속코트+교환)
   { from: 113, to: 242, item: 'friendship-evolution' }, // 럭키 -> 해피너스 (친밀도)
@@ -143,7 +142,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 285, to: 286, level: 23 },
   { from: 287, to: 288, level: 18 }, { from: 288, to: 289, level: 36 },
   { from: 290, to: 291, level: 20 },
-  { from: 290, to: 292, level: 20 }, // 토중몬 -> 껍질몬 (특수 진화)
+  { from: 290, to: 292, item: 'special-evolution' }, // 토중몬 -> 껍질몬 (특수 진화)
   { from: 293, to: 294, level: 20 }, { from: 294, to: 295, level: 40 },
   { from: 296, to: 297, level: 24 },
   { from: 298, to: 183, item: 'friendship-evolution' }, // 루리리 -> 마릴 (친밀도)
@@ -424,7 +423,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 942, to: 943, level: 30 }, // 오라티프 -> 마피티프
   { from: 944, to: 945, level: 28 }, // 땃주르 -> 태깅구르
   { from: 946, to: 947, item: 'special-evolution' }, // 그우린 -> 공푸린 (레츠고 1000보)
-  { from: 948, to: 949, level: 30 }, // 들눈해 -> 陸(육)파리
+  { from: 948, to: 949, level: 30 }, // 들눈해 -> 육파리
   { from: 951, to: 952, item: 'fire-stone' }, // 캡싸이 -> 스코빌런
   { from: 953, to: 954, item: 'special-evolution' }, // 구르돈 -> 베라카스 (레츠고 1000보)
   { from: 955, to: 956, level: 35 }, // 하느라 -> 클레스퍼트라
