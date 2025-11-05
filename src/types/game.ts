@@ -68,6 +68,7 @@ export interface MapData {
   unlockWave: number;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
+export type Gender = 'male' | 'female' | 'genderless';
 
 export interface GamePokemon {
   id: string;
@@ -96,6 +97,7 @@ export interface GamePokemon {
   sellValue: number;
   kills: number;
   damageDealt: number;
+  gender: Gender; // 성별 추가
 }
 
 export interface Enemy {
@@ -233,13 +235,24 @@ export interface GameState {
   gameTick: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
+  timeOfDay: 'day' | 'night'; // 시간대 추가
 
   // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
   skillChoiceQueue: Array<{
     towerId: string;
     newMoves: GameMove[];
   }>;
-
+  
+  // 진화 확인 큐 추가
+  evolutionConfirmQueue: Array<{
+    towerId: string;
+    evolutionOptions: Array<{
+      targetId: number;
+      targetName: string;
+      method: string;
+    }>;
+  }>;
+  
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
 

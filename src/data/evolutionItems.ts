@@ -5,7 +5,7 @@ export interface EvolutionItem {
   name: string;
   description: string;
   price: number;
-  category: 'stone' | 'special' | 'friendship' | 'trade';
+  category: 'stone' | 'special' | 'friendship' | 'trade' | 'others';
 }
 
 export const EVOLUTION_ITEMS: Record<string, EvolutionItem> = {
@@ -180,7 +180,7 @@ export const EVOLUTION_ITEMS: Record<string, EvolutionItem> = {
     name: '신비한 가루', 
     description: '특수 조건으로 진화하는 포켓몬을 진화시키는 가루',
     price: 500,
-    category: 'special'
+    category: 'others'
   },
   
   // 기타 아이템들 (필요 시 추가)
@@ -247,6 +247,48 @@ export const EVOLUTION_ITEMS: Record<string, EvolutionItem> = {
     price: 500,
     category: 'special'
   },
+  'auspicious-armor': {
+    id: 'auspicious-armor',
+    name: '길조의 갑옷',
+    description: '카르본을 카디나르마로 진화시키는 갑옷',
+    price: 500,
+    category: 'special'
+  },
+  'malicious-armor': {
+    id: 'malicious-armor',
+    name: '흉조의 갑옷',
+    description: '카르본을 파라블레이즈로 진화시키는 갑옷',
+    price: 500,
+    category: 'special'
+  },
+  'syrupy-apple': {
+    id: 'syrupy-apple',
+    name: '과즙한 사과',
+    description: '과사삭벌레를 과미드라로 진화시키는 사과',
+    price: 500,
+    category: 'special'
+  },
+  'metal-alloy': {
+    id: 'metal-alloy',
+    name: '금속합금',
+    description: '두랄루돈을 브리두라스로 진화시키는 합금',
+    price: 500,
+    category: 'special'
+  },
+  'water-scroll': {
+    id: 'water-scroll',
+    name: '물의 족자',
+    description: '치고마를 우라오스(연격의 태세)로 진화시키는 족자',
+    price: 500,
+    category: 'special'
+  },
+  'dark-scroll': {
+    id: 'dark-scroll',
+    name: '악의 족자',
+    description: '치고마를 우라오스(일격의 태세)로 진화시키는 족자',
+    price: 500,
+    category: 'special'
+  },
 };
 
 // 카테고리별 아이템 목록
@@ -255,4 +297,5 @@ export const EVOLUTION_ITEMS_BY_CATEGORY = {
   special: Object.values(EVOLUTION_ITEMS).filter(item => item.category === 'special'),
   friendship: Object.values(EVOLUTION_ITEMS).filter(item => item.category === 'friendship'),
   trade: Object.values(EVOLUTION_ITEMS).filter(item => item.category === 'trade'),
+  others: Object.values(EVOLUTION_ITEMS).filter(item => item.category === 'others'),
 };

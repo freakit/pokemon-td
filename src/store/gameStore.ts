@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove } from '../types/game';
-import { EVOLUTION_CHAINS, canMegaEvolve } from '../data/evolution';
+import { EVOLUTION_CHAINS, canMegaEvolve, FUSION_DATA } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
@@ -11,7 +11,7 @@ interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
   updateTower: (id: string, updates: Partial<GamePokemon>) => void;
   removeTower: (id: string) => void;
-  sellTower: (id: string) => boolean; // 포켓몬 판매 기능 추가
+  sellTower: (id: string) => boolean;
   addEnemy: (enemy: Enemy) => void;
   updateEnemy: (id: string, updates: Partial<Enemy>) => void;
   removeEnemy: (id: string) => void;
@@ -32,10 +32,12 @@ interface GameStore extends GameState {
   addSkillChoice: (choice: { towerId: string; newMoves: GameMove[] }) => void;
   removeCurrentSkillChoice: () => void;
   setWaveEndItemPick: (items: Item[] | null) => void;
-  useItem: (itemType: string, targetTowerId?: string) => boolean; // 타겟 지원
+  useItem: (itemType: string, targetTowerId?: string) => boolean;
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
-  evolvePokemon: (towerId: string, item?: string) => Promise<boolean>; // 진화의 돌 - 성공 여부 반환
+  evolvePokemon: (towerId: string, item?: string, targetId?: number) => Promise<boolean>;
+  removeEvolutionConfirm: () => void;
+  fusePokemon: (baseId: string, materialId: string, item: string) => Promise<boolean>;
   setSpawning: (isSpawning: boolean) => void;
 }
 
@@ -64,6 +66,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   waveEndItemPick: null,
   evolutionToast: null,
   wave50Clear: false,
+  timeOfDay: 'day',
+  evolutionConfirmQueue: [],
   
   addTower: (tower) => set((state) => ({ towers: [...state.towers, tower] })),
   updateTower: (id, updates) => set((state) => ({
@@ -71,7 +75,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   })),
   removeTower: (id) => set((state) => ({ towers: state.towers.filter(t => t.id !== id) })),
   
-  // 포켓몬 판매 (레벨 * 20원)
   sellTower: (id) => {
     const tower = get().towers.find(t => t.id === id);
     if (!tower) return false;
@@ -107,7 +110,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setDifficulty: (difficulty) => set({ difficulty }),
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
   
-  nextWave: () => set((state) => ({ wave: state.wave + 1, isWaveActive: true })),
+  nextWave: () => set((state) => ({ 
+    wave: state.wave + 1, 
+    isWaveActive: true,
+    timeOfDay: state.timeOfDay === 'day' ? 'night' : 'day'
+  })),
   
   reset: () => set({
     wave: 0,
@@ -128,13 +135,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     waveEndItemPick: null,
     evolutionToast: null,
     wave50Clear: false,
+    timeOfDay: 'day',
+    evolutionConfirmQueue: [],
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
   setSpawning: (isSpawning) => set({ isSpawning }),
+  
   setPokemonToPlace: (pokemon) => set({ pokemonToPlace: pokemon }),
-
-  // 스킬 선택 큐 관리 - 게임을 멈추지 않음
+  
   addSkillChoice: (choice) => set((state) => {
     const newQueue = [...state.skillChoiceQueue, choice];
     return { skillChoiceQueue: newQueue };
@@ -147,7 +156,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   setWaveEndItemPick: (items) => set({ waveEndItemPick: items }),
 
-  // 상처약/사탕/기력의조각 사용 (타겟팅 지원)
   useItem: (itemType, targetTowerId) => {
     const towers = get().towers;
     if (towers.length === 0) return false;
@@ -169,7 +177,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
       
       if (target) {
-        // max(150, maxHP * 0.1) 회복
         const healAmount = Math.max(150, Math.floor(target.maxHp * 0.1));
         const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
         get().updateTower(target.id, { currentHp: newHp });
@@ -182,7 +189,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
       
       if (target) {
-        // maxHP * 0.5 회복
         const healAmount = Math.floor(target.maxHp * 0.5);
         const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
         get().updateTower(target.id, { currentHp: newHp });
@@ -196,12 +202,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
         
       if (target) {
         if (target.level >= 100) {
-          // 100레벨이면 사용 실패
-          return false; 
+          return false;
         }
-        get().addXpToTower(target.id, 100); // 100 XP = 1 레벨
+        get().addXpToTower(target.id, 100);
         return true;
       }
+    }
+    if (itemType === 'exp_candy') {
+      if (towers.length < 2) return false;
+      
+      // 기절하지 않은 포켓몬만 고려
+      const aliveTowers = towers.filter(t => !t.isFainted);
+      if (aliveTowers.length < 2) return false;
+      
+      // 레벨별로 정렬
+      const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
+      const lowestLevelTower = sortedTowers[0];
+      const secondLowestLevel = sortedTowers[1].level;
+      
+      // 가장 레벨이 낮은 포켓몬을 두 번째로 레벨이 낮은 포켓몬의 레벨로 변경
+      if (lowestLevelTower.level < secondLowestLevel) {
+        const levelDiff = secondLowestLevel - lowestLevelTower.level;
+        const statMultiplier = Math.pow(1.05, levelDiff);
+        
+        get().updateTower(lowestLevelTower.id, {
+          level: secondLowestLevel,
+          experience: 0,
+          maxHp: Math.floor(lowestLevelTower.maxHp * statMultiplier),
+          currentHp: Math.floor(lowestLevelTower.currentHp * statMultiplier),
+          attack: Math.floor(lowestLevelTower.attack * statMultiplier),
+          baseAttack: Math.floor(lowestLevelTower.baseAttack * statMultiplier),
+          defense: Math.floor(lowestLevelTower.defense * statMultiplier),
+          specialAttack: Math.floor(lowestLevelTower.specialAttack * statMultiplier),
+          specialDefense: Math.floor(lowestLevelTower.specialDefense * statMultiplier),
+        });
+        
+        return true;
+      }
+      return false;
     }
     if (itemType === 'revive') {
       const target = targetTowerId 
@@ -209,72 +247,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : towers.find(t => t.isFainted);
         
       if (target) {
-        // 50% HP로 부활
-        get().updateTower(target.id, { isFainted: false, currentHp: target.maxHp * 0.5 });
+        get().updateTower(target.id, {
+          isFainted: false,
+          currentHp: Math.floor(target.maxHp * 0.5),
+        });
         return true;
       }
     }
-    if (itemType === 'exp_candy') {
-      const target = targetTowerId 
-        ? towers.find(t => t.id === targetTowerId && !t.isFainted)
-        : null;
-        
-      if (target) {
-        // 대상을 제외한 나머지 포켓몬 중 가장 낮은 레벨 찾기
-        const otherTowers = towers.filter(t => t.id !== target.id && !t.isFainted);
-        if (otherTowers.length === 0) return false; // 다른 포켓몬이 없으면 사용 불가
-        
-        const lowestLevel = Math.min(...otherTowers.map(t => t.level));
-        
-        // 대상 포켓몬의 레벨을 가장 낮은 레벨로 변경
-        if (lowestLevel < target.level) {
-          const xpNeeded = (lowestLevel - 1) * 100; // 목표 레벨에 필요한 경험치
-          const currentXp = (target.level - 1) * 100 + target.experience;
-          const xpToAdd = xpNeeded - currentXp;
-          if (xpToAdd < 0) {
-            // 이미 더 낮은 레벨이거나 같음
-            return false;
-          }
-          
-          // 레벨을 직접 설정
-          get().updateTower(target.id, {
-            level: lowestLevel,
-            experience: 0,
-          });
-          
-          // 스탯 재계산 (레벨 차이만큼 5%씩 감소)
-          const levelDiff = target.level - lowestLevel;
-          const statMultiplier = Math.pow(0.95, levelDiff);
-          
-          get().updateTower(target.id, {
-            maxHp: Math.floor(target.maxHp * statMultiplier),
-            currentHp: Math.floor(target.currentHp * statMultiplier),
-            attack: Math.floor(target.attack * statMultiplier),
-            baseAttack: Math.floor(target.baseAttack * statMultiplier),
-            defense: Math.floor(target.defense * statMultiplier),
-            specialAttack: Math.floor(target.specialAttack * statMultiplier),
-            specialDefense: Math.floor(target.specialDefense * statMultiplier),
-          });
-          
-          return true;
-        }
-        return false; // 이미 가장 낮은 레벨이거나 더 낮음
-      }
-    }
-    return false; // 해당 아이템을 사용할 대상이 없음
+    return false;
   },
 
-  // 모든 타워 회복
   healAllTowers: () => {
     set((state) => ({
       towers: state.towers.map(t => ({
         ...t,
-        currentHp: t.isFainted ? t.currentHp : t.maxHp, // 기절한 타워는 회복 안됨
+        currentHp: t.isFainted ? t.currentHp : t.maxHp,
       }))
     }));
   },
 
-  // 경험치 추가 및 레벨업 처리
   addXpToTower: (towerId, xp) => {
     const tower = get().towers.find(t => t.id === towerId);
     if (!tower || tower.isFainted || tower.level >= 100) {
@@ -283,12 +274,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const oldLevel = tower.level;
     const newExperience = tower.experience + xp;
-    let newLevel = Math.floor(newExperience / 100) + 1; // 100 XP당 1레벨
+    let newLevel = Math.floor(newExperience / 100) + 1;
 
     let finalExperience = newExperience;
     if (newLevel > 100) {
       newLevel = 100;
-      finalExperience = 9900; // 100레벨에 필요한 최대 경험치
+      finalExperience = 9900;
     }
 
     if (newLevel > oldLevel) {
@@ -304,10 +295,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialDefense: Math.floor(tower.specialDefense * 1.05),
       });
 
-      // 실제 레벨업 기술 가져오기
+      // 기술 학습 체크
       pokeAPI.getLearnableMoves(tower.pokemonId, newLevel).then(moves => {
         if (moves.length > 0) {
-          // 거부한 기술 + 현재 장착된 기술 필터링
           const rejectedMoves = tower.rejectedMoves || [];
           const equippedMoveNames = tower.equippedMoves.map(m => m.name);
           const availableMoves = moves.filter(move => 
@@ -319,113 +309,144 @@ export const useGameStore = create<GameStore>((set, get) => ({
             get().addSkillChoice({ towerId: tower.id, newMoves: availableMoves });
           }
         }
-      }).catch(() => {
-        // 오류 시 무시
+      }).catch(() => {});
+      
+      // 레벨업 후 진화 가능 여부 체크
+      const currentState = get();
+      const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
+        if (chain.from !== tower.pokemonId) return false;
+        if (chain.level && newLevel < chain.level) return false;
+        if (chain.item) return false; // 아이템 필요한 진화는 제외
+        if (chain.gender && chain.gender !== tower.gender) return false;
+        if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
+        return true;
       });
+      
+      if (possibleEvolutions.length > 0) {
+        // 진화 확인 큐에 추가 (무조건 물어보기)
+        Promise.all(possibleEvolutions.map(async (evo) => {
+          const targetData = await pokeAPI.getPokemon(evo.to);
+          let method = '';
+          if (evo.level) method = `레벨 ${evo.level}`;
+          if (evo.gender) method += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
+          if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
+          
+          return {
+            targetId: evo.to,
+            targetName: targetData.name,
+            method,
+          };
+        })).then(options => {
+          set(state => ({
+            evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
+              towerId,
+              evolutionOptions: options,
+            }],
+          }));
+        });
+      }
       
     } else {
       get().updateTower(tower.id, { experience: finalExperience });
     }
   },
 
-  // 진화의 돌을 사용한 진화 (일반 진화 + 메가진화)
-  evolvePokemon: async (towerId, item) => {
+  evolvePokemon: async (towerId, item, targetId) => {
     const tower = get().towers.find(t => t.id === towerId);
     if (!tower) return false;
     
-    // item이 없으면 진화 불가
-    if (!item) {
-      console.log('진화 아이템이 필요합니다.');
-      return false;
-    }
-
-    // 🔴 메가진화 체크 먼저
-    const megaEvolution = canMegaEvolve(tower.pokemonId, item);
-    if (megaEvolution) {
-      try {
-        const oldName = tower.name;
-        const newData = await pokeAPI.getPokemon(megaEvolution.to);
-        const levelMultiplier = Math.pow(1.05, tower.level - 1);
-        
-        get().updateTower(tower.id, {
-          pokemonId: megaEvolution.to,
-          name: newData.name,
-          sprite: newData.sprite,
-          types: newData.types,
-          maxHp: Math.floor(newData.stats.hp * levelMultiplier),
-          currentHp: Math.floor(newData.stats.hp * levelMultiplier),
-          baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
-          attack: Math.floor(newData.stats.attack * levelMultiplier),
-          defense: Math.floor(newData.stats.defense * levelMultiplier),
-          specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
-          specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
-        });
-        soundService.playEvolutionSound();
-        
-        // 진화 토스트 표시
-        set({
-          evolutionToast: {
-            fromName: oldName,
-            toName: `메가${newData.name}`,
-            timestamp: Date.now()
-          }
+    const currentState = get();
+    
+    // targetId가 지정되지 않은 경우, 진화 가능한 모든 옵션 찾기
+    if (!targetId) {
+      // 메가진화 체크
+      if (item) {
+        const megaEvolution = canMegaEvolve(tower.pokemonId, item);
+        if (megaEvolution) {
+          targetId = megaEvolution.to;
+        }
+      }
+      
+      // 일반 진화 체크
+      if (!targetId) {
+        const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
+          if (chain.from !== tower.pokemonId) return false;
+          
+          if (chain.level && tower.level < chain.level) return false;
+          if (chain.item && chain.item !== item) return false;
+          if (chain.gender && chain.gender !== tower.gender) return false;
+          if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
+          
+          return true;
         });
         
-        // 3초 후 토스트 제거
-        setTimeout(() => {
-          const current = useGameStore.getState().evolutionToast;
-          if (current && Date.now() - current.timestamp >= 3000) {
-            set({ evolutionToast: null });
-          }
-        }, 3000);
+        if (possibleEvolutions.length === 0) return false;
         
-        saveService.updateStats({
-          evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
-        });
-        return true;
-      } catch (e) {
-        console.error('Mega Evolution failed:', e);
-        return false;
+        if (possibleEvolutions.length === 1) {
+          targetId = possibleEvolutions[0].to;
+        } else {
+          // 진화 확인 큐에 추가
+          const options = await Promise.all(possibleEvolutions.map(async (evo) => {
+            const targetData = await pokeAPI.getPokemon(evo.to);
+            let method = '';
+            if (evo.item) method = `아이템 필요`;
+            else if (evo.level) method = `레벨 ${evo.level}`;
+            if (evo.gender) method += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
+            if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
+            
+            return {
+              targetId: evo.to,
+              targetName: targetData.name,
+              method,
+            };
+          }));
+          
+          set(state => ({
+            evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
+              towerId,
+              evolutionOptions: options,
+            }],
+          }));
+          
+          return false;
+        }
       }
     }
-
-    // 🔴 일반 진화 체크
-    const evolution = EVOLUTION_CHAINS.find(e => e.from === tower.pokemonId && e.item === item);
-    if (!evolution) {
-      console.log(`진화 불가: ${tower.name} (ID: ${tower.pokemonId})는 ${item}으로 진화할 수 없습니다.`);
-      return false;
-    }
-
+    
+    // 진화 실행
     try {
       const oldName = tower.name;
-      const newData = await pokeAPI.getPokemon(evolution.to);
+      const targetData = await pokeAPI.getPokemon(targetId);
       const levelMultiplier = Math.pow(1.05, tower.level - 1);
       
-      get().updateTower(tower.id, {
-        pokemonId: evolution.to,
-        name: newData.name,
-        sprite: newData.sprite,
-        types: newData.types,
-        maxHp: Math.floor(newData.stats.hp * levelMultiplier),
-        currentHp: Math.floor(newData.stats.hp * levelMultiplier),
-        baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
-        attack: Math.floor(newData.stats.attack * levelMultiplier),
-        defense: Math.floor(newData.stats.defense * levelMultiplier),
-        specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
-        specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
+      const currentHpRatio = tower.currentHp / tower.maxHp;
+      const newMaxHp = Math.floor(targetData.stats.hp * levelMultiplier);
+      
+      get().updateTower(towerId, {
+        pokemonId: targetId,
+        name: targetData.name,
+        sprite: targetData.sprite,
+        types: targetData.types,
+        maxHp: newMaxHp,
+        currentHp: Math.floor(newMaxHp * currentHpRatio),
+        baseAttack: Math.floor(targetData.stats.attack * levelMultiplier),
+        attack: Math.floor(targetData.stats.attack * levelMultiplier),
+        defense: Math.floor(targetData.stats.defense * levelMultiplier),
+        specialAttack: Math.floor(targetData.stats.specialAttack * levelMultiplier),
+        specialDefense: Math.floor(targetData.stats.specialDefense * levelMultiplier),
+        speed: Math.floor(targetData.stats.speed * levelMultiplier),
       });
+      
       soundService.playEvolutionSound();
       
-      // 진화 토스트 표시
       set({
         evolutionToast: {
           fromName: oldName,
-          toName: newData.name,
+          toName: targetData.name,
           timestamp: Date.now()
         }
       });
       
-      // 3초 후 토스트 제거
       setTimeout(() => {
         const current = useGameStore.getState().evolutionToast;
         if (current && Date.now() - current.timestamp >= 3000) {
@@ -433,12 +454,81 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
       }, 3000);
       
+      set(state => ({
+        evolutionConfirmQueue: state.evolutionConfirmQueue.filter(e => e.towerId !== towerId)
+      }));
+      
       saveService.updateStats({
         evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
       });
+      
       return true;
     } catch (e) {
       console.error('Evolution failed:', e);
+      return false;
+    }
+  },
+
+  removeEvolutionConfirm: () => set(state => ({
+    evolutionConfirmQueue: state.evolutionConfirmQueue.slice(1),
+  })),
+
+  fusePokemon: async (baseId, materialId, item) => {
+    const baseTower = get().towers.find(t => t.id === baseId);
+    const materialTower = get().towers.find(t => t.id === materialId);
+    
+    if (!baseTower || !materialTower) return false;
+    
+    const fusion = FUSION_DATA.find(f => 
+      f.base === baseTower.pokemonId && 
+      f.material === materialTower.pokemonId && 
+      f.item === item
+    );
+    
+    if (!fusion) return false;
+    
+    get().removeTower(materialId);
+    
+    try {
+      const resultData = await pokeAPI.getPokemon(fusion.result);
+      const levelMultiplier = Math.pow(1.05, baseTower.level - 1);
+      
+      const currentHpRatio = baseTower.currentHp / baseTower.maxHp;
+      const newMaxHp = Math.floor(resultData.stats.hp * levelMultiplier);
+      
+      get().updateTower(baseId, {
+        pokemonId: fusion.result,
+        name: resultData.name,
+        sprite: resultData.sprite,
+        maxHp: newMaxHp,
+        currentHp: Math.floor(newMaxHp * currentHpRatio),
+        baseAttack: Math.floor(resultData.stats.attack * levelMultiplier),
+        attack: Math.floor(resultData.stats.attack * levelMultiplier),
+        defense: Math.floor(resultData.stats.defense * levelMultiplier),
+        specialAttack: Math.floor(resultData.stats.specialAttack * levelMultiplier),
+        specialDefense: Math.floor(resultData.stats.specialDefense * levelMultiplier),
+        speed: Math.floor(resultData.stats.speed * levelMultiplier),
+        types: resultData.types,
+      });
+      
+      set({
+        evolutionToast: {
+          fromName: `${baseTower.name} + ${materialTower.name}`,
+          toName: resultData.name,
+          timestamp: Date.now(),
+        },
+      });
+      
+      setTimeout(() => {
+        const current = useGameStore.getState().evolutionToast;
+        if (current && Date.now() - current.timestamp >= 3000) {
+          set({ evolutionToast: null });
+        }
+      }, 3000);
+      
+      return true;
+    } catch (e) {
+      console.error('Fusion failed:', e);
       return false;
     }
   },

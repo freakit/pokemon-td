@@ -409,6 +409,7 @@ export class GameManager {
             defense: Math.floor(newData.stats.defense * levelMultiplier),
             specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
             specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
+            speed: Math.floor(newData.stats.speed),
           });
           soundService.playEvolutionSound();
           

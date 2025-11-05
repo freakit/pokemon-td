@@ -90,18 +90,14 @@ export class WaveSystem {
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
 
       // 기하급수적 난이도 증가 (exponential scaling)
-      const waveMultiplier = Math.pow(1.15, wave - 1); // 1.15^(wave-1)
-
-      const baseHp = pokemonData.stats.hp * waveMultiplier * mult.hp;
-      const baseAttack =
-        pokemonData.stats.attack * waveMultiplier * mult.attack;
-      const baseDefense =
-        pokemonData.stats.defense * waveMultiplier * mult.attack;
-      const baseSpecialAttack =
-        pokemonData.stats.specialAttack * waveMultiplier * mult.attack;
-      const baseSpecialDefense =
-        pokemonData.stats.specialDefense * waveMultiplier * mult.attack;
-
+      const waveMultiplier = Math.pow(1.12, wave - 1); // 1.12^(wave-1)
+      
+      const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
+      const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
+      const baseDefense = (pokemonData.stats.defense * waveMultiplier) * mult.attack;
+      const baseSpecialAttack = (pokemonData.stats.specialAttack * waveMultiplier) * mult.attack;
+      const baseSpecialDefense = (pokemonData.stats.specialDefense * waveMultiplier) * mult.attack;
+      
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,
         name: pokemonData.name,

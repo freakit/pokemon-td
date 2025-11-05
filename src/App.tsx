@@ -15,10 +15,10 @@ import { WaveSystem } from "./game/WaveSystem";
 import { saveService } from "./services/SaveService";
 import "./index.css";
 
-// 새 모달 임포트
-import { SkillPicker } from "./components/Modals/SkillPicker";
-import { WaveEndPicker } from "./components/Modals/WaveEndPicker";
-import { Wave50ClearModal } from "./components/Modals/Wave50ClearModal";
+import { SkillPicker } from './components/Modals/SkillPicker';
+import { WaveEndPicker } from './components/Modals/WaveEndPicker';
+import { Wave50ClearModal } from './components/Modals/Wave50ClearModal';
+import { EvolutionConfirmModal } from './components/Modals/EvolutionConfirmModal';
 
 function App() {
   const [showPicker, setShowPicker] = useState(false);
@@ -133,6 +133,9 @@ function App() {
 
       {/* 좌측 기술 선택 사이드바 - 레벨업 시 표시 */}
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
+
+      {/* 진화 확인 모달 추가 */}
+      <EvolutionConfirmModal />
 
       {/* 웨이브 종료 시 아이템 선택 모달 */}
       {waveEndItemPick && <WaveEndPicker />}
