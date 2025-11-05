@@ -1,9 +1,9 @@
 // src/components/UI/MapSelector.tsx
 
 import React, { useState } from 'react';
-import { MAPS, MapData } from '../../data/maps';
+import { MAPS } from '../../data/maps';
 import { useGameStore } from '../../store/gameStore';
-import { Difficulty } from '../../types/game';
+import { Difficulty, MapData } from '../../types/game';
 
 type DifficultyFilter = 'easy' | 'medium' | 'hard' | 'expert';
 
