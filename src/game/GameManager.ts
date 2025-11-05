@@ -444,12 +444,18 @@ export class GameManager {
   
   // 🔴 수정된 부분
   private checkWaveComplete() {
-    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers, isSpawning } = useGameStore.getState();
+    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers, isSpawning, wave } = useGameStore.getState();
     
     // 적이 실제로 소환된 적이 있고, 현재 웨이브가 활성화되어 있으며, 모든 적이 사라졌을 때만 보상
     if (isWaveActive && !isSpawning && enemies.length === 0) {
       useGameStore.setState({ isWaveActive: false, combo: 0, isPaused: true });
       healAllTowers();
+
+      // 🔴 웨이브 50 클리어 체크
+      if (wave === 50) {
+        useGameStore.setState({ wave50Clear: true });
+        return; // 웨이브 50 클리어 시 일반 보상 모달 대신 특별 모달 표시
+      }
 
       const itemChoices: Item[] = [
         { id: 'rare_candy', name: '이상한 사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },

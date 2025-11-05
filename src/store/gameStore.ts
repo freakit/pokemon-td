@@ -63,6 +63,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   skillChoiceQueue: [],
   waveEndItemPick: null,
   evolutionToast: null,
+  wave50Clear: false,
   
   addTower: (tower) => set((state) => ({ towers: [...state.towers, tower] })),
   updateTower: (id, updates) => set((state) => ({
@@ -126,6 +127,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     skillChoiceQueue: [],
     waveEndItemPick: null,
     evolutionToast: null,
+    wave50Clear: false,
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
