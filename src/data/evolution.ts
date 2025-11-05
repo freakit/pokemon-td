@@ -5,6 +5,9 @@ export interface EvolutionData {
   to: number;
   level?: number; // 레벨 진화 시 필요
   item?: string; // 진화의 돌 or 연결의 끈
+  gender?: 'male' | 'female'; // 성별에 따른 진화 분기
+  timeOfDay?: 'day' | 'night'; // 시간대에 따른 진화 분기
+  regionalForm?: string; // 리전폼 구분 (예: 'alola', 'galar', 'hisui')
 }
 
 // 메가진화 데이터 (10000번대 ID 사용)
@@ -89,6 +92,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 175, to: 176, item: 'friendship-evolution' }, // 토게피 → 토게틱 (친밀도)
   { from: 177, to: 178, level: 25 },
   { from: 179, to: 180, level: 15 }, { from: 180, to: 181, level: 30 },
+  { from: 183, to: 184, level: 18 }, 
   { from: 187, to: 188, level: 18 }, { from: 188, to: 189, level: 27 },
   { from: 190, to: 424, item: 'special-evolution' }, // 에이팜 → 겟핸보숭 (기술 습득)
   { from: 194, to: 195, level: 20 }, // 우파 (P) -> 토오 진화는 9세대에
@@ -156,6 +160,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 322, to: 323, level: 33 },
   { from: 325, to: 326, level: 32 },
   { from: 328, to: 329, level: 35 }, { from: 329, to: 330, level: 45 },
+  { from: 331, to: 332, level: 32 },
   { from: 333, to: 334, level: 35 },
   { from: 339, to: 340, level: 30 },
   { from: 341, to: 342, level: 30 },
@@ -184,9 +189,9 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 406, to: 315, item: 'friendship-evolution' }, // 꼬몽울 → 로젤리아 (친밀도)
   { from: 408, to: 409, level: 30 },
   { from: 410, to: 411, level: 30 },
-  { from: 412, to: 413, level: 20 }, // 도롱충치 → 도롱마담 (암컷)
-  { from: 412, to: 414, level: 20 }, // 도롱충치 → 나메일 (수컷)
-  { from: 415, to: 416, level: 21 }, // 세꿀버리 -> 비퀸 (암컷)
+  { from: 412, to: 413, level: 20, gender: 'female' }, // 도롱충치 → 도롱마담 (암컷)
+  { from: 412, to: 414, level: 20, gender: 'male' }, // 도롱충치 → 나메일 (수컷)
+  { from: 415, to: 416, level: 21, gender: 'female' }, // 세꿀버리 -> 비퀸 (암컷)
   { from: 418, to: 419, level: 26 },
   { from: 420, to: 421, level: 25 },
   { from: 422, to: 423, level: 30 },
@@ -211,12 +216,13 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   
   // 아이템 진화 (4세대)
   { from: 176, to: 468, item: 'shiny-stone' }, // 토게틱 -> 토게키스
-  { from: 281, to: 475, item: 'dawn-stone' }, // 킬리아 -> 엘레이드 (수컷)
+  { from: 281, to: 475, item: 'dawn-stone', gender: 'male' }, // 킬리아 -> 엘레이드 (수컷)
   { from: 315, to: 407, item: 'shiny-stone' }, // 로젤리아 -> 로즈레이드
   { from: 299, to: 476, item: 'thunder-stone' }, // 코코파스 -> 대코파스 (특수자기장 -> 돌로 대체)
   { from: 356, to: 477, item: 'reaper-cloth' }, // 미라몽 -> 야느와르몽 (영계의천+교환)
-  { from: 361, to: 478, item: 'dawn-stone' }, // 눈꼬마 -> 눈여아 (암컷)
+  { from: 361, to: 478, item: 'dawn-stone', gender: 'female' }, // 눈꼬마 -> 눈여아 (암컷)
   { from: 82, to: 462, item: 'thunder-stone' }, // 레어코일 -> 자포코일 (특수자기장 -> 돌로 대체)
+  { from: 108, to: 463, item: 'special-evolution' }, // 내루미 -> 내룸벨트
   { from: 112, to: 464, item: 'protector' }, // 코뿌리 -> 거대코뿌리 (프로텍터+교환)
   { from: 125, to: 466, item: 'electirizer' }, // 에레브 -> 에레키블 (에레키부스터+교환)
   { from: 126, to: 467, item: 'magmarizer' }, // 마그마 -> 마그마번 (마그마부스터+교환)
@@ -259,6 +265,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 577, to: 578, level: 32 }, { from: 578, to: 579, level: 41 },
   { from: 580, to: 581, level: 35 },
   { from: 582, to: 583, level: 35 }, { from: 583, to: 584, level: 47 },
+  { from: 585, to: 586, level: 34 },
   { from: 588, to: 589, item: 'linking-cord' }, // 딱정곤 -> 슈바르고 (쪼마리 교환)
   { from: 590, to: 591, level: 39 },
   { from: 592, to: 593, level: 40 },
@@ -299,8 +306,8 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 690, to: 691, level: 48 },
   { from: 692, to: 693, level: 37 },
   { from: 694, to: 695, item: 'sun-stone' }, // 목도리키텔 -> 일레도리자드
-  { from: 696, to: 697, level: 39 }, // 티고라스 -> 견고라스 (낮)
-  { from: 698, to: 699, level: 39 }, // 아마루스 -> 아마루르가 (밤)
+  { from: 696, to: 697, level: 39, timeOfDay: 'day' }, // 티고라스 -> 견고라스 (낮)
+  { from: 698, to: 699, level: 39, timeOfDay: 'night' }, // 아마루스 -> 아마루르가 (밤)
   { from: 133, to: 700, item: 'friendship-evolution' }, // 이브이 → 님피아 (페어리 기술 + 친밀도)
   { from: 704, to: 705, level: 40 }, { from: 705, to: 706, level: 50 }, // 미끄메라 -> 미끄네일 -> 미끄래곤 (비)
   { from: 708, to: 709, item: 'linking-cord' }, // 대로트 -> 대로트 (교환)
@@ -323,14 +330,14 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 751, to: 752, level: 30 },
   { from: 753, to: 754, level: 34 },
   { from: 755, to: 756, level: 24 },
-  { from: 757, to: 758, level: 33 }, // 야도뇽 -> 염뉴트 (암컷)
+  { from: 757, to: 758, level: 33, gender: 'female' }, // 야도뇽 -> 염뉴트 (암컷)
   { from: 759, to: 760, level: 27 },
   { from: 761, to: 762, level: 18 }, { from: 762, to: 763, item: 'special-evolution' }, // 달콤아 -> 달무리나 -> 달코퀸 (기술 습득)
   { from: 767, to: 768, level: 30 },
   { from: 769, to: 770, level: 42 },
   { from: 782, to: 783, level: 35 }, { from: 783, to: 784, level: 45 },
-  { from: 789, to: 790, level: 43 }, { from: 790, to: 791, level: 53 }, // 코스모그 -> 코스모움 -> 솔가레오 (썬)
-  { from: 790, to: 792, level: 53 }, // 코스모움 -> 루나아라 (문)
+  { from: 789, to: 790, level: 43 }, { from: 790, to: 791, level: 53, timeOfDay: 'day' }, // 코스모그 -> 코스모움 -> 솔가레오 (낮)
+  { from: 790, to: 792, level: 53, timeOfDay: 'night' }, // 코스모움 -> 루나아라 (밤)
   
   // 알로라폼 진화 (기존 포켓몬 ID 사용)
   // { from: 19, to: 20, level: 20 }, // 꼬렛(A) -> 레트라(A) (기본 19->20과 동일)
@@ -373,7 +380,8 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 872, to: 873, level: 34 },
   { from: 878, to: 879, level: 34 },
   { from: 885, to: 886, level: 50 }, { from: 886, to: 887, level: 60 }, // 드라꼰 -> 드래런치 -> 드래펄트
-  { from: 891, to: 892, item: 'special-evolution' }, // 치고마 -> 우라오스 (특수 조건)
+  { from: 891, to: 892, item: 'water-scroll' }, // 치고마 -> 우라오스 연격의 태세 (물의 족자)
+  { from: 891, to: 10191, item: 'dark-scroll' }, // 치고마 -> 우라오스 일격의 태세 (악의 족자)
   
   // 가라르폼 진화
   { from: 52, to: 863, level: 28 }, // 나옹(G) -> 나이킹
@@ -414,7 +422,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 926, to: 927, level: 26 }, // 쫀도기 -> 바우첼
   { from: 928, to: 929, level: 25 }, // 미니브 -> 올리뇨
   { from: 929, to: 930, level: 35 }, // 올리뇨 -> 올리르바
-  { from: 932, to: 933, level: 24 }, // 암염소금 -> 스태솔트
+  { from: 932, to: 933, level: 24 }, // 베베솔트 -> 스태솔트
   { from: 933, to: 934, level: 38 }, // 스태솔트 -> 콜로솔트
   { from: 935, to: 936, item: 'auspicious-armor' }, // 카르본 -> 카디나르마
   { from: 935, to: 937, item: 'malicious-armor' }, // 카르본 -> 파라블레이즈
@@ -433,7 +441,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 963, to: 964, item: 'special-evolution' }, // 맨돌핀 -> 돌핀맨 (유니언 서클)
   { from: 965, to: 966, level: 40 }, // 부르롱 -> 부르르룸
   { from: 969, to: 970, level: 35 }, // 초롱순 -> 킬라플로르
-  { from: 971, to: 972, level: 30 }, // 묘두기 -> 묘티프 (밤)
+  { from: 971, to: 972, level: 30, timeOfDay: 'night' }, // 묘두기 -> 묘티프 (밤)
   { from: 974, to: 975, item: 'ice-stone' }, // 터벅고래 -> 우락고래
   { from: 996, to: 997, level: 35 }, // 드니차 -> 드니꽁
   { from: 997, to: 998, level: 54 }, // 드니꽁 -> 드닐레이브
@@ -607,11 +615,11 @@ export function calculateRarity(statTotal: number): Rarity {
 // 레어도별 가중치 (역수 관계 - 낮은 가중치 = 낮은 확률)
 export const RARITY_WEIGHTS: Record<Rarity, number> = {
   'Bronze': 500,   // 가장 높은 확률
-  'Silver': 200,
-  'Gold': 40,
-  'Diamond': 6,
-  'Master': 3,
-  'Legend': 1,     // 가장 낮은 확률
+  'Silver': 150,
+  'Gold': 35,
+  'Diamond': 8,
+  'Master': 5,
+  'Legend': 2,     // 가장 낮은 확률
 };
 
 // 레어도별 색상
@@ -623,3 +631,25 @@ export const RARITY_COLORS: Record<Rarity, string> = {
   'Master': '#e040fb',
   'Legend': '#ff6b00',
 };
+
+// 합체 시스템 (Fusion System)
+export interface FusionData {
+  base: number; // 기본 포켓몬 ID
+  material: number; // 재료 포켓몬 ID
+  result: number; // 합체 결과 포켓몬 ID
+  item: string; // 필요한 아이템
+}
+
+export const FUSION_DATA: FusionData[] = [
+  // 큐레무 합체
+  { base: 646, material: 644, result: 10022, item: 'dna-splicers' }, // 큐레무 + 제크로무 = 블랙큐레무
+  { base: 646, material: 643, result: 10023, item: 'dna-splicers' }, // 큐레무 + 레시라무 = 화이트큐레무
+  
+  // 네크로즈마 합체
+  { base: 800, material: 791, result: 10156, item: 'dna-splicers' }, // 네크로즈마 + 솔가레오 = 황혼의 갈기
+  { base: 800, material: 792, result: 10157, item: 'dna-splicers' }, // 네크로즈마 + 루나아라 = 새벽의 날개
+  
+  // 버드렉스 합체
+  { base: 898, material: 896, result: 10172, item: 'dna-splicers' }, // 버드렉스 + 레이스포스 = 흑마탄
+  { base: 898, material: 897, result: 10173, item: 'dna-splicers' }, // 버드렉스 + 블리자포스 = 백마탄
+];

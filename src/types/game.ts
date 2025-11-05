@@ -1,9 +1,21 @@
 // src/types/game.ts
 
-export type StatusEffectType = 'burn' | 'poison' | 'paralysis' | 'freeze' | 'sleep' | 'confusion';
-export type DamageClass = 'physical' | 'special' | 'status';
-export type Difficulty = 'easy' | 'normal' | 'hard' | 'expert';
-export type PokemonRarity = 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend';
+export type StatusEffectType =
+  | "burn"
+  | "poison"
+  | "paralysis"
+  | "freeze"
+  | "sleep"
+  | "confusion";
+export type DamageClass = "physical" | "special" | "status";
+export type Difficulty = "easy" | "normal" | "hard" | "expert";
+export type PokemonRarity =
+  | "Bronze"
+  | "Silver"
+  | "Gold"
+  | "Diamond"
+  | "Master"
+  | "Legend";
 
 export interface Position {
   x: number;
@@ -19,7 +31,7 @@ export interface StatusEffect {
 export interface PokemonAbility {
   name: string;
   description: string;
-  effect: 'crit' | 'lifesteal' | 'aoe' | 'speed' | 'tank';
+  effect: "crit" | "lifesteal" | "aoe" | "speed" | "tank";
   value: number;
 }
 
@@ -38,12 +50,25 @@ export interface GameMove {
 }
 
 export interface MoveEffect {
-  type: 'damage' | 'status' | 'heal' | 'buff' | 'debuff';
+  type: "damage" | "status" | "heal" | "buff" | "debuff";
   statusInflict?: StatusEffectType; // 상태이상
   statusChance?: number; // 확률
   damageMultiplier?: number;
   additionalEffects?: string;
 }
+
+export interface MapData {
+  id: string;
+  name: string;
+  difficulty: "easy" | "medium" | "hard" | "expert";
+  paths: Position[][];
+  spawns: Position[];
+  objectives: Position[];
+  description: string;
+  unlockWave: number;
+  backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
+}
+export type Gender = 'male' | 'female' | 'genderless';
 
 export interface GamePokemon {
   id: string;
@@ -72,6 +97,7 @@ export interface GamePokemon {
   sellValue: number;
   kills: number;
   damageDealt: number;
+  gender: Gender; // 성별 추가
 }
 
 export interface Enemy {
@@ -130,7 +156,7 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: 'heal' | 'revive' | 'candy' | 'egg' | 'stone' | 'gold' | 'mega-stone';
+  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone";
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)
@@ -177,7 +203,7 @@ export interface GameSettings {
   showDamageNumbers: boolean;
   showGrid: boolean;
   autoSave: boolean;
-  language: 'ko' | 'en';
+  language: "ko" | "en";
 }
 
 export interface HighScore {
@@ -209,6 +235,7 @@ export interface GameState {
   gameTick: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
+  timeOfDay: 'day' | 'night'; // 시간대 추가
 
   // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
   skillChoiceQueue: Array<{
@@ -216,16 +243,26 @@ export interface GameState {
     newMoves: GameMove[];
   }>;
   
+  // 진화 확인 큐 추가
+  evolutionConfirmQueue: Array<{
+    towerId: string;
+    evolutionOptions: Array<{
+      targetId: number;
+      targetName: string;
+      method: string;
+    }>;
+  }>;
+  
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
-  
+
   // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
     toName: string;
     timestamp: number;
   } | null;
-  
+
   // 웨이브 50 클리어 모달 표시 여부
   wave50Clear: boolean;
 }

@@ -143,34 +143,29 @@ export const Shop: React.FC = () => {
         setSelectedCost(0);
       }
     } else if (itemMode === 'exp_candy') {
-      const tower = towers.find(t => t.id === towerId);
-      if (!tower) {
-        alert('대상을 찾을 수 없습니다.');
+      const aliveTowers = towers.filter(t => !t.isFainted);
+      if (aliveTowers.length < 2) {
+        alert('포켓몬이 부족하여 사용할 수 없습니다.');
         setItemMode('none');
         return;
       }
       
-      // 대상을 제외한 나머지 포켓몬 중 가장 낮은 레벨 찾기
-      const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
-      if (otherTowers.length === 0) {
-        alert('다른 포켓몬이 없어 사용할 수 없습니다.');
+      const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
+      const lowestLevelTower = sortedTowers[0];
+      const secondLowestLevel = sortedTowers[1].level;
+      
+      if (towerId !== lowestLevelTower.id) {
+        alert('가장 레벨이 낮은 포켓몬에게만 사용할 수 있습니다.');
         setItemMode('none');
         return;
       }
       
-      const lowestLevel = Math.min(...otherTowers.map(t => t.level));
-      const expCandyCost = lowestLevel * 50;
-      
-      if (lowestLevel >= tower.level) {
-        alert('이미 가장 낮은 레벨이거나 더 낮습니다.');
-        setItemMode('none');
-        return;
-      }
+      const expCandyCost = secondLowestLevel * 50;
       
       if (spendMoney(expCandyCost)) {
         const success = useItem('exp_candy', towerId);
         if (success) {
-          alert(`레벨이 ${tower.level}에서 ${lowestLevel}로 변경되었습니다.`);
+          alert(`레벨이 ${lowestLevelTower.level}에서 ${secondLowestLevel}로 변경되었습니다.`);
           setItemMode('none');
           setSelectedCost(0);
         } else {
@@ -205,55 +200,6 @@ export const Shop: React.FC = () => {
     setSelectedCost(0);
   };
 
-  const getItemIcon = (itemId: string): string => {
-    const iconMap: Record<string, string> = {
-      'fire-stone': '🔥',
-      'water-stone': '💧',
-      'thunder-stone': '⚡',
-      'leaf-stone': '🍃',
-      'moon-stone': '🌙',
-      'sun-stone': '☀️',
-      'shiny-stone': '✨',
-      'dusk-stone': '🌑',
-      'dawn-stone': '🌅',
-      'ice-stone': '❄️',
-      'linking-cord': '🔗',
-      'kings-rock': '👑',
-      'metal-coat': '⚙️',
-      'dragon-scale': '🐉',
-      'upgrade': '🔧',
-      'protector': '🛡️',
-      'electirizer': '⚡',
-      'magmarizer': '🔥',
-      'dubious-disc': '💿',
-      'reaper-cloth': '👻',
-      'razor-claw': '🗡️',
-      'razor-fang': '🦷',
-      'friendship-evolution': '💝',
-      'special-evolution': '✨',
-      'deep-sea-tooth': '🦈',
-      'deep-sea-scale': '🐚',
-      'sachet': '🌸',
-      'whipped-dream': '🍰',
-      'tart-apple': '🍎',
-      'sweet-apple': '🍏',
-      'galarica-cuff': '📿',
-      'galarica-wreath': '🎀',
-      'black-augurite': '⚫',
-    };
-    return iconMap[itemId] || '💎';
-  };
-
-  const getCategoryName = (category: string): string => {
-    const names: Record<string, string> = {
-      stone: '진화의 돌',
-      special: '특수 아이템',
-      friendship: '친밀도 아이템',
-      trade: '통신교환 아이템',
-    };
-    return names[category] || category;
-  };
-
   if (itemMode !== 'none') {
     const currentItem = EVOLUTION_ITEMS[itemMode];
     return (
@@ -276,9 +222,14 @@ export const Shop: React.FC = () => {
               if (itemMode === 'revive') {
                 isSelectable = tower.isFainted;
               } else if (itemMode === 'exp_candy') {
-                const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
-                const lowestLevel = otherTowers.length > 0 ? Math.min(...otherTowers.map(t => t.level)) : 999;
-                isSelectable = !tower.isFainted && tower.level > lowestLevel;
+                const aliveTowers = towers.filter(t => !t.isFainted);
+                if (aliveTowers.length < 2) {
+                  isSelectable = false;
+                } else {
+                  const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
+                  const lowestLevelTowerId = sortedTowers[0].id;
+                  isSelectable = !tower.isFainted && tower.id === lowestLevelTowerId;
+                }
               } else if (currentItem) {
                 isSelectable = !tower.isFainted && canEvolveWithItem(tower.pokemonId, itemMode) !== null;
               } else {
@@ -317,11 +268,12 @@ export const Shop: React.FC = () => {
                     </p>
                   )}
                   {isSelectable && itemMode === 'exp_candy' && (() => {
-                    const otherTowers = towers.filter(t => t.id !== tower.id && !t.isFainted);
-                    const lowestLevel = Math.min(...otherTowers.map(t => t.level));
+                    const aliveTowers = towers.filter(t => !t.isFainted);
+                    const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
+                    const secondLowestLevel = sortedTowers[1].level;
                     return (
                       <p style={{color: '#9b59b6', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                        💰 {lowestLevel * 50}원 (Lv.{tower.level}→{lowestLevel})
+                        💰 {secondLowestLevel * 50}원 (Lv.{tower.level}→{secondLowestLevel})
                       </p>
                     );
                   })()}
@@ -390,42 +342,154 @@ export const Shop: React.FC = () => {
               <button style={s.btnCompact} onClick={handleBuyPotionSuper}>500원</button>
             </div>
             <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>이상한사탕</h3>
-              <p style={s.itemDescCompact}>레벨 1 상승</p>
-              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
-            </div>
-            <div style={s.itemCompact}>
               <h3 style={s.itemTitleCompact}>기력의 조각</h3>
               <p style={s.itemDescCompact}>기절 부활</p>
               <button style={s.btnCompact} onClick={handleBuyRevive}>Lv×10원</button>
             </div>
             <div style={s.itemCompact}>
+              <h3 style={s.itemTitleCompact}>이상한 사탕</h3>
+              <p style={s.itemDescCompact}>레벨 1 상승</p>
+              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
+            </div>
+            <div style={s.itemCompact}>
               <h3 style={s.itemTitleCompact}>경험 사탕</h3>
-              <p style={{...s.itemDescCompact, color: '#e74c3c'}}>버그 있음 X</p>
-              <button style={s.btnCompact} onClick={handleBuyExpCandy}>Lv×50원</button>
+              <p style={s.itemDescCompact}>가장 낮은 레벨 증가</p>
+              <button style={s.btnCompact} onClick={handleBuyExpCandy}>2nd Lv×50원</button>
             </div>
           </div>
         )}
 
-        {activeTab === 'evolution' && !isWaveActive && (
-          <div style={s.evolutionShopCompact}>
-            {Object.entries(EVOLUTION_ITEMS_BY_CATEGORY).map(([category, items]) => (
-              <div key={category} style={s.categorySectionCompact}>
-                <h3 style={s.categoryTitleCompact}>{getCategoryName(category)}</h3>
-                {items.map(item => (
-                  <div key={item.id} style={s.itemCompact}>
-                    <h3 style={s.itemTitleCompact}>{getItemIcon(item.id)} {item.name}</h3>
-                    <p style={s.itemDescCompact}>{item.description}</p>
-                    <button 
-                      style={s.btnCompact} 
-                      onClick={() => handleBuyEvolutionItem(item)}
-                    >
-                      {item.price}원
-                    </button>
-                  </div>
+        {activeTab === 'evolution' && (
+          <div style={s.evolutionTab}>
+            {/* 진화의 돌 */}
+            <div style={s.categorySection}>
+              <h3 style={s.categoryTitle}>🔥 진화의 돌</h3>
+              <div style={s.itemGrid}>
+                {EVOLUTION_ITEMS_BY_CATEGORY.stone.map(item => (
+                  <button
+                    key={item.id}
+                    style={s.itemCard}
+                    onClick={() => handleBuyEvolutionItem(item)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                    }}
+                  >
+                    <div style={s.itemName}>{item.name}</div>
+                    <div style={s.itemPrice}>💰 {item.price}원</div>
+                    <div style={s.itemDesc}>{item.description}</div>
+                  </button>
                 ))}
               </div>
-            ))}
+            </div>
+            
+            {/* 통신 교환 아이템 */}
+            <div style={s.categorySection}>
+              <h3 style={s.categoryTitle}>🔗 통신 교환 아이템</h3>
+              <div style={s.itemGrid}>
+                {EVOLUTION_ITEMS_BY_CATEGORY.trade.map(item => (
+                  <button
+                    key={item.id}
+                    style={s.itemCard}
+                    onClick={() => handleBuyEvolutionItem(item)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                    }}
+                  >
+                    <div style={s.itemName}>{item.name}</div>
+                    <div style={s.itemPrice}>💰 {item.price}원</div>
+                    <div style={s.itemDesc}>{item.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 친밀도 아이템 */}
+            <div style={s.categorySection}>
+              <h3 style={s.categoryTitle}>💝 친밀도 아이템</h3>
+              <div style={s.itemGrid}>
+                {EVOLUTION_ITEMS_BY_CATEGORY.friendship.map(item => (
+                  <button
+                    key={item.id}
+                    style={s.itemCard}
+                    onClick={() => handleBuyEvolutionItem(item)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                    }}
+                  >
+                    <div style={s.itemName}>{item.name}</div>
+                    <div style={s.itemPrice}>💰 {item.price}원</div>
+                    <div style={s.itemDesc}>{item.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 기타 아이템 */}
+            <div style={s.categorySection}>
+              <h3 style={s.categoryTitle}>⭐ 기타 아이템</h3>
+              <div style={s.itemGrid}>
+                {EVOLUTION_ITEMS_BY_CATEGORY.others.map(item => (
+                  <button
+                    key={item.id}
+                    style={s.itemCard}
+                    onClick={() => handleBuyEvolutionItem(item)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                    }}
+                  >
+                    <div style={s.itemName}>{item.name}</div>
+                    <div style={s.itemPrice}>💰 {item.price}원</div>
+                    <div style={s.itemDesc}>{item.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* 특수 아이템 */}
+            <div style={s.categorySection}>
+              <h3 style={s.categoryTitle}>✨ 특수 아이템</h3>
+              <div style={s.itemGrid}>
+                {EVOLUTION_ITEMS_BY_CATEGORY.special.map(item => (
+                  <button
+                    key={item.id}
+                    style={s.itemCard}
+                    onClick={() => handleBuyEvolutionItem(item)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                    }}
+                  >
+                    <div style={s.itemName}>{item.name}</div>
+                    <div style={s.itemPrice}>💰 {item.price}원</div>
+                    <div style={s.itemDesc}>{item.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -608,7 +672,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '0 16px 16px',
   },
   categorySection: {
-    marginBottom: '40px',
+    margin: '8px',
   },
   categorySectionCompact: {
     marginBottom: '20px',
@@ -725,5 +789,40 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
     boxShadow: '0 6px 20px rgba(231, 76, 60, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
     textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+  },
+  evolutionTab: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '20px',
+  },
+  itemGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '12px',
+  },
+  itemCard: {
+    margin: '0 8px',
+    padding: '12px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '2px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    color: 'white',
+    textAlign: 'left' as const,
+  },
+  itemName: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    marginBottom: '5px',
+  },
+  itemPrice: {
+    fontSize: '14px',
+    color: '#FFD700',
+    marginBottom: '5px',
+  },
+  itemDesc: {
+    fontSize: '12px',
+    color: '#999',
   },
 };
