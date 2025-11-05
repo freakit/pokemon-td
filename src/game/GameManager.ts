@@ -395,10 +395,7 @@ export class GameManager {
         try {
           const oldName = tower.name;
           const newData = await pokeAPI.getPokemon(evo.to);
-          
-          // 🔴 수정: 스탯을 % 증가가 아닌 진화체의 고유 스탯으로 덮어씀
-          // 레벨 보정 적용 (레벨당 5% 증가)
-          const levelMultiplier = 1 + (tower.level - 1) * 0.05;
+          const levelMultiplier = Math.pow(1.05, tower.level - 1);
           
           updateTower(tower.id, {
             pokemonId: evo.to,
