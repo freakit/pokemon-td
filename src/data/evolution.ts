@@ -105,7 +105,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 194, to: 195, level: 20 }, // 우파 (P) -> 토오 진화는 9세대에
   { from: 204, to: 205, level: 31 },
   { from: 209, to: 210, level: 23 },
-  { from: 216, to: 217, level: 30 },
+  { from: 216, to: 217, level: 30 }, { from: 217, to: 901, item: 'special-evolution' }, // 링곰 -> 다투곰
   { from: 218, to: 219, level: 38 },
   { from: 220, to: 221, level: 33 },
   { from: 221, to: 473, item: 'special-evolution' }, // 메꾸리 → 맘모꾸리 (기술 습득)
@@ -358,6 +358,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   // { from: 88, to: 89, level: 38 }, // 질퍽이(A) -> 질뻐기(A) (기본 88->89와 동일)
   // { from: 102, to: 103, item: 'leaf-stone' }, // 아라리 -> 나시(A) (기본 102->103과 동일)
   // { from: 104, to: 105, level: 28 }, // 탕구리 -> 텅구리(A) (기본 104->105와 동일, 밤 조건은 special-evolution으로 X)
+  { from: 803, to: 804, item: 'special-evolution' }, // 베베놈 -> 아고용
   { from: 808, to: 809, item: 'special-evolution' }, // 멜탄 -> 멜메탈 (특수 조건)
   
   // === 8세대 (810-905) ===
@@ -679,13 +680,13 @@ export const RARITY_WEIGHTS: Record<Rarity, number> = {
 };
 
 // 레어도별 색상
-export const RARITY_COLORS: Record<Rarity, string> = {
-  'Bronze': '#cd7f32',
-  'Silver': '#c0c0c0',
-  'Gold': '#ffd700',
-  'Diamond': '#b9f2ff',
-  'Master': '#e040fb',
-  'Legend': '#ff6b00',
+export const RARITY_COLORS: { [key in 'Bronze' | 'Silver' | 'Gold' | 'Diamond' | 'Master' | 'Legend']: string } = {
+  Bronze: '#715442ff', // (border-amber-700)
+  Silver: '#D1D5DB', // (border-gray-300)
+  Gold: '#e0cb3dff',   // (border-yellow-400)
+  Diamond: '#00fbffff', // (border-blue-400)
+  Master: '#790eddff', // (border-purple-600)
+  Legend: '#d20000ff', // (border-red-600)
 };
 
 // 합체 시스템 (Fusion System)

@@ -17,6 +17,14 @@ export type PokemonRarity =
   | "Master"
   | "Legend";
 
+export interface Synergy {
+  id: string; // 'type:fire' or 'gen:1'
+  name: string; // '불꽃' or '1세대'
+  level: number; // 1 (2마리), 2 (4마리), 3 (6마리)
+  count: number; // 실제 마리 수 (e.g., 2, 3, 4...)
+  description: string; // UI에 표시될 설명
+}
+
 export interface Position {
   x: number;
   y: number;
@@ -69,7 +77,6 @@ export interface MapData {
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
 export type Gender = 'male' | 'female' | 'genderless';
-
 export interface GamePokemon {
   id: string;
   pokemonId: number;
@@ -253,10 +260,8 @@ export interface GameState {
       method: string;
     }>;
   }>;
-  
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
-
   // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
@@ -266,4 +271,13 @@ export interface GameState {
 
   // 웨이브 50 클리어 모달 표시 여부
   wave50Clear: boolean;
+
+  /**
+   * */
+  activeSynergies: Synergy[];
+
+  /**
+   * 🆕 호버 중인 시너지 (툴팁 표시용)
+   */
+  hoveredSynergy: Synergy | null;
 }

@@ -1,11 +1,12 @@
 // src/store/gameStore.ts
 
 import { create } from 'zustand';
-import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove } from '../types/game';
+import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove, Synergy } from '../types/game';
 import { EVOLUTION_CHAINS, canMegaEvolve, canGigantamax, FUSION_DATA } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
+import { calculateActiveSynergies } from '../utils/synergyManager'; // 🆕 시너지 계산기 임포트
 
 interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
@@ -28,7 +29,6 @@ interface GameStore extends GameState {
   reset: () => void;
   tick: () => void;
   setPokemonToPlace: (pokemon: any | null) => void;
-  
   addSkillChoice: (choice: { towerId: string; newMoves: GameMove[] }) => void;
   removeCurrentSkillChoice: () => void;
   setWaveEndItemPick: (items: Item[] | null) => void;
@@ -39,6 +39,16 @@ interface GameStore extends GameState {
   removeEvolutionConfirm: () => void;
   fusePokemon: (baseId: string, materialId: string, item: string) => Promise<boolean>;
   setSpawning: (isSpawning: boolean) => void;
+
+  /**
+   * 🆕 시너지를 다시 계산하는 액션
+   */
+  updateActiveSynergies: () => void;
+
+  /**
+   * 🆕 호버 시너지 상태를 설정하는 액션
+   */
+  setHoveredSynergy: (synergy: Synergy | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -69,11 +79,44 @@ export const useGameStore = create<GameStore>((set, get) => ({
   timeOfDay: 'day',
   evolutionConfirmQueue: [],
   
-  addTower: (tower) => set((state) => ({ towers: [...state.towers, tower] })),
-  updateTower: (id, updates) => set((state) => ({
-    towers: state.towers.map(t => t.id === id ? { ...t, ...updates } : t)
-  })),
-  removeTower: (id) => set((state) => ({ towers: state.towers.filter(t => t.id !== id) })),
+  activeSynergies: [],
+  
+  /**
+   * 🆕 호버 시너지 상태 초기화
+   */
+  hoveredSynergy: null,
+  
+  addTower: (tower) => {
+    set((state) => ({ towers: [...state.towers, tower] }));
+    get().updateActiveSynergies(); // 🆕 시너지 업데이트
+  },
+  
+  updateTower: (id, updates) => {
+    let needsSynergyUpdate = false;
+    const oldTower = get().towers.find(t => t.id === id);
+
+    set((state) => ({
+      towers: state.towers.map(t => {
+        if (t.id === id) {
+          // 🆕 기절 상태가 변경되면 시너지 업데이트 필요
+          if (updates.isFainted !== undefined && t.isFainted !== updates.isFainted) {
+            needsSynergyUpdate = true;
+          }
+          return { ...t, ...updates };
+        }
+        return t;
+      })
+    }));
+
+    if (needsSynergyUpdate) {
+      get().updateActiveSynergies(); // 🆕 상태 변경 시에만 호출
+    }
+  },
+
+  removeTower: (id) => {
+    set((state) => ({ towers: state.towers.filter(t => t.id !== id) }));
+    get().updateActiveSynergies(); // 🆕 시너지 업데이트
+  },
   
   sellTower: (id) => {
     const tower = get().towers.find(t => t.id === id);
@@ -81,7 +124,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     const sellPrice = tower.level * 20;
     get().addMoney(sellPrice);
-    get().removeTower(id);
+    get().removeTower(id); // removeTower가 시너지 업데이트를 처리
     return true;
   },
   
@@ -137,6 +180,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     wave50Clear: false,
     timeOfDay: 'day',
     evolutionConfirmQueue: [],
+    activeSynergies: [], // 🆕 시너지 리셋
+    hoveredSynergy: null, // 🆕 호버 시너지 리셋
   }),
   
   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
@@ -164,7 +209,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
-      
       if (target) {
         const newHp = Math.min(target.maxHp, target.currentHp + 30);
         get().updateTower(target.id, { currentHp: newHp });
@@ -175,7 +219,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
-      
       if (target) {
         const healAmount = Math.max(150, Math.floor(target.maxHp * 0.1));
         const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
@@ -187,7 +230,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
-      
       if (target) {
         const healAmount = Math.floor(target.maxHp * 0.5);
         const newHp = Math.min(target.maxHp, target.currentHp + healAmount);
@@ -199,7 +241,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId)
         : towers.sort((a, b) => a.level - b.level)[0];
-        
       if (target) {
         if (target.level >= 100) {
           return false;
@@ -210,7 +251,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     if (itemType === 'exp_candy') {
       if (towers.length < 2) return false;
-      
       // 기절하지 않은 포켓몬만 고려
       const aliveTowers = towers.filter(t => !t.isFainted);
       if (aliveTowers.length < 2) return false;
@@ -225,7 +265,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const levelDiff = secondLowestLevel - lowestLevelTower.level;
         const statMultiplier = Math.pow(1.05, levelDiff);
         const newBaseExperience = (secondLowestLevel - 1) * 100;
-        
         get().updateTower(lowestLevelTower.id, {
           level: secondLowestLevel,
           experience: newBaseExperience,
@@ -237,7 +276,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           specialAttack: Math.floor(lowestLevelTower.specialAttack * statMultiplier),
           specialDefense: Math.floor(lowestLevelTower.specialDefense * statMultiplier),
         });
-        
         return true;
       }
       return false;
@@ -246,7 +284,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && t.isFainted)
         : towers.find(t => t.isFainted);
-        
       if (target) {
         get().updateTower(target.id, {
           isFainted: false,
@@ -295,7 +332,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialAttack: Math.floor(tower.specialAttack * 1.05),
         specialDefense: Math.floor(tower.specialDefense * 1.05),
       });
-
       // 기술 학습 체크
       pokeAPI.getLearnableMoves(tower.pokemonId, newLevel).then(moves => {
         if (moves.length > 0) {
@@ -311,7 +347,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           }
         }
       }).catch(() => {});
-      
       // 레벨업 후 진화 가능 여부 체크
       const currentState = get();
       const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
@@ -322,7 +357,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
         return true;
       });
-      
       if (possibleEvolutions.length > 0) {
         // 진화 확인 큐에 추가 (무조건 물어보기)
         Promise.all(possibleEvolutions.map(async (evo) => {
@@ -388,7 +422,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           
           return true;
         });
-        
         if (possibleEvolutions.length === 0) return false;
         
         if (possibleEvolutions.length === 1) {
@@ -409,14 +442,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
               method,
             };
           }));
-          
           set(state => ({
             evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
               towerId,
               evolutionOptions: options,
             }],
           }));
-          
           return false;
         }
       }
@@ -445,7 +476,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialDefense: Math.floor(targetData.stats.specialDefense * levelMultiplier),
         speed: targetData.stats.speed,
       });
-      
+
+      get().updateActiveSynergies(); // 🆕 진화 시 시너지 업데이트
+
       soundService.playEvolutionSound();
       
       set({
@@ -455,18 +488,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
           timestamp: Date.now()
         }
       });
-      
       setTimeout(() => {
         const current = useGameStore.getState().evolutionToast;
         if (current && Date.now() - current.timestamp >= 3000) {
           set({ evolutionToast: null });
         }
       }, 3000);
-      
       set(state => ({
         evolutionConfirmQueue: state.evolutionConfirmQueue.filter(e => e.towerId !== towerId)
       }));
-      
       saveService.updateStats({
         evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
       });
@@ -487,16 +517,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const materialTower = get().towers.find(t => t.id === materialId);
     
     if (!baseTower || !materialTower) return false;
-    
     const fusion = FUSION_DATA.find(f => 
       f.base === baseTower.pokemonId && 
       f.material === materialTower.pokemonId && 
       f.item === item
     );
-    
     if (!fusion) return false;
     
-    get().removeTower(materialId);
+    get().removeTower(materialId); // 🆕 removeTower가 시너지 업데이트
     
     try {
       const resultData = await pokeAPI.getPokemon(fusion.result);
@@ -504,7 +532,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       const currentHpRatio = baseTower.currentHp / baseTower.maxHp;
       const newMaxHp = Math.floor(resultData.stats.hp * levelMultiplier);
-      
       get().updateTower(baseId, {
         pokemonId: fusion.result,
         name: resultData.name,
@@ -519,7 +546,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         speed: resultData.stats.speed,
         types: resultData.types,
       });
-      
+
+      get().updateActiveSynergies(); // 🆕 합체 시 시너지 업데이트
+
       set({
         evolutionToast: {
           fromName: `${baseTower.name} + ${materialTower.name}`,
@@ -527,18 +556,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
           timestamp: Date.now(),
         },
       });
-      
       setTimeout(() => {
         const current = useGameStore.getState().evolutionToast;
         if (current && Date.now() - current.timestamp >= 3000) {
           set({ evolutionToast: null });
         }
       }, 3000);
-      
       return true;
     } catch (e) {
       console.error('Fusion failed:', e);
       return false;
     }
   },
+
+  /**
+   * 🆕 시너지 계산 및 상태 업데이트
+   */
+  updateActiveSynergies: () => {
+    const synergies = calculateActiveSynergies(get().towers);
+    set({ activeSynergies: synergies });
+  },
+
+  /**
+   * 🆕 호버 시너지 상태 설정
+   */
+  setHoveredSynergy: (synergy) => set({ hoveredSynergy: synergy }),
 }));

@@ -7,6 +7,7 @@ import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } fr
 import { saveService } from '../services/SaveService';
 import { soundService } from '../services/SoundService';
 import { getCriticalChance, getLifestealRatio, getAOEDamageMultiplier } from '../utils/abilities';
+import { getBuffedStats } from '../utils/synergyManager'; // 🆕 시너지 유틸 임포트
 
 export class GameManager {
   private static instance: GameManager;
@@ -45,7 +46,6 @@ export class GameManager {
   
   private updateStatusEffects(dt: number) {
     const { towers, enemies } = useGameStore.getState();
-    
     towers.forEach(t => {
       if (t.statusEffect) {
         const eff = t.statusEffect;
@@ -58,7 +58,6 @@ export class GameManager {
         }
       }
     });
-
     enemies.forEach(e => {
       if (e.statusEffect) {
         const eff = e.statusEffect;
@@ -81,7 +80,6 @@ export class GameManager {
 
   private updateEnemies(dt: number) {
     const { enemies, towers, removeEnemy } = useGameStore.getState();
-
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       if (!e) continue;
@@ -103,7 +101,6 @@ export class GameManager {
         const dx = targetTower.position.x - e.position.x;
         const dy = targetTower.position.y - e.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-
         if (dist <= e.range) {
           this.enemyAttackTower(e, targetTower);
         } else {
@@ -131,7 +128,6 @@ export class GameManager {
     const dx = targetPos.x - enemy.position.x;
     const dy = targetPos.y - enemy.position.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    
     if (dist < 5) {
       return true;
     }
@@ -147,13 +143,11 @@ export class GameManager {
     const { towers } = useGameStore.getState();
     let closestTower: GamePokemon | null = null;
     let minDiff = Infinity;
-
     for (const tower of towers) {
       if (tower.isFainted) continue;
       const dx = tower.position.x - enemy.position.x;
       const dy = tower.position.y - enemy.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
       if (dist < minDiff && dist <= enemy.range * 2) {
         minDiff = dist;
         closestTower = tower;
@@ -162,18 +156,46 @@ export class GameManager {
     return closestTower || undefined;
   }
 
+  /**
+   * 🆕 수정: 적이 타워를 공격할 때
+   */
   private enemyAttackTower(enemy: Enemy, tower: GamePokemon) {
     if (enemy.attackCooldown > 0) return;
-
-    const { updateTower } = useGameStore.getState();
-    const dmg = calculateDamage(enemy.attack, tower.defense, 20, 1, false); // 30 → 20으로 감소
-    const newHp = Math.max(0, tower.currentHp - dmg);
+    
+    const { updateTower, activeSynergies } = useGameStore.getState(); // 🆕 시너지 가져오기
+    
+    // 🆕 시너지 적용된 방어 스탯 가져오기
+    const buffedStats = getBuffedStats(tower, activeSynergies);
+    
+    const enemyAttackType = enemy.types[0] || 'normal';
+    let eff = getTypeEffectiveness(enemyAttackType, tower.types);
+    
+    // 🆕 6타입 시너지 방어 로직
+    let finalDamageMultiplier = 1.0;
+    const sixPieceTypeSynergies = activeSynergies.filter(s => s.id.startsWith('type:') && s.level === 3);
+    
+    for (const syn of sixPieceTypeSynergies) {
+      const synergyType = syn.id.split(':')[1];
+      // 이 타워가 해당 6시너지 타입이고, 그 타입이 2배 약점일 경우
+      if (tower.types.includes(synergyType)) {
+        const singleTypeEff = getTypeEffectiveness(enemyAttackType, [synergyType]);
+        if (singleTypeEff === 2) { 
+          finalDamageMultiplier = 0.5; // 최종 데미지 반감
+          break; // 버프는 한 번만 적용
+        }
+      }
+    }
+    
+    const dmg = calculateDamage(enemy.attack, buffedStats.defense, 20, eff, false); // 🆕 buffedStats.defense 사용
+    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier)); // 🆕 시너지 방어 적용
+    
+    const newHp = Math.max(0, tower.currentHp - finalDmg); // 🆕 finalDmg 사용
     
     if (newHp <= 0) {
       updateTower(tower.id, { currentHp: 0, isFainted: true });
       enemy.targetTowerId = undefined;
     } else {
-      tower.currentHp = newHp;
+      updateTower(tower.id, { currentHp: newHp }); // 🆕 HP 업데이트는 store 액션 사용
     }
     
     enemy.attackCooldown = 2.0;
@@ -212,6 +234,9 @@ export class GameManager {
     return closestEnemy;
   }
   
+  /**
+   * 🆕 수정: 타워가 적을 공격할 때
+   */
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
     const m = tower.equippedMoves.find(m => m.name === move.name);
     if (m) {
@@ -228,7 +253,6 @@ export class GameManager {
           isMiss: true, // 🎯 Miss 표시
           lifetime: 1.0,
         });
-        
         // 쿨다운만 적용하고 공격 실패
         const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
         m.currentCooldown = m.cooldown * speedMultiplier;
@@ -244,7 +268,11 @@ export class GameManager {
       m.currentCooldown = m.cooldown * speedMultiplier;
     }
     
-    const attackPower = move.damageClass === 'physical' ? tower.attack : tower.specialAttack;
+    // 🆕 시너지 적용된 공격 스탯 가져오기
+    const { activeSynergies } = useGameStore.getState();
+    const buffedStats = getBuffedStats(tower, activeSynergies);
+
+    const attackPower = move.damageClass === 'physical' ? buffedStats.attack : buffedStats.specialAttack; // 🆕 buffedStats 사용
     
     useGameStore.getState().addProjectile({
       id: `proj-${Date.now()}-${Math.random()}`,
@@ -258,7 +286,7 @@ export class GameManager {
       targetId: target.id,
       isAOE: move.isAOE,
       aoeRadius: move.aoeRadius,
-      attackPower,
+      attackPower, // 🆕 버프된 attackPower 전달
       damageClass: move.damageClass,
       attackerTypes: tower.types, // 자속 보정을 위한 타입 정보
       attackerId: tower.id, // 🆕 특성 효과 적용을 위한 공격자 ID
@@ -280,7 +308,6 @@ export class GameManager {
       const dx = target.position.x - proj.current.x;
       const dy = target.position.y - proj.current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
       if (dist < 10) {
         this.projectileHit(proj, target);
         removeProjectile(proj.id);
@@ -308,7 +335,6 @@ export class GameManager {
       const dy = e.position.y - center.y;
       return Math.sqrt(dx * dx + dy * dy) <= radius;
     });
-    
     affectedEnemies.forEach(e => this.applyDamage(proj, e));
   }
 
@@ -320,7 +346,6 @@ export class GameManager {
     const attacker = proj.attackerId ? towers.find(t => t.id === proj.attackerId) : undefined;
     const critChance = getCriticalChance(attacker?.ability);
     const isCrit = Math.random() < critChance;
-    
     // 자속 보정 확인
     const stab = hasSTAB(proj.attackerTypes, proj.type);
     
@@ -352,7 +377,7 @@ export class GameManager {
       isCrit,
       lifetime: 1.0,
     });
-
+    
     if (proj.effect.statusInflict && proj.effect.statusChance) {
       if (Math.random() * 100 < proj.effect.statusChance) {
         // 상태이상별 지속시간 차별화
@@ -382,12 +407,10 @@ export class GameManager {
       addMoney(reward);
       removeEnemy(id);
       useGameStore.setState(state => ({ combo: state.combo + 1 }));
-      
       const xpAmount = enemy.isBoss ? 50 : 10;
       useGameStore.getState().towers.forEach(t => {
         addXpToTower(t.id, xpAmount);
       });
-      
       saveService.updateStats({
         enemiesKilled: saveService.load().stats.enemiesKilled + 1,
         totalMoneyEarned: saveService.load().stats.totalMoneyEarned + reward,
@@ -431,7 +454,6 @@ export class GameManager {
       // 🔴 메가스톤 드랍 로직 (10% 확률)
       // 엔트리에 메가진화 가능한 최종진화형이 있는지 확인
       const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
-      
       if (megaEligiblePokemon.length > 0 && Math.random() < 0.1 * megaEligiblePokemon.length) {
         // 10% 확률로 메가스톤 드랍
         const randomPokemon = megaEligiblePokemon[Math.floor(Math.random() * megaEligiblePokemon.length)];
@@ -452,7 +474,6 @@ export class GameManager {
       // 🆕 거다이맥스 버섯 드랍 로직 (10% 확률)
       // 엔트리에 거다이맥스 가능한 포켓몬이 있는지 확인
       const gigantamaxEligiblePokemon = towers.filter(t => hasGigantamax(t.pokemonId));
-      
       if (gigantamaxEligiblePokemon.length > 0 && Math.random() < 0.1 * gigantamaxEligiblePokemon.length) {
         // 10% 확률로 다이버섯 드랍
         const randomPokemon = gigantamaxEligiblePokemon[Math.floor(Math.random() * gigantamaxEligiblePokemon.length)];
