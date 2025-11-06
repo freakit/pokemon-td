@@ -4,10 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { pokeAPI } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
 import { GameMove, MoveEffect, Gender } from '../../types/game';
-import { Rarity, RARITY_COLORS } from '../../data/evolution';
+import { Rarity, RARITY_COLORS } from '../../data/evolution'; // 🆕 이 파일은 실제로는 colors.ts를 가리켜야 합니다. (경로 가정)
 import { mapAbilityToGameEffect } from '../../utils/abilities';
 
 const REROLL_COST = 20;
+// 🆕 Serebii.net 타입 아이콘 GIF URL
+const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
 interface PokemonChoice {
   data: any;
@@ -54,13 +56,12 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [choices, setChoices] = useState<PokemonChoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const setPokemonToPlace = useGameStore(state => state.setPokemonToPlace);
-  
   // 1. money 가져오기
   const { money, spendMoney } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
   }));
-
+  
   const loadChoices = async () => {
     setIsLoading(true);
     
@@ -88,7 +89,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   useEffect(() => {
     loadChoices();
   }, []);
-
+  
   const handleSelect = async (choice: PokemonChoice) => {
     if (isLoading) return;
     
@@ -164,7 +165,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         aoeRadius: isAOE ? 100 : undefined,
         manualCast: false,
       }];
-
+      
       // 특성 추가 - 랜덤 특성 사용
       let ability = undefined;
       if (poke.abilities && poke.abilities.length > 0) {
@@ -214,21 +215,29 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           {choices.map((choice, i) => {
             const p = choice.data;
             const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
-                             p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
+                              p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
             
+            // 🆕 rarityBadge 텍스트 배지 삭제
+            /*
             const rarityBadge = (
               <span style={{
                 ...s.rarityBadge,
-                background: RARITY_COLORS[choice.rarity],
+                background: RARITY_COLORS[choice.rarity], // 🚨 이 부분은 아래 colors.ts 수정 필요
               }}>
                 {choice.rarity}
               </span>
             );
+            */
             
             return (
               <div
                 key={i}
-                style={s.card}
+                // 🆕 style 속성 수정: s.card 스타일과 테두리 스타일을 동적으로 결합
+                style={{
+                  ...s.card,
+                  borderColor: RARITY_COLORS[choice.rarity] || '#888', // 🆕 희귀도 색상 적용
+                  borderWidth: '4px' // 🆕 굵은 테두리
+                }}
                 onClick={() => handleSelect(choice)}
               >
                 <img src={p.sprite} alt={p.name} style={s.sprite} />
@@ -243,12 +252,19 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                       {getGenderIcon(choice.gender)}
                     </span>
                   </div>
+                  
                   <div style={s.types}>
                     {p.types.map((type: string) => (
-                      <span key={type} style={s.type}>{type}</span>
+                      <img 
+                        key={type} 
+                        src={`${TYPE_ICON_API_BASE}${type}.gif`} 
+                        alt={type} 
+                        style={s.typeImage} // 이미지 스타일 적용
+                      />
                     ))}
-                    {rarityBadge}
+                    {/* {rarityBadge} */} {/* 🆕 텍스트 배지 삭제 */}
                   </div>
+                  
                   <div style={s.stats}>
                     <div>HP: {p.stats.hp}</div>
                     <div>공격: {p.stats.attack}</div>
@@ -313,9 +329,8 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #667eea, #764ba2)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
-    marginBottom: '5px', // 4. moneyDisplay와 간격 조절
+    marginBottom: '5px', 
   },
-  // 5. moneyDisplay 스타일 추가
   moneyDisplay: {
     fontSize: '16px',
     color: '#FFD700',
@@ -330,7 +345,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '5px 10px',
     borderRadius: '5px',
     transition: 'background 0.2s',
-    alignSelf: 'flex-start', // 6. 버튼을 상단에 고정
+    alignSelf: 'flex-start', 
   },
   subtitle: {
     fontSize: '16px',
@@ -350,7 +365,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '15px',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    border: '2px solid transparent',
+    border: '2px solid transparent', // 🆕 기본 테두리 (투명) -> 동적 스타일로 덮어씀
   },
   sprite: {
     width: '120px',
@@ -375,13 +390,16 @@ const s: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
     margin: 0,
   },
-  rarityBadge: {
+  rarityBadge: { // 🆕 이 스타일은 이제 사용되지 않지만, 혹시 모를 충돌 방지 위해 남겨둠
     fontSize: '12px',
     fontWeight: 'bold',
     padding: '3px 8px',
     borderRadius: '8px',
     color: '#fff',
     textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+    height: '24px', 
+    display: 'flex',
+    alignItems: 'center'
   },
   types: {
     display: 'flex',
@@ -389,13 +407,21 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     marginBottom: '10px',
     flexWrap: 'wrap',
+    height: '24px', // 컨테이너 높이 고정
+    alignItems: 'center'
   },
-  type: {
+  type: { // (기존) 이 스타일은 이제 사용되지 않음
     fontSize: '12px',
     padding: '4px 8px',
     background: 'rgba(255, 255, 255, 0.1)',
     borderRadius: '8px',
     textTransform: 'uppercase',
+  },
+  typeImage: {
+    // 🆕 이전 요청(더 크게)에 맞게 64px / 14px로 수정
+    // width: '64px',
+    height: '18px',
+    objectFit: 'contain',
   },
   stats: {
     fontSize: '13px',

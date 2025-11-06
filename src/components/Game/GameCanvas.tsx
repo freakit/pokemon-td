@@ -20,6 +20,9 @@ const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
 const MAP_HEIGHT = 10;
 
+// 🆕 Serebii.net 타입 아이콘 GIF URL
+const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
+
 // 포켓몬 이미지 렌더링 헬퍼
 const PokemonImage: React.FC<{
   src: string;
@@ -40,7 +43,7 @@ const PokemonImage: React.FC<{
       setImage(img);
     };
   }, [src]);
-
+  
   useEffect(() => {
     if (imageRef.current) {
       if (isFainted) {
@@ -51,7 +54,7 @@ const PokemonImage: React.FC<{
       }
     }
   }, [isFainted, image]);
-
+  
   if (!image) return null;
 
   return (
@@ -79,7 +82,7 @@ const HPBar: React.FC<{
 }> = ({ x, y, current, max, width = 50, level }) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const color = ratio > 0.5 ? "#2ecc71" : ratio > 0.25 ? "#f39c12" : "#e74c3c";
-
+  
   return (
     <>
       {/* 레벨 표시 */}
@@ -136,7 +139,6 @@ export const GameCanvas: React.FC = () => {
     spendMoney: state.spendMoney,
     isWaveActive: state.isWaveActive,
   }));
-
   const {
     towers,
     enemies,
@@ -145,7 +147,6 @@ export const GameCanvas: React.FC = () => {
     currentMap,
     evolutionToast,
   } = useGameStore.getState();
-
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(
     null
@@ -155,11 +156,10 @@ export const GameCanvas: React.FC = () => {
   const [repositionMode, setRepositionMode] = useState(false); // 재배치 모드
   const [selectedTowerForReposition, setSelectedTowerForReposition] =
     useState<GamePokemon | null>(null);
-
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const map = getMapById(currentMap);
-
+  
   // 캔버스 크기 자동 조정
   useEffect(() => {
     const updateScale = () => {
@@ -183,7 +183,7 @@ export const GameCanvas: React.FC = () => {
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, []);
-
+  
   // 게임 루프
   useEffect(() => {
     const { tick } = useGameStore.getState();
@@ -198,7 +198,7 @@ export const GameCanvas: React.FC = () => {
     const id = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(id);
   }, []);
-
+  
   // 배치할 포켓몬 이미지 미리 로드
   useEffect(() => {
     if (pokemonToPlace && pokemonToPlace.sprite) {
@@ -210,7 +210,7 @@ export const GameCanvas: React.FC = () => {
       setPlacementImage(null);
     }
   }, [pokemonToPlace]);
-
+  
   // Wave 종료 시 재배치 모드 자동 활성화
   useEffect(() => {
     if (!isWaveActive && towers.length > 0) {
@@ -220,11 +220,11 @@ export const GameCanvas: React.FC = () => {
       setSelectedTowerForReposition(null);
     }
   }, [isWaveActive]);
-
+  
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-
+    
     if (pokemonToPlace && pos) {
       const gridX = Math.floor(pos.x / TILE_SIZE);
       const gridY = Math.floor(pos.y / TILE_SIZE);
@@ -241,7 +241,6 @@ export const GameCanvas: React.FC = () => {
       setMousePos({ x: snappedX, y: snappedY });
     } else {
       setMousePos(pos || { x: 0, y: 0 });
-
       // 호버된 타워 찾기
       if (pos) {
         const found = towers.find((t) => {
@@ -253,11 +252,10 @@ export const GameCanvas: React.FC = () => {
       }
     }
   };
-
+  
   // 경로 타일 확인 함수
   const isPathTile = (x: number, y: number): boolean => {
     if (!map) return false;
-
     for (const path of map.paths) {
       for (let i = 0; i < path.length - 1; i++) {
         const start = path[i];
@@ -275,7 +273,7 @@ export const GameCanvas: React.FC = () => {
     }
     return false;
   };
-
+  
   // 격자 위치 유효성 검사
   const isValidPlacement = (
     x: number,
@@ -309,7 +307,7 @@ export const GameCanvas: React.FC = () => {
 
     return true;
   };
-
+  
   const handleCanvasClick = () => {
     // 재배치 모드
     if (repositionMode && !pokemonToPlace) {
@@ -345,7 +343,7 @@ export const GameCanvas: React.FC = () => {
     }
 
     if (!pokemonToPlace) return;
-
+    
     // 포켓몬 6마리 제한
     if (towers.length >= 6) {
       alert("포켓몬은 최대 6마리까지만 배치할 수 있습니다!");
@@ -353,7 +351,7 @@ export const GameCanvas: React.FC = () => {
     }
 
     const cost = pokemonToPlace.cost || 100;
-
+    
     if (!isValidPlacement(mousePos.x, mousePos.y)) {
       alert("여기에는 배치할 수 없습니다!");
       return;
@@ -394,7 +392,7 @@ export const GameCanvas: React.FC = () => {
       gender: poke.gender,
       ability: poke.ability,
     };
-
+    
     addTower(tower);
     setPokemonToPlace(null);
   };
@@ -496,25 +494,32 @@ export const GameCanvas: React.FC = () => {
           >
             {hoveredTower.name} (Lv.{hoveredTower.level})
           </div>
+          
+          {/* 🆕 타입 표시 수정 */}
           <div
-            style={{ fontSize: "10px", color: "#a8b8c8", marginBottom: "4px" }}
+            style={{
+              fontSize: "10px",
+              color: "#a8b8c8",
+              marginBottom: "4px",
+              display: 'flex', // 🆕 flex 추가
+              gap: '4px', // 🆕 gap 추가
+              alignItems: 'center' // 🆕 세로 정렬 추가
+            }}
           >
             {hoveredTower.types.map((t) => (
-              <span
+              <img
                 key={t}
+                src={`${TYPE_ICON_API_BASE}${t}.gif`} // 🆕 이미지 URL
+                alt={t}
                 style={{
-                  background: "rgba(76, 175, 255, 0.2)",
-                  padding: "2px 6px",
-                  borderRadius: "4px",
-                  marginRight: "4px",
-                  textTransform: "uppercase",
-                  fontSize: "9px",
+                  // width: '48px', // 툴팁에 맞게 48px
+                  height: '11px',
+                  objectFit: 'contain',
                 }}
-              >
-                {t}
-              </span>
+              />
             ))}
           </div>
+          
           <div style={{ fontSize: "10px", lineHeight: "1.4" }}>
             <div>
               HP: {Math.floor(hoveredTower.currentHp)}/{hoveredTower.maxHp}
@@ -568,7 +573,6 @@ export const GameCanvas: React.FC = () => {
                         selectedTowerForReposition?.id
                       )
                     : true;
-
                 return (
                   <Rect
                     key={`${x}-${y}`}

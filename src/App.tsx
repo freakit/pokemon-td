@@ -14,11 +14,12 @@ import { useGameStore } from "./store/gameStore";
 import { WaveSystem } from "./game/WaveSystem";
 import { saveService } from "./services/SaveService";
 import "./index.css";
-
 import { SkillPicker } from './components/Modals/SkillPicker';
 import { WaveEndPicker } from './components/Modals/WaveEndPicker';
 import { Wave50ClearModal } from './components/Modals/Wave50ClearModal';
 import { EvolutionConfirmModal } from './components/Modals/EvolutionConfirmModal';
+import { SynergyTracker } from './components/UI/SynergyTracker';
+import { SynergyDetails } from './components/UI/SynergyDetails'; // 🆕 툴팁 컴포넌트 임포트
 
 function App() {
   const [showPicker, setShowPicker] = useState(false);
@@ -27,7 +28,6 @@ function App() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(true);
-
   const {
     nextWave,
     isWaveActive,
@@ -47,7 +47,7 @@ function App() {
     spendMoney: state.spendMoney,
     wave50Clear: state.wave50Clear,
   }));
-
+  
   const handleOpenPicker = () => {
     if (!spendMoney(20)) {
       alert("돈이 부족합니다! (입장료: 20원)");
@@ -67,13 +67,13 @@ function App() {
     const wave = useGameStore.getState().wave;
     WaveSystem.getInstance().startWave(wave);
   };
-
+  
   const handleReset = () => {
     reset();
     setShowMapSelector(true);
     window.location.reload();
   };
-
+  
   return (
     <div style={styles.app}>
       {showMapSelector && !isWaveActive ? (
@@ -85,6 +85,7 @@ function App() {
             <GameCanvas />
           </div>
 
+     
           {/* 하단 컨트롤 패널 */}
           <div style={styles.bottomPanel}>
             <HUD
@@ -93,6 +94,7 @@ function App() {
               onManagePokemon={() => setShowPokemonManager(true)}
             />
 
+            
             {/* 추가 버튼들 */}
             <div style={styles.extraButtons}>
               <button
@@ -125,11 +127,17 @@ function App() {
       {showPokemonManager && (
         <PokemonManager onClose={() => setShowPokemonManager(false)} />
       )}
+   
       {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
       {showAchievements && (
         <AchievementsPanel onClose={() => setShowAchievements(false)} />
       )}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+
+      {/* 시너지 트래커 */}
+      <SynergyTracker />
+      {/* 🆕 시너지 툴팁 */}
+      <SynergyDetails />
 
       {/* 좌측 기술 선택 사이드바 - 레벨업 시 표시 */}
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}

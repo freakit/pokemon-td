@@ -8,7 +8,7 @@ export type StatusEffectType =
   | "sleep"
   | "confusion";
 export type DamageClass = "physical" | "special" | "status";
-export type Difficulty = "easy" | "normal" | "hard" | "expert";
+export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
 export type PokemonRarity =
   | "Bronze"
   | "Silver"
@@ -16,6 +16,14 @@ export type PokemonRarity =
   | "Diamond"
   | "Master"
   | "Legend";
+
+export interface Synergy {
+  id: string; // 'type:fire' or 'gen:1'
+  name: string; // '불꽃' or '1세대'
+  level: number; // 1 (2마리), 2 (4마리), 3 (6마리)
+  count: number; // 실제 마리 수 (e.g., 2, 3, 4...)
+  description: string; // UI에 표시될 설명
+}
 
 export interface Position {
   x: number;
@@ -60,15 +68,14 @@ export interface MoveEffect {
 export interface MapData {
   id: string;
   name: string;
-  difficulty: "easy" | "medium" | "hard" | "expert";
+  difficulty: "easiest" | "easy" | "medium" | "hard" | "expert";
   paths: Position[][];
   spawns: Position[];
   objectives: Position[];
   description: string;
-  unlockWave: number;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
-export type Gender = 'male' | 'female' | 'genderless';
+export type Gender = "male" | "female" | "genderless";
 
 export interface GamePokemon {
   id: string;
@@ -157,7 +164,15 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone" | "max-mushroom";
+  type:
+    | "heal"
+    | "revive"
+    | "candy"
+    | "egg"
+    | "stone"
+    | "gold"
+    | "mega-stone"
+    | "max-mushroom";
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)
@@ -236,14 +251,14 @@ export interface GameState {
   gameTick: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
-  timeOfDay: 'day' | 'night'; // 시간대 추가
+  timeOfDay: "day" | "night"; // 시간대 추가
 
   // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
   skillChoiceQueue: Array<{
     towerId: string;
     newMoves: GameMove[];
   }>;
-  
+
   // 진화 확인 큐 추가
   evolutionConfirmQueue: Array<{
     towerId: string;
@@ -253,10 +268,9 @@ export interface GameState {
       method: string;
     }>;
   }>;
-  
+
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
-
   // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
@@ -266,4 +280,13 @@ export interface GameState {
 
   // 웨이브 50 클리어 모달 표시 여부
   wave50Clear: boolean;
+
+  /**
+   * */
+  activeSynergies: Synergy[];
+
+  /**
+   * 🆕 호버 중인 시너지 (툴팁 표시용)
+   */
+  hoveredSynergy: Synergy | null;
 }
