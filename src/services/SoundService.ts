@@ -58,7 +58,7 @@ class SoundService {
       return;
     }
     
-    const track = '/sounds/dj-pikachu.m4a'; // 모든 맵에서 동일한 BGM
+    const track = '/sounds/dj-pikachu.mp3'; // 모든 맵에서 동일한 BGM
     const bgm = new Howl({
       src: [track],
       volume: this.musicVolume,

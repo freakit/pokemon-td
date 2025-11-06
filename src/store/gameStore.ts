@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove } from '../types/game';
-import { EVOLUTION_CHAINS, canMegaEvolve, FUSION_DATA } from '../data/evolution';
+import { EVOLUTION_CHAINS, canMegaEvolve, canGigantamax, FUSION_DATA } from '../data/evolution';
 import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
@@ -224,10 +224,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (lowestLevelTower.level < secondLowestLevel) {
         const levelDiff = secondLowestLevel - lowestLevelTower.level;
         const statMultiplier = Math.pow(1.05, levelDiff);
+        const newBaseExperience = (secondLowestLevel - 1) * 100;
         
         get().updateTower(lowestLevelTower.id, {
           level: secondLowestLevel,
-          experience: 0,
+          experience: newBaseExperience,
           maxHp: Math.floor(lowestLevelTower.maxHp * statMultiplier),
           currentHp: Math.floor(lowestLevelTower.currentHp * statMultiplier),
           attack: Math.floor(lowestLevelTower.attack * statMultiplier),
@@ -364,6 +365,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const megaEvolution = canMegaEvolve(tower.pokemonId, item);
         if (megaEvolution) {
           targetId = megaEvolution.to;
+        }
+      }
+      
+      // 거다이맥스 체크
+      if (!targetId && item === 'max-mushroom') {
+        const gigantamax = canGigantamax(tower.pokemonId, item);
+        if (gigantamax) {
+          targetId = gigantamax.to;
         }
       }
       

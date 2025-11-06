@@ -392,6 +392,7 @@ export const GameCanvas: React.FC = () => {
       kills: 0,
       damageDealt: 0,
       gender: poke.gender,
+      ability: poke.ability,
     };
 
     addTower(tower);

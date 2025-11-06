@@ -2,19 +2,14 @@
 
 import axios from 'axios';
 import { EVOLUTION_CHAINS, getFinalEvolutionId, calculateRarity, RARITY_WEIGHTS, Rarity } from '../data/evolution';
-import { GameMove, MoveEffect, StatusEffectType } from '../types/game';
+import { GameMove, MoveEffect } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
-// 타입별 상태이상 매핑
-const TYPE_TO_STATUS: Record<string, StatusEffectType> = {
-  fire: 'burn',
-  electric: 'paralysis',
-  ice: 'freeze',
-  poison: 'poison',
-  grass: 'poison',
-  psychic: 'sleep',
-};
+export interface PokemonAbilityData {
+  name: string;
+  description: string;
+}
 
 export interface PokemonData {
   id: number;
@@ -23,6 +18,7 @@ export interface PokemonData {
   stats: { hp: number; attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number };
   sprite: string;
   moves: string[];
+  abilities: PokemonAbilityData[];
 }
 
 export interface MoveData {
@@ -32,6 +28,8 @@ export interface MoveData {
   accuracy: number | null;
   damageClass: 'physical' | 'special' | 'status';
   effectChance: number | null;
+  target: string; // 'all-opponents', 'all-other-pokemon' 등
+  effectEntries: string[]; // 기술 효과 설명
 }
 
 // 진화형 포켓몬 ID 목록 (기본형만 뽑기 위함)
@@ -47,6 +45,23 @@ class PokeAPIService {
     try {
       const res = await axios.get(`${API_BASE}/pokemon/${id}`);
       const d = res.data;
+      
+      // 특성 가져오기
+      const abilities: PokemonAbilityData[] = [];
+      for (const abilityData of d.abilities) {
+        try {
+          const abilityRes = await axios.get(abilityData.ability.url);
+          const abilityInfo = abilityRes.data;
+          const descEntry = abilityInfo.effect_entries.find((e: any) => e.language.name === 'en');
+          abilities.push({
+            name: abilityInfo.name,
+            description: descEntry?.short_effect || descEntry?.effect || 'No description',
+          });
+        } catch {
+          // 특성 가져오기 실패 시 계속 진행
+        }
+      }
+      
       const pokemon: PokemonData = {
         id: d.id,
         name: d.name,
@@ -61,6 +76,7 @@ class PokeAPIService {
         },
         sprite: d.sprites.front_default || d.sprites.other['official-artwork'].front_default,
         moves: d.moves.map((m: any) => m.move.name).slice(0, 20),
+        abilities,
       };
       this.pokemonCache.set(id, pokemon);
       return pokemon;
@@ -74,6 +90,12 @@ class PokeAPIService {
     try {
       const res = await axios.get(`${API_BASE}/move/${name}`);
       const d = res.data;
+      
+      // 기술 효과 설명 가져오기
+      const effectEntries = d.effect_entries
+        .filter((e: any) => e.language.name === 'en')
+        .map((e: any) => e.short_effect || e.effect);
+      
       const move: MoveData = {
         name: d.name,
         type: d.type.name,
@@ -81,6 +103,8 @@ class PokeAPIService {
         accuracy: d.accuracy,
         damageClass: d.damage_class.name,
         effectChance: d.effect_chance,
+        target: d.target.name,
+        effectEntries,
       };
       this.moveCache.set(name, move);
       return move;
@@ -204,21 +228,48 @@ class PokeAPIService {
         .map(m => {
           const effect: MoveEffect = { type: 'damage' };
           
-          // 30% 확률로 타입에 맞는 상태이상 부여
-          const status = TYPE_TO_STATUS[m.type];
-          if (status && Math.random() < 0.3) {
-            effect.statusInflict = status;
-            effect.statusChance = 30;
+          // 실제 기술 효과 분석하여 상태이상 부여
+          const effectText = m.effectEntries[0]?.toLowerCase() || '';
+          
+          // 상태이상 효과 감지
+          if (effectText.includes('burn') || effectText.includes('burn')) {
+            effect.statusInflict = 'burn';
+            effect.statusChance = m.effectChance || 10;
+          } else if (effectText.includes('paralyze') || effectText.includes('paralysis')) {
+            effect.statusInflict = 'paralysis';
+            effect.statusChance = m.effectChance || 10;
+          } else if (effectText.includes('poison')) {
+            effect.statusInflict = 'poison';
+            effect.statusChance = m.effectChance || 10;
+          } else if (effectText.includes('freeze') || effectText.includes('frozen')) {
+            effect.statusInflict = 'freeze';
+            effect.statusChance = m.effectChance || 10;
+          } else if (effectText.includes('sleep')) {
+            effect.statusInflict = 'sleep';
+            effect.statusChance = m.effectChance || 10;
+          } else if (effectText.includes('confus')) {
+            effect.statusInflict = 'confusion';
+            effect.statusChance = m.effectChance || 10;
           }
           
-          // 20% 확률로 광역기
-          const isAOE = Math.random() < 0.2;
+          // 추가 효과 정보 저장
+          if (effectText) {
+            effect.additionalEffects = effectText;
+          }
+          
+          // 광역 기술 판단 - target이 여러 적을 공격하는 경우
+          const isAOE = [
+            'all-opponents',
+            'all-other-pokemon',
+            'all-pokemon',
+            'user-and-allies'
+          ].includes(m.target);
           
           return {
             name: m.name,
             type: m.type,
             power: m.power || 40,
-            accuracy: m.accuracy || 100, // 명중률 (100 = 100%)
+            accuracy: m.accuracy || 100,
             damageClass: m.damageClass,
             effect,
             cooldown: 2.0,
