@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
-
 export const WaveEndPicker: React.FC = () => {
   const { waveEndItemPick, setWaveEndItemPick, useItem, towers } = useGameStore(state => ({
     waveEndItemPick: state.waveEndItemPick,
@@ -11,19 +10,24 @@ export const WaveEndPicker: React.FC = () => {
     useItem: state.useItem,
     towers: state.towers,
   }));
-
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   if (!waveEndItemPick) return null;
-
   const handleSelect = (item: Item) => {
-    // 메가스톤의 경우 바로 처리 (타겟이 정해져 있음)
-    if (item.type === 'mega-stone' && item.targetPokemonId) {
+    if ((item.type === 'mega-stone' || item.type === 'max-mushroom') && item.targetPokemonId) {
       const targetTower = towers.find(t => t.pokemonId === item.targetPokemonId);
       if (targetTower) {
-        // 메가스톤 아이템 이름에서 실제 아이템 ID 추출
-        const megaStoneItem = item.id.replace('mega_stone_', '');
-        useGameStore.getState().evolvePokemon(targetTower.id, megaStoneItem);
+        
+        let evolutionItem: string;
+        if (item.type === 'mega-stone') {
+          // 메가스톤 아이템 이름에서 실제 아이템 ID 추출
+          evolutionItem = item.id.replace('mega_stone_', '');
+        } else {
+          // evolvePokemon 함수는 'max-mushroom' 문자열을 기대합니다
+          evolutionItem = 'max-mushroom';
+        }
+            
+        useGameStore.getState().evolvePokemon(targetTower.id, evolutionItem);
       }
       setWaveEndItemPick(null);
       useGameStore.setState({ isPaused: false });
@@ -33,10 +37,8 @@ export const WaveEndPicker: React.FC = () => {
     // 다른 아이템은 타겟 선택 모드로 전환
     setSelectedItem(item);
   };
-
   const handleTargetSelect = (towerId: string) => {
     if (!selectedItem) return;
-
     if (selectedItem.type === 'candy') {
       useItem('candy', towerId);
     } else if (selectedItem.type === 'heal') {
@@ -58,7 +60,6 @@ export const WaveEndPicker: React.FC = () => {
   const handleCancel = () => {
     setSelectedItem(null);
   };
-
   // 타겟 선택 모드
   if (selectedItem) {
     return (
@@ -113,22 +114,23 @@ export const WaveEndPicker: React.FC = () => {
               key={idx} 
               style={{
                 ...s.card,
-                border: item.type === 'mega-stone' ? '3px solid #e040fb' : '2px solid rgba(46, 204, 113, 0.4)',
-                boxShadow: item.type === 'mega-stone' 
-                  ? '0 0 30px rgba(224, 64, 251, 0.8), 0 8px 32px rgba(0,0,0,0.4)' 
-                  : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
+                border: (item.type === 'mega-stone' || item.type === 'max-mushroom') ? '3px solid #e040fb' : '2px solid rgba(46, 204, 113, 0.4)',
+                boxShadow: (item.type === 'mega-stone' || item.type === 'max-mushroom') 
+                   ? '0 0 30px rgba(224, 64, 251, 0.8), 0 8px 32px rgba(0,0,0,0.4)' 
+                   : '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
               }}
               onClick={() => handleSelect(item)}
             >
               <div style={s.cardGlow}></div>
               <h3 style={{
                 ...s.itemName,
-                color: item.type === 'mega-stone' ? '#e040fb' : '#2ecc71',
-                textShadow: item.type === 'mega-stone' 
+                color: (item.type === 'mega-stone' || item.type === 'max-mushroom') ? '#e040fb' : '#2ecc71',
+                textShadow: (item.type === 'mega-stone' || item.type === 'max-mushroom') 
                   ? '0 0 20px rgba(224, 64, 251, 0.8)' 
                   : '0 0 15px rgba(46, 204, 113, 0.6)',
               }}>
-                {item.type === 'mega-stone' && '✨ '}
+                {/* FIX: 다이버섯('max-mushroom')도 '✨' 아이콘 추가 */}
+                {(item.type === 'mega-stone' || item.type === 'max-mushroom') && '✨ '}
                 {item.name}
               </h3>
               <p style={s.itemEffect}>{item.effect}</p>

@@ -3,10 +3,10 @@
 import { useGameStore } from '../store/gameStore';
 import { GamePokemon, Enemy, Projectile, Position, Item, GameMove } from '../types/game';
 import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
-import { canEvolve, hasMegaEvolution, MEGA_EVOLUTIONS } from '../data/evolution';
-import { pokeAPI } from '../api/pokeapi';
+import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
 import { saveService } from '../services/SaveService';
 import { soundService } from '../services/SoundService';
+import { getCriticalChance, getLifestealRatio, getAOEDamageMultiplier } from '../utils/abilities';
 
 export class GameManager {
   private static instance: GameManager;
@@ -30,7 +30,6 @@ export class GameManager {
     this.updateTowers(delta);
     this.updateProjectiles(delta);
     this.updateDamageNumbers(delta);
-    this.checkEvolutions();
     this.checkWaveComplete();
   }
   
@@ -261,7 +260,8 @@ export class GameManager {
       attackPower,
       damageClass: move.damageClass,
       attackerTypes: tower.types, // 자속 보정을 위한 타입 정보
-    });
+      attackerId: tower.id, // 🆕 특성 효과 적용을 위한 공격자 ID
+    } as any); // attackerId 타입 임시 처리
   }
   
   private updateProjectiles(dt: number) {
@@ -312,17 +312,37 @@ export class GameManager {
   }
 
   private applyDamage(proj: Projectile, enemy: Enemy) {
-    const { addDamageNumber } = useGameStore.getState();
+    const { addDamageNumber, towers, updateTower } = useGameStore.getState();
     const eff = getTypeEffectiveness(proj.type, enemy.types);
-    const isCrit = Math.random() < (1 / 24);
+    
+    // 공격자 특성 가져오기
+    const attacker = proj.attackerId ? towers.find(t => t.id === proj.attackerId) : undefined;
+    const critChance = getCriticalChance(attacker?.ability);
+    const isCrit = Math.random() < critChance;
     
     // 자속 보정 확인
     const stab = hasSTAB(proj.attackerTypes, proj.type);
     
     const defense = proj.damageClass === 'physical' ? enemy.defense : enemy.specialDefense;
-    const dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit, stab);
+    let dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit, stab);
+    
+    // AOE 특성 배율 적용
+    if (proj.isAOE && attacker?.ability) {
+      const aoeMultiplier = getAOEDamageMultiplier(attacker.ability);
+      dmg = Math.floor(dmg * aoeMultiplier);
+    }
     
     enemy.hp = Math.max(0, enemy.hp - dmg);
+    
+    // 흡혈 효과 적용
+    if (attacker && !attacker.isFainted) {
+      const lifestealRatio = getLifestealRatio(attacker.ability);
+      if (lifestealRatio > 0) {
+        const healAmount = Math.floor(dmg * lifestealRatio);
+        const newHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
+        updateTower(attacker.id, { currentHp: newHp });
+      }
+    }
     
     addDamageNumber({
       id: `dmg-${Date.now()}-${Math.random()}`,
@@ -387,59 +407,6 @@ export class GameManager {
     }
   }
   
-  private checkEvolutions() {
-    const { towers, updateTower } = useGameStore.getState();
-    towers.forEach(async tower => {
-      const evo = canEvolve(tower.pokemonId, tower.level);
-      if (evo) {
-        try {
-          const oldName = tower.name;
-          const newData = await pokeAPI.getPokemon(evo.to);
-          const levelMultiplier = Math.pow(1.05, tower.level - 1);
-          
-          updateTower(tower.id, {
-            pokemonId: evo.to,
-            name: newData.name,
-            sprite: newData.sprite,
-            types: newData.types,
-            maxHp: Math.floor(newData.stats.hp * levelMultiplier),
-            currentHp: Math.floor(newData.stats.hp * levelMultiplier),
-            baseAttack: Math.floor(newData.stats.attack * levelMultiplier),
-            attack: Math.floor(newData.stats.attack * levelMultiplier),
-            defense: Math.floor(newData.stats.defense * levelMultiplier),
-            specialAttack: Math.floor(newData.stats.specialAttack * levelMultiplier),
-            specialDefense: Math.floor(newData.stats.specialDefense * levelMultiplier),
-            speed: Math.floor(newData.stats.speed),
-          });
-          soundService.playEvolutionSound();
-          
-          // 진화 토스트 표시
-          useGameStore.setState({
-            evolutionToast: {
-              fromName: oldName,
-              toName: newData.name,
-              timestamp: Date.now()
-            }
-          });
-          
-          // 3초 후 토스트 제거
-          setTimeout(() => {
-            const current = useGameStore.getState().evolutionToast;
-            if (current && current.timestamp === Date.now() - 3000) {
-              useGameStore.setState({ evolutionToast: null });
-            }
-          }, 3000);
-          
-          saveService.updateStats({
-            evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
-          });
-        } catch (e) {
-          console.error('Evolution failed:', e);
-        }
-      }
-    });
-  }
-  
   // 🔴 수정된 부분
   private checkWaveComplete() {
     const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers, isSpawning, wave } = useGameStore.getState();
@@ -476,6 +443,27 @@ export class GameManager {
             type: 'mega-stone',
             cost: 0,
             effect: `${randomPokemon.name}을 메가진화시킵니다`,
+            targetPokemonId: randomPokemon.pokemonId,
+          });
+        }
+      }
+      
+      // 🆕 거다이맥스 버섯 드랍 로직 (10% 확률)
+      // 엔트리에 거다이맥스 가능한 포켓몬이 있는지 확인
+      const gigantamaxEligiblePokemon = towers.filter(t => hasGigantamax(t.pokemonId));
+      
+      if (gigantamaxEligiblePokemon.length > 0 && Math.random() < 0.1) {
+        // 10% 확률로 다이버섯 드랍
+        const randomPokemon = gigantamaxEligiblePokemon[Math.floor(Math.random() * gigantamaxEligiblePokemon.length)];
+        const gigantamaxData = GIGANTAMAX_FORMS.find(g => g.from === randomPokemon.pokemonId);
+        
+        if (gigantamaxData) {
+          itemChoices.push({
+            id: `max_mushroom_${randomPokemon.pokemonId}`,
+            name: `${randomPokemon.name}의 다이버섯`,
+            type: 'max-mushroom' as any,
+            cost: 0,
+            effect: `${randomPokemon.name}을 거다이맥스시킵니다`,
             targetPokemonId: randomPokemon.pokemonId,
           });
         }

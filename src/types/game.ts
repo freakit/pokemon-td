@@ -142,6 +142,7 @@ export interface Projectile {
   attackPower: number; // 공격력 (물리 or 특수)
   damageClass: DamageClass; // 물리 or 특수
   attackerTypes: string[]; // 자속 보정을 위한 공격자 타입
+  attackerId?: string; // 🆕 특성 효과 적용을 위한 공격자 ID
 }
 
 export interface DamageNumber {
@@ -156,7 +157,7 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone";
+  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone" | "max-mushroom";
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)

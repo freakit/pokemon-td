@@ -17,6 +17,13 @@ export interface MegaEvolutionData {
   item: string; // 메가스톤 아이템 이름
 }
 
+// 거다이맥스 데이터 (10200번대 ID 사용)
+export interface GigantamaxData {
+  from: number; // 포켓몬 ID
+  to: number; // 거다이맥스 폼 ID (10200+)
+  item: 'max-mushroom'; // 다이버섯
+}
+
 export const EVOLUTION_CHAINS: EvolutionData[] = [
   // === 1세대 (1-151) ===
   // 레벨 진화
@@ -515,6 +522,41 @@ export const MEGA_EVOLUTIONS: MegaEvolutionData[] = [
   { from: 719, to: 10075, item: 'diancite' },
 ];
 
+// 거다이맥스 데이터 (10200번대 ID 사용)
+export const GIGANTAMAX_FORMS: GigantamaxData[] = [
+  { from: 3, to: 10200, item: 'max-mushroom' }, // 이상해꽃
+  { from: 6, to: 10201, item: 'max-mushroom' }, // 리자몽
+  { from: 9, to: 10202, item: 'max-mushroom' }, // 거북왕
+  { from: 12, to: 10203, item: 'max-mushroom' }, // 버터플
+  { from: 25, to: 10204, item: 'max-mushroom' }, // 피카츄
+  { from: 52, to: 10205, item: 'max-mushroom' }, // 나옹
+  { from: 68, to: 10206, item: 'max-mushroom' }, // 괴력몬
+  { from: 94, to: 10207, item: 'max-mushroom' }, // 팬텀
+  { from: 99, to: 10208, item: 'max-mushroom' }, // 킹크랩
+  { from: 131, to: 10209, item: 'max-mushroom' }, // 라프라스
+  { from: 133, to: 10210, item: 'max-mushroom' }, // 이브이
+  { from: 143, to: 10211, item: 'max-mushroom' }, // 잠만보
+  { from: 569, to: 10212, item: 'max-mushroom' }, // 더스트다스
+  { from: 809, to: 10213, item: 'max-mushroom' }, // 멜메탈
+  { from: 812, to: 10214, item: 'max-mushroom' }, // 고릴타
+  { from: 815, to: 10215, item: 'max-mushroom' }, // 인텔리레온
+  { from: 818, to: 10216, item: 'max-mushroom' }, // 에이스번
+  { from: 823, to: 10217, item: 'max-mushroom' }, // 아머까오
+  { from: 826, to: 10218, item: 'max-mushroom' }, // 이올브
+  { from: 834, to: 10219, item: 'max-mushroom' }, // 갈가부기
+  { from: 839, to: 10220, item: 'max-mushroom' }, // 석탄산
+  { from: 841, to: 10221, item: 'max-mushroom' }, // 단지 형태
+  { from: 842, to: 10222, item: 'max-mushroom' }, // 애플로드
+  { from: 844, to: 10223, item: 'max-mushroom' }, // 사다이사
+  { from: 849, to: 10224, item: 'max-mushroom' }, // 스트린더
+  { from: 851, to: 10225, item: 'max-mushroom' }, // 다태우지네
+  { from: 858, to: 10226, item: 'max-mushroom' }, // 브리무음
+  { from: 861, to: 10227, item: 'max-mushroom' }, // 오롱털
+  { from: 869, to: 10228, item: 'max-mushroom' }, // 마시마로
+  { from: 879, to: 10229, item: 'max-mushroom' }, // 대왕끼리동
+  { from: 884, to: 10230, item: 'max-mushroom' }, // 두랄루돈
+];
+
 // 레벨로 진화 가능한지 확인
 export function canEvolve(pokemonId: number, level: number): EvolutionData | null {
   // 해당 포켓몬의 '레벨' 진화 정보(아이템이 없는 경우)를 찾습니다.
@@ -552,6 +594,18 @@ export function canMegaEvolve(pokemonId: number, item: string): MegaEvolutionDat
 // 특정 포켓몬이 메가진화 가능한지 확인 (아이템 없이)
 export function hasMegaEvolution(pokemonId: number): boolean {
   return MEGA_EVOLUTIONS.some(e => e.from === pokemonId);
+}
+
+// 거다이맥스 가능한지 확인
+export function canGigantamax(pokemonId: number, item: string): GigantamaxData | null {
+  if (item !== 'max-mushroom') return null;
+  const gigantamax = GIGANTAMAX_FORMS.find(g => g.from === pokemonId);
+  return gigantamax || null;
+}
+
+// 특정 포켓몬이 거다이맥스 가능한지 확인 (아이템 없이)
+export function hasGigantamax(pokemonId: number): boolean {
+  return GIGANTAMAX_FORMS.some(g => g.from === pokemonId);
 }
 
 // 특정 아이템으로 진화 가능한 포켓몬 ID 목록 가져오기

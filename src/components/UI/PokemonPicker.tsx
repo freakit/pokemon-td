@@ -1,19 +1,9 @@
-// src/components/UI/PokemonPicker.tsx
-
 import React, { useState, useEffect } from 'react';
 import { pokeAPI } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
-import { GameMove, StatusEffectType, MoveEffect, Gender } from '../../types/game';
+import { GameMove, MoveEffect, Gender } from '../../types/game';
 import { Rarity, RARITY_COLORS } from '../../data/evolution';
-
-const TYPE_TO_STATUS: Record<string, StatusEffectType> = {
-  fire: 'burn',
-  electric: 'paralysis',
-  ice: 'freeze',
-  poison: 'poison',
-  grass: 'poison',
-  psychic: 'sleep',
-};
+import { mapAbilityToGameEffect } from '../../utils/abilities';
 
 const REROLL_COST = 20;
 
@@ -120,19 +110,46 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           type: 'normal',
           power: 40,
           accuracy: 100,
-          damageClass: 'physical'
+          damageClass: 'physical',
+          target: 'selected-pokemon',
+          effectEntries: ['Inflicts regular damage with no additional effect.'],
+          effectChance: null,
         };
       }
       
       const effect: MoveEffect = { type: 'damage' };
       
-      const status = TYPE_TO_STATUS[usableMove.type];
-      if (status && Math.random() < 0.3) {
-        effect.statusInflict = status;
-        effect.statusChance = 30;
+      // 실제 기술 효과 분석
+      const effectText = usableMove.effectEntries?.[0]?.toLowerCase() || '';
+      
+      if (effectText.includes('burn')) {
+        effect.statusInflict = 'burn';
+        effect.statusChance = usableMove.effectChance || 10;
+      } else if (effectText.includes('paralyze') || effectText.includes('paralysis')) {
+        effect.statusInflict = 'paralysis';
+        effect.statusChance = usableMove.effectChance || 10;
+      } else if (effectText.includes('poison')) {
+        effect.statusInflict = 'poison';
+        effect.statusChance = usableMove.effectChance || 10;
+      } else if (effectText.includes('freeze') || effectText.includes('frozen')) {
+        effect.statusInflict = 'freeze';
+        effect.statusChance = usableMove.effectChance || 10;
+      } else if (effectText.includes('sleep')) {
+        effect.statusInflict = 'sleep';
+        effect.statusChance = usableMove.effectChance || 10;
+      }
+      
+      if (effectText) {
+        effect.additionalEffects = effectText;
       }
 
-      const isAOE = Math.random() < 0.2;
+      // 광역 기술 판단 - target 기반
+      const isAOE = [
+        'all-opponents',
+        'all-other-pokemon',
+        'all-pokemon',
+        'user-and-allies'
+      ].includes(usableMove.target || '');
 
       const equippedMoves: GameMove[] = [{
         name: usableMove.name,
@@ -148,11 +165,20 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         manualCast: false,
       }];
       
+      // 특성 추가 - 랜덤 특성 사용
+      let ability = undefined;
+      if (poke.abilities && poke.abilities.length > 0) {
+        const randomIndex = Math.floor(Math.random() * poke.abilities.length);
+        const randomAbility = poke.abilities[randomIndex];
+        ability = mapAbilityToGameEffect(randomAbility.name, randomAbility.description);
+      }
+      
       setPokemonToPlace({
         ...poke,
         equippedMoves: equippedMoves,
+        ability: ability,
         cost: choice.cost,
-        gender: choice.gender, // 성별 추가
+        gender: choice.gender,
       });
       
     } catch (error) {
