@@ -443,7 +443,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         defense: Math.floor(targetData.stats.defense * levelMultiplier),
         specialAttack: Math.floor(targetData.stats.specialAttack * levelMultiplier),
         specialDefense: Math.floor(targetData.stats.specialDefense * levelMultiplier),
-        speed: Math.floor(targetData.stats.speed * levelMultiplier),
+        speed: targetData.stats.speed,
       });
       
       soundService.playEvolutionSound();
@@ -516,7 +516,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         defense: Math.floor(resultData.stats.defense * levelMultiplier),
         specialAttack: Math.floor(resultData.stats.specialAttack * levelMultiplier),
         specialDefense: Math.floor(resultData.stats.specialDefense * levelMultiplier),
-        speed: Math.floor(resultData.stats.speed * levelMultiplier),
+        speed: resultData.stats.speed,
         types: resultData.types,
       });
       
