@@ -239,7 +239,8 @@ export class GameManager {
       // 기본 쿨다운에서 스피드에 비례하여 감소 (최대 50% 감소)
       // 공식: 쿨다운 * (1 - (speed / 300))
       // 스피드 150이면 쿨다운 50% 감소
-      const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
+      // 스피드 240까지 구현. 그 이상은 동일.
+      const speedMultiplier = Math.max(0.2, 1 - (tower.speed / 300));
       m.currentCooldown = m.cooldown * speedMultiplier;
     }
     
@@ -431,7 +432,7 @@ export class GameManager {
       // 엔트리에 메가진화 가능한 최종진화형이 있는지 확인
       const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
       
-      if (megaEligiblePokemon.length > 0 && Math.random() < 0.1) {
+      if (megaEligiblePokemon.length > 0 && Math.random() < 0.1 * megaEligiblePokemon.length) {
         // 10% 확률로 메가스톤 드랍
         const randomPokemon = megaEligiblePokemon[Math.floor(Math.random() * megaEligiblePokemon.length)];
         const megaData = MEGA_EVOLUTIONS.find(m => m.from === randomPokemon.pokemonId);
@@ -452,7 +453,7 @@ export class GameManager {
       // 엔트리에 거다이맥스 가능한 포켓몬이 있는지 확인
       const gigantamaxEligiblePokemon = towers.filter(t => hasGigantamax(t.pokemonId));
       
-      if (gigantamaxEligiblePokemon.length > 0 && Math.random() < 0.1) {
+      if (gigantamaxEligiblePokemon.length > 0 && Math.random() < 0.1 * gigantamaxEligiblePokemon.length) {
         // 10% 확률로 다이버섯 드랍
         const randomPokemon = gigantamaxEligiblePokemon[Math.floor(Math.random() * gigantamaxEligiblePokemon.length)];
         const gigantamaxData = GIGANTAMAX_FORMS.find(g => g.from === randomPokemon.pokemonId);
