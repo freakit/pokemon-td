@@ -9,6 +9,7 @@ const DIFFICULTY_MULTIPLIERS: Record<
   Difficulty,
   { hp: number; attack: number; reward: number }
 > = {
+  easiest: { hp: 0.1, attack: 0.1, reward: 1.0 },
   easy: { hp: 0.7, attack: 0.7, reward: 1.0 },
   normal: { hp: 0.9, attack: 0.9, reward: 1.0 },
   hard: { hp: 1.1, attack: 1.1, reward: 1.0 },
@@ -90,14 +91,18 @@ export class WaveSystem {
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
 
       // 기하급수적 난이도 증가 (exponential scaling)
-      const waveMultiplier = Math.pow(1.10, wave - 1); // 1.10 ^ (wave - 1)
-      
-      const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
-      const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
-      const baseDefense = (pokemonData.stats.defense * waveMultiplier) * mult.attack;
-      const baseSpecialAttack = (pokemonData.stats.specialAttack * waveMultiplier) * mult.attack;
-      const baseSpecialDefense = (pokemonData.stats.specialDefense * waveMultiplier) * mult.attack;
-      
+      const waveMultiplier = Math.pow(1.1, wave - 1); // 1.10 ^ (wave - 1)
+
+      const baseHp = pokemonData.stats.hp * waveMultiplier * mult.hp;
+      const baseAttack =
+        pokemonData.stats.attack * waveMultiplier * mult.attack;
+      const baseDefense =
+        pokemonData.stats.defense * waveMultiplier * mult.attack;
+      const baseSpecialAttack =
+        pokemonData.stats.specialAttack * waveMultiplier * mult.attack;
+      const baseSpecialDefense =
+        pokemonData.stats.specialDefense * waveMultiplier * mult.attack;
+
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,
         name: pokemonData.name,

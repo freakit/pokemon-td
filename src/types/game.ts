@@ -8,7 +8,7 @@ export type StatusEffectType =
   | "sleep"
   | "confusion";
 export type DamageClass = "physical" | "special" | "status";
-export type Difficulty = "easy" | "normal" | "hard" | "expert";
+export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
 export type PokemonRarity =
   | "Bronze"
   | "Silver"
@@ -68,15 +68,15 @@ export interface MoveEffect {
 export interface MapData {
   id: string;
   name: string;
-  difficulty: "easy" | "medium" | "hard" | "expert";
+  difficulty: "easiest" | "easy" | "medium" | "hard" | "expert";
   paths: Position[][];
   spawns: Position[];
   objectives: Position[];
   description: string;
-  unlockWave: number;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
-export type Gender = 'male' | 'female' | 'genderless';
+export type Gender = "male" | "female" | "genderless";
+
 export interface GamePokemon {
   id: string;
   pokemonId: number;
@@ -164,7 +164,15 @@ export interface DamageNumber {
 export interface Item {
   id: string;
   name: string;
-  type: "heal" | "revive" | "candy" | "egg" | "stone" | "gold" | "mega-stone" | "max-mushroom";
+  type:
+    | "heal"
+    | "revive"
+    | "candy"
+    | "egg"
+    | "stone"
+    | "gold"
+    | "mega-stone"
+    | "max-mushroom";
   cost: number;
   effect: string;
   value?: number; // 효과 값 (예: 힐량)
@@ -243,14 +251,14 @@ export interface GameState {
   gameTick: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
-  timeOfDay: 'day' | 'night'; // 시간대 추가
+  timeOfDay: "day" | "night"; // 시간대 추가
 
   // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
   skillChoiceQueue: Array<{
     towerId: string;
     newMoves: GameMove[];
   }>;
-  
+
   // 진화 확인 큐 추가
   evolutionConfirmQueue: Array<{
     towerId: string;
@@ -260,6 +268,7 @@ export interface GameState {
       method: string;
     }>;
   }>;
+
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
   // 진화 알림 (작은 토스트 메시지)
