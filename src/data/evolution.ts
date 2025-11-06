@@ -697,15 +697,15 @@ export interface FusionData {
 }
 
 export const FUSION_DATA: FusionData[] = [
-  // 큐레무 합체
-  { base: 646, material: 644, result: 10022, item: 'dna-splicers' }, // 큐레무 + 제크로무 = 블랙큐레무
-  { base: 646, material: 643, result: 10023, item: 'dna-splicers' }, // 큐레무 + 레시라무 = 화이트큐레무
+  // 큐레무 합체 (이미 올바름)
+  { base: 646, material: 644, result: 10022, item: 'dna-splicers' }, // 큐레무 + 제크로무 = 블랙큐레무 (kyurem-black #10022)
+  { base: 646, material: 643, result: 10023, item: 'dna-splicers' }, // 큐레무 + 레시라무 = 화이트큐레무 (kyurem-white #10023)
   
-  // 네크로즈마 합체
-  { base: 800, material: 791, result: 10156, item: 'dna-splicers' }, // 네크로즈마 + 솔가레오 = 황혼의 갈기
-  { base: 800, material: 792, result: 10157, item: 'dna-splicers' }, // 네크로즈마 + 루나아라 = 새벽의 날개
+  // 네크로즈마 합체 (ID 수정)
+  { base: 800, material: 791, result: 10155, item: 'dna-splicers' }, // 네크로즈마 + 솔가레오 = 황혼의 갈기 (necrozma-dusk #10155)
+  { base: 800, material: 792, result: 10156, item: 'dna-splicers' }, // 네크로즈마 + 루나아라 = 새벽의 날개 (necrozma-dawn #10156)
   
-  // 버드렉스 합체
-  { base: 898, material: 896, result: 10172, item: 'dna-splicers' }, // 버드렉스 + 레이스포스 = 흑마탄
-  { base: 898, material: 897, result: 10173, item: 'dna-splicers' }, // 버드렉스 + 블리자포스 = 백마탄
+  // 버드렉스 합체 (ID 수정)
+  { base: 898, material: 896, result: 10193, item: 'dna-splicers' }, // 버드렉스 + 레이스포스 = 아이스 라이더 (calyrex-ice #10193)
+  { base: 898, material: 897, result: 10194, item: 'dna-splicers' }, // 버드렉스 + 블리자포스 = 쉐도우 라이더 (calyrex-shadow #10194)
 ];

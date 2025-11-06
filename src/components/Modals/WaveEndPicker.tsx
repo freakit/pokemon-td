@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
+
 export const WaveEndPicker: React.FC = () => {
   const { waveEndItemPick, setWaveEndItemPick, useItem, towers } = useGameStore(state => ({
     waveEndItemPick: state.waveEndItemPick,
@@ -13,6 +14,7 @@ export const WaveEndPicker: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   if (!waveEndItemPick) return null;
+
   const handleSelect = (item: Item) => {
     if ((item.type === 'mega-stone' || item.type === 'max-mushroom') && item.targetPokemonId) {
       const targetTower = towers.find(t => t.pokemonId === item.targetPokemonId);
@@ -37,6 +39,7 @@ export const WaveEndPicker: React.FC = () => {
     // 다른 아이템은 타겟 선택 모드로 전환
     setSelectedItem(item);
   };
+
   const handleTargetSelect = (towerId: string) => {
     if (!selectedItem) return;
     if (selectedItem.type === 'candy') {
@@ -57,9 +60,19 @@ export const WaveEndPicker: React.FC = () => {
     useGameStore.setState({ isPaused: false });
   };
 
-  const handleCancel = () => {
+  // 1. 함수 이름 변경: handleCancel -> handleCancelTarget
+  const handleCancelTarget = () => {
     setSelectedItem(null);
   };
+
+  // 2. 새로운 함수 추가: 보상 건너뛰기
+  const handleSkip = () => {
+    // 모달 닫기 및 게임 재개
+    setSelectedItem(null);
+    setWaveEndItemPick(null);
+    useGameStore.setState({ isPaused: false });
+  };
+
   // 타겟 선택 모드
   if (selectedItem) {
     return (
@@ -95,7 +108,8 @@ export const WaveEndPicker: React.FC = () => {
               );
             })}
           </div>
-          <button style={s.cancelBtn} onClick={handleCancel}>← 뒤로 가기</button>
+          {/* 3. 이름 변경된 함수 호출 */}
+          <button style={s.cancelBtn} onClick={handleCancelTarget}>← 뒤로 가기</button>
         </div>
       </div>
     );
@@ -105,7 +119,7 @@ export const WaveEndPicker: React.FC = () => {
     <div style={s.overlay}>
       <div style={s.modal}>
         <div style={s.header}>
-          <h2 style={s.title}>🎉 웨이브 {useGameStore.getState().wave - 1} 클리어!</h2>
+          <h2 style={s.title}>🎉 웨이브 {useGameStore.getState().wave} 클리어!</h2>
         </div>
         <p style={s.subtitle}>✨ 보상을 선택하세요 (모든 포켓몬의 체력이 회복되었습니다)</p>
         <div style={s.grid}>
@@ -137,6 +151,15 @@ export const WaveEndPicker: React.FC = () => {
             </div>
           ))}
         </div>
+        
+        {/* 4. '보상 건너뛰기' 버튼 추가 */}
+        <button 
+          style={s.cancelBtn} 
+          onClick={handleSkip}
+        >
+          ❌ 보상 건너뛰기
+        </button>
+
       </div>
     </div>
   );
