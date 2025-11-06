@@ -1,3 +1,5 @@
+// src/components/UI/PokemonPicker.tsx
+
 import React, { useState, useEffect } from 'react';
 import { pokeAPI } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
@@ -23,7 +25,8 @@ const determineGender = (pokemonId: number): Gender => {
     599, 600, 601, 615, 622, 623, 638, 639, 640,
     649, 703, 716, 717, 718, 720, 721, 772, 773,
     774, 781, 789, 790, 791, 792, 793, 794, 795,
-    796, 797, 798, 799, 800, 801, 802, 803, 804, 805, 806
+    796, 797, 798, 799, 800, 801, 
+    802, 803, 804, 805, 806
   ];
   
   if (genderlessIds.includes(pokemonId)) {
@@ -51,24 +54,24 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   const [choices, setChoices] = useState<PokemonChoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const setPokemonToPlace = useGameStore(state => state.setPokemonToPlace);
-  const { spendMoney } = useGameStore(state => ({
+  
+  // 1. money 가져오기
+  const { money, spendMoney } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
   }));
-  
+
   const loadChoices = async () => {
     setIsLoading(true);
     
     const id1 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id2 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id3 = await pokeAPI.getRandomPokemonIdWithRarity();
-    
     const data = await Promise.all([
       pokeAPI.getPokemon(id1),
       pokeAPI.getPokemon(id2),
       pokeAPI.getPokemon(id3)
     ]);
-    
     const withCostAndRarityAndGender = await Promise.all(data.map(async (p) => {
       const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
                        p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
@@ -90,7 +93,6 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     if (isLoading) return;
     
     setIsLoading(true);
-
     try {
       const poke = choice.data;
       const moveNames = poke.moves.slice(0, 10);
@@ -118,10 +120,8 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
       }
       
       const effect: MoveEffect = { type: 'damage' };
-      
       // 실제 기술 효과 분석
       const effectText = usableMove.effectEntries?.[0]?.toLowerCase() || '';
-      
       if (effectText.includes('burn')) {
         effect.statusInflict = 'burn';
         effect.statusChance = usableMove.effectChance || 10;
@@ -150,7 +150,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         'all-pokemon',
         'user-and-allies'
       ].includes(usableMove.target || '');
-
+      
       const equippedMoves: GameMove[] = [{
         name: usableMove.name,
         type: usableMove.type,
@@ -164,7 +164,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         aoeRadius: isAOE ? 100 : undefined,
         manualCast: false,
       }];
-      
+
       // 특성 추가 - 랜덤 특성 사용
       let ability = undefined;
       if (poke.abilities && poke.abilities.length > 0) {
@@ -180,7 +180,6 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         cost: choice.cost,
         gender: choice.gender,
       });
-      
     } catch (error) {
       console.error("Failed to fetch moves:", error);
       alert("기술을 불러오는 데 실패했습니다.");
@@ -201,8 +200,11 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   return (
     <div style={s.overlay}>
       <div style={s.modal}>
+        {/* 2. 헤더 구조 수정 */}
         <div style={s.header}>
-          <h2 style={s.title}>{isLoading ? '⏳ 기술 정보 로딩 중...' : '🎲 포켓몬 선택'}</h2>
+          <div>
+            <h2 style={s.title}>{isLoading ? '⏳ 포켓몬 정보 로딩 중...' : '🎲 포켓몬 선택'}</h2>
+          </div>
           <button onClick={onClose} style={s.closeBtn}>✕</button>
         </div>
 
@@ -264,6 +266,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         </div>
 
         <div style={s.actions}>
+          <div style={s.moneyDisplay}>💰 현재 {money}원</div>
           <button style={s.rerollBtn} onClick={handleReroll} disabled={isLoading}>
             🔄 리롤 (20원)
           </button>
@@ -310,6 +313,13 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #667eea, #764ba2)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
+    marginBottom: '5px', // 4. moneyDisplay와 간격 조절
+  },
+  // 5. moneyDisplay 스타일 추가
+  moneyDisplay: {
+    fontSize: '16px',
+    color: '#FFD700',
+    fontWeight: 'bold',
   },
   closeBtn: { 
     fontSize: '24px', 
@@ -320,6 +330,7 @@ const s: Record<string, React.CSSProperties> = {
     padding: '5px 10px',
     borderRadius: '5px',
     transition: 'background 0.2s',
+    alignSelf: 'flex-start', // 6. 버튼을 상단에 고정
   },
   subtitle: {
     fontSize: '16px',
@@ -402,6 +413,7 @@ const s: Record<string, React.CSSProperties> = {
   actions: {
     display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
     gap: '15px',
   },
   rerollBtn: {
