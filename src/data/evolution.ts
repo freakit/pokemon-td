@@ -524,37 +524,39 @@ export const MEGA_EVOLUTIONS: MegaEvolutionData[] = [
 
 // 거다이맥스 데이터 (10200번대 ID 사용)
 export const GIGANTAMAX_FORMS: GigantamaxData[] = [
-  { from: 3, to: 10200, item: 'max-mushroom' }, // 이상해꽃
-  { from: 6, to: 10201, item: 'max-mushroom' }, // 리자몽
-  { from: 9, to: 10202, item: 'max-mushroom' }, // 거북왕
-  { from: 12, to: 10203, item: 'max-mushroom' }, // 버터플
-  { from: 25, to: 10204, item: 'max-mushroom' }, // 피카츄
-  { from: 52, to: 10205, item: 'max-mushroom' }, // 나옹
-  { from: 68, to: 10206, item: 'max-mushroom' }, // 괴력몬
-  { from: 94, to: 10207, item: 'max-mushroom' }, // 팬텀
-  { from: 99, to: 10208, item: 'max-mushroom' }, // 킹크랩
-  { from: 131, to: 10209, item: 'max-mushroom' }, // 라프라스
-  { from: 133, to: 10210, item: 'max-mushroom' }, // 이브이
-  { from: 143, to: 10211, item: 'max-mushroom' }, // 잠만보
-  { from: 569, to: 10212, item: 'max-mushroom' }, // 더스트다스
-  { from: 809, to: 10213, item: 'max-mushroom' }, // 멜메탈
-  { from: 812, to: 10214, item: 'max-mushroom' }, // 고릴타
-  { from: 815, to: 10215, item: 'max-mushroom' }, // 인텔리레온
-  { from: 818, to: 10216, item: 'max-mushroom' }, // 에이스번
-  { from: 823, to: 10217, item: 'max-mushroom' }, // 아머까오
-  { from: 826, to: 10218, item: 'max-mushroom' }, // 이올브
-  { from: 834, to: 10219, item: 'max-mushroom' }, // 갈가부기
-  { from: 839, to: 10220, item: 'max-mushroom' }, // 석탄산
-  { from: 841, to: 10221, item: 'max-mushroom' }, // 단지 형태
-  { from: 842, to: 10222, item: 'max-mushroom' }, // 애플로드
-  { from: 844, to: 10223, item: 'max-mushroom' }, // 사다이사
-  { from: 849, to: 10224, item: 'max-mushroom' }, // 스트린더
-  { from: 851, to: 10225, item: 'max-mushroom' }, // 다태우지네
-  { from: 858, to: 10226, item: 'max-mushroom' }, // 브리무음
-  { from: 861, to: 10227, item: 'max-mushroom' }, // 오롱털
-  { from: 869, to: 10228, item: 'max-mushroom' }, // 마시마로
-  { from: 879, to: 10229, item: 'max-mushroom' }, // 대왕끼리동
-  { from: 884, to: 10230, item: 'max-mushroom' }, // 두랄루돈
+  { from: 3, to: 10195, item: 'max-mushroom' }, // 이상해꽃 (Venusaur-gmax)
+  { from: 6, to: 10196, item: 'max-mushroom' }, // 리자몽 (Charizard-gmax)
+  { from: 9, to: 10197, item: 'max-mushroom' }, // 거북왕 (Blastoise-gmax)
+  { from: 12, to: 10198, item: 'max-mushroom' }, // 버터플 (Butterfree-gmax)
+  { from: 25, to: 10199, item: 'max-mushroom' }, // 피카츄 (Pikachu-gmax)
+  { from: 52, to: 10200, item: 'max-mushroom' }, // 나옹 (Meowth-gmax)
+  { from: 68, to: 10201, item: 'max-mushroom' }, // 괴력몬 (Machamp-gmax)
+  { from: 94, to: 10202, item: 'max-mushroom' }, // 팬텀 (Gengar-gmax)
+  { from: 99, to: 10203, item: 'max-mushroom' }, // 킹크랩 (Kingler-gmax)
+  { from: 131, to: 10204, item: 'max-mushroom' }, // 라프라스 (Lapras-gmax)
+  { from: 133, to: 10205, item: 'max-mushroom' }, // 이브이 (Eevee-gmax)
+  { from: 143, to: 10206, item: 'max-mushroom' }, // 잠만보 (Snorlax-gmax)
+  { from: 569, to: 10207, item: 'max-mushroom' }, // 더스트다스 (Garbodor-gmax)
+  { from: 809, to: 10208, item: 'max-mushroom' }, // 멜메탈 (Melmetal-gmax)
+
+  { from: 812, to: 10209, item: 'max-mushroom' }, // 고릴타 (Rillaboom-gmax)
+  { from: 815, to: 10210, item: 'max-mushroom' }, // 에이스번 (Cinderace-gmax)
+  { from: 818, to: 10211, item: 'max-mushroom' }, // 인텔리레온 (Inteleon-gmax)
+
+  { from: 823, to: 10212, item: 'max-mushroom' }, // 아머까오 (Corviknight-gmax)
+  { from: 826, to: 10213, item: 'max-mushroom' }, // 이올브 (Orbeetle-gmax)
+  { from: 834, to: 10214, item: 'max-mushroom' }, // 갈가부기 (Drednaw-gmax)
+  { from: 839, to: 10215, item: 'max-mushroom' }, // 석탄산 (Coalossal-gmax)
+  { from: 841, to: 10216, item: 'max-mushroom' }, // 애프룡 (Flapple-gmax)
+  { from: 842, to: 10217, item: 'max-mushroom' }, // 단지래플 (Appletun-gmax)
+  { from: 844, to: 10218, item: 'max-mushroom' }, // 사다이사 (Sandaconda-gmax)
+  { from: 849, to: 10219, item: 'max-mushroom' }, // 스트린더(하이한) (Toxtricity-amped-gmax)
+  { from: 851, to: 10220, item: 'max-mushroom' }, // 다태우지네 (Centiskorch-gmax)
+  { from: 858, to: 10221, item: 'max-mushroom' }, // 브리무음 (Hatterene-gmax)
+  { from: 861, to: 10222, item: 'max-mushroom' }, // 오롱털 (Grimmsnarl-gmax)
+  { from: 869, to: 10223, item: 'max-mushroom' }, // 마휘핑 (Alcremie-gmax)
+  { from: 879, to: 10224, item: 'max-mushroom' }, // 대왕끼리동 (Copperajah-gmax)
+  { from: 884, to: 10225, item: 'max-mushroom' }, // 두랄루돈 (Duraludon-gmax)
 ];
 
 // 레벨로 진화 가능한지 확인
