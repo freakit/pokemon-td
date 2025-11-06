@@ -9,10 +9,10 @@ const DIFFICULTY_MULTIPLIERS: Record<
   Difficulty,
   { hp: number; attack: number; reward: number }
 > = {
-  easy: { hp: 0.7, attack: 0.7, reward: 0.8 },
-  normal: { hp: 1.0, attack: 1.0, reward: 1.0 },
-  hard: { hp: 1.5, attack: 1.3, reward: 1.5 },
-  expert: { hp: 2.0, attack: 1.7, reward: 2.0 },
+  easy: { hp: 0.7, attack: 0.7, reward: 1.0 },
+  normal: { hp: 0.9, attack: 0.9, reward: 1.0 },
+  hard: { hp: 1.1, attack: 1.1, reward: 1.0 },
+  expert: { hp: 1.3, attack: 1.3, reward: 1.0 },
 };
 
 export class WaveSystem {
@@ -90,7 +90,7 @@ export class WaveSystem {
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
 
       // 기하급수적 난이도 증가 (exponential scaling)
-      const waveMultiplier = Math.pow(1.12, wave - 1); // 1.12 ^ (wave - 1)
+      const waveMultiplier = Math.pow(1.10, wave - 1); // 1.10 ^ (wave - 1)
       
       const baseHp = (pokemonData.stats.hp * waveMultiplier) * mult.hp;
       const baseAttack = (pokemonData.stats.attack * waveMultiplier) * mult.attack;
