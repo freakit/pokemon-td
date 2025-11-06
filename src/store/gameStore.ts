@@ -93,7 +93,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   updateTower: (id, updates) => {
     let needsSynergyUpdate = false;
-    const oldTower = get().towers.find(t => t.id === id);
 
     set((state) => ({
       towers: state.towers.map(t => {
