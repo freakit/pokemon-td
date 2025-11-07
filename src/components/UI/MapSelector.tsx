@@ -102,8 +102,13 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
       <div style={s.container}>
         {/* 타이틀 */}
         <div style={s.titleSection}>
-          <h1 style={s.mainTitle}>🎮 포켓몬 타워 디펜스</h1>
-          <p style={s.subtitle}>맵을 선택하여 모험을 시작하세요!</p>
+          <img 
+            src="/images/pokemon-aegis.png" 
+            alt="Pokemon Aegis Logo" 
+            height="240px"
+            style={s.logo}
+          />
+          <div style={s.subtitle}>Made by Team FreakIT @ KAIST</div>
         </div>
 
         {/* 난이도 필터 */}
@@ -236,7 +241,7 @@ const s: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "center",
     overflow: "auto",
-    padding: "40px 20px",
+    padding: "24px",
   },
   container: {
     maxWidth: "1400px",
@@ -245,7 +250,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   titleSection: {
     textAlign: "center" as "center",
-    marginBottom: "48px",
+    marginBottom: "24px",
   },
   mainTitle: {
     fontSize: "56px",
@@ -260,21 +265,21 @@ const s: Record<string, React.CSSProperties> = {
     animation: "pulse 3s ease-in-out infinite",
   },
   subtitle: {
-    fontSize: "20px",
+    fontSize: "16px",
     color: "#a8b8c8",
     fontWeight: "600",
-    margin: 0,
+    marginTop: "8px",
   },
   difficultySelector: {
     display: "flex",
     gap: "16px",
     justifyContent: "center",
-    marginBottom: "48px",
+    marginBottom: "24px",
     flexWrap: "wrap" as "wrap",
   },
   diffBtn: {
-    padding: "16px 32px",
-    fontSize: "18px",
+    padding: "12px 24px",
+    fontSize: "16px",
     fontWeight: "bold",
     border: "2px solid rgba(76, 175, 255, 0.3)",
     borderRadius: "16px",
@@ -315,7 +320,7 @@ const s: Record<string, React.CSSProperties> = {
       "linear-gradient(145deg, rgba(26, 35, 50, 0.9), rgba(15, 20, 25, 0.95))",
     border: "2px solid rgba(76, 175, 255, 0.3)",
     borderRadius: "24px",
-    padding: "32px",
+    padding: "12px 24px",
     cursor: "pointer",
     transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
