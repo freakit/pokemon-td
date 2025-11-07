@@ -12,14 +12,14 @@ export const SkillPicker: React.FC = () => {
     removeCurrentSkillChoice: state.removeCurrentSkillChoice,
     updateTower: state.updateTower,
   }));
-  
+
   // 큐의 첫 번째 항목 가져오기
   if (!skillChoiceQueue || skillChoiceQueue.length === 0) return null;
   
   const currentChoice = skillChoiceQueue[0];
   const { towerId, newMoves } = currentChoice;
   const tower = useGameStore.getState().towers.find(t => t.id === towerId);
-  
+
   if (!tower || newMoves.length === 0) {
     // 유효하지 않은 경우 큐에서 제거
     removeCurrentSkillChoice();
@@ -36,7 +36,7 @@ export const SkillPicker: React.FC = () => {
     // 큐에서 현재 선택 제거
     removeCurrentSkillChoice();
   };
-  
+
   const handleKeepCurrentMove = () => {
     // 새 기술을 거부한 목록에 추가
     const tower = useGameStore.getState().towers.find(t => t.id === towerId);
@@ -48,7 +48,7 @@ export const SkillPicker: React.FC = () => {
     // 기존 기술 유지하고 큐에서 제거
     removeCurrentSkillChoice();
   };
-  
+
   const translateDamageClass = (dc: string) => {
     switch (dc) {
       case 'physical': return '물리';
@@ -68,7 +68,7 @@ export const SkillPicker: React.FC = () => {
       <div style={s.skillSection}>
         <div style={s.sectionLabel}>현재 기술</div>
         <div style={s.skillCard}>
-           <div style={s.skillName}>{currentMove.name} | {translateDamageClass(currentMove.damageClass)}
+          <div style={s.skillName}>{currentMove.name} | {translateDamageClass(currentMove.damageClass)}
             <img 
               src={`${TYPE_ICON_API_BASE}${currentMove.type}.gif`} 
               alt={currentMove.type} 
@@ -85,9 +85,16 @@ export const SkillPicker: React.FC = () => {
                <span>{currentMove.accuracy}%</span>
             </div>
           </div>
-          {currentMove.effect.statusInflict && (
+          {/* 3. UI 업데이트 (확률 표시) */}
+          {currentMove.effect.statusInflict && currentMove.effect.statusChance != null && currentMove.effect.statusChance > 0 && (
             <div style={s.effectBadge}>
-              💫 {currentMove.effect.statusInflict}
+              💫 {currentMove.effect.statusInflict} ({currentMove.effect.statusChance}%)
+            </div>
+          )}
+          {/* 3. UI 업데이트 (피흡 표시) */}
+          {currentMove.effect.drainPercent && (
+            <div style={s.drainBadge}>
+              🩸 피흡 ({currentMove.effect.drainPercent * 100}%)
             </div>
           )}
           {currentMove.isAOE && <div style={s.aoeBadge}>🌀 광역</div>}
@@ -119,14 +126,21 @@ export const SkillPicker: React.FC = () => {
                <span>{newMove.accuracy}%</span>
             </div>
           </div>
-          {newMove.effect.statusInflict && (
+          {/* 3. UI 업데이트 (확률 표시) */}
+          {newMove.effect.statusInflict && newMove.effect.statusChance != null && newMove.effect.statusChance > 0 && (
             <div style={s.effectBadge}>
-              💫 {newMove.effect.statusInflict}
+              💫 {newMove.effect.statusInflict} ({newMove.effect.statusChance}%)
+            </div>
+          )}
+          {/* 3. UI 업데이트 (피흡 표시) */}
+          {newMove.effect.drainPercent && (
+            <div style={s.drainBadge}>
+              🩸 피흡 ({newMove.effect.drainPercent * 100}%)
             </div>
           )}
           {newMove.isAOE && <div style={s.aoeBadge}>🌀 광역</div>}
         </div>
-        <button style={s.learnBtn} onClick={handleLearnNewMove}>
+         <button style={s.learnBtn} onClick={handleLearnNewMove}>
           ⭐ 배우기
         </button>
       </div>
@@ -249,6 +263,16 @@ const s: Record<string, React.CSSProperties> = {
     background: 'rgba(243, 156, 18, 0.2)',
     borderRadius: '6px',
     border: '1px solid rgba(243, 156, 18, 0.3)',
+    fontSize: '11px',
+    marginTop: '4px',
+    fontWeight: '600',
+  },
+  // 3. UI 업데이트 (피흡 배지 스타일 추가)
+  drainBadge: {
+    padding: '4px 8px',
+    background: 'rgba(46, 204, 113, 0.2)',
+    borderRadius: '6px',
+    border: '1px solid rgba(46, 204, 113, 0.3)',
     fontSize: '11px',
     marginTop: '4px',
     fontWeight: '600',

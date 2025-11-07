@@ -30,7 +30,6 @@ const determineGender = (pokemonId: number): Gender => {
     796, 797, 798, 799, 800, 801, 
     802, 803, 804, 805, 806
   ];
-  
   if (genderlessIds.includes(pokemonId)) {
     return 'genderless';
   }
@@ -61,18 +60,20 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     money: state.money,
     spendMoney: state.spendMoney,
   }));
-  
+
   const loadChoices = async () => {
     setIsLoading(true);
     
     const id1 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id2 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id3 = await pokeAPI.getRandomPokemonIdWithRarity();
+
     const data = await Promise.all([
       pokeAPI.getPokemon(id1),
       pokeAPI.getPokemon(id2),
       pokeAPI.getPokemon(id3)
     ]);
+
     const withCostAndRarityAndGender = await Promise.all(data.map(async (p) => {
       const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
                        p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
@@ -89,11 +90,12 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   useEffect(() => {
     loadChoices();
   }, []);
-  
+
   const handleSelect = async (choice: PokemonChoice) => {
     if (isLoading) return;
     
     setIsLoading(true);
+
     try {
       const poke = choice.data;
       const moveNames = poke.moves.slice(0, 10);
@@ -123,21 +125,35 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
       const effect: MoveEffect = { type: 'damage' };
       // 실제 기술 효과 분석
       const effectText = usableMove.effectEntries?.[0]?.toLowerCase() || '';
+
+      // 2. 체력 흡수(Drain) 효과 감지 (수정됨)
+      if (effectText.includes('drain') || effectText.includes('recover') || effectText.includes('restore')) {
+        if (effectText.includes('75%')) { // Draining Kiss
+          effect.drainPercent = 0.75;
+        } else {
+          effect.drainPercent = 0.5; // Absorb, Mega Drain, Giga Drain 등
+        }
+      }
+
+      // 1. 상태이상 효과 감지 (API 확률 사용)
       if (effectText.includes('burn')) {
         effect.statusInflict = 'burn';
-        effect.statusChance = usableMove.effectChance || 10;
+        effect.statusChance = usableMove.effectChance; // API 값 (null일 수 있음)
       } else if (effectText.includes('paralyze') || effectText.includes('paralysis')) {
         effect.statusInflict = 'paralysis';
-        effect.statusChance = usableMove.effectChance || 10;
+        effect.statusChance = usableMove.effectChance;
       } else if (effectText.includes('poison')) {
         effect.statusInflict = 'poison';
-        effect.statusChance = usableMove.effectChance || 10;
+        effect.statusChance = usableMove.effectChance;
       } else if (effectText.includes('freeze') || effectText.includes('frozen')) {
         effect.statusInflict = 'freeze';
-        effect.statusChance = usableMove.effectChance || 10;
+        effect.statusChance = usableMove.effectChance;
       } else if (effectText.includes('sleep')) {
         effect.statusInflict = 'sleep';
-        effect.statusChance = usableMove.effectChance || 10;
+        effect.statusChance = usableMove.effectChance;
+      } else if (effectText.includes('confus')) {
+        effect.statusInflict = 'confusion';
+        effect.statusChance = usableMove.effectChance;
       }
       
       if (effectText) {
@@ -151,7 +167,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         'all-pokemon',
         'user-and-allies'
       ].includes(usableMove.target || '');
-      
+
       const equippedMoves: GameMove[] = [{
         name: usableMove.name,
         type: usableMove.type,
@@ -165,7 +181,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         aoeRadius: isAOE ? 100 : undefined,
         manualCast: false,
       }];
-      
+
       // 특성 추가 - 랜덤 특성 사용
       let ability = undefined;
       if (poke.abilities && poke.abilities.length > 0) {
@@ -181,6 +197,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         cost: choice.cost,
         gender: choice.gender,
       });
+
     } catch (error) {
       console.error("Failed to fetch moves:", error);
       alert("기술을 불러오는 데 실패했습니다.");
@@ -207,7 +224,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <h2 style={s.title}>{isLoading ? '⏳ 포켓몬 정보 로딩 중...' : '🎲 포켓몬 선택'}</h2>
           </div>
           <button onClick={onClose} style={s.closeBtn}>✕</button>
-        </div>
+         </div>
 
         <p style={s.subtitle}>3마리 중 1마리를 선택하세요.</p>
 
@@ -215,7 +232,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
           {choices.map((choice, i) => {
             const p = choice.data;
             const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
-                              p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
+                               p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
             
             // 🆕 rarityBadge 텍스트 배지 삭제
             /*
@@ -234,45 +251,45 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                 key={i}
                 // 🆕 style 속성 수정: s.card 스타일과 테두리 스타일을 동적으로 결합
                 style={{
-                  ...s.card,
+                   ...s.card,
                   borderColor: RARITY_COLORS[choice.rarity] || '#888', // 🆕 희귀도 색상 적용
                   borderWidth: '4px' // 🆕 굵은 테두리
                 }}
                 onClick={() => handleSelect(choice)}
-              >
+               >
                 <img src={p.sprite} alt={p.name} style={s.sprite} />
                 <div style={s.info}>
                   <div style={s.nameRow}>
                     <h3 style={s.name}>{p.name}</h3>
-                    <span style={{
+                     <span style={{
                       fontSize: '16px',
                       fontWeight: 'bold',
                       color: getGenderColor(choice.gender),
                     }}>
-                      {getGenderIcon(choice.gender)}
+                       {getGenderIcon(choice.gender)}
                     </span>
                   </div>
                   
                   <div style={s.types}>
-                    {p.types.map((type: string) => (
+                     {p.types.map((type: string) => (
                       <img 
                         key={type} 
                         src={`${TYPE_ICON_API_BASE}${type}.gif`} 
-                        alt={type} 
+                         alt={type} 
                         style={s.typeImage} // 이미지 스타일 적용
                       />
                     ))}
-                    {/* {rarityBadge} */} {/* 🆕 텍스트 배지 삭제 */}
+                     {/* {rarityBadge} */} {/* 🆕 텍스트 배지 삭제 */}
                   </div>
                   
                   <div style={s.stats}>
                     <div>HP: {p.stats.hp}</div>
-                    <div>공격: {p.stats.attack}</div>
+                     <div>공격: {p.stats.attack}</div>
                     <div>방어: {p.stats.defense}</div>
                     <div>특공: {p.stats.specialAttack}</div>
                     <div>특방: {p.stats.specialDefense}</div>
                     <div>스핏: {p.stats.speed}</div>
-                    <div style={{ fontWeight: 'bold', color: '#FFD700' }}>총합: {statTotal}</div>
+                     <div style={{ fontWeight: 'bold', color: '#FFD700' }}>총합: {statTotal}</div>
                   </div>
                   <div style={s.cost}>💰 {choice.cost}원</div>
                 </div>
@@ -309,7 +326,7 @@ const s: Record<string, React.CSSProperties> = {
   modal: { 
     background: 'linear-gradient(145deg, #2a2d3a, #1f2029)', 
     borderRadius: '20px', 
-    padding: '30px', 
+     padding: '30px', 
     maxWidth: '800px', 
     width: '95%',
     maxHeight: '90vh',
@@ -327,7 +344,7 @@ const s: Record<string, React.CSSProperties> = {
     fontSize: '28px', 
     fontWeight: 'bold',
     background: 'linear-gradient(135deg, #667eea, #764ba2)',
-    WebkitBackgroundClip: 'text',
+     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     marginBottom: '5px', 
   },
@@ -367,6 +384,7 @@ const s: Record<string, React.CSSProperties> = {
     transition: 'all 0.3s ease',
     border: '2px solid transparent', // 🆕 기본 테두리 (투명) -> 동적 스타일로 덮어씀
   },
+  
   sprite: {
     width: '120px',
     height: '120px',
@@ -408,7 +426,7 @@ const s: Record<string, React.CSSProperties> = {
     marginBottom: '10px',
     flexWrap: 'wrap',
     height: '24px', // 컨테이너 높이 고정
-    alignItems: 'center'
+     alignItems: 'center'
   },
   type: { // (기존) 이 스타일은 이제 사용되지 않음
     fontSize: '12px',
@@ -449,7 +467,7 @@ const s: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #667eea, #764ba2)',
     color: 'white',
     border: 'none',
-    borderRadius: '12px',
+     borderRadius: '12px',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
   },

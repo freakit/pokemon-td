@@ -28,7 +28,8 @@ export interface MoveData {
   accuracy: number | null;
   damageClass: 'physical' | 'special' | 'status';
   effectChance: number | null;
-  target: string; // 'all-opponents', 'all-other-pokemon' 등
+  target: string;
+  // 'all-opponents', 'all-other-pokemon' 등
   effectEntries: string[]; // 기술 효과 설명
 }
 
@@ -42,10 +43,11 @@ class PokeAPIService {
 
   async getPokemon(id: number): Promise<PokemonData> {
     if (this.pokemonCache.has(id)) return this.pokemonCache.get(id)!;
+
     try {
       const res = await axios.get(`${API_BASE}/pokemon/${id}`);
       const d = res.data;
-      
+
       // 특성 가져오기
       const abilities: PokemonAbilityData[] = [];
       for (const abilityData of d.abilities) {
@@ -78,6 +80,7 @@ class PokeAPIService {
         moves: d.moves.map((m: any) => m.move.name).slice(0, 20),
         abilities,
       };
+
       this.pokemonCache.set(id, pokemon);
       return pokemon;
     } catch {
@@ -87,15 +90,16 @@ class PokeAPIService {
 
   async getMove(name: string): Promise<MoveData> {
     if (this.moveCache.has(name)) return this.moveCache.get(name)!;
+
     try {
       const res = await axios.get(`${API_BASE}/move/${name}`);
       const d = res.data;
-      
+
       // 기술 효과 설명 가져오기
       const effectEntries = d.effect_entries
         .filter((e: any) => e.language.name === 'en')
         .map((e: any) => e.short_effect || e.effect);
-      
+
       const move: MoveData = {
         name: d.name,
         type: d.type.name,
@@ -106,6 +110,7 @@ class PokeAPIService {
         target: d.target.name,
         effectEntries,
       };
+
       this.moveCache.set(name, move);
       return move;
     } catch {
@@ -122,9 +127,9 @@ class PokeAPIService {
     try {
       // 최종 진화체 ID 가져오기
       const finalEvolutionId = getFinalEvolutionId(basePokemonId);
-      
       // 최종 진화체 데이터 가져오기
       const finalPokemon = await this.getPokemon(finalEvolutionId);
+      
       const statTotal = finalPokemon.stats.hp + finalPokemon.stats.attack + 
                        finalPokemon.stats.defense + finalPokemon.stats.specialAttack +
                        finalPokemon.stats.specialDefense + finalPokemon.stats.speed;
@@ -218,7 +223,7 @@ class PokeAPIService {
         .slice(0, 5); // 최대 5개
       
       if (levelMoves.length === 0) return [];
-      
+
       // 기술 데이터 가져오기
       const moves = await Promise.all(levelMoves.map((name: string) => this.getMove(name)));
       
@@ -230,26 +235,36 @@ class PokeAPIService {
           
           // 실제 기술 효과 분석하여 상태이상 부여
           const effectText = m.effectEntries[0]?.toLowerCase() || '';
+        
           
-          // 상태이상 효과 감지
-          if (effectText.includes('burn') || effectText.includes('burn')) {
+          // 2. 체력 흡수(Drain) 효과 감지 (수정됨)
+          if (effectText.includes('drain') || effectText.includes('recover') || effectText.includes('restore')) {
+            if (effectText.includes('75%')) { // Draining Kiss
+              effect.drainPercent = 0.75;
+            } else {
+              effect.drainPercent = 0.5; // Absorb, Mega Drain, Giga Drain 등
+            }
+          }
+
+          // 1. 상태이상 효과 감지 (API 확률 사용)
+          if (effectText.includes('burn')) {
             effect.statusInflict = 'burn';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance; // API 값 (null일 수 있음)
           } else if (effectText.includes('paralyze') || effectText.includes('paralysis')) {
             effect.statusInflict = 'paralysis';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance;
           } else if (effectText.includes('poison')) {
             effect.statusInflict = 'poison';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance;
           } else if (effectText.includes('freeze') || effectText.includes('frozen')) {
             effect.statusInflict = 'freeze';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance;
           } else if (effectText.includes('sleep')) {
             effect.statusInflict = 'sleep';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance;
           } else if (effectText.includes('confus')) {
             effect.statusInflict = 'confusion';
-            effect.statusChance = m.effectChance || 10;
+            effect.statusChance = m.effectChance;
           }
           
           // 추가 효과 정보 저장
