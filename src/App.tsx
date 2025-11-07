@@ -19,7 +19,7 @@ import { WaveEndPicker } from './components/Modals/WaveEndPicker';
 import { Wave50ClearModal } from './components/Modals/Wave50ClearModal';
 import { EvolutionConfirmModal } from './components/Modals/EvolutionConfirmModal';
 import { SynergyTracker } from './components/UI/SynergyTracker';
-import { SynergyDetails } from './components/UI/SynergyDetails'; // 🆕 툴팁 컴포넌트 임포트
+import { SynergyDetails } from './components/UI/SynergyDetails';
 
 function App() {
   const [showPicker, setShowPicker] = useState(false);
@@ -47,7 +47,7 @@ function App() {
     spendMoney: state.spendMoney,
     wave50Clear: state.wave50Clear,
   }));
-  
+
   const handleOpenPicker = () => {
     if (!spendMoney(20)) {
       alert("돈이 부족합니다! (입장료: 20원)");
@@ -67,61 +67,61 @@ function App() {
     const wave = useGameStore.getState().wave;
     WaveSystem.getInstance().startWave(wave);
   };
-  
+
   const handleReset = () => {
     reset();
     setShowMapSelector(true);
     window.location.reload();
   };
-  
+
   return (
     <div style={styles.app}>
-      {showMapSelector && !isWaveActive ? (
-        <MapSelector onSelect={() => setShowMapSelector(false)} />
-      ) : (
-        <div style={styles.gameLayout}>
-          {/* 게임 캔버스 - 전체 화면 */}
-          <div style={styles.canvasContainer}>
+      <div style={styles.gameLayout}>
+        {/* 게임 캔버스 - 전체 화면 */}
+        <div style={styles.canvasContainer}>
+          {showMapSelector && !isWaveActive ? (
+            <MapSelector onSelect={() => setShowMapSelector(false)} />
+          ) : (
             <GameCanvas />
-          </div>
+          )}
+        </div>
 
-     
-          {/* 하단 컨트롤 패널 */}
-          <div style={styles.bottomPanel}>
+        {/* 하단 컨트롤 패널 */}
+        <div style={styles.bottomPanel}>
+          {(!showMapSelector || isWaveActive) && (
             <HUD
               onStartWave={handleStartWave}
               onAddPokemon={handleOpenPicker}
               onManagePokemon={() => setShowPokemonManager(true)}
             />
+          )}
 
-            
-            {/* 추가 버튼들 */}
-            <div style={styles.extraButtons}>
-              <button
-                onClick={() => setShowPokedex(true)}
-                style={styles.bottomBtn}
-              >
-                📖 도감
-              </button>
-              <button
-                onClick={() => setShowAchievements(true)}
-                style={styles.bottomBtn}
-              >
-                🏆 업적
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                style={styles.bottomBtn}
-              >
-                ⚙️ 설정
-              </button>
-            </div>
+          {/* 추가 버튼들 (항상 표시) */}
+          <div style={styles.extraButtons}>
+            <button
+              onClick={() => setShowPokedex(true)}
+              style={styles.bottomBtn}
+            >
+              📖 도감
+            </button>
+            <button
+              onClick={() => setShowAchievements(true)}
+              style={styles.bottomBtn}
+            >
+              🏆 업적
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              style={styles.bottomBtn}
+            >
+              ⚙️ 설정
+            </button>
           </div>
-
-          {/* 우측 상점 사이드바 - 항상 표시 */}
-          <Shop />
         </div>
-      )}
+
+        {(!showMapSelector || isWaveActive) && <Shop />}
+      </div>
+
 
       {showPicker && <PokemonPicker onClose={() => setShowPicker(false)} />}
       {showPokemonManager && (
@@ -200,10 +200,10 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
     padding: "16px 16px 0 16px",
-    overflow: "hidden",
+    overflow: "auto",
   },
   bottomPanel: {
-    padding: "12px 24px 24px",
+    padding: "12px",
     background: "linear-gradient(180deg, transparent, rgba(0,0,0,0.5))",
     backdropFilter: "blur(10px)",
   },
@@ -211,7 +211,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     gap: "12px",
     justifyContent: "center",
-    marginTop: "12px",
   },
   bottomBtn: {
     padding: "10px 24px",

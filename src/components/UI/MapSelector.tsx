@@ -229,16 +229,12 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
 // 게임스러운 UI 스타일
 const s: Record<string, React.CSSProperties> = {
   fullscreen: {
-    position: "fixed" as "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: "100%",
+    height: "100%",
     background:
       "radial-gradient(ellipse at top, #1a2332 0%, #0f1419 50%, #000000 100%)",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
     overflow: "auto",
     padding: "40px 20px",
   },
@@ -311,8 +307,8 @@ const s: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-    gap: "32px",
+    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+    gap: "16px",
   },
   card: {
     background:

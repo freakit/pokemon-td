@@ -60,14 +60,15 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
 
 const s: Record<string, React.CSSProperties> = {
   container: { 
-    background: 'linear-gradient(135deg, rgba(26, 35, 50, 0.95), rgba(15, 20, 25, 0.95))',
     color: '#e8edf3',
-    padding: '15px 25px',
+    padding: '12px',
+    marginBottom: '12px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderRadius: '8px',
+    border: '2px solid rgba(255, 255, 255, 0.3)',
     boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-    borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
     backdropFilter: 'blur(10px)',
   },
   leftSection: {
