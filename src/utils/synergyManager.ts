@@ -7,24 +7,20 @@ const GEN_1_SPECIAL_FORMS = new Set([
   10039, 10040, 10041, 10042, 10043, 10044, 10195, 10196, 10197,
   10198, 10199, 10200, 10201, 10202, 10203, 10204, 10205, 10206,
 ]);
-
 // [신규] 2세대 포켓몬의 특수폼 (메가진화) ID 목록
 const GEN_2_SPECIAL_FORMS = new Set([
   10045, 10072, 10046, 10047, 10048, 10049,
 ]);
-
 // [신규] 3세대 포켓몬의 특수폼 (메가진화) ID 목록
 const GEN_3_SPECIAL_FORMS = new Set([
   10065, 10050, 10064, 10051, 10066, 10052, 10053, 10054, 10055,
   10070, 10087, 10067, 10056, 10057, 10074, 10089, 10076, 10062,
   10063, 10079,
 ]);
-
 // [신규] 4세대 포켓몬의 특수폼 (메가진화) ID 목록
 const GEN_4_SPECIAL_FORMS = new Set([
   10088, 10058, 10059, 10060, 10068,
 ]);
-
 // [신규] 5세대 포켓몬의 특수폼 (메가진화, 거다이맥스, 합체폼) ID 목록
 const GEN_5_SPECIAL_FORMS = new Set([
   10069, // 메가다부니
@@ -32,19 +28,16 @@ const GEN_5_SPECIAL_FORMS = new Set([
   10022, // 블랙큐레무
   10023, // 화이트큐레무
 ]);
-
 // [신규] 6세대 포켓몬의 특수폼 (메가진화) ID 목록
 const GEN_6_SPECIAL_FORMS = new Set([
   10075, // 메가디안시
 ]);
-
 // [신규] 7세대 포켓몬의 특수폼 (거다이맥스, 합체폼) ID 목록
 const GEN_7_SPECIAL_FORMS = new Set([
   10208, // 거다이멜메탈
   10155, // 황혼네크로즈마
   10156, // 새벽네크로즈마
 ]);
-
 // [신규] 8세대 포켓몬의 특수폼 (거다이맥스, 합체폼) ID 목록
 const GEN_8_SPECIAL_FORMS = new Set([
   10209, 10210, 10211, 10212, 10213, 10214, 10215, 10216, 10217,
@@ -52,7 +45,6 @@ const GEN_8_SPECIAL_FORMS = new Set([
   10193, // 아이스라이더
   10194, // 쉐도우라이더
 ]);
-
 // (9세대는 현재 특수폼 없음)
 
 /**
@@ -70,7 +62,6 @@ export const getGenerationById = (id: number): number => {
   if (id >= 722 && id <= 809) return 7;
   if (id >= 810 && id <= 905) return 8;
   if (id >= 906 && id <= 1025) return 9;
-
   // [수정] 2. 10000번대 이상 특수폼인지 Set에서 확인
   if (id > 10000) {
     if (GEN_1_SPECIAL_FORMS.has(id)) return 1;
@@ -88,20 +79,10 @@ export const getGenerationById = (id: number): number => {
 };
 
 /**
- * UI 표시용 타입 한글 이름
- */
-export const TYPE_NAMES: Record<string, string> = {
-  normal: '노말', fire: '불꽃', water: '물', electric: '전기', grass: '풀',
-  ice: '얼음', fighting: '격투', poison: '독', ground: '땅', flying: '비행',
-  psychic: '에스퍼', bug: '벌레', rock: '바위', ghost: '고스트', dragon: '드래곤',
-  dark: '악', steel: '강철', fairy: '페어리',
-};
-
-/**
  * 타입 시너지 레벨을 반환합니다.
  */
 const getTypeSynergy = (type: string, count: number): Synergy | null => {
-  const name = TYPE_NAMES[type] || type;
+  const name = type; // UI에서 번역하도록 raw type (e.g., 'fire')을 이름으로 사용
   if (count >= 6) {
     return { id: `type:${type}`, name, count, level: 3, description: `(6) 스탯 1.3배, 해당 타입 약점 데미지 0.5배` };
   }
@@ -119,7 +100,7 @@ const getTypeSynergy = (type: string, count: number): Synergy | null => {
  */
 const getGenSynergy = (gen: number, count: number): Synergy | null => {
   if (gen === 0) return null;
-  const name = `${gen}세대`;
+  const name = gen.toString(); // UI에서 번역하도록 raw number (e.g., '1')를 이름으로 사용
   if (count >= 6) {
     return { id: `gen:${gen}`, name, count, level: 3, description: `(6) 스탯 1.3배` };
   }
@@ -189,7 +170,7 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
     const matchingSynergies = activeSynergies
       .filter(s => s.id === `type:${type}`)
       .map(s => s.level);
-    
+
     if (matchingSynergies.length > 0) {
       const bestLevel = Math.max(...matchingSynergies);
       let buff = 1.0;

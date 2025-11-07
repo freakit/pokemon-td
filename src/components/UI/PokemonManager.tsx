@@ -1,18 +1,16 @@
-// src/components/UI/PokemonManager.tsx
-
 import React, { useState } from 'react';
+import styled from 'styled-components';
+import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Gender } from '../../types/game';
 import { FUSION_DATA } from '../../data/evolution';
 
-// 성별 아이콘
 const getGenderIcon = (gender: Gender) => {
   if (gender === 'male') return '♂';
   if (gender === 'female') return '♀';
   return '⚪';
 };
 
-// 성별 색상
 const getGenderColor = (gender: Gender) => {
   if (gender === 'male') return '#4A90E2';
   if (gender === 'female') return '#E91E63';
@@ -20,6 +18,7 @@ const getGenderColor = (gender: Gender) => {
 };
 
 export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { t } = useTranslation();
   const { towers, sellTower, fusePokemon, spendMoney, money } = useGameStore(state => ({
     towers: state.towers,
     sellTower: state.sellTower,
@@ -27,16 +26,14 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
     spendMoney: state.spendMoney,
     money: state.money,
   }));
-
   const [fusionMode, setFusionMode] = useState(false);
   const [selectedBase, setSelectedBase] = useState<string | null>(null);
 
   const handleSell = (towerId: string, towerName: string, level: number) => {
     const sellPrice = level * 20;
     const confirmed = window.confirm(
-      `${towerName} (Lv.${level})을(를) ${sellPrice}원에 판매하시겠습니까?`
+      t('manager.sellConfirm', { name: towerName, level: level, price: sellPrice })
     );
-    
     if (confirmed) {
       sellTower(towerId);
     }
@@ -54,17 +51,15 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
     if (!tower) return;
 
     if (!selectedBase) {
-      // 첫 번째 선택: 베이스 포켓몬
       const canBeBase = FUSION_DATA.some(f => f.base === tower.pokemonId);
       if (!canBeBase) {
-        alert('이 포켓몬은 합체의 베이스가 될 수 없습니다.');
+        alert(t('alerts.cannotFuseBase'));
         return;
       }
       setSelectedBase(towerId);
     } else {
-      // 두 번째 선택: 재료 포켓몬
       if (selectedBase === towerId) {
-        alert('같은 포켓몬을 선택할 수 없습니다.');
+        alert(t('alerts.cannotSelectSamePokemon'));
         return;
       }
 
@@ -76,7 +71,6 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         return;
       }
 
-      // 합체 가능한지 확인
       const fusion = FUSION_DATA.find(f => 
         f.base === baseTower.pokemonId && 
         f.material === materialTower.pokemonId &&
@@ -84,29 +78,28 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
       );
 
       if (!fusion) {
-        alert('이 두 포켓몬은 합체할 수 없습니다.');
+        alert(t('alerts.cannotFusePokemon'));
         setSelectedBase(null);
         return;
       }
 
-      // 합체 확인
-      const fusionCost = 500; // 유전자 쐐기 비용
+      const fusionCost = 500;
       const confirmed = window.confirm(
-        `${baseTower.name}와 ${materialTower.name}를 합체하시겠습니까?\n비용: ${fusionCost}원\n(${materialTower.name}는 소멸됩니다)`
+        t('manager.fusionConfirm', { base: baseTower.name, material: materialTower.name, cost: fusionCost })
       );
 
       if (confirmed) {
         if (!spendMoney(fusionCost)) {
-          alert(`돈이 부족합니다! (필요: ${fusionCost}원)`);
+          alert(t('alerts.notEnoughMoneyWithCost', { cost: fusionCost }));
           setSelectedBase(null);
           return;
         }
 
         fusePokemon(selectedBase, towerId, 'dna-splicers').then(success => {
           if (success) {
-            alert('합체 성공!');
+            alert(t('alerts.fusionSuccess'));
           } else {
-            alert('합체 실패!');
+            alert(t('alerts.fusionFailed'));
           }
           setFusionMode(false);
           setSelectedBase(null);
@@ -117,12 +110,10 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
     }
   };
 
-  // 합체 가능한 포켓몬 쌍 찾기
   const getFusionHint = (towerId: string) => {
     const tower = towers.find(t => t.id === towerId);
     if (!tower) return null;
 
-    // 이 포켓몬이 베이스가 될 수 있는 경우
     const asBase = FUSION_DATA.filter(f => f.base === tower.pokemonId);
     if (asBase.length > 0) {
       const materialIds = asBase.map(f => f.material);
@@ -132,7 +123,6 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
       }
     }
 
-    // 이 포켓몬이 재료가 될 수 있는 경우
     const asMaterial = FUSION_DATA.filter(f => f.material === tower.pokemonId);
     if (asMaterial.length > 0) {
       const baseIds = asMaterial.map(f => f.base);
@@ -146,273 +136,309 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <div style={s.overlay}>
-      <div style={s.modal}>
-        <div style={s.header}>
+    <Overlay>
+      <Modal>
+        <Header>
           <div>
-            <h2 style={s.title}>🎒 포켓몬 관리 ({towers.length}/6)</h2>
-            <div style={s.moneyDisplay}>💰 {money}원</div>
+            <Title>🎒 {t('manager.title', { towers: towers.length })}</Title>
+            <MoneyDisplay>💰 {money}{t('common.money')}</MoneyDisplay>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button 
+          <HeaderButtons>
+            <FusionBtn 
               onClick={handleFusionClick} 
-              style={{
-                ...s.fusionBtn,
-                background: fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #667eea, #764ba2)'
-              }}
+              $fusionMode={fusionMode}
             >
-              {fusionMode ? '❌ 취소' : '🧬 합체'}
-            </button>
-            <button onClick={onClose} style={s.closeBtn}>✕</button>
-          </div>
-        </div>
+              {fusionMode ? `❌ ${t('common.cancel')}` : `🧬 ${t('manager.fusion')}`}
+            </FusionBtn>
+            <CloseBtn onClick={onClose}>✕</CloseBtn>
+          </HeaderButtons>
+        </Header>
         
         {fusionMode && (
-          <div style={s.fusionInfo}>
+          <FusionInfo>
             {!selectedBase ? (
-              <p>🧬 합체할 베이스 포켓몬을 선택하세요 (큐레무, 네크로즈마, 버드렉스) | 비용: 500원</p>
+              <p>{t('manager.fusionInfoBase', { cost: 500 })}</p>
             ) : (
-              <p>🧬 합체할 재료 포켓몬을 선택하세요 | 비용: 500원</p>
+              <p>{t('manager.fusionInfoMaterial', { cost: 500 })}</p>
             )}
-          </div>
+          </FusionInfo>
         )}
         
-        {towers.length === 0 ? (
-          <p style={s.emptyMessage}>보유 중인 포켓몬이 없습니다.</p>
+        {towers.length === 0 ?
+        (
+          <EmptyMessage>{t('manager.empty')}</EmptyMessage>
         ) : (
-          <div style={s.grid}>
+          <Grid>
             {towers.map(tower => {
               const sellPrice = tower.level * 20;
               const hpPercent = Math.round((tower.currentHp / tower.maxHp) * 100);
               const fusionHint = getFusionHint(tower.id);
               const isSelected = selectedBase === tower.id;
-              
+
               return (
-                <div 
+                <Card 
                   key={tower.id} 
-                  style={{
-                    ...s.card,
-                    border: isSelected ? '3px solid #667eea' : '2px solid rgba(255, 255, 255, 0.1)',
-                    cursor: fusionMode ? 'pointer' : 'default',
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  }}
+                  $isSelected={isSelected}
+                  $fusionMode={fusionMode}
                   onClick={() => handlePokemonClick(tower.id)}
                 >
-                  <div style={s.cardHeader}>
-                    <img src={tower.sprite} alt={tower.name} style={s.img} />
+                  <CardHeader>
+                    <Sprite src={tower.sprite} alt={tower.name} />
                     {tower.isFainted && (
-                      <div style={s.faintedBadge}>기절</div>
+                      <FaintedBadge>{t('manager.fainted')}</FaintedBadge>
                     )}
                     {fusionHint && fusionMode && (
-                      <div style={s.fusionBadge}>{fusionHint}</div>
+                      <FusionBadge>{fusionHint}</FusionBadge>
                     )}
-                  </div>
+                  </CardHeader>
                   
-                  <div style={s.cardBody}>
-                    <div style={s.nameRow}>
-                      <h3 style={s.pokeName}>{tower.name}</h3>
-                      <span style={{
-                        fontSize: '18px',
-                        fontWeight: 'bold',
-                        color: getGenderColor(tower.gender),
-                      }}>
+                  <CardBody>
+                    <NameRow>
+                      <PokeName>{tower.name}</PokeName>
+                      <GenderIcon $gender={tower.gender}>
                         {getGenderIcon(tower.gender)}
-                      </span>
-                    </div>
-                    <div style={s.infoRow}>
-                      <span>레벨</span>
-                      <span style={s.infoValue}>{tower.level}</span>
-                    </div>
-                    <div style={s.infoRow}>
-                      <span>HP</span>
-                      <span style={s.infoValue}>
+                      </GenderIcon>
+                    </NameRow>
+                    <InfoRow>
+                      <span>{t('common.level')}</span>
+                      <InfoValue>{tower.level}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <span>{t('picker.hp')}</span>
+                      <InfoValue>
                         {Math.floor(tower.currentHp)}/{tower.maxHp} ({hpPercent}%)
-                      </span>
-                    </div>
-                    <div style={s.infoRow}>
-                      <span>처치</span>
-                      <span style={s.infoValue}>{tower.kills}</span>
-                    </div>
-                    <div style={s.infoRow}>
-                      <span>기술</span>
-                      <span style={s.infoValue}>{tower.equippedMoves[0]?.name || 'N/A'}</span>
-                    </div>
-                  </div>
+                      </InfoValue>
+                    </InfoRow>
+                    
+                    <InfoRow>
+                      <span>{t('manager.kills')}</span>
+                      <InfoValue>{tower.kills}</InfoValue>
+                    </InfoRow>
+                    <InfoRow>
+                      <span>{t('picker.move')}</span>
+                      <InfoValue>{tower.equippedMoves[0]?.name || 'N/A'}</InfoValue>
+                    </InfoRow>
+                  </CardBody>
                   
                   {!fusionMode && (
-                    <button 
-                      style={s.sellBtn} 
+                    <SellBtn 
                       onClick={() => handleSell(tower.id, tower.name, tower.level)}
                     >
-                      💰 판매 ({sellPrice}원)
-                    </button>
+                      💰 {t('manager.sell', { price: sellPrice })}
+                    </SellBtn>
                   )}
-                </div>
+                </Card>
               );
             })}
-          </div>
+          </Grid>
         )}
-      </div>
-    </div>
+      </Modal>
+    </Overlay>
   );
 };
 
-const s: Record<string, React.CSSProperties> = {
-  overlay: { 
-    position: 'fixed', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    bottom: 0, 
-    background: 'radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.95))', 
-    backdropFilter: 'blur(8px)',
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    zIndex: 999,
-    animation: 'fadeIn 0.3s ease-out'
-  },
-  modal: { 
-    background: 'linear-gradient(145deg, #2a2d3a, #1f2029)', 
-    borderRadius: '20px', 
-    padding: '30px',
-    maxWidth: '1000px',
-    width: '95%',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-    border: '2px solid rgba(255, 255, 255, 0.1)',
-  },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: '20px'
-  },
-  title: { 
-    fontSize: '28px', 
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #667eea, #764ba2)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    marginBottom: '5px',
-  },
-  moneyDisplay: {
-    fontSize: '16px',
-    color: '#FFD700',
-    fontWeight: 'bold',
-  },
-  fusionBtn: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    padding: '8px 16px',
-    border: 'none',
-    borderRadius: '8px',
-    color: '#fff',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  },
-  closeBtn: { 
-    fontSize: '24px', 
-    background: 'none', 
-    border: 'none', 
-    color: '#fff', 
-    cursor: 'pointer',
-    padding: '5px 10px',
-    borderRadius: '5px',
-    transition: 'background 0.2s',
-  },
-  fusionInfo: {
-    background: 'rgba(102, 126, 234, 0.2)',
-    padding: '15px',
-    borderRadius: '10px',
-    marginBottom: '20px',
-    textAlign: 'center',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  emptyMessage: {
-    fontSize: '18px',
-    color: '#999',
-    textAlign: 'center',
-    padding: '40px',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: '20px',
-  },
-  card: {
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '15px',
-    padding: '15px',
-    border: '2px solid rgba(255, 255, 255, 0.1)',
-    transition: 'all 0.3s ease',
-  },
-  cardHeader: {
-    position: 'relative',
-    textAlign: 'center',
-    marginBottom: '15px',
-  },
-  img: {
-    width: '100px',
-    height: '100px',
-    imageRendering: 'pixelated',
-  },
-  faintedBadge: {
-    position: 'absolute',
-    top: '5px',
-    right: '5px',
-    background: '#e74c3c',
-    color: 'white',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    padding: '4px 8px',
-    borderRadius: '8px',
-  },
-  fusionBadge: {
-    position: 'absolute',
-    top: '5px',
-    left: '5px',
-    fontSize: '24px',
-  },
-  cardBody: {
-    marginBottom: '15px',
-  },
-  nameRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
-    marginBottom: '12px',
-  },
-  pokeName: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    margin: 0,
-  },
-  infoRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '8px 0',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-    fontSize: '14px',
-  },
-  infoValue: {
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  sellBtn: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    background: 'linear-gradient(135deg, #e74c3c, #c0392b)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  },
-};
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  animation: fadeIn 0.3s ease-out;
+`;
+
+const Modal = styled.div`
+  background: linear-gradient(145deg, #2a2d3a, #1f2029);
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 1000px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+`;
+
+const Title = styled.h2`
+  font-size: 28px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 5px;
+`;
+
+const MoneyDisplay = styled.div`
+  font-size: 16px;
+  color: #FFD700;
+  font-weight: bold;
+`;
+
+const HeaderButtons = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const FusionBtn = styled.button<{ $fusionMode: boolean }>`
+  font-size: 16px;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #667eea, #764ba2)'};
+
+  &:hover {
+    filter: brightness(1.2);
+  }
+`;
+
+const CloseBtn = styled.button`
+  font-size: 24px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 5px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+`;
+
+const FusionInfo = styled.div`
+  background: rgba(102, 126, 234, 0.2);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+`;
+
+const EmptyMessage = styled.p`
+  font-size: 18px;
+  color: #999;
+  text-align: center;
+  padding: 40px;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+`;
+
+const Card = styled.div<{ $isSelected: boolean, $fusionMode: boolean }>`
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 15px;
+  border: 2px solid ${props => props.$isSelected ? '#667eea' : 'rgba(255, 255, 255, 0.1)'};
+  transition: all 0.3s ease;
+  cursor: ${props => props.$fusionMode ? 'pointer' : 'default'};
+  transform: ${props => props.$isSelected ? 'scale(1.05)' : 'scale(1)'};
+`;
+
+const CardHeader = styled.div`
+  position: relative;
+  text-align: center;
+  margin-bottom: 15px;
+`;
+
+const Sprite = styled.img`
+  width: 100px;
+  height: 100px;
+  image-rendering: pixelated;
+`;
+
+const FaintedBadge = styled.div`
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #e74c3c;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 8px;
+`;
+
+const FusionBadge = styled.div`
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  font-size: 24px;
+`;
+
+const CardBody = styled.div`
+  margin-bottom: 15px;
+`;
+
+const NameRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+`;
+
+const PokeName = styled.h3`
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0;
+  color: #fff;
+`;
+
+const GenderIcon = styled.span<{ $gender: Gender }>`
+  font-size: 18px;
+  font-weight: bold;
+  color: ${props => getGenderColor(props.$gender)};
+`;
+
+const InfoRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  color: #ddd;
+`;
+
+const InfoValue = styled.span`
+  font-weight: bold;
+  color: #FFD700;
+`;
+
+const SellBtn = styled.button`
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, #c0392b, #a93226);
+  }
+`;

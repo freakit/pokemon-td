@@ -1,31 +1,90 @@
 // src/components/Modals/Pokedex.tsx
 
 import React from 'react';
+import styled from 'styled-components';
+import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
 
 export const Pokedex: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { t } = useTranslation();
   const data = saveService.load();
-  
+
   return (
-    <div style={s.overlay}>
-      <div style={s.modal}>
-        <h2>📖 포켓몬 도감</h2>
-        <p>수집한 포켓몬: {data.pokedex.length}마리</p>
-        <div style={s.grid}>
+    <Overlay>
+      <Modal>
+        <h2>📖 {t('pokedex.title')}</h2>
+        <p>{t('pokedex.collected', { count: data.pokedex.length })}</p>
+        <Grid>
           {data.pokedex.map(id => (
-            <div key={id} style={s.entry}>#{id}</div>
+            <Entry key={id}>#{id}</Entry>
           ))}
-        </div>
-        <button onClick={onClose} style={s.btn}>닫기</button>
-      </div>
-    </div>
+        </Grid>
+        <CloseButton onClick={onClose}>{t('common.close')}</CloseButton>
+      </Modal>
+    </Overlay>
   );
 };
 
-const s = {
-  overlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1001 },
-  modal: { backgroundColor: '#fff', borderRadius: '16px', padding: '32px', maxWidth: '800px', maxHeight: '80vh', overflowY: 'auto' as const },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', margin: '24px 0' },
-  entry: { padding: '12px', border: '2px solid #ddd', borderRadius: '8px', textAlign: 'center' as const },
-  btn: { width: '100%', padding: '12px', backgroundColor: '#95a5a6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-};
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+`;
+
+const Modal = styled.div`
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: #333;
+
+  h2 {
+    color: #000;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin-bottom: 16px;
+    font-size: 16px;
+  }
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin: 24px 0;
+`;
+
+const Entry = styled.div`
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+`;
+
+const CloseButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background-color: #95a5a6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+
+  &:hover {
+    background-color: #7f8c8d;
+  }
+`;

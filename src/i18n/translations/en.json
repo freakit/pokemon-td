@@ -1,0 +1,539 @@
+{
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "level": "Level",
+    "levelShort": "Lv",
+    "money": "G",
+    "physical": "Physical",
+    "special": "Special",
+    "male": "♂",
+    "female": "♀",
+    "genderless": "⚪",
+    "day": "Day",
+    "night": "Night"
+  },
+  "alerts": {
+    "notEnoughMoney": "Not enough money!",
+    "notEnoughMoneyWithCost": "Not enough money! (Required: {cost}G)",
+    "notEnoughMoneyPicker": "Not enough money! (Entry Fee: 20G)",
+    "notEnoughMoneyPokemon": "Not enough money! (Pokémon: {cost}G)",
+    "notEnoughMoneyReroll": "Not enough money! (Reroll: {cost}G)",
+    "notEnoughMoneyRevive": "Not enough money! (Required: {cost}G)",
+    "notEnoughMoneyCandy": "Not enough money! (Required: {cost}G)",
+    "notEnoughMoneyExpCandy": "Not enough money! (Required: {cost}G)",
+    "notEnoughMoneyFusion": "Not enough money! (Required: {cost}G)",
+    "cannotPlaceHere": "Cannot place here!",
+    "maxPokemon": "You can only place a maximum of 6 Pokémon!",
+    "cannotUseItem": "This item cannot be used on this target.",
+    "targetNotFound": "Target not found.",
+    "expCandyTargetInvalid": "Can only be used on the lowest-level Pokémon.",
+    "expCandyNotEnoughPokemon": "Not enough Pokémon to use this item.",
+    "levelChanged": "Level changed from {from} to {to}.",
+    "evolutionSuccess": "Evolution successful!",
+    "evolutionFailed": "This Pokémon cannot evolve with this item.",
+    "fusionBaseInvalid": "This Pokémon cannot be the base for fusion.",
+    "fusionMaterialInvalid": "Cannot select the same Pokémon.",
+    "fusionPairInvalid": "These two Pokémon cannot be fused.",
+    "fusionSuccess": "Fusion successful!",
+    "fusionFailed": "Fusion failed!",
+    "confirmSell": "Sell {name} (Lv.{level}) for {price}G?",
+    "confirmFusion": "Fuse {base} and {material}?\nCost: {cost}G\n({material} will be consumed)",
+    "confirmReset": "Are you sure you want to reset all data?",
+    "fetchPokemonError": "Failed to fetch Pokémon {id}",
+    "fetchMoveError": "Failed to fetch move {name}",
+    "fetchLearnableMovesError": "Failed to fetch learnable moves"
+  },
+  "nav": {
+    "pokedex": "Pokédex",
+    "achievements": "Achievements",
+    "settings": "Settings"
+  },
+  "hud": {
+    "startWave": "Start Wave",
+    "addPokemon": "Pokémon (20G)",
+    "managePokemon": "Manage",
+    "speed": "Speed"
+  },
+  "mapSelector": {
+    "subtitle": "Made by Team FreakIT @ KAIST",
+    "filterAll": "All",
+    "easiest": "Easiest",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "expert": "Expert",
+    "diffEasiest": "Easiest",
+    "diffEasy": "Easy",
+    "diffMedium": "Medium",
+    "diffHard": "Hard",
+    "diffExpert": "Expert",
+    "noMaps": "No maps found for this difficulty."
+  },
+  "picker": {
+    "loading": "Loading Pokémon...",
+    "title": "Select Pokémon",
+    "subtitle": "Choose 1 of 3 Pokémon.",
+    "hp": "HP",
+    "attack": "Attack",
+    "defense": "Defense",
+    "spAttack": "Sp. Atk",
+    "spDefense": "Sp. Def",
+    "speed": "Speed",
+    "total": "Total",
+    "cost": "{cost}G",
+    "currentMoney": "Current: {money}G",
+    "reroll": "Reroll (20G)"
+  },
+  "manager": {
+    "title": "Manage Pokémon ({towers}/6)",
+    "currentMoney": "{money}G",
+    "cancel": "Cancel",
+    "fusion": "Fuse",
+    "fusionInfoBase": "Select a base Pokémon for fusion (Kyurem, Necrozma, Calyrex) | Cost: {cost}G",
+    "fusionInfoMaterial": "Select a material Pokémon to fuse | Cost: {cost}G",
+    "empty": "You have no Pokémon.",
+    "fainted": "Fainted",
+    "level": "Level",
+    "hp": "HP",
+    "kills": "Kills",
+    "skill": "Skill",
+    "sell": "Sell ({price}G)"
+  },
+  "shop": {
+    "targetTitle": "Select Target",
+    "targetPotion": "Click an ally to use the Potion.",
+    "targetPotionGood": "Click an ally to use the Super Potion.",
+    "targetPotionSuper": "Click an ally to use the Hyper Potion.",
+    "targetCandy": "Click an ally to use the Rare Candy. (Cost: Lv × 25G)",
+    "targetRevive": "Click a fainted ally to use the Revive. (Cost: Lv × 10G)",
+    "targetExpCandy": "Click an ally to use the Exp. Candy. (Cost: 2nd Lv × 50G)",
+    "targetItem": "Click an ally to use the {name}.",
+    "fainted": "Fainted",
+    "cost": "{cost}G",
+    "costLevelChange": "{cost}G (Lv.{from}→{to})",
+    "canEvolve": "Can Evolve!",
+    "cancelRefund": "Cancel (Refund)",
+    "title": "Shop",
+    "currentMoney": "{money}G",
+    "tabGeneral": "General",
+    "tabEvolution": "Evolution",
+    "potionName": "Potion",
+    "potionDesc": "Heals 30 HP",
+    "potionCost": "20G",
+    "potionGoodName": "Super Potion",
+    "potionGoodDesc": "Heals 150 HP or 10%",
+    "potionGoodCost": "100G",
+    "potionSuperName": "Hyper Potion",
+    "potionSuperDesc": "Heals 50% Max HP",
+    "potionSuperCost": "500G",
+    "reviveName": "Revive",
+    "reviveDesc": "Revives fainted Pokémon",
+    "reviveCost": "Lv×10G",
+    "candyName": "Rare Candy",
+    "candyDesc": "Increases Level by 1",
+    "candyCost": "Lv×25G",
+    "expCandyName": "Exp. Candy",
+    "expCandyDesc": "Boost lowest level",
+    "expCandyCost": "2nd Lv×50G",
+    "categoryStone": "Evolution Stones",
+    "categoryTrade": "Trade Items",
+    "categoryFriendship": "Friendship Items",
+    "categoryOthers": "Other Items",
+    "categorySpecial": "Special Items",
+    "itemCost": "{cost}G"
+  },
+  "skillPicker": {
+    "levelUpName": "{name} Leveled Up!",
+    "pokemonLevel": "(Lv.{level})",
+    "selectSkill": "Replace Skill",
+    "current": "Current Skill",
+    "new": "New Skill",
+    "statusEffect": "{status} ({chance}%)",
+    "drain": "Drain ({percent}%)",
+    "aoe": "AoE",
+    "keep": "Keep",
+    "learn": "Learn",
+    "queue": "In queue: {count}"
+  },
+  "waveEnd": {
+    "targetTitle": "Use {name}",
+    "targetCandy": "Select a Pokémon to level up",
+    "targetHeal": "Select a Pokémon to heal",
+    "targetRevive": "Select a fainted Pokémon to revive",
+    "fainted": "Fainted",
+    "back": "Go Back",
+    "clearTitle": "Wave {wave} Clear!",
+    "clearSubtitle": "Select a reward (All Pokémon have been healed)",
+    "skip": "Skip Reward",
+    "candyName": "Rare Candy",
+    "candyDesc": "Level up one ally",
+    "reviveName": "Revive",
+    "reviveDesc": "Revive 1 fainted ally to 50% HP",
+    "megaStoneName": "{name}'s Mega Stone",
+    "megaStoneDesc": "Mega Evolves {name}",
+    "gigaMushroomName": "{name}'s Max Mushroom",
+    "gigaMushroomDesc": "Gigantamaxes {name}"
+  },
+  "waveClear": {
+    "title": "Congratulations!",
+    "subtitle": "You have cleared Wave 50!",
+    "prompt": "Would you like to continue playing?",
+    "continue": "Continue",
+    "restart": "Restart"
+  },
+  "evoConfirm": {
+    "title": "Evolution",
+    "message": "<strong>{name}</strong> is ready to evolve!",
+    "evolveTo": "{name}",
+    "methodLevel": "Level {level}",
+    "methodItem": "Item required",
+    "methodGender": " ({gender})",
+    "methodTime": " ({time})",
+    "cancel": "Cancel Evolution"
+  },
+  "pokedex": {
+    "title": "Pokédex",
+    "collected": "Collected: {count}",
+    "generation": "Gen",
+    "filterAll": "All"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "progress": "Progress: {progress}/{target}"
+  },
+  "settings": {
+    "title": "Settings",
+    "musicVolume": "Music Volume",
+    "sfxVolume": "SFX Volume",
+    "showDamage": "Show Damage Numbers",
+    "showGrid": "Show Grid",
+    "resetData": "Reset Data"
+  },
+  "game": {
+    "gameOver": "GAME OVER",
+    "waveReached": "Reached Wave {wave}!",
+    "restart": "Restart",
+    "evoToast": "{fromName} → {toName} evolved!",
+    "fusionToast": "{fromName} → {toName} fused!",
+    "tooltipHP": "HP",
+    "tooltipAttack": "Atk",
+    "tooltipDefense": "Def",
+    "tooltipSpAttack": "Sp. Atk",
+    "tooltipSpDefense": "Sp. Def",
+    "tooltipSpeed": "Speed",
+    "miss": "MISS",
+    "cost": "{cost}G"
+  },
+  "synergy": {
+    "title": "Current Synergies",
+    "empty": "No active synergies.",
+    "level": "(Lv.{level})",
+    "genName": "Gen {gen}",
+    "typeDesc6": "(6) Stats 1.3x, 0.5x damage from weaknesses of this type",
+    "typeDesc4": "(4) Stats 1.3x",
+    "typeDesc2": "(2) Stats 1.1x",
+    "genDesc6": "(6) Stats 1.3x",
+    "genDesc4": "(4) Stats 1.2x",
+    "genDesc2": "(2) Stats 1.1x"
+  },
+  "types": {
+    "normal": "Normal",
+    "fire": "Fire",
+    "water": "Water",
+    "electric": "Electric",
+    "grass": "Grass",
+    "ice": "Ice",
+    "fighting": "Fighting",
+    "poison": "Poison",
+    "ground": "Ground",
+    "flying": "Flying",
+    "psychic": "Psychic",
+    "bug": "Bug",
+    "rock": "Rock",
+    "ghost": "Ghost",
+    "dragon": "Dragon",
+    "dark": "Dark",
+    "steel": "Steel",
+    "fairy": "Fairy"
+  },
+  "items": {
+    "fire-stone": {
+      "name": "Fire Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "water-stone": {
+      "name": "Water Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "thunder-stone": {
+      "name": "Thunder Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "leaf-stone": {
+      "name": "Leaf Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "moon-stone": {
+      "name": "Moon Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "sun-stone": {
+      "name": "Sun Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "shiny-stone": {
+      "name": "Shiny Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "dusk-stone": {
+      "name": "Dusk Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "dawn-stone": {
+      "name": "Dawn Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "ice-stone": {
+      "name": "Ice Stone",
+      "description": "A peculiar stone that makes certain species of Pokémon evolve."
+    },
+    "linking-cord": {
+      "name": "Linking Cord",
+      "description": "Evolves Pokémon that normally evolve by trading."
+    },
+    "kings-rock": {
+      "name": "King's Rock",
+      "description": "Evolves Slowpoke or Poliwhirl."
+    },
+    "metal-coat": {
+      "name": "Metal Coat",
+      "description": "Evolves Onix or Scyther."
+    },
+    "dragon-scale": {
+      "name": "Dragon Scale",
+      "description": "Evolves Seadra into Kingdra."
+    },
+    "upgrade": {
+      "name": "Up-Grade",
+      "description": "Evolves Porygon into Porygon2."
+    },
+    "protector": {
+      "name": "Protector",
+      "description": "Evolves Rhydon into Rhyperior."
+    },
+    "electirizer": {
+      "name": "Electirizer",
+      "description": "Evolves Electabuzz into Electivire."
+    },
+    "magmarizer": {
+      "name": "Magmarizer",
+      "description": "Evolves Magmar into Magmortar."
+    },
+    "dubious-disc": {
+      "name": "Dubious Disc",
+      "description": "Evolves Porygon2 into Porygon-Z."
+    },
+    "reaper-cloth": {
+      "name": "Reaper Cloth",
+      "description": "Evolves Dusclops into Dusknoir."
+    },
+    "razor-claw": {
+      "name": "Razor Claw",
+      "description": "Evolves Sneasel into Weavile."
+    },
+    "razor-fang": {
+      "name": "Razor Fang",
+      "description": "Evolves Gligar into Gliscor."
+    },
+    "friendship-evolution": {
+      "name": "Soothe Bell",
+      "description": "Evolves Pokémon that evolve via friendship."
+    },
+    "special-evolution": {
+      "name": "Mystic Powder",
+      "description": "Evolves Pokémon with special conditions."
+    },
+    "deep-sea-tooth": {
+      "name": "Deep Sea Tooth",
+      "description": "Evolves Clamperl into Huntail."
+    },
+    "deep-sea-scale": {
+      "name": "Deep Sea Scale",
+      "description": "Evolves Clamperl into Gorebyss."
+    },
+    "sachet": {
+      "name": "Sachet",
+      "description": "Evolves Spritzee into Aromatisse."
+    },
+    "whipped-dream": {
+      "name": "Whipped Dream",
+      "description": "Evolves Swirlix into Slurpuff."
+    },
+    "tart-apple": {
+      "name": "Tart Apple",
+      "description": "Evolves Applin into Flapple."
+    },
+    "sweet-apple": {
+      "name": "Sweet Apple",
+      "description": "Evolves Applin into Appletun."
+    },
+    "galarica-cuff": {
+      "name": "Galarica Cuff",
+      "description": "Evolves Galarian Slowpoke into Slowbro."
+    },
+    "galarica-wreath": {
+      "name": "Galarica Wreath",
+      "description": "Evolves Galarian Slowpoke into Slowking."
+    },
+    "black-augurite": {
+      "name": "Black Augurite",
+      "description": "Evolves Scyther into Kleavor."
+    },
+    "auspicious-armor": {
+      "name": "Auspicious Armor",
+      "description": "Evolves Charcadet into Armarouge."
+    },
+    "malicious-armor": {
+      "name": "Malicious Armor",
+      "description": "Evolves Charcadet into Ceruledge."
+    },
+    "syrupy-apple": {
+      "name": "Syrupy Apple",
+      "description": "Evolves Applin into Dipplin."
+    },
+    "metal-alloy": {
+      "name": "Metal Alloy",
+      "description": "Evolves Duraludon into Archaludon."
+    },
+    "water-scroll": {
+      "name": "Scroll of Waters",
+      "description": "Evolves Kubfu into Urshifu (Rapid Strike)."
+    },
+    "dark-scroll": {
+      "name": "Scroll of Darkness",
+      "description": "Evolves Kubfu into Urshifu (Single Strike)."
+    }
+  },
+  "achData": {
+    "wave5": {
+      "name": "First Step",
+      "description": "Reach Wave 5"
+    },
+    "wave10": {
+      "name": "Beginner",
+      "description": "Reach Wave 10"
+    },
+    "wave20": {
+      "name": "Intermediate",
+      "description": "Reach Wave 20"
+    },
+    "wave30": {
+      "name": "Advanced",
+      "description": "Reach Wave 30"
+    },
+    "wave50": {
+      "name": "Master",
+      "description": "Reach Wave 50"
+    },
+    "collect10": {
+      "name": "Collector",
+      "description": "Collect 10 Pokémon"
+    },
+    "collect50": {
+      "name": "Professor",
+      "description": "Collect 50 Pokémon"
+    },
+    "collect100": {
+      "name": "Pokémon Master",
+      "description": "Collect 100 Pokémon"
+    },
+    "evolve1": {
+      "name": "First Evolution",
+      "description": "Evolve 1 Pokémon"
+    },
+    "evolve10": {
+      "name": "Evolution Maniac",
+      "description": "Evolve 10 Pokémon"
+    },
+    "kill100": {
+      "name": "Hunter",
+      "description": "Defeat 100 enemies"
+    },
+    "kill1000": {
+      "name": "Slayer",
+      "description": "Defeat 1000 enemies"
+    },
+    "boss5": {
+      "name": "Boss Hunter",
+      "description": "Defeat 5 bosses"
+    },
+    "boss20": {
+      "name": "Boss Killer",
+      "description": "Defeat 20 bosses"
+    },
+    "money10k": {
+      "name": "Rich",
+      "description": "Earn 10,000G total"
+    },
+    "money100k": {
+      "name": "Tycoon",
+      "description": "Earn 100,000G total"
+    },
+    "perfect": {
+      "name": "Perfect Defense",
+      "description": "Clear Wave 10 without losing a life"
+    },
+    "speedrun": {
+      "name": "Speedrunner",
+      "description": "Clear Wave 20 within 30 minutes"
+    },
+    "nolosses": {
+      "name": "Invincible",
+      "description": "Reach Wave 30 without any Pokémon fainting"
+    },
+    "allstarters": {
+      "name": "Starter Master",
+      "description": "Collect Bulbasaur, Charmander, and Squirtle"
+    },
+    "legendary": {
+      "name": "Legendary Trainer",
+      "description": "Collect a Legendary Pokémon"
+    }
+  },
+  "mapData": {
+    "easiest_straight": {
+      "name": "Beginner's Path",
+      "description": "A basic, single-lane map. Good for focusing firepower."
+    },
+    "easy_loop": {
+      "name": "Castle Loop",
+      "description": "Loops around the map's outer wall. Limited space for towers."
+    },
+    "medium_merge": {
+      "name": "Merge Point",
+      "description": "Two paths merge in the center. Early defense is critical."
+    },
+    "medium_multi_s": {
+      "name": "Winding Cave",
+      "description": "A long, winding path gives towers plenty of time to attack."
+    },
+    "hard_straight_wide": {
+      "name": "Wide Plains",
+      "description": "Enemies pass through a wide (4-tile) central path. Mind the gaps!"
+    },
+    "hard_dual_path": {
+      "name": "Split Snowfield",
+      "description": "Two paths are completely separate. You must defend both."
+    },
+    "extreme_central": {
+      "name": "Central Altar",
+      "description": "Enemies spawn from all four sides and rush the center."
+    },
+    "extreme_aggro_shortcut": {
+      "name": "Dangerous Shortcut",
+      "description": "The default path is long. Place towers in the center to change the route."
+    }
+  }
+}
