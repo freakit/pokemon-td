@@ -1,19 +1,22 @@
 // src/components/Modals/Settings.tsx
 
 import React from 'react';
+import styled from 'styled-components';
+import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
 import { soundService } from '../../services/SoundService';
 
 export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { t } = useTranslation();
   const settings = saveService.load().settings;
-  
+
   return (
-    <div style={s.overlay}>
-      <div style={s.modal}>
-        <h2>⚙️ 설정</h2>
-        <div style={s.settings}>
-          <div style={s.setting}>
-            <label>음악 볼륨</label>
+    <Overlay>
+      <Modal>
+        <h2>⚙️ {t('settings.title')}</h2>
+        <SettingsList>
+          <SettingItem>
+            <label>{t('settings.musicVolume')}</label>
             <input
               type="range"
               min="0"
@@ -22,9 +25,9 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               defaultValue={settings.musicVolume}
               onChange={(e) => soundService.setMusicVolume(parseFloat(e.target.value))}
             />
-          </div>
-          <div style={s.setting}>
-            <label>효과음 볼륨</label>
+          </SettingItem>
+          <SettingItem>
+            <label>{t('settings.sfxVolume')}</label>
             <input
               type="range"
               min="0"
@@ -33,36 +36,108 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               defaultValue={settings.sfxVolume}
               onChange={(e) => soundService.setSFXVolume(parseFloat(e.target.value))}
             />
-          </div>
-          <div style={s.setting}>
-            <label>데미지 숫자 표시</label>
+          </SettingItem>
+          <SettingItem>
+            <label>{t('settings.showDamage')}</label>
             <input type="checkbox" defaultChecked={settings.showDamageNumbers} />
-          </div>
-          <div style={s.setting}>
-            <label>그리드 표시</label>
+          </SettingItem>
+          <SettingItem>
+            <label>{t('settings.showGrid')}</label>
             <input type="checkbox" defaultChecked={settings.showGrid} />
-          </div>
-          <div style={s.danger}>
-            <button onClick={() => {
-              if (confirm('정말 모든 데이터를 초기화하시겠습니까?')) {
+          </SettingItem>
+          <DangerZone>
+            <DangerButton onClick={() => {
+              if (confirm(t('alerts.confirmReset'))) {
                 saveService.clearSave();
                 window.location.reload();
               }
-            }} style={s.dangerBtn}>데이터 초기화</button>
-          </div>
-        </div>
-        <button onClick={onClose} style={s.btn}>닫기</button>
-      </div>
-    </div>
+            }}>{t('settings.resetData')}</DangerButton>
+          </DangerZone>
+        </SettingsList>
+        <CloseButton onClick={onClose}>{t('common.close')}</CloseButton>
+      </Modal>
+    </Overlay>
   );
 };
 
-const s = {
-  overlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1001 },
-  modal: { backgroundColor: '#fff', borderRadius: '16px', padding: '32px', maxWidth: '600px' },
-  settings: { marginBottom: '24px' },
-  setting: { marginBottom: '16px', padding: '12px', border: '1px solid #ddd', borderRadius: '8px' },
-  danger: { marginTop: '24px', paddingTop: '24px', borderTop: '2px solid #e74c3c' },
-  dangerBtn: { width: '100%', padding: '12px', backgroundColor: '#e74c3c', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  btn: { width: '100%', padding: '12px', backgroundColor: '#95a5a6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-};
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+`;
+
+const Modal = styled.div`
+  background-color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 600px;
+  color: #333;
+
+  h2 {
+    color: #000;
+    margin-bottom: 16px;
+  }
+`;
+
+const SettingsList = styled.div`
+  margin-bottom: 24px;
+`;
+
+const SettingItem = styled.div`
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  label {
+    font-weight: bold;
+  }
+`;
+
+const DangerZone = styled.div`
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px solid #e74c3c;
+`;
+
+const DangerButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background-color: #e74c3c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+
+  &:hover {
+    background-color: #c0392b;
+  }
+`;
+
+const CloseButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background-color: #95a5a6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+
+  &:hover {
+    background-color: #7f8c8d;
+  }
+`;

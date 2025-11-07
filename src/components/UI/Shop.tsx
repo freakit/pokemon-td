@@ -1,14 +1,15 @@
-// src/components/UI/Shop.tsx
-
 import React, { useEffect, useState } from 'react';
+import styled, { css } from 'styled-components';
+import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { canEvolveWithItem } from '../../data/evolution';
-import { EVOLUTION_ITEMS, EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../../data/evolutionItems';
+import { EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../../data/evolutionItems';
 
 type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'exp_candy' | string;
 type ShopTab = 'general' | 'evolution';
 
 export const Shop: React.FC = () => {
+  const { t } = useTranslation();
   const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
@@ -17,7 +18,6 @@ export const Shop: React.FC = () => {
     evolvePokemon: state.evolvePokemon,
     isWaveActive: state.isWaveActive,
   }));
-
   const [itemMode, setItemMode] = useState<ItemMode>('none');
   const [selectedCost, setSelectedCost] = useState(0);
   const [activeTab, setActiveTab] = useState<ShopTab>('general');
@@ -33,7 +33,7 @@ export const Shop: React.FC = () => {
       setItemMode('potion');
       setSelectedCost(20);
     } else {
-      alert('돈이 부족합니다!');
+      alert(t('alerts.notEnoughMoney'));
     }
   };
 
@@ -42,7 +42,7 @@ export const Shop: React.FC = () => {
       setItemMode('potion_good');
       setSelectedCost(100);
     } else {
-      alert('돈이 부족합니다!');
+      alert(t('alerts.notEnoughMoney'));
     }
   };
 
@@ -51,7 +51,7 @@ export const Shop: React.FC = () => {
       setItemMode('potion_super');
       setSelectedCost(500);
     } else {
-      alert('돈이 부족합니다!');
+      alert(t('alerts.notEnoughMoney'));
     }
   };
 
@@ -76,7 +76,7 @@ export const Shop: React.FC = () => {
       setItemMode(item.id);
       setSelectedCost(cost);
     } else {
-      alert('돈이 부족합니다!');
+      alert(t('alerts.notEnoughMoney'));
     }
   };
 
@@ -87,7 +87,7 @@ export const Shop: React.FC = () => {
         setItemMode('none');
         setSelectedCost(0);
       } else {
-        alert('해당 아이템을 사용할 수 없는 대상입니다.');
+        alert(t('alerts.cannotUseItem'));
         useGameStore.getState().addMoney(selectedCost);
         setItemMode('none');
         setSelectedCost(0);
@@ -95,7 +95,7 @@ export const Shop: React.FC = () => {
     } else if (itemMode === 'revive') {
       const tower = towers.find(t => t.id === towerId);
       if (!tower) {
-        alert('대상을 찾을 수 없습니다.');
+        alert(t('alerts.targetNotFound'));
         setItemMode('none');
         return;
       }
@@ -107,20 +107,20 @@ export const Shop: React.FC = () => {
           setItemMode('none');
           setSelectedCost(0);
         } else {
-          alert('해당 아이템을 사용할 수 없는 대상입니다.');
+          alert(t('alerts.cannotUseItem'));
           useGameStore.getState().addMoney(reviveCost);
           setItemMode('none');
           setSelectedCost(0);
         }
       } else {
-        alert(`돈이 부족합니다! (필요: ${reviveCost}원)`);
+        alert(t('alerts.notEnoughMoneyWithCost', { cost: reviveCost }));
         setItemMode('none');
         setSelectedCost(0);
       }
     } else if (itemMode === 'candy') {
       const tower = towers.find(t => t.id === towerId);
       if (!tower) {
-        alert('대상을 찾을 수 없습니다.');
+        alert(t('alerts.targetNotFound'));
         setItemMode('none');
         return;
       }
@@ -132,20 +132,20 @@ export const Shop: React.FC = () => {
           setItemMode('none');
           setSelectedCost(0);
         } else {
-          alert('해당 아이템을 사용할 수 없는 대상입니다.');
+          alert(t('alerts.cannotUseItem'));
           useGameStore.getState().addMoney(candyCost);
           setItemMode('none');
           setSelectedCost(0);
         }
       } else {
-        alert(`돈이 부족합니다! (필요: ${candyCost}원)`);
+        alert(t('alerts.notEnoughMoneyWithCost', { cost: candyCost }));
         setItemMode('none');
         setSelectedCost(0);
       }
     } else if (itemMode === 'exp_candy') {
       const aliveTowers = towers.filter(t => !t.isFainted);
       if (aliveTowers.length < 2) {
-        alert('포켓몬이 부족하여 사용할 수 없습니다.');
+        alert(t('alerts.notEnoughPokemon'));
         setItemMode('none');
         return;
       }
@@ -155,38 +155,37 @@ export const Shop: React.FC = () => {
       const secondLowestLevel = sortedTowers[1].level;
       
       if (towerId !== lowestLevelTower.id) {
-        alert('가장 레벨이 낮은 포켓몬에게만 사용할 수 있습니다.');
+        alert(t('alerts.onlyLowestLevel'));
         setItemMode('none');
         return;
       }
       
       const expCandyCost = secondLowestLevel * 50;
-      
       if (spendMoney(expCandyCost)) {
         const success = useItem('exp_candy', towerId);
         if (success) {
-          alert(`레벨이 ${lowestLevelTower.level}에서 ${secondLowestLevel}로 변경되었습니다.`);
+          alert(t('alerts.levelChanged', { from: lowestLevelTower.level, to: secondLowestLevel }));
           setItemMode('none');
           setSelectedCost(0);
         } else {
-          alert('해당 아이템을 사용할 수 없는 대상입니다.');
+          alert(t('alerts.cannotUseItem'));
           useGameStore.getState().addMoney(expCandyCost);
           setItemMode('none');
           setSelectedCost(0);
         }
       } else {
-        alert(`돈이 부족합니다! (필요: ${expCandyCost}원)`);
+        alert(t('alerts.notEnoughMoneyWithCost', { cost: expCandyCost }));
         setItemMode('none');
         setSelectedCost(0);
       }
     } else if (itemMode !== 'none') {
       const success = await evolvePokemon(towerId, itemMode);
       if (success) {
-        alert('진화 성공!');
+        alert(t('alerts.evolutionSuccess'));
         setItemMode('none');
         setSelectedCost(0);
       } else {
-        alert('이 포켓몬은 해당 아이템으로 진화할 수 없습니다.');
+        alert(t('alerts.cannotEvolveWithItem'));
         useGameStore.getState().addMoney(selectedCost);
         setItemMode('none');
         setSelectedCost(0);
@@ -200,22 +199,25 @@ export const Shop: React.FC = () => {
     setSelectedCost(0);
   };
 
+  const currentItem = Object.values(EVOLUTION_ITEMS_BY_CATEGORY)
+    .flat()
+    .find((i: EvolutionItem) => i.id === itemMode);
+
   if (itemMode !== 'none') {
-    const currentItem = EVOLUTION_ITEMS[itemMode];
     return (
-      <div style={s.overlay}>
-        <div style={s.modal}>
-          <h2>🎯 타겟 선택</h2>
-          <p>
-            {itemMode === 'potion' && '상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'potion_good' && '좋은상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'potion_super' && '고급상처약을 사용할 아군을 클릭하세요.'}
-            {itemMode === 'candy' && '이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)'}
-            {itemMode === 'revive' && '기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)'}
-            {itemMode === 'exp_candy' && '경험 사탕을 사용할 아군을 클릭하세요. (적용 레벨 × 50원)'}
-            {currentItem && `${currentItem.name}을(를) 사용할 아군을 클릭하세요.`}
-          </p>
-          <div style={s.towerGrid}>
+      <TargetOverlay>
+        <TargetModal>
+          <TargetTitle>🎯 {t('shop.targetTitle')}</TargetTitle>
+          <TargetSubtitle>
+            {itemMode === 'potion' && t('shop.targetPotion')}
+            {itemMode === 'potion_good' && t('shop.targetPotionGood')}
+            {itemMode === 'potion_super' && t('shop.targetPotionSuper')}
+            {itemMode === 'candy' && t('shop.targetCandy')}
+            {itemMode === 'revive' && t('shop.targetRevive')}
+            {itemMode === 'exp_candy' && t('shop.targetExpCandy')}
+            {currentItem && t('shop.targetItem', { name: t(`items.${currentItem.id}.name`) })}
+          </TargetSubtitle>
+          <TowerGrid>
             {towers.map(tower => {
               let isSelectable = false;
               
@@ -241,588 +243,510 @@ export const Shop: React.FC = () => {
               }
               
               return (
-                <div 
+                <TowerCard 
                   key={tower.id} 
-                  style={{
-                    ...s.towerCard,
-                    opacity: isSelectable ? 1 : 0.3,
-                    cursor: isSelectable ? 'pointer' : 'not-allowed',
-                    border: isSelectable && currentItem
-                      ? '3px solid #2ecc71' 
-                      : '2px solid rgba(52, 152, 219, 0.4)',
-                  }}
+                  $isSelectable={isSelectable}
+                  $isEvolveTarget={isSelectable && !!currentItem}
                   onClick={() => isSelectable && handleTargetSelect(tower.id)}
                 >
-                  <img src={tower.sprite} alt={tower.name} style={s.towerImg} />
-                  <h4>{tower.name}</h4>
-                  <p>Lv.{tower.level} | HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</p>
-                  {tower.isFainted && <p style={{color: '#e74c3c', fontWeight: 'bold'}}>기절</p>}
+                  <TowerImg src={tower.sprite} alt={tower.name} />
+                  <TowerName>{tower.name}</TowerName>
+                  <TowerInfo>Lv.{tower.level} | HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
+                  {tower.isFainted && <FaintedLabel>{t('manager.fainted')}</FaintedLabel>}
+                  
                   {isSelectable && itemMode === 'candy' && (
-                    <p style={{color: '#f39c12', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                      💰 {tower.level * 25}원
-                    </p>
+                    <PriceLabel $type="candy">
+                      {t('shop.cost', { cost: tower.level * 25 })}
+                    </PriceLabel>
                   )}
                   {isSelectable && itemMode === 'revive' && (
-                    <p style={{color: '#e74c3c', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                      💰 {tower.level * 10}원
-                    </p>
+                    <PriceLabel $type="revive">
+                      {t('shop.cost', { cost: tower.level * 10 })}
+                    </PriceLabel>
                   )}
                   {isSelectable && itemMode === 'exp_candy' && (() => {
                     const aliveTowers = towers.filter(t => !t.isFainted);
                     const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
                     const secondLowestLevel = sortedTowers[1].level;
                     return (
-                      <p style={{color: '#9b59b6', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                        💰 {secondLowestLevel * 50}원 (Lv.{tower.level}→{secondLowestLevel})
-                      </p>
+                      <PriceLabel $type="exp">
+                        {t('shop.costLevelChange', { cost: secondLowestLevel * 50, from: tower.level, to: secondLowestLevel })}
+                      </PriceLabel>
                     );
                   })()}
                   {isSelectable && currentItem && (
-                    <p style={{color: '#2ecc71', fontWeight: 'bold', fontSize: '12px', marginTop: '8px'}}>
-                      ✨ 진화 가능!
-                    </p>
+                    <PriceLabel $type="evolve">
+                      ✨ {t('manager.canEvolve')}
+                    </PriceLabel>
                   )}
-                </div>
+                </TowerCard>
               );
             })}
-          </div>
-          <button style={s.cancelBtn} onClick={handleCancel}>취소 (환불)</button>
-        </div>
-      </div>
+          </TowerGrid>
+          <CancelBtn onClick={handleCancel}>{t('shop.cancelRefund')}</CancelBtn>
+        </TargetModal>
+      </TargetOverlay>
     );
   }
 
   return (
-    <div style={s.overlayCompact}>
-      <div style={s.modalCompact}>
-        <div style={s.headerCompact}>
-          <h2 style={s.titleCompact}>🏪 상점</h2>
-        </div>
+    <ShopOverlay>
+      <ShopModal>
+        <ShopHeader>
+          <ShopTitle>🏪 {t('shop.title')}</ShopTitle>
+        </ShopHeader>
         
-        <div style={s.moneyCompact}>💰 {money}원</div>
+        <MoneyDisplay>{t('shop.currentMoney', { money: money })}</MoneyDisplay>
         
         {!isWaveActive && (
-          <div style={s.tabContainerCompact}>
-            <button 
-              style={{
-                ...s.tabButtonCompact,
-                ...(activeTab === 'general' ? s.tabButtonActiveCompact : {}),
-              }}
+          <TabContainer>
+            <TabButton 
+              $isActive={activeTab === 'general'}
               onClick={() => setActiveTab('general')}
             >
-              🛒 일반
-            </button>
-            <button 
-              style={{
-                ...s.tabButtonCompact,
-                ...(activeTab === 'evolution' ? s.tabButtonActiveCompact : {}),
-              }}
+              🛒 {t('shop.tabGeneral')}
+            </TabButton>
+            <TabButton 
+              $isActive={activeTab === 'evolution'}
               onClick={() => setActiveTab('evolution')}
             >
-              ✨ 진화
-            </button>
-          </div>
+              ✨ {t('shop.tabEvolution')}
+            </TabButton>
+          </TabContainer>
         )}
 
         {activeTab === 'general' && (
-          <div style={s.itemsCompact}>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>상처약</h3>
-              <p style={s.itemDescCompact}>HP 30 회복</p>
-              <button style={s.btnCompact} onClick={handleBuyPotion}>20원</button>
-            </div>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>좋은상처약</h3>
-              <p style={s.itemDescCompact}>HP 150 또는 10%</p>
-              <button style={s.btnCompact} onClick={handleBuyPotionGood}>100원</button>
-            </div>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>고급상처약</h3>
-              <p style={s.itemDescCompact}>최대 HP 50%</p>
-              <button style={s.btnCompact} onClick={handleBuyPotionSuper}>500원</button>
-            </div>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>기력의 조각</h3>
-              <p style={s.itemDescCompact}>기절 부활</p>
-              <button style={s.btnCompact} onClick={handleBuyRevive}>Lv×10원</button>
-            </div>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>이상한 사탕</h3>
-              <p style={s.itemDescCompact}>레벨 1 상승</p>
-              <button style={s.btnCompact} onClick={handleBuyCandy}>Lv×25원</button>
-            </div>
-            <div style={s.itemCompact}>
-              <h3 style={s.itemTitleCompact}>경험 사탕</h3>
-              <p style={s.itemDescCompact}>가장 낮은 레벨 증가</p>
-              <button style={s.btnCompact} onClick={handleBuyExpCandy}>2nd Lv×50원</button>
-            </div>
-          </div>
+          <ItemsContainer>
+            <Item>
+              <ItemTitle>{t('shop.potionName')}</ItemTitle>
+              <ItemDesc>{t('shop.potionDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyPotion}>{t('shop.potionCost')}</BuyBtn>
+            </Item>
+            <Item>
+              <ItemTitle>{t('shop.potionGoodName')}</ItemTitle>
+              <ItemDesc>{t('shop.potionGoodDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyPotionGood}>{t('shop.potionGoodCost')}</BuyBtn>
+            </Item>
+            <Item>
+              <ItemTitle>{t('shop.potionSuperName')}</ItemTitle>
+              <ItemDesc>{t('shop.potionSuperDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyPotionSuper}>{t('shop.potionSuperCost')}</BuyBtn>
+            </Item>
+            <Item>
+              <ItemTitle>{t('shop.reviveName')}</ItemTitle>
+              <ItemDesc>{t('shop.reviveDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyRevive}>{t('shop.reviveCost')}</BuyBtn>
+            </Item>
+            <Item>
+              <ItemTitle>{t('shop.candyName')}</ItemTitle>
+              <ItemDesc>{t('shop.candyDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyCandy}>{t('shop.candyCost')}</BuyBtn>
+            </Item>
+            <Item>
+              <ItemTitle>{t('shop.expCandyName')}</ItemTitle>
+              <ItemDesc>{t('shop.expCandyDesc')}</ItemDesc>
+              <BuyBtn onClick={handleBuyExpCandy}>{t('shop.expCandyCost')}</BuyBtn>
+            </Item>
+          </ItemsContainer>
         )}
 
         {activeTab === 'evolution' && (
-          <div style={s.evolutionTab}>
-            {/* 진화의 돌 */}
-            <div style={s.categorySection}>
-              <h3 style={s.categoryTitle}>🔥 진화의 돌</h3>
-              <div style={s.itemGrid}>
+          <EvolutionTab>
+            <CategorySection>
+              <CategoryTitle>🔥 {t('shop.categoryStone')}</CategoryTitle>
+              <ItemGrid>
                 {EVOLUTION_ITEMS_BY_CATEGORY.stone.map(item => (
-                  <button
+                  <EvoItemBtn
                     key={item.id}
-                    style={s.itemCard}
                     onClick={() => handleBuyEvolutionItem(item)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
                   >
-                    <div style={s.itemName}>{item.name}</div>
-                    <div style={s.itemPrice}>💰 {item.price}원</div>
-                    <div style={s.itemDesc}>{item.description}</div>
-                  </button>
+                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
+                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+                  </EvoItemBtn>
                 ))}
-              </div>
-            </div>
+              </ItemGrid>
+            </CategorySection>
             
-            {/* 통신 교환 아이템 */}
-            <div style={s.categorySection}>
-              <h3 style={s.categoryTitle}>🔗 통신 교환 아이템</h3>
-              <div style={s.itemGrid}>
+            <CategorySection>
+              <CategoryTitle>🔗 {t('shop.categoryTrade')}</CategoryTitle>
+              <ItemGrid>
                 {EVOLUTION_ITEMS_BY_CATEGORY.trade.map(item => (
-                  <button
+                  <EvoItemBtn
                     key={item.id}
-                    style={s.itemCard}
                     onClick={() => handleBuyEvolutionItem(item)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
                   >
-                    <div style={s.itemName}>{item.name}</div>
-                    <div style={s.itemPrice}>💰 {item.price}원</div>
-                    <div style={s.itemDesc}>{item.description}</div>
-                  </button>
+                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
+                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+                  </EvoItemBtn>
                 ))}
-              </div>
-            </div>
+              </ItemGrid>
+            </CategorySection>
 
-            {/* 친밀도 아이템 */}
-            <div style={s.categorySection}>
-              <h3 style={s.categoryTitle}>💝 친밀도 아이템</h3>
-              <div style={s.itemGrid}>
+            <CategorySection>
+              <CategoryTitle>💝 {t('shop.categoryFriendship')}</CategoryTitle>
+              <ItemGrid>
                 {EVOLUTION_ITEMS_BY_CATEGORY.friendship.map(item => (
-                  <button
+                  <EvoItemBtn
                     key={item.id}
-                    style={s.itemCard}
                     onClick={() => handleBuyEvolutionItem(item)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
                   >
-                    <div style={s.itemName}>{item.name}</div>
-                    <div style={s.itemPrice}>💰 {item.price}원</div>
-                    <div style={s.itemDesc}>{item.description}</div>
-                  </button>
+                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
+                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+                  </EvoItemBtn>
                 ))}
-              </div>
-            </div>
+              </ItemGrid>
+            </CategorySection>
 
-            {/* 기타 아이템 */}
-            <div style={s.categorySection}>
-              <h3 style={s.categoryTitle}>⭐ 기타 아이템</h3>
-              <div style={s.itemGrid}>
+            <CategorySection>
+              <CategoryTitle>⭐ {t('shop.categoryOthers')}</CategoryTitle>
+              <ItemGrid>
                 {EVOLUTION_ITEMS_BY_CATEGORY.others.map(item => (
-                  <button
+                  <EvoItemBtn
                     key={item.id}
-                    style={s.itemCard}
                     onClick={() => handleBuyEvolutionItem(item)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
                   >
-                    <div style={s.itemName}>{item.name}</div>
-                    <div style={s.itemPrice}>💰 {item.price}원</div>
-                    <div style={s.itemDesc}>{item.description}</div>
-                  </button>
+                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
+                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+                  </EvoItemBtn>
                 ))}
-              </div>
-            </div>
+              </ItemGrid>
+            </CategorySection>
             
-            {/* 특수 아이템 */}
-            <div style={s.categorySection}>
-              <h3 style={s.categoryTitle}>✨ 특수 아이템</h3>
-              <div style={s.itemGrid}>
+            <CategorySection>
+              <CategoryTitle>✨ {t('shop.categorySpecial')}</CategoryTitle>
+              <ItemGrid>
                 {EVOLUTION_ITEMS_BY_CATEGORY.special.map(item => (
-                  <button
+                  <EvoItemBtn
                     key={item.id}
-                    style={s.itemCard}
                     onClick={() => handleBuyEvolutionItem(item)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.6)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                    }}
                   >
-                    <div style={s.itemName}>{item.name}</div>
-                    <div style={s.itemPrice}>💰 {item.price}원</div>
-                    <div style={s.itemDesc}>{item.description}</div>
-                  </button>
+                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
+                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+                  </EvoItemBtn>
                 ))}
-              </div>
-            </div>
-          </div>
+              </ItemGrid>
+            </CategorySection>
+          </EvolutionTab>
         )}
-      </div>
-    </div>
+      </ShopModal>
+    </ShopOverlay>
   );
 };
 
-const s: Record<string, React.CSSProperties> = {
-  overlay: { 
-    position: 'fixed', 
-    top: 0, 
-    left: 0, 
-    right: 0, 
-    bottom: 0, 
-    background: 'radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.95))', 
-    backdropFilter: 'blur(8px)',
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    zIndex: 999,
-    animation: 'fadeIn 0.3s ease-out'
-  },
-  overlayCompact: {
-    position: 'fixed' as 'fixed',
-    right: '16px',
-    top: '16px',
-    zIndex: 999,
-    pointerEvents: 'auto' as 'auto',
-  },
-  modal: { 
-    background: 'linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%)',
-    color: '#e8edf3', 
-    borderRadius: '24px', 
-    padding: '0',
-    maxWidth: '1000px', 
-    width: '90%', 
-    maxHeight: '90vh', 
-    overflowY: 'auto' as 'auto',
-    boxShadow: '0 25px 80px rgba(0,0,0,0.6), 0 0 1px 1px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)', 
-    border: '2px solid rgba(76, 175, 255, 0.2)',
-    animation: 'slideInUp 0.4s ease-out'
-  },
-  modalCompact: {
-    background: 'linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98))',
-    color: '#e8edf3',
-    borderRadius: '16px',
-    padding: '0',
-    width: '280px',
-    maxHeight: '70vh',
-    overflowY: 'auto' as 'auto',
-    boxShadow: '0 20px 60px rgba(243, 156, 18, 0.4), 0 0 2px 1px rgba(243, 156, 18, 0.3)',
-    border: '3px solid rgba(243, 156, 18, 0.4)',
-    backdropFilter: 'blur(10px)',
-    animation: 'slideInRight 0.3s ease-out',
-  },
-  header: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: '24px 32px',
-    background: 'linear-gradient(90deg, rgba(243, 156, 18, 0.15), transparent)',
-    borderBottom: '2px solid rgba(243, 156, 18, 0.2)'
-  },
-  headerCompact: {
-    padding: '16px',
-    background: 'linear-gradient(90deg, rgba(243, 156, 18, 0.2), transparent)',
-    borderBottom: '2px solid rgba(243, 156, 18, 0.3)',
-    textAlign: 'center' as 'center',
-  },
-  titleCompact: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    margin: 0,
-    color: '#f39c12',
-    textShadow: '0 0 10px rgba(243, 156, 18, 0.6)',
-  },
-  closeBtnHeader: { 
-    width: '48px',
-    height: '48px',
-    fontSize: '28px',
-    backgroundColor: 'rgba(231, 76, 60, 0.2)',
-    color: '#ff6b6b',
-    border: '2px solid rgba(231, 76, 60, 0.4)',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)'
-  },
-  money: { 
-    fontSize: '22px', 
-    fontWeight: 'bold', 
-    color: '#ffd700', 
-    margin: '20px 32px',
-    textAlign: 'center' as 'center',
-    textShadow: '0 0 15px rgba(255, 215, 0, 0.7), 0 2px 4px rgba(0,0,0,0.8)',
-    padding: '16px',
-    background: 'linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.1), transparent)',
-    borderRadius: '12px'
-  },
-  moneyCompact: {
-    fontSize: '14px',
-    fontWeight: 'bold',
-    color: '#ffd700',
-    margin: '12px 16px',
-    textAlign: 'center' as 'center',
-    textShadow: '0 0 10px rgba(255, 215, 0, 0.7)',
-    padding: '8px',
-    background: 'rgba(255, 215, 0, 0.1)',
-    borderRadius: '8px',
-  },
-  tabContainer: {
-    display: 'flex',
-    gap: '16px',
-    padding: '0 32px 24px',
-    borderBottom: '2px solid rgba(76, 175, 255, 0.2)',
-  },
-  tabContainerCompact: {
-    display: 'flex',
-    gap: '8px',
-    padding: '0 16px 12px',
-  },
-  tabButton: {
-    flex: 1,
-    padding: '14px 20px',
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.5), rgba(15, 20, 35, 0.5))',
-    color: '#a0aec0',
-    border: '2px solid rgba(76, 175, 255, 0.2)',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '16px',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-  },
-  tabButtonCompact: {
-    flex: 1,
-    padding: '8px 12px',
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.6), rgba(15, 20, 35, 0.6))',
-    color: '#a0aec0',
-    border: '2px solid rgba(243, 156, 18, 0.2)',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '12px',
-    transition: 'all 0.2s ease',
-  },
-  tabButtonActive: {
-    background: 'linear-gradient(135deg, #4ca7ff 0%, #3498db 100%)',
-    color: '#fff',
-    border: '2px solid rgba(76, 175, 255, 0.6)',
-    boxShadow: '0 6px 20px rgba(76, 175, 255, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-  },
-  tabButtonActiveCompact: {
-    background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
-    color: '#fff',
-    border: '2px solid rgba(243, 156, 18, 0.6)',
-    boxShadow: '0 4px 12px rgba(243, 156, 18, 0.4)',
-  },
-  items: { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
-    gap: '24px', 
-    padding: '32px'
-  },
-  itemsCompact: {
-    display: 'flex',
-    flexDirection: 'column' as 'column',
-    gap: '10px',
-    padding: '0 16px 16px',
-  },
-  evolutionShopContainer: {
-    padding: '24px 32px 32px',
-  },
-  evolutionShopCompact: {
-    padding: '0 16px 16px',
-  },
-  categorySection: {
-    margin: '8px',
-  },
-  categorySectionCompact: {
-    marginBottom: '20px',
-  },
-  categoryTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#4ca7ff',
-    marginBottom: '16px',
-    paddingBottom: '8px',
-    borderBottom: '2px solid rgba(76, 175, 255, 0.3)',
-    textShadow: '0 0 10px rgba(76, 175, 255, 0.5)',
-  },
-  categoryTitleCompact: {
-    fontSize: '13px',
-    fontWeight: 'bold',
-    color: '#f39c12',
-    marginBottom: '10px',
-    paddingBottom: '6px',
-    borderBottom: '1px solid rgba(243, 156, 18, 0.3)',
-  },
-  item: { 
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
-    border: '2px solid rgba(76, 175, 255, 0.3)',
-    borderRadius: '20px', 
-    padding: '24px', 
-    display: 'flex', 
-    flexDirection: 'column' as 'column',
-    gap: '12px',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
-    position: 'relative' as 'relative',
-    overflow: 'hidden'
-  },
-  itemCompact: {
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
-    border: '1px solid rgba(243, 156, 18, 0.3)',
-    borderRadius: '10px',
-    padding: '10px',
-    display: 'flex',
-    flexDirection: 'column' as 'column',
-    gap: '6px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-  },
-  itemTitleCompact: {
-    fontSize: '13px',
-    margin: '0 0 4px 0',
-    fontWeight: 'bold',
-    color: '#4cafff',
-  },
-  itemDescCompact: {
-    fontSize: '10px',
-    margin: '0 0 6px 0',
-    color: '#a0aec0',
-  },
-  btn: { 
-    padding: '14px 20px', 
-    background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
-    color: '#fff', 
-    border: '2px solid rgba(243, 156, 18, 0.4)',
-    borderRadius: '12px', 
-    cursor: 'pointer', 
-    marginTop: 'auto', 
-    fontWeight: 'bold', 
-    fontSize: '16px', 
-    boxShadow: '0 4px 15px rgba(243, 156, 18, 0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-    transition: 'all 0.2s ease',
-  },
-  btnCompact: {
-    padding: '6px 10px',
-    background: 'linear-gradient(135deg, #f39c12 0%, #d68910 100%)',
-    color: '#fff',
-    border: '1px solid rgba(243, 156, 18, 0.4)',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    fontSize: '11px',
-    boxShadow: '0 2px 8px rgba(243, 156, 18, 0.3)',
-  },
-  towerGrid: { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
-    gap: '20px', 
-    padding: '24px 32px'
-  },
-  towerCard: { 
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
-    border: '2px solid rgba(52, 152, 219, 0.4)',
-    borderRadius: '16px', 
-    padding: '20px', 
-    textAlign: 'center' as 'center',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-    cursor: 'pointer'
-  },
-  towerImg: { 
-    width: '80px', 
-    height: '80px', 
-    imageRendering: 'pixelated' as 'pixelated',
-    marginBottom: '12px',
-    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.6))'
-  },
-  cancelBtn: { 
-    width: 'calc(100% - 64px)',
-    margin: '24px 32px 32px',
-    padding: '16px', 
-    fontSize: '18px', 
-    background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-    color: '#fff', 
-    border: '2px solid rgba(231, 76, 60, 0.4)',
-    borderRadius: '14px', 
-    cursor: 'pointer', 
-    fontWeight: 'bold',
-    boxShadow: '0 6px 20px rgba(231, 76, 60, 0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-  },
-  evolutionTab: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '20px',
-  },
-  itemGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '12px',
-  },
-  itemCard: {
-    margin: '0 8px',
-    padding: '12px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '2px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    color: 'white',
-    textAlign: 'left' as const,
-  },
-  itemName: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '5px',
-  },
-  itemPrice: {
-    fontSize: '14px',
-    color: '#FFD700',
-    marginBottom: '5px',
-  },
-  itemDesc: {
-    fontSize: '12px',
-    color: '#999',
-  },
-};
+const TargetOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  animation: fadeIn 0.3s ease-out;
+`;
+
+const TargetModal = styled.div`
+  background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
+  color: #e8edf3;
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 1000px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(76, 175, 255, 0.2);
+  animation: slideInUp 0.4s ease-out;
+`;
+
+const TargetTitle = styled.h2`
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #4cafff;
+  margin-bottom: 16px;
+`;
+
+const TargetSubtitle = styled.p`
+  text-align: center;
+  font-size: 16px;
+  color: #a8b8c8;
+  margin-bottom: 24px;
+`;
+
+const TowerGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+  padding-bottom: 24px;
+`;
+
+const TowerCard = styled.div<{ $isSelectable: boolean, $isEvolveTarget: boolean }>`
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95));
+  border: 2px solid ${props => props.$isEvolveTarget ? '#2ecc71' : 'rgba(52, 152, 219, 0.4)'};
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  opacity: ${props => props.$isSelectable ? 1 : 0.3};
+  cursor: ${props => props.$isSelectable ? 'pointer' : 'not-allowed'};
+  
+  ${props => props.$isSelectable && css`
+    &:hover {
+      transform: translateY(-2px);
+      border-color: ${props.$isEvolveTarget ? '#34f58b' : '#4cafff'};
+    }
+  `}
+`;
+
+const TowerImg = styled.img`
+  width: 80px;
+  height: 80px;
+  image-rendering: pixelated;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+`;
+
+const TowerName = styled.h4`
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #fff;
+`;
+
+const TowerInfo = styled.p`
+  font-size: 12px;
+  margin: 4px 0;
+  color: #a8b8c8;
+`;
+
+const FaintedLabel = styled.p`
+  color: #e74c3c;
+  font-weight: bold;
+  font-size: 12px;
+  margin-top: 8px;
+`;
+
+const PriceLabel = styled.p<{ $type: 'candy' | 'revive' | 'exp' | 'evolve' }>`
+  font-weight: bold;
+  font-size: 12px;
+  margin-top: 8px;
+  color: ${props => {
+    if (props.$type === 'candy') return '#f39c12';
+    if (props.$type === 'revive') return '#e74c3c';
+    if (props.$type === 'exp') return '#9b59b6';
+    if (props.$type === 'evolve') return '#2ecc71';
+    return '#fff';
+  }};
+`;
+
+const CancelBtn = styled.button`
+  width: 100%;
+  margin-top: 24px;
+  padding: 16px;
+  font-size: 18px;
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+  color: #fff;
+  border: 2px solid rgba(231, 76, 60, 0.4);
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+
+  &:hover {
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+  }
+`;
+
+const ShopOverlay = styled.div`
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 999;
+  pointer-events: auto;
+`;
+
+const ShopModal = styled.div`
+  background: linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98));
+  color: #e8edf3;
+  border-radius: 16px;
+  padding: 0;
+  width: 280px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(243, 156, 18, 0.4), 0 0 2px 1px rgba(243, 156, 18, 0.3);
+  border: 3px solid rgba(243, 156, 18, 0.4);
+  backdrop-filter: blur(10px);
+  animation: slideInRight 0.3s ease-out;
+`;
+
+const ShopHeader = styled.div`
+  padding: 16px;
+  background: linear-gradient(90deg, rgba(243, 156, 18, 0.2), transparent);
+  border-bottom: 2px solid rgba(243, 156, 18, 0.3);
+  text-align: center;
+`;
+
+const ShopTitle = styled.h2`
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0;
+  color: #f39c12;
+  text-shadow: 0 0 10px rgba(243, 156, 18, 0.6);
+`;
+
+const MoneyDisplay = styled.div`
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffd700;
+  margin: 12px 16px;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  padding: 8px;
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 8px;
+`;
+
+const TabContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 12px;
+`;
+
+const TabButton = styled.button<{ $isActive: boolean }>`
+  flex: 1;
+  padding: 8px 12px;
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.6), rgba(15, 20, 35, 0.6));
+  color: #a0aec0;
+  border: 2px solid rgba(243, 156, 18, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
+  transition: all 0.2s ease;
+
+  ${props => props.$isActive && css`
+    background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+    color: #fff;
+    border: 2px solid rgba(243, 156, 18, 0.6);
+    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.4);
+  `}
+`;
+
+const ItemsContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 16px;
+`;
+
+const Item = styled.div`
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95));
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+`;
+
+const ItemTitle = styled.h3`
+  font-size: 13px;
+  margin: 0 0 4px 0;
+  font-weight: bold;
+  color: #4cafff;
+`;
+
+const ItemDesc = styled.p`
+  font-size: 10px;
+  margin: 0 0 6px 0;
+  color: #a0aec0;
+`;
+
+const BuyBtn = styled.button`
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+  color: #fff;
+  border: 1px solid rgba(243, 156, 18, 0.4);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 11px;
+  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
+  
+  &:hover {
+    background: linear-gradient(135deg, #d68910 0%, #b8730e 100%);
+  }
+`;
+
+const EvolutionTab = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px 16px;
+`;
+
+const CategorySection = styled.div`
+  margin: 0;
+`;
+
+const CategoryTitle = styled.h3`
+  font-size: 13px;
+  font-weight: bold;
+  color: #f39c12;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(243, 156, 18, 0.3);
+`;
+
+const ItemGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+`;
+
+const EvoItemBtn = styled.button`
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+  text-align: left;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #f39c12;
+  }
+`;
+
+const EvoItemName = styled.div`
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #fff;
+`;
+
+const EvoItemPrice = styled.div`
+  font-size: 12px;
+  color: #FFD700;
+  margin-bottom: 5px;
+`;
+
+const EvoItemDesc = styled.div`
+  font-size: 11px;
+  color: #999;
+  line-height: 1.4;
+`;

@@ -1,19 +1,20 @@
 // src/components/Modals/SkillPicker.tsx
 
 import React from 'react';
+import styled from 'styled-components';
+import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 
-// 🆕 Serebii.net 타입 아이콘 GIF URL
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
 export const SkillPicker: React.FC = () => {
+  const { t } = useTranslation();
   const { skillChoiceQueue, removeCurrentSkillChoice, updateTower } = useGameStore(state => ({
     skillChoiceQueue: state.skillChoiceQueue,
     removeCurrentSkillChoice: state.removeCurrentSkillChoice,
     updateTower: state.updateTower,
   }));
 
-  // 큐의 첫 번째 항목 가져오기
   if (!skillChoiceQueue || skillChoiceQueue.length === 0) return null;
   
   const currentChoice = skillChoiceQueue[0];
@@ -21,303 +22,299 @@ export const SkillPicker: React.FC = () => {
   const tower = useGameStore.getState().towers.find(t => t.id === towerId);
 
   if (!tower || newMoves.length === 0) {
-    // 유효하지 않은 경우 큐에서 제거
     removeCurrentSkillChoice();
     return null;
   }
 
-  // 새로 배울 기술은 첫 번째 것만 사용
   const newMove = newMoves[0];
-  const currentMove = tower.equippedMoves[0]; // 현재 기술
+  const currentMove = tower.equippedMoves[0];
 
   const handleLearnNewMove = () => {
-    // 새 기술 배우기
     updateTower(towerId, { equippedMoves: [newMove] });
-    // 큐에서 현재 선택 제거
     removeCurrentSkillChoice();
   };
 
   const handleKeepCurrentMove = () => {
-    // 새 기술을 거부한 목록에 추가
     const tower = useGameStore.getState().towers.find(t => t.id === towerId);
     if (tower) {
       const rejectedMoves = [...(tower.rejectedMoves || []), newMove.name];
       updateTower(towerId, { rejectedMoves });
     }
-    
-    // 기존 기술 유지하고 큐에서 제거
     removeCurrentSkillChoice();
   };
 
-  const translateDamageClass = (dc: string) => {
-    switch (dc) {
-      case 'physical': return '물리';
-      case 'special': return '특수';
-    }
+  const getDamageClass = (dc: string) => {
+    return dc === 'physical' ? t('common.physical') : t('common.special');
   };
 
   return (
-    <div style={s.container}>
-      <div style={s.header}>
-        <h3 style={s.title}>⭐ 레벨업!</h3>
-        <div style={s.pokemonName}>{tower.name} (Lv.{tower.level})</div>
-      </div>
+    <Container>
+      <Header>
+        <Title>⭐ {t('skillPicker.levelUpName', { name: tower.name })}</Title>
+        <PokemonName>{t('skillPicker.pokemonLevel', { level: tower.level })}</PokemonName>
+      </Header>
       
-      <div style={s.subtitle}>🔄 기술 교체</div>
+      <Subtitle>🔄 {t('skillPicker.selectSkill')}</Subtitle>
       
-      <div style={s.skillSection}>
-        <div style={s.sectionLabel}>현재 기술</div>
-        <div style={s.skillCard}>
-          <div style={s.skillName}>{currentMove.name} | {translateDamageClass(currentMove.damageClass)}
-            <img 
+      <SkillSection>
+        <SectionLabel>{t('skillPicker.current')}</SectionLabel>
+        <SkillCard $isNew={false}>
+          <SkillName>
+            {currentMove.name} | {getDamageClass(currentMove.damageClass)}
+            <TypeIcon 
               src={`${TYPE_ICON_API_BASE}${currentMove.type}.gif`} 
               alt={currentMove.type} 
-              style={s.typeImage} 
             />
-           </div>
-          <div style={s.skillStats}>
-            <div style={s.statRow}>
+          </SkillName>
+          <SkillStats>
+            <StatRow>
               <span>⚔️</span>
               <span>{currentMove.power}</span>
-            </div>
-            <div style={s.statRow}>
+            </StatRow>
+            <StatRow>
               <span>🎯</span>
-               <span>{currentMove.accuracy}%</span>
-            </div>
-          </div>
-          {/* 3. UI 업데이트 (확률 표시) */}
+              <span>{currentMove.accuracy}%</span>
+            </StatRow>
+          </SkillStats>
           {currentMove.effect.statusInflict && currentMove.effect.statusChance != null && currentMove.effect.statusChance > 0 && (
-            <div style={s.effectBadge}>
-              💫 {currentMove.effect.statusInflict} ({currentMove.effect.statusChance}%)
-            </div>
+            <EffectBadge $type="status">
+              💫 {t('skillPicker.statusEffect', { status: currentMove.effect.statusInflict, chance: currentMove.effect.statusChance })}
+            </EffectBadge>
           )}
-          {/* 3. UI 업데이트 (피흡 표시) */}
           {currentMove.effect.drainPercent && (
-            <div style={s.drainBadge}>
-              🩸 피흡 ({currentMove.effect.drainPercent * 100}%)
-            </div>
+            <EffectBadge $type="drain">
+              🩸 {t('skillPicker.drain', { percent: currentMove.effect.drainPercent * 100 })}
+            </EffectBadge>
           )}
-          {currentMove.isAOE && <div style={s.aoeBadge}>🌀 광역</div>}
-        </div>
-        <button style={s.keepBtn} onClick={handleKeepCurrentMove}>
-          ✅ 유지
-        </button>
-      </div>
+          {currentMove.isAOE && <EffectBadge $type="aoe">🌀 {t('skillPicker.aoe')}</EffectBadge>}
+        </SkillCard>
+        <KeepBtn onClick={handleKeepCurrentMove}>
+          ✅ {t('skillPicker.keep')}
+        </KeepBtn>
+      </SkillSection>
 
-      <div style={s.arrow}>⇅</div>
+      <Arrow>⇅</Arrow>
 
-      <div style={s.skillSection}>
-        <div style={s.sectionLabel}>새 기술</div>
-        <div style={{...s.skillCard, ...s.newSkillCard}}>
-           <div style={s.skillName}>{newMove.name} | {translateDamageClass(newMove.damageClass)}
-            <img 
+      <SkillSection>
+        <SectionLabel>{t('skillPicker.new')}</SectionLabel>
+        <SkillCard $isNew={true}>
+          <SkillName>
+            {newMove.name} | {getDamageClass(newMove.damageClass)}
+            <TypeIcon 
               src={`${TYPE_ICON_API_BASE}${newMove.type}.gif`} 
               alt={newMove.type} 
-              style={s.typeImage} 
             />
-           </div>
-          <div style={s.skillStats}>
-            <div style={s.statRow}>
+          </SkillName>
+          <SkillStats>
+            <StatRow>
               <span>⚔️</span>
               <span>{newMove.power}</span>
-            </div>
-            <div style={s.statRow}>
+            </StatRow>
+            <StatRow>
               <span>🎯</span>
-               <span>{newMove.accuracy}%</span>
-            </div>
-          </div>
-          {/* 3. UI 업데이트 (확률 표시) */}
+              <span>{newMove.accuracy}%</span>
+            </StatRow>
+          </SkillStats>
           {newMove.effect.statusInflict && newMove.effect.statusChance != null && newMove.effect.statusChance > 0 && (
-            <div style={s.effectBadge}>
-              💫 {newMove.effect.statusInflict} ({newMove.effect.statusChance}%)
-            </div>
+            <EffectBadge $type="status">
+              💫 {t('skillPicker.statusEffect', { status: newMove.effect.statusInflict, chance: newMove.effect.statusChance })}
+            </EffectBadge>
           )}
-          {/* 3. UI 업데이트 (피흡 표시) */}
           {newMove.effect.drainPercent && (
-            <div style={s.drainBadge}>
-              🩸 피흡 ({newMove.effect.drainPercent * 100}%)
-            </div>
+            <EffectBadge $type="drain">
+              🩸 {t('skillPicker.drain', { percent: newMove.effect.drainPercent * 100 })}
+            </EffectBadge>
           )}
-          {newMove.isAOE && <div style={s.aoeBadge}>🌀 광역</div>}
-        </div>
-         <button style={s.learnBtn} onClick={handleLearnNewMove}>
-          ⭐ 배우기
-        </button>
-      </div>
+          {newMove.isAOE && <EffectBadge $type="aoe">🌀 {t('skillPicker.aoe')}</EffectBadge>}
+        </SkillCard>
+        <LearnBtn onClick={handleLearnNewMove}>
+          ⭐ {t('skillPicker.learn')}
+        </LearnBtn>
+      </SkillSection>
 
       {skillChoiceQueue.length > 1 && (
-        <div style={s.queueInfo}>
-          대기 중: {skillChoiceQueue.length - 1}개
-        </div>
+        <QueueInfo>
+          {t('skillPicker.queue', { count: skillChoiceQueue.length - 1 })}
+        </QueueInfo>
       )}
-    </div>
+    </Container>
   );
 };
 
-// 좌측 사이드바 스타일
-const s: Record<string, React.CSSProperties> = {
-  container: {
-    position: 'fixed' as 'fixed',
-    left: '16px',
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: '280px',
-    maxHeight: '80vh',
-    overflowY: 'auto' as 'auto',
-    background: 'linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98))',
-    border: '3px solid rgba(155, 89, 182, 0.5)',
-    borderRadius: '20px',
-    padding: '16px',
-    boxShadow: '0 20px 60px rgba(155, 89, 182, 0.4), 0 0 2px 1px rgba(155, 89, 182, 0.3)',
-    backdropFilter: 'blur(10px)',
-    zIndex: 1000,
-    animation: 'slideInLeft 0.3s ease-out',
-  },
-  header: {
-    textAlign: 'center' as 'center',
-    marginBottom: '12px',
-    paddingBottom: '12px',
-    borderBottom: '2px solid rgba(155, 89, 182, 0.3)',
-  },
-  title: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    margin: '0 0 4px 0',
-    color: '#9b59b6',
-    textShadow: '0 0 10px rgba(155, 89, 182, 0.6)',
-  },
-  pokemonName: {
-    fontSize: '14px',
-    color: '#a8b8c8',
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: '14px',
-    textAlign: 'center' as 'center',
-    color: '#4cafff',
-    marginBottom: '12px',
-    fontWeight: '600',
-  },
-  skillSection: {
-    marginBottom: '12px',
-  },
-  sectionLabel: {
-    fontSize: '12px',
-    fontWeight: 'bold',
-    color: '#4cafff',
-    marginBottom: '8px',
-    textTransform: 'uppercase' as 'uppercase',
-  },
-  skillCard: {
-    background: 'linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95))',
-    border: '2px solid rgba(52, 152, 219, 0.4)',
-    borderRadius: '12px',
-    padding: '12px',
-    marginBottom: '8px',
-  },
-  newSkillCard: {
-    border: '2px solid rgba(155, 89, 182, 0.5)',
-    boxShadow: '0 0 15px rgba(155, 89, 182, 0.3)',
-  },
-  skillName: {
-    alignItems: 'center',
-    fontSize: '15px',
-    fontWeight: 'bold',
-    color: '#4cafff',
-    marginBottom: '8px',
-    textTransform: 'capitalize' as 'capitalize',
-  },
-  skillStats: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '8px',
-  },
-  statRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    fontSize: '13px',
-    color: '#e8edf3',
-    fontWeight: '600',
-  },
-  /**
-   * 🆕 타입 이미지 스타일 (PokemonPicker와 동일)
-   */
-  typeImage: {
-    marginLeft: '8px',
-    marginBottom: '-2px',
-    height: '14px',
-    objectFit: 'contain',
-  },
-  effectBadge: {
-    padding: '4px 8px',
-    background: 'rgba(155, 89, 182, 0.2)',
-    borderRadius: '6px',
-    border: '1px solid rgba(155, 89, 182, 0.3)',
-    fontSize: '11px',
-    marginTop: '4px',
-    fontWeight: '600',
-  },
-  aoeBadge: {
-    padding: '4px 8px',
-    background: 'rgba(243, 156, 18, 0.2)',
-    borderRadius: '6px',
-    border: '1px solid rgba(243, 156, 18, 0.3)',
-    fontSize: '11px',
-    marginTop: '4px',
-    fontWeight: '600',
-  },
-  // 3. UI 업데이트 (피흡 배지 스타일 추가)
-  drainBadge: {
-    padding: '4px 8px',
-    background: 'rgba(46, 204, 113, 0.2)',
-    borderRadius: '6px',
-    border: '1px solid rgba(46, 204, 113, 0.3)',
-    fontSize: '11px',
-    marginTop: '4px',
-    fontWeight: '600',
-  },
-  keepBtn: {
-    width: '100%',
-    padding: '10px',
-    fontSize: '14px',
-    background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-    color: '#fff',
-    border: '2px solid rgba(52, 152, 219, 0.4)',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 4px 12px rgba(52, 152, 219, 0.3)',
-    transition: 'all 0.2s ease',
-  },
-  learnBtn: {
-    width: '100%',
-    padding: '10px',
-    fontSize: '14px',
-    background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
-    color: '#fff',
-    border: '2px solid rgba(155, 89, 182, 0.4)',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 4px 12px rgba(155, 89, 182, 0.4)',
-    transition: 'all 0.2s ease',
-  },
-  arrow: {
-    textAlign: 'center' as 'center',
-    fontSize: '24px',
-    color: '#9b59b6',
-    margin: '8px 0',
-    textShadow: '0 0 10px rgba(155, 89, 182, 0.6)',
-  },
-  queueInfo: {
-    textAlign: 'center' as 'center',
-    fontSize: '11px',
-    color: '#a8b8c8',
-    marginTop: '12px',
-    padding: '6px',
-    background: 'rgba(155, 89, 182, 0.1)',
-    borderRadius: '8px',
-    border: '1px solid rgba(155, 89, 182, 0.2)',
-  },
-};
+// Styled Components
+const Container = styled.div`
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 280px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98));
+  border: 3px solid rgba(155, 89, 182, 0.5);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(155, 89, 182, 0.4), 0 0 2px 1px rgba(155, 89, 182, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  animation: slideInLeft 0.3s ease-out;
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(155, 89, 182, 0.3);
+`;
+
+const Title = styled.h3`
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0 0 4px 0;
+  color: #9b59b6;
+  text-shadow: 0 0 10px rgba(155, 89, 182, 0.6);
+`;
+
+const PokemonName = styled.div`
+  font-size: 14px;
+  color: #a8b8c8;
+  font-weight: 600;
+`;
+
+const Subtitle = styled.div`
+  font-size: 14px;
+  text-align: center;
+  color: #4cafff;
+  margin-bottom: 12px;
+  font-weight: 600;
+`;
+
+const SkillSection = styled.div`
+  margin-bottom: 12px;
+`;
+
+const SectionLabel = styled.div`
+  font-size: 12px;
+  font-weight: bold;
+  color: #4cafff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+`;
+
+const SkillCard = styled.div<{ $isNew: boolean }>`
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95));
+  border: 2px solid ${props => props.$isNew ? 'rgba(155, 89, 182, 0.5)' : 'rgba(52, 152, 219, 0.4)'};
+  box-shadow: ${props => props.$isNew ? '0 0 15px rgba(155, 89, 182, 0.3)' : 'none'};
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+`;
+
+const SkillName = styled.div`
+  align-items: center;
+  font-size: 15px;
+  font-weight: bold;
+  color: #4cafff;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+`;
+
+const TypeIcon = styled.img`
+  height: 14px;
+  object-fit: contain;
+  margin-left: 8px;
+  margin-bottom: -2px;
+`;
+
+const SkillStats = styled.div`
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+`;
+
+const StatRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #e8edf3;
+  font-weight: 600;
+`;
+
+const EffectBadge = styled.div<{ $type: 'status' | 'drain' | 'aoe' }>`
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  margin-top: 4px;
+  font-weight: 600;
+
+  ${props => props.$type === 'status' && `
+    background: rgba(155, 89, 182, 0.2);
+    border: 1px solid rgba(155, 89, 182, 0.3);
+  `}
+  
+  ${props => props.$type === 'drain' && `
+    background: rgba(46, 204, 113, 0.2);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+  `}
+  
+  ${props => props.$type === 'aoe' && `
+    background: rgba(243, 156, 18, 0.2);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+  `}
+`;
+
+const KeepBtn = styled.button`
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+  color: #fff;
+  border: 2px solid rgba(52, 152, 219, 0.4);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%);
+  }
+`;
+
+const LearnBtn = styled.button`
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  color: #fff;
+  border: 2px solid rgba(155, 89, 182, 0.4);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+  }
+`;
+
+const Arrow = styled.div`
+  text-align: center;
+  font-size: 24px;
+  color: #9b59b6;
+  margin: 8px 0;
+  text-shadow: 0 0 10px rgba(155, 89, 182, 0.6);
+`;
+
+const QueueInfo = styled.div`
+  text-align: center;
+  font-size: 11px;
+  color: #a8b8c8;
+  margin-top: 12px;
+  padding: 6px;
+  background: rgba(155, 89, 182, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(155, 89, 182, 0.2);
+`;

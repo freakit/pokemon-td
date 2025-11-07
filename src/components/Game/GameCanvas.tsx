@@ -11,6 +11,8 @@ import {
   Image as KonvaImage,
 } from "react-konva";
 import Konva from "konva";
+import styled from "styled-components";
+import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
 import { getMapById } from "../../data/maps";
@@ -19,8 +21,6 @@ import { GamePokemon } from "../../types/game";
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
 const MAP_HEIGHT = 10;
-
-// 🆕 Serebii.net 타입 아이콘 GIF URL
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
 // 포켓몬 이미지 렌더링 헬퍼
@@ -43,7 +43,7 @@ const PokemonImage: React.FC<{
       setImage(img);
     };
   }, [src]);
-  
+
   useEffect(() => {
     if (imageRef.current) {
       if (isFainted) {
@@ -54,7 +54,7 @@ const PokemonImage: React.FC<{
       }
     }
   }, [isFainted, image]);
-  
+
   if (!image) return null;
 
   return (
@@ -82,7 +82,7 @@ const HPBar: React.FC<{
 }> = ({ x, y, current, max, width = 50, level }) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const color = ratio > 0.5 ? "#2ecc71" : ratio > 0.25 ? "#f39c12" : "#e74c3c";
-  
+
   return (
     <>
       {/* 레벨 표시 */}
@@ -126,6 +126,7 @@ const HPBar: React.FC<{
 };
 
 export const GameCanvas: React.FC = () => {
+  const { t } = useTranslation();
   const {
     pokemonToPlace,
     setPokemonToPlace,
@@ -147,6 +148,7 @@ export const GameCanvas: React.FC = () => {
     currentMap,
     evolutionToast,
   } = useGameStore.getState();
+
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(
     null
@@ -156,10 +158,11 @@ export const GameCanvas: React.FC = () => {
   const [repositionMode, setRepositionMode] = useState(false); // 재배치 모드
   const [selectedTowerForReposition, setSelectedTowerForReposition] =
     useState<GamePokemon | null>(null);
+
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const map = getMapById(currentMap);
-  
+
   // 캔버스 크기 자동 조정
   useEffect(() => {
     const updateScale = () => {
@@ -173,7 +176,8 @@ export const GameCanvas: React.FC = () => {
       const canvasHeight = MAP_HEIGHT * TILE_SIZE;
 
       const scaleX = (containerWidth - 32) / canvasWidth;
-      const scaleY = (containerHeight - 32) / canvasHeight;
+      const scaleY = (containerHeight - 32) /
+        canvasHeight;
 
       const scale = Math.min(scaleX, scaleY, 1.5);
       setCanvasScale(scale);
@@ -183,7 +187,7 @@ export const GameCanvas: React.FC = () => {
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
   }, []);
-  
+
   // 게임 루프
   useEffect(() => {
     const { tick } = useGameStore.getState();
@@ -198,7 +202,7 @@ export const GameCanvas: React.FC = () => {
     const id = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(id);
   }, []);
-  
+
   // 배치할 포켓몬 이미지 미리 로드
   useEffect(() => {
     if (pokemonToPlace && pokemonToPlace.sprite) {
@@ -210,7 +214,7 @@ export const GameCanvas: React.FC = () => {
       setPlacementImage(null);
     }
   }, [pokemonToPlace]);
-  
+
   // Wave 종료 시 재배치 모드 자동 활성화
   useEffect(() => {
     if (!isWaveActive && towers.length > 0) {
@@ -219,12 +223,12 @@ export const GameCanvas: React.FC = () => {
       setRepositionMode(false);
       setSelectedTowerForReposition(null);
     }
-  }, [isWaveActive]);
-  
+  }, [isWaveActive, towers.length]);
+
   const handleMouseMove = (e: any) => {
     const stage = e.target.getStage();
     const pos = stage.getPointerPosition();
-    
+
     if (pokemonToPlace && pos) {
       const gridX = Math.floor(pos.x / TILE_SIZE);
       const gridY = Math.floor(pos.y / TILE_SIZE);
@@ -252,7 +256,7 @@ export const GameCanvas: React.FC = () => {
       }
     }
   };
-  
+
   // 경로 타일 확인 함수
   const isPathTile = (x: number, y: number): boolean => {
     if (!map) return false;
@@ -273,7 +277,7 @@ export const GameCanvas: React.FC = () => {
     }
     return false;
   };
-  
+
   // 격자 위치 유효성 검사
   const isValidPlacement = (
     x: number,
@@ -290,7 +294,6 @@ export const GameCanvas: React.FC = () => {
       return false;
     }
 
-    // 🔵 수정된 isPathTile 함수로 경로인지 검사
     if (isPathTile(x, y)) {
       return false;
     }
@@ -307,7 +310,7 @@ export const GameCanvas: React.FC = () => {
 
     return true;
   };
-  
+
   const handleCanvasClick = () => {
     // 재배치 모드
     if (repositionMode && !pokemonToPlace) {
@@ -320,7 +323,7 @@ export const GameCanvas: React.FC = () => {
             selectedTowerForReposition.id
           )
         ) {
-          alert("여기에는 배치할 수 없습니다!");
+          alert(t('alerts.cannotPlaceHere'));
           return;
         }
 
@@ -343,22 +346,21 @@ export const GameCanvas: React.FC = () => {
     }
 
     if (!pokemonToPlace) return;
-    
+
     // 포켓몬 6마리 제한
     if (towers.length >= 6) {
-      alert("포켓몬은 최대 6마리까지만 배치할 수 있습니다!");
+      alert(t('alerts.maxPokemon'));
       return;
     }
 
     const cost = pokemonToPlace.cost || 100;
-    
     if (!isValidPlacement(mousePos.x, mousePos.y)) {
-      alert("여기에는 배치할 수 없습니다!");
+      alert(t('alerts.cannotPlaceHere'));
       return;
     }
 
     if (!spendMoney(cost)) {
-      alert(`돈이 부족합니다! (포켓몬: ${cost}원)`);
+      alert(t('alerts.notEnoughMoneyWithCost', { cost }));
       setPokemonToPlace(null);
       return;
     }
@@ -392,164 +394,73 @@ export const GameCanvas: React.FC = () => {
       gender: poke.gender,
       ability: poke.ability,
     };
-    
     addTower(tower);
     setPokemonToPlace(null);
   };
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        position: "relative",
-      }}
-    >
+    <CanvasContainer ref={containerRef}>
       {/* 진화 토스트 */}
-      {evolutionToast && (
-        <div
-          style={{
-            position: "absolute",
-            top: "20px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background:
-              "linear-gradient(135deg, rgba(155, 89, 182, 0.95), rgba(142, 68, 173, 0.95))",
-            padding: "12px 24px",
-            borderRadius: "12px",
-            border: "2px solid rgba(155, 89, 182, 0.6)",
-            boxShadow: "0 8px 24px rgba(155, 89, 182, 0.6)",
-            zIndex: 1000,
-            animation: "slideInDown 0.3s ease-out",
-            color: "#fff",
-            fontSize: "16px",
-            fontWeight: "bold",
-            textShadow: "0 2px 4px rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-          }}
-        >
-          <span>
-            ✨ {evolutionToast.fromName} → {evolutionToast.toName} 진화!
-          </span>
-          <button
-            onClick={() => useGameStore.setState({ evolutionToast: null })}
-            style={{
-              background: "rgba(255, 255, 255, 0.2)",
-              border: "none",
-              borderRadius: "50%",
-              width: "20px",
-              height: "20px",
-              color: "#fff",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "12px",
-              fontWeight: "bold",
-              padding: 0,
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = "rgba(255, 255, 255, 0.3)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)")
-            }
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {evolutionToast
+        && (
+          <EvolutionToast>
+            <span>
+              ✨ {t('game.evoToast', { fromName: evolutionToast.fromName, toName: evolutionToast.toName })}
+            </span>
+            <EvolutionToastButton
+              onClick={() => useGameStore.setState({ evolutionToast: null })}
+            >
+              ×
+            </EvolutionToastButton>
+          </EvolutionToast>
+        )}
 
       {/* 호버 툴팁 */}
       {hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
-        <div
+        <Tooltip
           style={{
-            position: "absolute",
             left: `${mousePos.x * canvasScale + 40}px`,
             top: `${mousePos.y * canvasScale - 20}px`,
-            background:
-              "linear-gradient(145deg, rgba(30, 40, 60, 0.98), rgba(15, 20, 35, 0.98))",
-            border: "2px solid rgba(76, 175, 255, 0.5)",
-            borderRadius: "10px",
-            padding: "8px 12px",
-            color: "#e8edf3",
-            fontSize: "11px",
-            fontWeight: "bold",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
-            pointerEvents: "none",
-            zIndex: 999,
-            minWidth: "180px",
-            maxWidth: "220px",
           }}
         >
-          <div
-            style={{ marginBottom: "4px", color: "#4cafff", fontSize: "12px" }}
-          >
+          <TooltipTitle>
             {hoveredTower.name} (Lv.{hoveredTower.level})
-          </div>
+          </TooltipTitle>
           
-          {/* 🆕 타입 표시 수정 */}
-          <div
-            style={{
-              fontSize: "10px",
-              color: "#a8b8c8",
-              marginBottom: "4px",
-              display: 'flex', // 🆕 flex 추가
-              gap: '4px', // 🆕 gap 추가
-              alignItems: 'center' // 🆕 세로 정렬 추가
-            }}
-          >
+          <TooltipTypes>
             {hoveredTower.types.map((t) => (
-              <img
+              <TooltipTypeIcon
                 key={t}
-                src={`${TYPE_ICON_API_BASE}${t}.gif`} // 🆕 이미지 URL
+                src={`${TYPE_ICON_API_BASE}${t}.gif`}
                 alt={t}
-                style={{
-                  // width: '48px', // 툴팁에 맞게 48px
-                  height: '11px',
-                  objectFit: 'contain',
-                }}
               />
             ))}
-          </div>
+          </TooltipTypes>
           
-          <div style={{ fontSize: "10px", lineHeight: "1.4" }}>
-            <div>
+          <TooltipStats>
+            <TooltipStatRow>
               HP: {Math.floor(hoveredTower.currentHp)}/{hoveredTower.maxHp}
-            </div>
-            <div>
-              공격: {hoveredTower.attack} | 방어: {hoveredTower.defense}
-            </div>
-            <div>
-              특공: {hoveredTower.specialAttack} | 특방:{" "}
-              {hoveredTower.specialDefense}
-            </div>
-            <div>스피드: {hoveredTower.speed}</div>
+            </TooltipStatRow>
+            <TooltipStatRow>
+              {t('picker.attack')}: {hoveredTower.attack} | {t('picker.defense')}: {hoveredTower.defense}
+            </TooltipStatRow>
+            <TooltipStatRow>
+              {t('picker.spAttack')}: {hoveredTower.specialAttack} | {t('picker.spDefense')}: {hoveredTower.specialDefense}
+            </TooltipStatRow>
+            <TooltipStatRow>{t('picker.speed')}: {hoveredTower.speed}</TooltipStatRow>
             {hoveredTower.equippedMoves[0] && (
-              <div style={{ marginTop: "4px", color: "#f39c12" }}>
+              <TooltipMove>
                 ⚔️ {hoveredTower.equippedMoves[0].name} (
                 {hoveredTower.equippedMoves[0].power})
-              </div>
+              </TooltipMove>
             )}
-          </div>
-        </div>
+          </TooltipStats>
+        </Tooltip>
       )}
 
-      <div
+      <StageWrapper
         style={{
-          border: "3px solid #1a242f",
-          borderRadius: "8px",
-          overflow: "hidden",
-          boxShadow: "0 8px 16px rgba(0,0,0,0.2)",
           transform: `scale(${canvasScale})`,
-          transformOrigin: "center",
         }}
       >
         <Stage
@@ -566,13 +477,16 @@ export const GameCanvas: React.FC = () => {
                 const tileY = y * TILE_SIZE + TILE_SIZE / 2;
                 const isPath = isPathTile(tileX, tileY);
                 const isValid =
-                  pokemonToPlace || selectedTowerForReposition
-                    ? isValidPlacement(
+                  pokemonToPlace ||
+                  selectedTowerForReposition
+                    ?
+                      isValidPlacement(
                         tileX,
                         tileY,
                         selectedTowerForReposition?.id
                       )
                     : true;
+
                 return (
                   <Rect
                     key={`${x}-${y}`}
@@ -585,12 +499,12 @@ export const GameCanvas: React.FC = () => {
                         ? "#2c3e50"
                         : (pokemonToPlace || selectedTowerForReposition) &&
                           !isValid
-                        ? "rgba(231, 76, 60, 0.3)"
-                        : pokemonToPlace || selectedTowerForReposition
-                        ? "rgba(46, 204, 113, 0.2)"
-                        : (x + y) % 2 === 0
-                        ? "#3A5369"
-                        : "#3E5A71"
+                          ? "rgba(231, 76, 60, 0.3)"
+                          : pokemonToPlace || selectedTowerForReposition
+                            ? "rgba(46, 204, 113, 0.2)"
+                            : (x + y) % 2 === 0
+                              ? "#3A5369"
+                              : "#3E5A71"
                     }
                     stroke="#2c3e50"
                     strokeWidth={0.5}
@@ -603,7 +517,7 @@ export const GameCanvas: React.FC = () => {
             {map &&
               map.paths.map((path, index) => (
                 <Line
-                  key={`path-${index}`} // 🔵 고유 key 부여
+                  key={`path-${index}`}
                   points={path.flatMap((p) => [p.x, p.y])}
                   stroke="#2c3e50"
                   strokeWidth={40}
@@ -648,22 +562,22 @@ export const GameCanvas: React.FC = () => {
             {enemies.map((enemy) => (
               <React.Fragment key={enemy.id}>
                 {enemy.sprite ? (
-                  <PokemonImage
-                    src={enemy.sprite}
-                    x={enemy.position.x}
-                    y={enemy.position.y}
-                    isFainted={false}
-                  />
-                ) : (
-                  <Circle
-                    x={enemy.position.x}
-                    y={enemy.position.y}
-                    radius={enemy.isBoss ? 25 : 15}
-                    fill={enemy.isBoss ? "#e74c3c" : "#95a5a6"}
-                    stroke="#1a242f"
-                    strokeWidth={3}
-                  />
-                )}
+                    <PokemonImage
+                      src={enemy.sprite}
+                      x={enemy.position.x}
+                      y={enemy.position.y}
+                      isFainted={false}
+                    />
+                  ) : (
+                    <Circle
+                      x={enemy.position.x}
+                      y={enemy.position.y}
+                      radius={enemy.isBoss ? 25 : 15}
+                      fill={enemy.isBoss ? "#e74c3c" : "#95a5a6"}
+                      stroke="#1a242f"
+                      strokeWidth={3}
+                    />
+                  )}
                 <HPBar
                   x={enemy.position.x}
                   y={enemy.position.y}
@@ -711,7 +625,7 @@ export const GameCanvas: React.FC = () => {
                 <Text
                   x={mousePos.x + 40}
                   y={mousePos.y - 40}
-                  text={`${pokemonToPlace.cost || 100}원`}
+                  text={`${pokemonToPlace.cost || 100}${t('common.money')}`}
                   fill="#f39c12"
                   fontSize={18}
                   fontStyle="bold"
@@ -755,7 +669,117 @@ export const GameCanvas: React.FC = () => {
             )}
           </Layer>
         </Stage>
-      </div>
-    </div>
+      </StageWrapper>
+    </CanvasContainer>
   );
 };
+
+// Styled Components
+const CanvasContainer = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+`;
+
+const EvolutionToast = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.95), rgba(142, 68, 173, 0.95));
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 2px solid rgba(155, 89, 182, 0.6);
+  box-shadow: 0 8px 24px rgba(155, 89, 182, 0.6);
+  z-index: 1000;
+  animation: slideInDown 0.3s ease-out;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const EvolutionToastButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 0;
+  transition: background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const Tooltip = styled.div`
+  position: absolute;
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.98), rgba(15, 20, 35, 0.98));
+  border: 2px solid rgba(76, 175, 255, 0.5);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: #e8edf3;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  z-index: 999;
+  min-width: 180px;
+  max-width: 220px;
+`;
+
+const TooltipTitle = styled.div`
+  margin-bottom: 4px;
+  color: #4cafff;
+  font-size: 12px;
+`;
+
+const TooltipTypes = styled.div`
+  font-size: 10px;
+  color: #a8b8c8;
+  margin-bottom: 4px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+`;
+
+const TooltipTypeIcon = styled.img`
+  height: 11px;
+  object-fit: contain;
+`;
+
+const TooltipStats = styled.div`
+  font-size: 10px;
+  line-height: 1.4;
+`;
+
+const TooltipStatRow = styled.div`
+  /* A simple div is fine */
+`;
+
+const TooltipMove = styled.div`
+  margin-top: 4px;
+  color: #f39c12;
+`;
+
+const StageWrapper = styled.div`
+  border: 3px solid #1a242f;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  transform-origin: center;
+`;

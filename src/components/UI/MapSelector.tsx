@@ -1,6 +1,6 @@
-// src/components/UI/MapSelector.tsx
-
 import React, { useState } from "react";
+import styled, { css } from "styled-components";
+import { useTranslation } from "../../i18n";
 import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
 import { Difficulty, MapData } from "../../types/game";
@@ -10,6 +10,7 @@ type DifficultyFilter = "easiest" | "easy" | "medium" | "hard" | "expert";
 export const MapSelector: React.FC<{ onSelect: () => void }> = ({
   onSelect,
 }) => {
+  const { t } = useTranslation();
   const setMap = useGameStore((s) => s.setMap);
   const setDifficulty = useGameStore((s) => s.setDifficulty);
   const [selectedFilter, setSelectedFilter] = useState<DifficultyFilter | null>(
@@ -18,7 +19,6 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
 
   const handleDifficultyFilter = (difficulty: DifficultyFilter) => {
     setSelectedFilter(difficulty);
-    // Difficulty 타입 매핑 ('medium' -> 'normal')
     const gameDifficulty: Difficulty =
       difficulty === "medium" ? "normal" : (difficulty as Difficulty);
     setDifficulty(gameDifficulty);
@@ -26,21 +26,25 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
 
   const handleSelect = (map: MapData) => {
     setMap(map.id);
-    // Difficulty 타입 매핑
     const gameDifficulty: Difficulty =
       map.difficulty === "medium" ? "normal" : (map.difficulty as Difficulty);
     setDifficulty(gameDifficulty);
     onSelect();
   };
 
-  // 필터링된 맵
   const filteredMaps = selectedFilter
     ? MAPS.filter((map) => map.difficulty === selectedFilter)
     : MAPS;
 
-  // 난이도 배지 색상
   const getDifficultyColor = (diff: string) => {
     switch (diff) {
+      case "easiest":
+        return {
+          bg: "rgba(209, 213, 219, 0.2)",
+          border: "#D1D5DB",
+          color: "#D1D5DB",
+          glow: "rgba(209, 213, 219, 0.4)",
+        };
       case "easy":
         return {
           bg: "rgba(46, 204, 113, 0.2)",
@@ -79,7 +83,6 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
     }
   };
 
-  // 배경 타입 이모지
   const getBackgroundEmoji = (bgType: string) => {
     switch (bgType) {
       case "grass":
@@ -97,303 +100,265 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
     }
   };
 
+  const getDifficultyText = (diff: DifficultyFilter) => {
+    switch (diff) {
+      case "easiest": return t('mapSelector.easiest');
+      case "easy": return t('mapSelector.easy');
+      case "medium": return t('mapSelector.medium');
+      case "hard": return t('mapSelector.hard');
+      case "expert": return t('mapSelector.expert');
+      default: return '';
+    }
+  }
+
   return (
-    <div style={s.fullscreen}>
-      <div style={s.container}>
-        {/* 타이틀 */}
-        <div style={s.titleSection}>
-          <img 
-            src="/images/pokemon-aegis.png" 
-            alt="Pokemon Aegis Logo" 
+    <Fullscreen>
+      <Container>
+        <TitleSection>
+          <Logo
+            src="/images/pokemon-aegis.png"
+            alt="Pokemon Aegis Logo"
             height="240px"
-            style={s.logo}
           />
-          <div style={s.subtitle}>Made by Team FreakIT @ KAIST</div>
-        </div>
+          <Subtitle>{t('mapSelector.subtitle')}</Subtitle>
+        </TitleSection>
 
-        {/* 난이도 필터 */}
-        <div style={s.difficultySelector}>
-          <button
+        <DifficultySelector>
+          <DiffBtn
             onClick={() => setSelectedFilter(null)}
-            style={{
-              ...s.diffBtn,
-              ...(selectedFilter === null ? s.diffBtnActive : {}),
-            }}
+            $isActive={selectedFilter === null}
           >
-            전체
-          </button>
-          <button
+            {t('pokedex.filterAll')}
+          </DiffBtn>
+          <DiffBtn
             onClick={() => handleDifficultyFilter("easiest")}
-            style={{
-              ...s.diffBtn,
-              ...s.diffBtnEasiest,
-              ...(selectedFilter === "easiest" ? s.diffBtnActive : {}),
-            }}
+            $difficulty="easiest"
+            $isActive={selectedFilter === "easiest"}
           >
-            ⚪ 매우 쉬움
-          </button>
-          <button
+            ⚪ {t('mapSelector.easiest')}
+          </DiffBtn>
+          <DiffBtn
             onClick={() => handleDifficultyFilter("easy")}
-            style={{
-              ...s.diffBtn,
-              ...s.diffBtnEasy,
-              ...(selectedFilter === "easy" ? s.diffBtnActive : {}),
-            }}
+            $difficulty="easy"
+            $isActive={selectedFilter === "easy"}
           >
-            🟢 쉬움
-          </button>
-          <button
+            🟢 {t('mapSelector.easy')}
+          </DiffBtn>
+          <DiffBtn
             onClick={() => handleDifficultyFilter("medium")}
-            style={{
-              ...s.diffBtn,
-              ...s.diffBtnMedium,
-              ...(selectedFilter === "medium" ? s.diffBtnActive : {}),
-            }}
+            $difficulty="medium"
+            $isActive={selectedFilter === "medium"}
           >
-            🔵 보통
-          </button>
-          <button
+            🔵 {t('mapSelector.medium')}
+          </DiffBtn>
+          <DiffBtn
             onClick={() => handleDifficultyFilter("hard")}
-            style={{
-              ...s.diffBtn,
-              ...s.diffBtnHard,
-              ...(selectedFilter === "hard" ? s.diffBtnActive : {}),
-            }}
+            $difficulty="hard"
+            $isActive={selectedFilter === "hard"}
           >
-            🟠 어려움
-          </button>
-          <button
+            🟠 {t('mapSelector.hard')}
+          </DiffBtn>
+          <DiffBtn
             onClick={() => handleDifficultyFilter("expert")}
-            style={{
-              ...s.diffBtn,
-              ...s.diffBtnExpert,
-              ...(selectedFilter === "expert" ? s.diffBtnActive : {}),
-            }}
+            $difficulty="expert"
+            $isActive={selectedFilter === "expert"}
           >
-            🔴 전문가
-          </button>
-        </div>
+            🔴 {t('mapSelector.expert')}
+          </DiffBtn>
+        </DifficultySelector>
 
-        {/* 맵 그리드 */}
-        <div style={s.grid}>
+        <Grid>
           {filteredMaps.map((map) => {
             const diffColor = getDifficultyColor(map.difficulty);
             return (
-              <div
+              <Card
                 key={map.id}
-                style={s.card}
                 onClick={() => handleSelect(map)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform =
-                    "translateY(-8px) scale(1.02)";
-                  e.currentTarget.style.boxShadow = `0 20px 40px ${diffColor.glow}, 0 0 20px ${diffColor.glow}`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0) scale(1)";
-                  e.currentTarget.style.boxShadow = `0 8px 32px rgba(0,0,0,0.4)`;
-                }}
+                $hoverGlow={diffColor.glow}
               >
-                <div style={s.cardGlow}></div>
-                <div style={s.cardHeader}>
-                  <span style={s.bgEmoji}>
+                <CardGlow />
+                <CardHeader>
+                  <BgEmoji>
                     {getBackgroundEmoji(map.backgroundType)}
-                  </span>
-                  <div
-                    style={{
-                      ...s.difficultyBadge,
-                      background: diffColor.bg,
-                      border: `2px solid ${diffColor.border}`,
-                      color: diffColor.color,
-                      boxShadow: `0 0 10px ${diffColor.glow}`,
-                    }}
+                  </BgEmoji>
+                  <DifficultyBadge
+                    $colors={diffColor}
                   >
-                    {map.difficulty === "easiest" && "매우 쉬움"}
-                    {map.difficulty === "easy" && "쉬움"}
-                    {map.difficulty === "medium" && "보통"}
-                    {map.difficulty === "hard" && "어려움"}
-                    {map.difficulty === "expert" && "전문가"}
-                  </div>
-                </div>
-                <h3 style={s.mapName}>{map.name}</h3>
-                <p style={s.mapDescription}>{map.description}</p>
-              </div>
+                    {getDifficultyText(map.difficulty as DifficultyFilter)}
+                  </DifficultyBadge>
+                </CardHeader>
+                <MapName>{map.name}</MapName>
+                <MapDescription>{map.description}</MapDescription>
+              </Card>
             );
           })}
-        </div>
+        </Grid>
 
         {filteredMaps.length === 0 && (
-          <div style={s.emptyState}>
-            <p style={s.emptyText}>해당 난이도의 맵이 없습니다.</p>
-          </div>
+          <EmptyState>
+            <EmptyText>{t('mapSelector.noMaps')}</EmptyText>
+          </EmptyState>
         )}
-      </div>
-    </div>
+      </Container>
+    </Fullscreen>
   );
 };
 
-// 게임스러운 UI 스타일
-const s: Record<string, React.CSSProperties> = {
-  fullscreen: {
-    width: "100%",
-    height: "100%",
-    background:
-      "radial-gradient(ellipse at top, #1a2332 0%, #0f1419 50%, #000000 100%)",
-    display: "flex",
-    justifyContent: "center",
-    overflow: "auto",
-    padding: "24px",
-  },
-  container: {
-    maxWidth: "1400px",
-    width: "100%",
-    animation: "fadeIn 0.5s ease-out",
-  },
-  titleSection: {
-    textAlign: "center" as "center",
-    marginBottom: "24px",
-  },
-  mainTitle: {
-    fontSize: "56px",
-    fontWeight: "900",
-    margin: "0 0 16px 0",
-    background:
-      "linear-gradient(135deg, #4cafff 0%, #00d4ff 50%, #4cafff 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    textShadow: "0 0 40px rgba(76, 175, 255, 0.6)",
-    letterSpacing: "2px",
-    animation: "pulse 3s ease-in-out infinite",
-  },
-  subtitle: {
-    fontSize: "16px",
-    color: "#a8b8c8",
-    fontWeight: "600",
-    marginTop: "8px",
-  },
-  difficultySelector: {
-    display: "flex",
-    gap: "16px",
-    justifyContent: "center",
-    marginBottom: "24px",
-    flexWrap: "wrap" as "wrap",
-  },
-  diffBtn: {
-    padding: "12px 24px",
-    fontSize: "16px",
-    fontWeight: "bold",
-    border: "2px solid rgba(76, 175, 255, 0.3)",
-    borderRadius: "16px",
-    cursor: "pointer",
-    background:
-      "linear-gradient(145deg, rgba(30, 40, 60, 0.8), rgba(15, 20, 35, 0.9))",
-    color: "#e8edf3",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
-    transition: "all 0.3s ease",
-    backdropFilter: "blur(10px)",
-  },
-  diffBtnEasy: {
-    border: "2px solid rgba(46, 204, 113, 0.4)",
-  },
-  diffBtnMedium: {
-    border: "2px solid rgba(52, 152, 219, 0.4)",
-  },
-  diffBtnHard: {
-    border: "2px solid rgba(243, 156, 18, 0.4)",
-  },
-  diffBtnExpert: {
-    border: "2px solid rgba(231, 76, 60, 0.4)",
-  },
-  diffBtnActive: {
-    transform: "scale(1.05)",
-    boxShadow:
-      "0 8px 25px rgba(76, 175, 255, 0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
-    background:
-      "linear-gradient(135deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1))",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gap: "16px",
-  },
-  card: {
-    background:
-      "linear-gradient(145deg, rgba(26, 35, 50, 0.9), rgba(15, 20, 25, 0.95))",
-    border: "2px solid rgba(76, 175, 255, 0.3)",
-    borderRadius: "24px",
-    padding: "12px 24px",
-    cursor: "pointer",
-    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-    position: "relative" as "relative",
-    overflow: "hidden",
-    backdropFilter: "blur(10px)",
-  },
-  cardGlow: {
-    position: "absolute" as "absolute",
-    top: "-50%",
-    left: "-50%",
-    width: "200%",
-    height: "200%",
-    background:
-      "radial-gradient(circle, rgba(76, 175, 255, 0.08) 0%, transparent 70%)",
-    animation: "pulse 4s ease-in-out infinite",
-    pointerEvents: "none" as "none",
-  },
-  cardHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-    position: "relative" as "relative",
-    zIndex: 1,
-  },
-  bgEmoji: {
-    fontSize: "48px",
-    filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.6))",
-  },
-  difficultyBadge: {
-    padding: "8px 16px",
-    borderRadius: "12px",
-    fontSize: "14px",
-    fontWeight: "bold",
-    textTransform: "uppercase" as "uppercase",
-    letterSpacing: "1px",
-  },
-  mapName: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#e8edf3",
-    margin: "0 0 12px 0",
-    position: "relative" as "relative",
-    zIndex: 1,
-    textShadow: "0 2px 4px rgba(0,0,0,0.6)",
-  },
-  mapDescription: {
-    fontSize: "16px",
-    color: "#a8b8c8",
-    lineHeight: "1.6",
-    margin: "0 0 20px 0",
-    position: "relative" as "relative",
-    zIndex: 1,
-  },
-  cardFooter: {
-    borderTop: "1px solid rgba(76, 175, 255, 0.2)",
-    paddingTop: "16px",
-    position: "relative" as "relative",
-    zIndex: 1,
-  },
-  unlockText: {
-    fontSize: "14px",
-    color: "#7f8c8d",
-    fontWeight: "600",
-  },
-  emptyState: {
-    textAlign: "center" as "center",
-    padding: "60px 20px",
-  },
-  emptyText: {
-    fontSize: "20px",
-    color: "#7f8c8d",
-    fontWeight: "600",
-  },
-};
+const Fullscreen = styled.div`
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at top, #1a2332 0%, #0f1419 50%, #000000 100%);
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  padding: 24px;
+`;
+
+const Container = styled.div`
+  max-width: 1400px;
+  width: 100%;
+  animation: fadeIn 0.5s ease-out;
+`;
+
+const TitleSection = styled.div`
+  text-align: center;
+  margin-bottom: 24px;
+`;
+
+const Logo = styled.img`
+  filter: drop-shadow(0 0 40px rgba(76, 175, 255, 0.6));
+  animation: pulse 3s ease-in-out infinite;
+`;
+
+const Subtitle = styled.div`
+  font-size: 16px;
+  color: #a8b8c8;
+  font-weight: 600;
+  margin-top: 8px;
+`;
+
+const DifficultySelector = styled.div`
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+`;
+
+const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  border: 2px solid rgba(76, 175, 255, 0.3);
+  border-radius: 16px;
+  cursor: pointer;
+  background: linear-gradient(145deg, rgba(30, 40, 60, 0.8), rgba(15, 20, 35, 0.9));
+  color: #e8edf3;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+
+  ${props => props.$difficulty === 'easy' && `border-color: rgba(46, 204, 113, 0.4);`}
+  ${props => props.$difficulty === 'medium' && `border-color: rgba(52, 152, 219, 0.4);`}
+  ${props => props.$difficulty === 'hard' && `border-color: rgba(243, 156, 18, 0.4);`}
+  ${props => props.$difficulty === 'expert' && `border-color: rgba(231, 76, 60, 0.4);`}
+  ${props => props.$difficulty === 'easiest' && `border-color: rgba(209, 213, 219, 0.4);`}
+
+  ${props => props.$isActive && css`
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(76, 175, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1));
+  `}
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+`;
+
+const Card = styled.div<{ $hoverGlow: string }>`
+  background: linear-gradient(145deg, rgba(26, 35, 50, 0.9), rgba(15, 20, 25, 0.95));
+  border: 2px solid rgba(76, 175, 255, 0.3);
+  border-radius: 24px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
+  }
+`;
+
+const CardGlow = styled.div`
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(76, 175, 255, 0.08) 0%, transparent 70%);
+  animation: pulse 4s ease-in-out infinite;
+  pointer-events: none;
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+`;
+
+const BgEmoji = styled.span`
+  font-size: 48px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+`;
+
+const DifficultyBadge = styled.div<{$colors: { bg: string, border: string, color: string, glow: string }}>`
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: ${props => props.$colors.bg};
+  border: 2px solid ${props => props.$colors.border};
+  color: ${props => props.$colors.color};
+  box-shadow: 0 0 10px ${props => props.$colors.glow};
+`;
+
+const MapName = styled.h3`
+  font-size: 28px;
+  font-weight: 700;
+  color: #e8edf3;
+  margin: 0 0 12px 0;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+`;
+
+const MapDescription = styled.p`
+  font-size: 16px;
+  color: #a8b8c8;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+  position: relative;
+  z-index: 1;
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 60px 20px;
+`;
+
+const EmptyText = styled.p`
+  font-size: 20px;
+  color: #7f8c8d;
+  font-weight: 600;
+`;

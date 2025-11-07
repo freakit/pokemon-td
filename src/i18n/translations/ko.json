@@ -1,0 +1,539 @@
+{
+  "common": {
+    "close": "닫기",
+    "cancel": "취소",
+    "confirm": "확인",
+    "level": "레벨",
+    "levelShort": "Lv",
+    "money": "원",
+    "physical": "물리",
+    "special": "특수",
+    "male": "♂",
+    "female": "♀",
+    "genderless": "⚪",
+    "day": "낮",
+    "night": "밤"
+  },
+  "alerts": {
+    "notEnoughMoney": "돈이 부족합니다!",
+    "notEnoughMoneyWithCost": "돈이 부족합니다! (필요: {cost}원)",
+    "notEnoughMoneyPicker": "돈이 부족합니다! (입장료: 20원)",
+    "notEnoughMoneyPokemon": "돈이 부족합니다! (포켓몬: {cost}원)",
+    "notEnoughMoneyReroll": "돈이 부족합니다! (리롤: {cost}원)",
+    "notEnoughMoneyRevive": "돈이 부족합니다! (필요: {cost}원)",
+    "notEnoughMoneyCandy": "돈이 부족합니다! (필요: {cost}원)",
+    "notEnoughMoneyExpCandy": "돈이 부족합니다! (필요: {cost}원)",
+    "notEnoughMoneyFusion": "돈이 부족합니다! (필요: {cost}원)",
+    "cannotPlaceHere": "여기에는 배치할 수 없습니다!",
+    "maxPokemon": "포켓몬은 최대 6마리까지만 배치할 수 있습니다!",
+    "cannotUseItem": "해당 아이템을 사용할 수 없는 대상입니다.",
+    "targetNotFound": "대상을 찾을 수 없습니다.",
+    "expCandyTargetInvalid": "가장 레벨이 낮은 포켓몬에게만 사용할 수 있습니다.",
+    "expCandyNotEnoughPokemon": "포켓몬이 부족하여 사용할 수 없습니다.",
+    "levelChanged": "레벨이 {from}에서 {to}로 변경되었습니다.",
+    "evolutionSuccess": "진화 성공!",
+    "evolutionFailed": "이 포켓몬은 해당 아이템으로 진화할 수 없습니다.",
+    "fusionBaseInvalid": "이 포켓몬은 합체의 베이스가 될 수 없습니다.",
+    "fusionMaterialInvalid": "같은 포켓몬을 선택할 수 없습니다.",
+    "fusionPairInvalid": "이 두 포켓몬은 합체할 수 없습니다.",
+    "fusionSuccess": "합체 성공!",
+    "fusionFailed": "합체 실패!",
+    "confirmSell": "{name} (Lv.{level})을(를) {price}원에 판매하시겠습니까?",
+    "confirmFusion": "{base}와 {material}를 합체하시겠습니까?\n비용: {cost}원\n({material}는 소멸됩니다)",
+    "confirmReset": "정말 모든 데이터를 초기화하시겠습니까?",
+    "fetchPokemonError": "포켓몬 {id} 정보 로딩 실패",
+    "fetchMoveError": "기술 {name} 정보 로딩 실패",
+    "fetchLearnableMovesError": "기술 학습 정보 로딩 실패"
+  },
+  "nav": {
+    "pokedex": "도감",
+    "achievements": "업적",
+    "settings": "설정"
+  },
+  "hud": {
+    "startWave": "웨이브 시작",
+    "addPokemon": "포켓몬 (20원)",
+    "managePokemon": "관리",
+    "speed": "속도"
+  },
+  "mapSelector": {
+    "subtitle": "Made by Team FreakIT @ KAIST",
+    "filterAll": "전체",
+    "easiest": "매우 쉬움",
+    "easy": "쉬움",
+    "medium": "보통",
+    "hard": "어려움",
+    "expert": "전문가",
+    "diffEasiest": "매우 쉬움",
+    "diffEasy": "쉬움",
+    "diffMedium": "보통",
+    "diffHard": "어려움",
+    "diffExpert": "전문가",
+    "noMaps": "해당 난이도의 맵이 없습니다."
+  },
+  "picker": {
+    "loading": "포켓몬 정보 로딩 중...",
+    "title": "포켓몬 선택",
+    "subtitle": "3마리 중 1마리를 선택하세요.",
+    "hp": "HP",
+    "attack": "공격",
+    "defense": "방어",
+    "spAttack": "특공",
+    "spDefense": "특방",
+    "speed": "스핏",
+    "total": "총합",
+    "cost": "💰 {cost}원",
+    "currentMoney": "💰 현재 {money}원",
+    "reroll": "리롤 (20원)"
+  },
+  "manager": {
+    "title": "포켓몬 관리 ({towers}/6)",
+    "currentMoney": "💰 {money}원",
+    "cancel": "취소",
+    "fusion": "합체",
+    "fusionInfoBase": "합체할 베이스 포켓몬을 선택하세요 (큐레무, 네크로즈마, 버드렉스) | 비용: {cost}원",
+    "fusionInfoMaterial": "합체할 재료 포켓몬을 선택하세요 | 비용: {cost}원",
+    "empty": "보유 중인 포켓몬이 없습니다.",
+    "fainted": "기절",
+    "level": "레벨",
+    "hp": "HP",
+    "kills": "처치",
+    "skill": "기술",
+    "sell": "판매 ({price}원)"
+  },
+  "shop": {
+    "targetTitle": "타겟 선택",
+    "targetPotion": "상처약을 사용할 아군을 클릭하세요.",
+    "targetPotionGood": "좋은상처약을 사용할 아군을 클릭하세요.",
+    "targetPotionSuper": "고급상처약을 사용할 아군을 클릭하세요.",
+    "targetCandy": "이상한 사탕을 사용할 아군을 클릭하세요. (레벨 × 25원)",
+    "targetRevive": "기력의 조각을 사용할 기절한 아군을 클릭하세요. (레벨 × 10원)",
+    "targetExpCandy": "경험 사탕을 사용할 아군을 클릭하세요. (적용 레벨 × 50원)",
+    "targetItem": "{name}을(를) 사용할 아군을 클릭하세요.",
+    "fainted": "기절",
+    "cost": "💰 {cost}원",
+    "costLevelChange": "💰 {cost}원 (Lv.{from}→{to})",
+    "canEvolve": "진화 가능!",
+    "cancelRefund": "취소 (환불)",
+    "title": "상점",
+    "currentMoney": "💰 {money}원",
+    "tabGeneral": "일반",
+    "tabEvolution": "진화",
+    "potionName": "상처약",
+    "potionDesc": "HP 30 회복",
+    "potionCost": "20원",
+    "potionGoodName": "좋은상처약",
+    "potionGoodDesc": "HP 150 또는 10%",
+    "potionGoodCost": "100원",
+    "potionSuperName": "고급상처약",
+    "potionSuperDesc": "최대 HP 50%",
+    "potionSuperCost": "500원",
+    "reviveName": "기력의 조각",
+    "reviveDesc": "기절 부활",
+    "reviveCost": "Lv×10원",
+    "candyName": "이상한 사탕",
+    "candyDesc": "레벨 1 상승",
+    "candyCost": "Lv×25원",
+    "expCandyName": "경험 사탕",
+    "expCandyDesc": "가장 낮은 레벨 증가",
+    "expCandyCost": "2nd Lv×50원",
+    "categoryStone": "진화의 돌",
+    "categoryTrade": "통신 교환 아이템",
+    "categoryFriendship": "친밀도 아이템",
+    "categoryOthers": "기타 아이템",
+    "categorySpecial": "특수 아이템",
+    "itemCost": "💰 {cost}원"
+  },
+  "skillPicker": {
+    "levelUpName": "{name} 레벨업!",
+    "pokemonLevel": "(Lv.{level})",
+    "selectSkill": "기술 교체",
+    "current": "현재 기술",
+    "new": "새 기술",
+    "statusEffect": "{status} ({chance}%)",
+    "drain": "피흡 ({percent}%)",
+    "aoe": "광역",
+    "keep": "유지",
+    "learn": "배우기",
+    "queue": "대기 중: {count}개"
+  },
+  "waveEnd": {
+    "targetTitle": "{name} 사용",
+    "targetCandy": "레벨을 올릴 포켓몬을 선택하세요",
+    "targetHeal": "체력을 회복할 포켓몬을 선택하세요",
+    "targetRevive": "부활시킬 포켓몬을 선택하세요",
+    "fainted": "기절",
+    "back": "뒤로 가기",
+    "clearTitle": "웨이브 {wave} 클리어!",
+    "clearSubtitle": "보상을 선택하세요 (모든 포켓몬의 체력이 회복되었습니다)",
+    "skip": "보상 건너뛰기",
+    "candyName": "이상한 사탕",
+    "candyDesc": "아군 1레벨 업",
+    "reviveName": "기력의 조각",
+    "reviveDesc": "기절한 아군 1마리를 50% HP로 부활",
+    "megaStoneName": "{name}의 메가스톤",
+    "megaStoneDesc": "{name}을 메가진화시킵니다",
+    "gigaMushroomName": "{name}의 다이버섯",
+    "gigaMushroomDesc": "{name}을 거다이맥스시킵니다"
+  },
+  "waveClear": {
+    "title": "축하합니다!",
+    "subtitle": "웨이브 50을 클리어하셨습니다!",
+    "prompt": "게임을 계속 진행하시겠습니까?",
+    "continue": "계속하기",
+    "restart": "처음부터 시작"
+  },
+  "evoConfirm": {
+    "title": "진화 확인",
+    "message": "<strong>{name}</strong>(이)가 진화할 수 있습니다!",
+    "evolveTo": "{name}",
+    "methodLevel": "레벨 {level}",
+    "methodItem": "아이템 필요",
+    "methodGender": " ({gender})",
+    "methodTime": " ({time})",
+    "cancel": "진화 취소"
+  },
+  "pokedex": {
+    "title": "포켓몬 도감",
+    "collected": "수집한 포켓몬: {count}마리",
+    "generation": "세대",
+    "filterAll": "전체"
+  },
+  "achievements": {
+    "title": "업적",
+    "progress": "진행도: {progress}/{target}"
+  },
+  "settings": {
+    "title": "설정",
+    "musicVolume": "음악 볼륨",
+    "sfxVolume": "효과음 볼륨",
+    "showDamage": "데미지 숫자 표시",
+    "showGrid": "그리드 표시",
+    "resetData": "데이터 초기화"
+  },
+  "game": {
+    "gameOver": "게임 오버",
+    "waveReached": "웨이브 {wave}까지 도달!",
+    "restart": "다시 시작",
+    "evoToast": "{fromName} → {toName} 진화!",
+    "fusionToast": "{fromName} → {toName} 합체!",
+    "tooltipHP": "HP",
+    "tooltipAttack": "공격",
+    "tooltipDefense": "방어",
+    "tooltipSpAttack": "특공",
+    "tooltipSpDefense": "특방",
+    "tooltipSpeed": "스피드",
+    "miss": "MISS",
+    "cost": "{cost}원"
+  },
+  "synergy": {
+    "title": "현재 시너지",
+    "empty": "적용 중인 포켓몬이 없습니다.",
+    "level": "(Lv.{level})",
+    "genName": "{gen}세대",
+    "typeDesc6": "(6) 스탯 1.3배, 해당 타입 약점 데미지 0.5배",
+    "typeDesc4": "(4) 스탯 1.3배",
+    "typeDesc2": "(2) 스탯 1.1배",
+    "genDesc6": "(6) 스탯 1.3배",
+    "genDesc4": "(4) 스탯 1.2배",
+    "genDesc2": "(2) 스탯 1.1배"
+  },
+  "types": {
+    "normal": "노말",
+    "fire": "불꽃",
+    "water": "물",
+    "electric": "전기",
+    "grass": "풀",
+    "ice": "얼음",
+    "fighting": "격투",
+    "poison": "독",
+    "ground": "땅",
+    "flying": "비행",
+    "psychic": "에스퍼",
+    "bug": "벌레",
+    "rock": "바위",
+    "ghost": "고스트",
+    "dragon": "드래곤",
+    "dark": "악",
+    "steel": "강철",
+    "fairy": "페어리"
+  },
+  "items": {
+    "fire-stone": {
+      "name": "불꽃의 돌",
+      "description": "불꽃 타입 포켓몬을 진화시키는 붉은 돌"
+    },
+    "water-stone": {
+      "name": "물의 돌",
+      "description": "물 타입 포켓몬을 진화시키는 푸른 돌"
+    },
+    "thunder-stone": {
+      "name": "천둥의 돌",
+      "description": "전기 타입 포켓몬을 진화시키는 노란 돌"
+    },
+    "leaf-stone": {
+      "name": "리프의 돌",
+      "description": "풀 타입 포켓몬을 진화시키는 초록 돌"
+    },
+    "moon-stone": {
+      "name": "달의 돌",
+      "description": "특정 포켓몬을 진화시키는 검은 돌"
+    },
+    "sun-stone": {
+      "name": "태양의 돌",
+      "description": "특정 포켓몬을 진화시키는 밝은 돌"
+    },
+    "shiny-stone": {
+      "name": "빛의 돌",
+      "description": "특정 포켓몬을 진화시키는 빛나는 돌"
+    },
+    "dusk-stone": {
+      "name": "어둠의 돌",
+      "description": "특정 포켓몬을 진화시키는 어두운 돌"
+    },
+    "dawn-stone": {
+      "name": "각성의 돌",
+      "description": "특정 포켓몬을 진화시키는 새벽의 돌"
+    },
+    "ice-stone": {
+      "name": "얼음의 돌",
+      "description": "얼음 타입 포켓몬을 진화시키는 차가운 돌"
+    },
+    "linking-cord": {
+      "name": "연결의 끈",
+      "description": "통신교환으로 진화하는 포켓몬을 진화시킴"
+    },
+    "kings-rock": {
+      "name": "왕의징표석",
+      "description": "야돈이나 수륙챙이를 진화시키는 왕관 모양 돌"
+    },
+    "metal-coat": {
+      "name": "금속코트",
+      "description": "롱스톤이나 스라크를 진화시키는 금속 장비"
+    },
+    "dragon-scale": {
+      "name": "용의비늘",
+      "description": "시드라를 킹드라로 진화시키는 용의 비늘"
+    },
+    "upgrade": {
+      "name": "업그레이드",
+      "description": "폴리곤을 폴리곤2로 진화시키는 장치"
+    },
+    "protector": {
+      "name": "프로텍터",
+      "description": "코뿌리를 거대코뿌리로 진화시키는 보호구"
+    },
+    "electirizer": {
+      "name": "에레키부스터",
+      "description": "에레브를 에레키블로 진화시키는 전기 장치"
+    },
+    "magmarizer": {
+      "name": "마그마부스터",
+      "description": "마그마를 마그마번으로 진화시키는 마그마 장치"
+    },
+    "dubious-disc": {
+      "name": "괴상한패치",
+      "description": "폴리곤2를 폴리곤Z로 진화시키는 디스크"
+    },
+    "reaper-cloth": {
+      "name": "영계의천",
+      "description": "미라몽을 야느와르몽으로 진화시키는 천"
+    },
+    "razor-claw": {
+      "name": "예리한손톱",
+      "description": "포푸니를 포푸니라로 진화시키는 날카로운 손톱"
+    },
+    "razor-fang": {
+      "name": "예리한이빨",
+      "description": "글라이거를 글라이온으로 진화시키는 날카로운 이빨"
+    },
+    "friendship-evolution": {
+      "name": "우정의 구슬",
+      "description": "친밀도로 진화하는 포켓몬을 진화시키는 구슬"
+    },
+    "special-evolution": {
+      "name": "신비한 가루",
+      "description": "특수 조건으로 진화하는 포켓몬을 진화시키는 가루"
+    },
+    "deep-sea-tooth": {
+      "name": "심해의이빨",
+      "description": "진주몽을 헌테일로 진화시키는 이빨"
+    },
+    "deep-sea-scale": {
+      "name": "심해의비늘",
+      "description": "진주몽을 분홍장이로 진화시키는 비늘"
+    },
+    "sachet": {
+      "name": "향기주머니",
+      "description": "슈쁘를 프레프티르로 진화시키는 향기주머니"
+    },
+    "whipped-dream": {
+      "name": "휘핑팝",
+      "description": "나룸퍼프를 나루림으로 진화시키는 휘핑크림"
+    },
+    "tart-apple": {
+      "name": "새콤한사과",
+      "description": "과사삭벌레를 애프룡으로 진화시키는 사과"
+    },
+    "sweet-apple": {
+      "name": "달콤한사과",
+      "description": "과사삭벌레를 단지래플으로 진화시키는 사과"
+    },
+    "galarica-cuff": {
+      "name": "가라르팔찌",
+      "description": "가라르 야돈을 야도란으로 진화시키는 팔찌"
+    },
+    "galarica-wreath": {
+      "name": "가라르목걸이",
+      "description": "가라르 야돈을 야도킹으로 진화시키는 목걸이"
+    },
+    "black-augurite": {
+      "name": "검은휘석",
+      "description": "스라크를 사마자르로 진화시키는 검은 광석"
+    },
+    "auspicious-armor": {
+      "name": "길조의 갑옷",
+      "description": "카르본을 카디나르마로 진화시키는 갑옷"
+    },
+    "malicious-armor": {
+      "name": "흉조의 갑옷",
+      "description": "카르본을 파라블레이즈로 진화시키는 갑옷"
+    },
+    "syrupy-apple": {
+      "name": "과즙한 사과",
+      "description": "과사삭벌레를 과미드라로 진화시키는 사과"
+    },
+    "metal-alloy": {
+      "name": "금속합금",
+      "description": "두랄루돈을 브리두라스로 진화시키는 합금"
+    },
+    "water-scroll": {
+      "name": "물의 족자",
+      "description": "치고마를 우라오스(연격의 태세)로 진화시키는 족자"
+    },
+    "dark-scroll": {
+      "name": "악의 족자",
+      "description": "치고마를 우라오스(일격의 태세)로 진화시키는 족자"
+    }
+  },
+  "achData": {
+    "wave5": {
+      "name": "첫 걸음",
+      "description": "웨이브 5 도달"
+    },
+    "wave10": {
+      "name": "초보 탈출",
+      "description": "웨이브 10 도달"
+    },
+    "wave20": {
+      "name": "중급자",
+      "description": "웨이브 20 도달"
+    },
+    "wave30": {
+      "name": "고급자",
+      "description": "웨이브 30 도달"
+    },
+    "wave50": {
+      "name": "마스터",
+      "description": "웨이브 50 도달"
+    },
+    "collect10": {
+      "name": "수집가",
+      "description": "포켓몬 10마리 수집"
+    },
+    "collect50": {
+      "name": "포켓몬 박사",
+      "description": "포켓몬 50마리 수집"
+    },
+    "collect100": {
+      "name": "포켓몬 마스터",
+      "description": "포켓몬 100마리 수집"
+    },
+    "evolve1": {
+      "name": "첫 진화",
+      "description": "포켓몬 1마리 진화"
+    },
+    "evolve10": {
+      "name": "진화 마니아",
+      "description": "포켓몬 10마리 진화"
+    },
+    "kill100": {
+      "name": "사냥꾼",
+      "description": "적 100마리 처치"
+    },
+    "kill1000": {
+      "name": "학살자",
+      "description": "적 1000마리 처치"
+    },
+    "boss5": {
+      "name": "보스 헌터",
+      "description": "보스 5마리 처치"
+    },
+    "boss20": {
+      "name": "보스 킬러",
+      "description": "보스 20마리 처치"
+    },
+    "money10k": {
+      "name": "부자",
+      "description": "총 10000원 획득"
+    },
+    "money100k": {
+      "name": "재벌",
+      "description": "총 100000원 획득"
+    },
+    "perfect": {
+      "name": "완벽한 방어",
+      "description": "라이프 손실 없이 웨이브 10 클리어"
+    },
+    "speedrun": {
+      "name": "스피드러너",
+      "description": "웨이브 20을 30분 안에 클리어"
+    },
+    "nolosses": {
+      "name": "불패신화",
+      "description": "한 번도 죽지 않고 웨이브 30 도달"
+    },
+    "allstarters": {
+      "name": "스타터 마스터",
+      "description": "이상해씨, 파이리, 꼬부기 모두 수집"
+    },
+    "legendary": {
+      "name": "전설의 트레이너",
+      "description": "전설 포켓몬 수집"
+    }
+  },
+  "mapData": {
+    "easiest_straight": {
+      "name": "초보자의 좁은 길",
+      "description": "폭이 1줄(실제 3칸)인 기본 맵입니다. 화력 집중이 용이합니다."
+    },
+    "easy_loop": {
+      "name": "성벽 순환로",
+      "description": "맵 외곽을 순환합니다. 타워를 배치할 내부 공간이 한정됩니다."
+    },
+    "medium_merge": {
+      "name": "합류 지점",
+      "description": "두 갈래의 길이 중앙에서 합쳐집니다. 초반 방어가 중요합니다."
+    },
+    "medium_multi_s": {
+      "name": "구불구불 동굴",
+      "description": "경로가 길게 굽이쳐, 타워가 공격할 수 있는 시간이 깁니다."
+    },
+    "hard_straight_wide": {
+      "name": "넓은 초원",
+      "description": "중앙의 \"뚱뚱한\" 통로(폭 4칸)로 적이 지나갑니다. 딜로스에 주의하세요."
+    },
+    "hard_dual_path": {
+      "name": "분리된 설원",
+      "description": "두 경로가 완전히 분리되어, 양쪽을 따로 방어해야 합니다."
+    },
+    "extreme_central": {
+      "name": "중앙 제단",
+      "description": "네 방향에서 적들이 생성되어 중앙으로 돌격합니다."
+    },
+    "extreme_aggro_shortcut": {
+      "name": "위험한 지름길",
+      "description": "기본 경로는 매우 깁니다. 중앙에 타워를 배치해 적의 경로를 바꾸세요."
+    }
+  }
+}
