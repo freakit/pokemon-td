@@ -55,7 +55,7 @@ export const SynergyTracker: React.FC = () => {
   return (
     // 🆕 메인 컨테이너에 onMouseLeave 이벤트 추가
     <div style={s.container} onMouseLeave={() => setHoveredSynergy(null)}>
-      <h3 style={s.title}>💎 현재 증강</h3>
+      <h3 style={s.title}>💎 현재 시너지</h3>
       <div style={s.list}>
         {sortedSynergies.map(syn => {
           const styleInfo = getSynergyStyle(syn.id);

@@ -7,6 +7,7 @@ export type StatusEffectType =
   | "freeze"
   | "sleep"
   | "confusion";
+
 export type DamageClass = "physical" | "special" | "status";
 export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
 export type PokemonRarity =
@@ -60,9 +61,10 @@ export interface GameMove {
 export interface MoveEffect {
   type: "damage" | "status" | "heal" | "buff" | "debuff";
   statusInflict?: StatusEffectType; // 상태이상
-  statusChance?: number; // 확률
+  statusChance?: number | null; // 1. 확률 (null 허용)
   damageMultiplier?: number;
   additionalEffects?: string;
+  drainPercent?: number; // 2. 체력 흡수율 (e.g., 0.5)
 }
 
 export interface MapData {
@@ -75,6 +77,7 @@ export interface MapData {
   description: string;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
 }
+
 export type Gender = "male" | "female" | "genderless";
 
 export interface GamePokemon {
@@ -271,6 +274,7 @@ export interface GameState {
 
   // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
+
   // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
@@ -284,7 +288,7 @@ export interface GameState {
   /**
    * */
   activeSynergies: Synergy[];
-
+  
   /**
    * 🆕 호버 중인 시너지 (툴팁 표시용)
    */

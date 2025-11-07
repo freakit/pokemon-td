@@ -6,12 +6,13 @@ import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEff
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
 import { saveService } from '../services/SaveService';
 import { soundService } from '../services/SoundService';
-import { getCriticalChance, getLifestealRatio, getAOEDamageMultiplier } from '../utils/abilities';
-import { getBuffedStats } from '../utils/synergyManager'; // 🆕 시너지 유틸 임포트
+import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
+import { getBuffedStats } from '../utils/synergyManager';
+// 🆕 시너지 유틸 임포트
 
 export class GameManager {
   private static instance: GameManager;
-  
+
   static getInstance() {
     if (!GameManager.instance) {
       GameManager.instance = new GameManager();
@@ -46,6 +47,7 @@ export class GameManager {
   
   private updateStatusEffects(dt: number) {
     const { towers, enemies } = useGameStore.getState();
+    
     towers.forEach(t => {
       if (t.statusEffect) {
         const eff = t.statusEffect;
@@ -58,6 +60,7 @@ export class GameManager {
         }
       }
     });
+
     enemies.forEach(e => {
       if (e.statusEffect) {
         const eff = e.statusEffect;
@@ -69,7 +72,7 @@ export class GameManager {
 
         if (eff.duration <= 0) {
           e.statusEffect = undefined;
-          if (eff.type === 'burn') e.attack = e.baseAttack;
+           if (eff.type === 'burn') e.attack = e.baseAttack;
         } else if (eff.tickDamage) {
           e.hp = Math.max(0, e.hp - (eff.tickDamage * dt));
           if (e.hp <= 0) this.killEnemy(e.id);
@@ -80,6 +83,7 @@ export class GameManager {
 
   private updateEnemies(dt: number) {
     const { enemies, towers, removeEnemy } = useGameStore.getState();
+    
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
       if (!e) continue;
@@ -87,6 +91,7 @@ export class GameManager {
       if (e.statusEffect?.type === 'freeze' || e.statusEffect?.type === 'sleep') continue;
       
       e.attackCooldown = Math.max(0, e.attackCooldown - dt);
+
       let speedMult = 1;
       if (e.statusEffect?.type === 'paralysis') speedMult = 0.5;
 
@@ -101,6 +106,7 @@ export class GameManager {
         const dx = targetTower.position.x - e.position.x;
         const dy = targetTower.position.y - e.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
+
         if (dist <= e.range) {
           this.enemyAttackTower(e, targetTower);
         } else {
@@ -128,6 +134,7 @@ export class GameManager {
     const dx = targetPos.x - enemy.position.x;
     const dy = targetPos.y - enemy.position.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
+    
     if (dist < 5) {
       return true;
     }
@@ -143,11 +150,13 @@ export class GameManager {
     const { towers } = useGameStore.getState();
     let closestTower: GamePokemon | null = null;
     let minDiff = Infinity;
+
     for (const tower of towers) {
       if (tower.isFainted) continue;
       const dx = tower.position.x - enemy.position.x;
       const dy = tower.position.y - enemy.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+      
       if (dist < minDiff && dist <= enemy.range * 2) {
         minDiff = dist;
         closestTower = tower;
@@ -161,7 +170,7 @@ export class GameManager {
    */
   private enemyAttackTower(enemy: Enemy, tower: GamePokemon) {
     if (enemy.attackCooldown > 0) return;
-    
+
     const { updateTower, activeSynergies } = useGameStore.getState(); // 🆕 시너지 가져오기
     
     // 🆕 시너지 적용된 방어 스탯 가져오기
@@ -169,11 +178,11 @@ export class GameManager {
     
     const enemyAttackType = enemy.types[0] || 'normal';
     let eff = getTypeEffectiveness(enemyAttackType, tower.types);
-    
+
     // 🆕 6타입 시너지 방어 로직
     let finalDamageMultiplier = 1.0;
     const sixPieceTypeSynergies = activeSynergies.filter(s => s.id.startsWith('type:') && s.level === 3);
-    
+
     for (const syn of sixPieceTypeSynergies) {
       const synergyType = syn.id.split(':')[1];
       // 이 타워가 해당 6시너지 타입이고, 그 타입이 2배 약점일 경우
@@ -203,6 +212,7 @@ export class GameManager {
   
   private updateTowers(_dt: number) {
     const { towers, enemies } = useGameStore.getState();
+    
     towers.forEach(tower => {
       if (tower.isFainted) return;
       
@@ -253,6 +263,7 @@ export class GameManager {
           isMiss: true, // 🎯 Miss 표시
           lifetime: 1.0,
         });
+        
         // 쿨다운만 적용하고 공격 실패
         const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
         m.currentCooldown = m.cooldown * speedMultiplier;
@@ -286,6 +297,7 @@ export class GameManager {
       targetId: target.id,
       isAOE: move.isAOE,
       aoeRadius: move.aoeRadius,
+      
       attackPower, // 🆕 버프된 attackPower 전달
       damageClass: move.damageClass,
       attackerTypes: tower.types, // 자속 보정을 위한 타입 정보
@@ -295,6 +307,7 @@ export class GameManager {
   
   private updateProjectiles(dt: number) {
     const { projectiles, enemies, removeProjectile } = useGameStore.getState();
+    
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const proj = projectiles[i];
       if (!proj) continue;
@@ -308,6 +321,7 @@ export class GameManager {
       const dx = target.position.x - proj.current.x;
       const dy = target.position.y - proj.current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+
       if (dist < 10) {
         this.projectileHit(proj, target);
         removeProjectile(proj.id);
@@ -330,11 +344,13 @@ export class GameManager {
 
   private applyAOEDamage(center: Position, radius: number, proj: Projectile) {
     const { enemies } = useGameStore.getState();
+    
     const affectedEnemies = enemies.filter(e => {
       const dx = e.position.x - center.x;
       const dy = e.position.y - center.y;
       return Math.sqrt(dx * dx + dy * dy) <= radius;
     });
+
     affectedEnemies.forEach(e => this.applyDamage(proj, e));
   }
 
@@ -346,6 +362,7 @@ export class GameManager {
     const attacker = proj.attackerId ? towers.find(t => t.id === proj.attackerId) : undefined;
     const critChance = getCriticalChance(attacker?.ability);
     const isCrit = Math.random() < critChance;
+    
     // 자속 보정 확인
     const stab = hasSTAB(proj.attackerTypes, proj.type);
     
@@ -360,14 +377,11 @@ export class GameManager {
     
     enemy.hp = Math.max(0, enemy.hp - dmg);
     
-    // 흡혈 효과 적용
-    if (attacker && !attacker.isFainted) {
-      const lifestealRatio = getLifestealRatio(attacker.ability);
-      if (lifestealRatio > 0) {
-        const healAmount = Math.floor(dmg * lifestealRatio);
-        const newHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
-        updateTower(attacker.id, { currentHp: newHp });
-      }
+    // 2. 기술 기반 흡혈 효과 적용 (요청사항 반영)
+    if (attacker && !attacker.isFainted && proj.effect.drainPercent) {
+      const healAmount = Math.floor(dmg * proj.effect.drainPercent);
+      const newHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
+      updateTower(attacker.id, { currentHp: newHp });
     }
     
     addDamageNumber({
@@ -377,8 +391,9 @@ export class GameManager {
       isCrit,
       lifetime: 1.0,
     });
-    
-    if (proj.effect.statusInflict && proj.effect.statusChance) {
+
+    // 1. 상태이상 적용 (확률 API 값 기반)
+    if (proj.effect.statusInflict && proj.effect.statusChance != null) {
       if (Math.random() * 100 < proj.effect.statusChance) {
         // 상태이상별 지속시간 차별화
         let duration = 5.0; // 기본 5초 (화상, 독, 마비 등)
@@ -407,10 +422,12 @@ export class GameManager {
       addMoney(reward);
       removeEnemy(id);
       useGameStore.setState(state => ({ combo: state.combo + 1 }));
+      
       const xpAmount = enemy.isBoss ? 50 : 10;
       useGameStore.getState().towers.forEach(t => {
         addXpToTower(t.id, xpAmount);
       });
+      
       saveService.updateStats({
         enemiesKilled: saveService.load().stats.enemiesKilled + 1,
         totalMoneyEarned: saveService.load().stats.totalMoneyEarned + reward,
@@ -420,11 +437,13 @@ export class GameManager {
   
   private updateDamageNumbers(dt: number) {
     const { damageNumbers, removeDamageNumber } = useGameStore.getState();
+    
     for (let i = damageNumbers.length - 1; i >= 0; i--) {
       const dmg = damageNumbers[i];
       if (!dmg) continue;
       dmg.lifetime -= dt;
       dmg.position.y -= 20 * dt;
+      
       if (dmg.lifetime <= 0) {
         removeDamageNumber(dmg.id);
       }
@@ -450,7 +469,7 @@ export class GameManager {
         { id: 'rare_candy', name: '이상한 사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },
         { id: 'revive_shard', name: '기력의 조각', type: 'revive', cost: 0, effect: '기절한 아군 1마리를 50% HP로 부활' },
       ];
-      
+
       // 🔴 메가스톤 드랍 로직 (10% 확률)
       // 엔트리에 메가진화 가능한 최종진화형이 있는지 확인
       const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
@@ -486,7 +505,7 @@ export class GameManager {
             type: 'max-mushroom' as any,
             cost: 0,
             effect: `${randomPokemon.name}을 거다이맥스시킵니다`,
-            targetPokemonId: randomPokemon.pokemonId,
+             targetPokemonId: randomPokemon.pokemonId,
           });
         }
       }

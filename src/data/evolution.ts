@@ -102,6 +102,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 183, to: 184, level: 18 }, 
   { from: 187, to: 188, level: 18 }, { from: 188, to: 189, level: 27 },
   { from: 190, to: 424, item: 'special-evolution' }, // 에이팜 → 겟핸보숭 (기술 습득)
+  { from: 193, to: 469, item: 'special-evolution' },
   { from: 194, to: 195, level: 20 }, // 우파 (P) -> 토오 진화는 9세대에
   { from: 204, to: 205, level: 31 },
   { from: 209, to: 210, level: 23 },
@@ -379,7 +380,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 843, to: 844, level: 36 },
   { from: 846, to: 847, level: 26 },
   { from: 848, to: 849, level: 30 }, // 일레즌 -> 스트린더 (폼 2개)
-  { from: 850, to: 851, level: 30 }, // 태우지네 -> 다태우지네
+  { from: 850, to: 851, level: 28 }, // 태우지네 -> 다태우지네
   { from: 852, to: 853, level: 38 }, // 대여르 -> 배열
   { from: 854, to: 855, item: 'special-evolution' }, // 데인차 -> 포트데스 (깨진포트/이빠진포트)
   { from: 856, to: 857, level: 32 }, { from: 857, to: 858, level: 42 }, // 몸지브림 -> 손지브림 -> 브리무음
