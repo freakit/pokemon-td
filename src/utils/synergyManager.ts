@@ -1,21 +1,89 @@
 // src/utils/synergyManager.ts
 import { GamePokemon, Synergy } from '../types/game';
 
+// [신규] 1세대 포켓몬의 특수폼 (메가진화, 거다이맥스) ID 목록
+const GEN_1_SPECIAL_FORMS = new Set([
+  10033, 10034, 10035, 10036, 10090, 10073, 10037, 10071, 10038,
+  10039, 10040, 10041, 10042, 10043, 10044, 10195, 10196, 10197,
+  10198, 10199, 10200, 10201, 10202, 10203, 10204, 10205, 10206,
+]);
+
+// [신규] 2세대 포켓몬의 특수폼 (메가진화) ID 목록
+const GEN_2_SPECIAL_FORMS = new Set([
+  10045, 10072, 10046, 10047, 10048, 10049,
+]);
+
+// [신규] 3세대 포켓몬의 특수폼 (메가진화) ID 목록
+const GEN_3_SPECIAL_FORMS = new Set([
+  10065, 10050, 10064, 10051, 10066, 10052, 10053, 10054, 10055,
+  10070, 10087, 10067, 10056, 10057, 10074, 10089, 10076, 10062,
+  10063, 10079,
+]);
+
+// [신규] 4세대 포켓몬의 특수폼 (메가진화) ID 목록
+const GEN_4_SPECIAL_FORMS = new Set([
+  10088, 10058, 10059, 10060, 10068,
+]);
+
+// [신규] 5세대 포켓몬의 특수폼 (메가진화, 거다이맥스, 합체폼) ID 목록
+const GEN_5_SPECIAL_FORMS = new Set([
+  10069, // 메가다부니
+  10207, // 거다이더스트나
+  10022, // 블랙큐레무
+  10023, // 화이트큐레무
+]);
+
+// [신규] 6세대 포켓몬의 특수폼 (메가진화) ID 목록
+const GEN_6_SPECIAL_FORMS = new Set([
+  10075, // 메가디안시
+]);
+
+// [신규] 7세대 포켓몬의 특수폼 (거다이맥스, 합체폼) ID 목록
+const GEN_7_SPECIAL_FORMS = new Set([
+  10208, // 거다이멜메탈
+  10155, // 황혼네크로즈마
+  10156, // 새벽네크로즈마
+]);
+
+// [신규] 8세대 포켓몬의 특수폼 (거다이맥스, 합체폼) ID 목록
+const GEN_8_SPECIAL_FORMS = new Set([
+  10209, 10210, 10211, 10212, 10213, 10214, 10215, 10216, 10217,
+  10218, 10219, 10220, 10221, 10222, 10223, 10224, 10225, // 8세대 거다이맥스
+  10193, // 아이스라이더
+  10194, // 쉐도우라이더
+]);
+
+// (9세대는 현재 특수폼 없음)
+
 /**
  * 포켓몬 ID를 기반으로 세대를 반환합니다.
  * (pokeapi.ts의 세대별 ID 범위를 기반으로 함)
  */
 export const getGenerationById = (id: number): number => {
-  if (id > 10000) return 0; // 메가진화/거다이맥스 등 특수폼
-  if (id <= 151) return 1;
-  if (id <= 251) return 2;
-  if (id <= 386) return 3;
-  if (id <= 493) return 4;
-  if (id <= 649) return 5;
-  if (id <= 721) return 6;
-  if (id <= 809) return 7;
-  if (id <= 905) return 8;
-  if (id <= 1025) return 9;
+  // [수정] 1. 기본 ID 범위로 먼저 확인 (가장 빠른 경로)
+  if (id >= 1 && id <= 151) return 1;
+  if (id >= 152 && id <= 251) return 2;
+  if (id >= 252 && id <= 386) return 3;
+  if (id >= 387 && id <= 493) return 4;
+  if (id >= 494 && id <= 649) return 5;
+  if (id >= 650 && id <= 721) return 6;
+  if (id >= 722 && id <= 809) return 7;
+  if (id >= 810 && id <= 905) return 8;
+  if (id >= 906 && id <= 1025) return 9;
+
+  // [수정] 2. 10000번대 이상 특수폼인지 Set에서 확인
+  if (id > 10000) {
+    if (GEN_1_SPECIAL_FORMS.has(id)) return 1;
+    if (GEN_2_SPECIAL_FORMS.has(id)) return 2;
+    if (GEN_3_SPECIAL_FORMS.has(id)) return 3;
+    if (GEN_4_SPECIAL_FORMS.has(id)) return 4;
+    if (GEN_5_SPECIAL_FORMS.has(id)) return 5;
+    if (GEN_6_SPECIAL_FORMS.has(id)) return 6;
+    if (GEN_7_SPECIAL_FORMS.has(id)) return 7;
+    if (GEN_8_SPECIAL_FORMS.has(id)) return 8;
+    // (9세대는 현재 특수폼 없음)
+  }
+
   return 0; // 알 수 없는 범위
 };
 
