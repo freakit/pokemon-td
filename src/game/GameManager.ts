@@ -481,10 +481,10 @@ export class GameManager {
         if (megaData) {
           itemChoices.push({
             id: `mega_stone_${megaData.item}`,
-            name: `${randomPokemon.name}의 메가스톤`,
+            name: `${randomPokemon.displayName}의 메가스톤`,
             type: 'mega-stone',
             cost: 0,
-            effect: `${randomPokemon.name}을 메가진화시킵니다`,
+            effect: `${randomPokemon.displayName}을 메가진화시킵니다`,
             targetPokemonId: randomPokemon.pokemonId,
           });
         }
@@ -501,10 +501,10 @@ export class GameManager {
         if (gigantamaxData) {
           itemChoices.push({
             id: `max_mushroom_${randomPokemon.pokemonId}`,
-            name: `${randomPokemon.name}의 다이버섯`,
+            name: `${randomPokemon.displayName}의 다이버섯`,
             type: 'max-mushroom' as any,
             cost: 0,
-            effect: `${randomPokemon.name}을 거다이맥스시킵니다`,
+            effect: `${randomPokemon.displayName}을 거다이맥스시킵니다`,
              targetPokemonId: randomPokemon.pokemonId,
           });
         }

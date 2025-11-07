@@ -7,7 +7,6 @@ export type StatusEffectType =
   | "freeze"
   | "sleep"
   | "confusion";
-
 export type DamageClass = "physical" | "special" | "status";
 export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
 export type PokemonRarity =
@@ -19,11 +18,11 @@ export type PokemonRarity =
   | "Legend";
 
 export interface Synergy {
-  id: string; // 'type:fire' or 'gen:1'
-  name: string; // '불꽃' or '1세대'
-  level: number; // 1 (2마리), 2 (4마리), 3 (6마리)
-  count: number; // 실제 마리 수 (e.g., 2, 3, 4...)
-  description: string; // UI에 표시될 설명
+  id: string;
+  name: string;
+  level: number;
+  count: number;
+  description: string;
 }
 
 export interface Position {
@@ -38,33 +37,35 @@ export interface StatusEffect {
 }
 
 export interface PokemonAbility {
-  name: string;
+  name: string; // 영문 key
+  displayName: string; // 현지화된 이름
   description: string;
   effect: "crit" | "lifesteal" | "aoe" | "speed" | "tank";
   value: number;
 }
 
 export interface GameMove {
-  name: string;
+  name: string; // 영문 key
+  displayName: string; // 현지화된 이름
   type: string;
   power: number;
   accuracy: number;
   damageClass: DamageClass;
-  effect: MoveEffect; // 부가 효과
+  effect: MoveEffect;
   cooldown: number;
   currentCooldown: number;
-  isAOE: boolean; // 광역 여부
+  isAOE: boolean;
   aoeRadius?: number;
   manualCast?: boolean;
 }
 
 export interface MoveEffect {
   type: "damage" | "status" | "heal" | "buff" | "debuff";
-  statusInflict?: StatusEffectType; // 상태이상
-  statusChance?: number | null; // 1. 확률 (null 허용)
+  statusInflict?: StatusEffectType;
+  statusChance?: number | null;
   damageMultiplier?: number;
   additionalEffects?: string;
-  drainPercent?: number; // 2. 체력 흡수율 (e.g., 0.5)
+  drainPercent?: number;
 }
 
 export interface MapData {
@@ -83,13 +84,14 @@ export type Gender = "male" | "female" | "genderless";
 export interface GamePokemon {
   id: string;
   pokemonId: number;
-  name: string;
+  name: string; // 영문 key
+  displayName: string; // 현지화된 이름
   level: number;
   experience: number;
   currentHp: number;
   maxHp: number;
-  baseAttack: number; // 기본 공격력 (버프/디버프 기준)
-  attack: number; // 실제 공격력
+  baseAttack: number;
+  attack: number;
   defense: number;
   specialAttack: number;
   specialDefense: number;
@@ -97,7 +99,7 @@ export interface GamePokemon {
   types: string[];
   position: Position;
   equippedMoves: GameMove[];
-  rejectedMoves: string[]; // 거부한 기술 이름 목록
+  rejectedMoves: string[];
   ability?: PokemonAbility;
   statusEffect?: StatusEffect;
   isFainted: boolean;
@@ -107,7 +109,7 @@ export interface GamePokemon {
   sellValue: number;
   kills: number;
   damageDealt: number;
-  gender: Gender; // 성별 추가
+  gender: Gender;
 }
 
 export interface Enemy {
@@ -115,11 +117,11 @@ export interface Enemy {
   name: string;
   hp: number;
   maxHp: number;
-  baseAttack: number; // 기본 공격력
-  attack: number; // 실제 공격력
+  baseAttack: number;
+  attack: number;
   defense: number;
-  specialAttack: number; // 특수 공격력
-  specialDefense: number; // 특수 방어력
+  specialAttack: number;
+  specialDefense: number;
   speed: number;
   position: Position;
   path: Position[];
@@ -130,11 +132,11 @@ export interface Enemy {
   reward: number;
   moveSpeed: number;
   targetTowerId?: string;
-  types: string[]; // optional 제거
-  sprite: string; // optional 제거
-  range: number; // 타워 공격 사거리
-  attackCooldown: number; // 타워 공격 쿨다운
-  pokemonId: number; // 포켓몬 ID 추가
+  types: string[];
+  sprite: string;
+  range: number;
+  attackCooldown: number;
+  pokemonId: number;
 }
 
 export interface Projectile {
@@ -144,15 +146,15 @@ export interface Projectile {
   current: Position;
   damage: number;
   type: string;
-  effect: MoveEffect; // 투사체에 부가 효과 포함
+  effect: MoveEffect;
   speed: number;
   targetId: string;
   isAOE: boolean;
   aoeRadius?: number;
-  attackPower: number; // 공격력 (물리 or 특수)
-  damageClass: DamageClass; // 물리 or 특수
-  attackerTypes: string[]; // 자속 보정을 위한 공격자 타입
-  attackerId?: string; // 🆕 특성 효과 적용을 위한 공격자 ID
+  attackPower: number;
+  damageClass: DamageClass;
+  attackerTypes: string[];
+  attackerId?: string;
 }
 
 export interface DamageNumber {
@@ -160,7 +162,7 @@ export interface DamageNumber {
   value: number;
   position: Position;
   isCrit: boolean;
-  isMiss?: boolean; // 🎯 Miss 여부
+  isMiss?: boolean;
   lifetime: number;
 }
 
@@ -178,8 +180,8 @@ export interface Item {
     | "max-mushroom";
   cost: number;
   effect: string;
-  value?: number; // 효과 값 (예: 힐량)
-  targetPokemonId?: number; // 메가스톤의 경우 특정 포켓몬 ID
+  value?: number;
+  targetPokemonId?: number;
 }
 
 export interface Achievement {
@@ -246,7 +248,7 @@ export interface GameState {
   gameOver: boolean;
   victory: boolean;
   selectedTowerSlot: Position | null;
-  availableItems: Item[]; // 인벤토리 (현재 상점에서 바로 사용됨)
+  availableItems: Item[];
   currentMap: string;
   difficulty: Difficulty;
   gameSpeed: number;
@@ -254,15 +256,13 @@ export interface GameState {
   gameTick: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
-  timeOfDay: "day" | "night"; // 시간대 추가
+  timeOfDay: "day" | "night";
 
-  // 레벨업 시 기술 선택 (큐로 관리하여 순차 처리)
   skillChoiceQueue: Array<{
     towerId: string;
     newMoves: GameMove[];
   }>;
 
-  // 진화 확인 큐 추가
   evolutionConfirmQueue: Array<{
     towerId: string;
     evolutionOptions: Array<{
@@ -271,26 +271,18 @@ export interface GameState {
       method: string;
     }>;
   }>;
-
-  // 웨이브 종료 시 아이템 선택
   waveEndItemPick: Item[] | null;
-
-  // 진화 알림 (작은 토스트 메시지)
   evolutionToast: {
     fromName: string;
     toName: string;
     timestamp: number;
   } | null;
 
-  // 웨이브 50 클리어 모달 표시 여부
   wave50Clear: boolean;
 
-  /**
-   * */
   activeSynergies: Synergy[];
-  
-  /**
-   * 🆕 호버 중인 시너지 (툴팁 표시용)
-   */
   hoveredSynergy: Synergy | null;
+
+  // ⭐️ [수정] 여기에 isPreloading 추가
+  isPreloading: boolean;
 }

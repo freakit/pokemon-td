@@ -38,8 +38,8 @@ export const SynergyDetails: React.FC = () => {
         {matchingPokemon.length > 0 ? (
           matchingPokemon.map(pokemon => (
             <PokemonItem key={pokemon.id}>
-              <Sprite src={pokemon.sprite} alt={pokemon.name} />
-              <Name>{pokemon.name} ({t('common.levelShort')}.{pokemon.level})</Name>
+              <Sprite src={pokemon.sprite} alt={pokemon.displayName} />
+              <Name>{pokemon.displayName} ({t('common.levelShort')}.{pokemon.level})</Name>
             </PokemonItem>
           ))
         ) : (

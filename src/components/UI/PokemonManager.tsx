@@ -1,3 +1,5 @@
+// src/components/UI/PokemonManager.tsx
+
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
@@ -29,10 +31,10 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
   const [fusionMode, setFusionMode] = useState(false);
   const [selectedBase, setSelectedBase] = useState<string | null>(null);
 
-  const handleSell = (towerId: string, towerName: string, level: number) => {
+  const handleSell = (towerId: string, towerDisplayName: string, level: number) => {
     const sellPrice = level * 20;
     const confirmed = window.confirm(
-      t('manager.sellConfirm', { name: towerName, level: level, price: sellPrice })
+      t('manager.sellConfirm', { name: towerDisplayName, level: level, price: sellPrice })
     );
     if (confirmed) {
       sellTower(towerId);
@@ -46,10 +48,10 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
   const handlePokemonClick = (towerId: string) => {
     if (!fusionMode) return;
-
+    
     const tower = towers.find(t => t.id === towerId);
     if (!tower) return;
-
+    
     if (!selectedBase) {
       const canBeBase = FUSION_DATA.some(f => f.base === tower.pokemonId);
       if (!canBeBase) {
@@ -65,7 +67,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
       const baseTower = towers.find(t => t.id === selectedBase);
       const materialTower = tower;
-
+      
       if (!baseTower) {
         setSelectedBase(null);
         return;
@@ -76,7 +78,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         f.material === materialTower.pokemonId &&
         f.item === 'dna-splicers'
       );
-
+      
       if (!fusion) {
         alert(t('alerts.cannotFusePokemon'));
         setSelectedBase(null);
@@ -85,9 +87,9 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
       const fusionCost = 500;
       const confirmed = window.confirm(
-        t('manager.fusionConfirm', { base: baseTower.name, material: materialTower.name, cost: fusionCost })
+        t('manager.fusionConfirm', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
       );
-
+      
       if (confirmed) {
         if (!spendMoney(fusionCost)) {
           alert(t('alerts.notEnoughMoneyWithCost', { cost: fusionCost }));
@@ -174,7 +176,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
               const hpPercent = Math.round((tower.currentHp / tower.maxHp) * 100);
               const fusionHint = getFusionHint(tower.id);
               const isSelected = selectedBase === tower.id;
-
+              
               return (
                 <Card 
                   key={tower.id} 
@@ -183,7 +185,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                   onClick={() => handlePokemonClick(tower.id)}
                 >
                   <CardHeader>
-                    <Sprite src={tower.sprite} alt={tower.name} />
+                    <Sprite src={tower.sprite} alt={tower.displayName} />
                     {tower.isFainted && (
                       <FaintedBadge>{t('manager.fainted')}</FaintedBadge>
                     )}
@@ -194,18 +196,18 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                   
                   <CardBody>
                     <NameRow>
-                      <PokeName>{tower.name}</PokeName>
+                      <PokeName>{tower.displayName}</PokeName>
                       <GenderIcon $gender={tower.gender}>
-                        {getGenderIcon(tower.gender)}
+                         {getGenderIcon(tower.gender)}
                       </GenderIcon>
                     </NameRow>
                     <InfoRow>
-                      <span>{t('common.level')}</span>
+                       <span>{t('common.level')}</span>
                       <InfoValue>{tower.level}</InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <span>{t('picker.hp')}</span>
-                      <InfoValue>
+                       <InfoValue>
                         {Math.floor(tower.currentHp)}/{tower.maxHp} ({hpPercent}%)
                       </InfoValue>
                     </InfoRow>
@@ -214,15 +216,16 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                       <span>{t('manager.kills')}</span>
                       <InfoValue>{tower.kills}</InfoValue>
                     </InfoRow>
+                
                     <InfoRow>
                       <span>{t('picker.move')}</span>
-                      <InfoValue>{tower.equippedMoves[0]?.name || 'N/A'}</InfoValue>
+                      <InfoValue>{tower.equippedMoves[0]?.displayName || 'N/A'}</InfoValue>
                     </InfoRow>
                   </CardBody>
                   
                   {!fusionMode && (
                     <SellBtn 
-                      onClick={() => handleSell(tower.id, tower.name, tower.level)}
+                       onClick={() => handleSell(tower.id, tower.displayName, tower.level)}
                     >
                       💰 {t('manager.sell', { price: sellPrice })}
                     </SellBtn>

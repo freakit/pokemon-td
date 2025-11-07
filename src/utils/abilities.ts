@@ -1,21 +1,25 @@
 // src/utils/abilities.ts
 
 import { PokemonAbility } from '../types/game';
+import { PokemonAbilityData } from '../api/pokeapi';
 
 /**
  * 특성 이름을 기반으로 게임 내 특성 효과를 매핑
  * PokeAPI의 특성 이름을 게임 효과로 변환
  */
-export function mapAbilityToGameEffect(abilityName: string, description: string): PokemonAbility | null {
-  const name = abilityName.toLowerCase();
-  
+export function mapAbilityToGameEffect(abilityData: PokemonAbilityData): PokemonAbility {
+  const name = abilityData.name.toLowerCase(); // 로직은 영문 key 기준
+  const description = abilityData.description;
+  const displayName = abilityData.displayName; // 현지화된 이름 사용
+
   // 공격 관련 특성
   if (name.includes('guts') || name.includes('overgrow') || name.includes('torrent') || 
       name.includes('blaze') || name.includes('swarm') || name.includes('huge-power') || 
       name.includes('pure-power') || name.includes('hustle')) {
     return {
-      name: abilityName,
-      description,
+      name: abilityData.name,
+      displayName: displayName,
+      description: description,
       effect: 'crit',
       value: 2.0 // 크리티컬 확률 2배
     };
@@ -25,8 +29,9 @@ export function mapAbilityToGameEffect(abilityName: string, description: string)
   if (name.includes('regenerator') || name.includes('volt-absorb') || 
       name.includes('water-absorb') || name.includes('sap-sipper')) {
     return {
-      name: abilityName,
-      description,
+      name: abilityData.name,
+      displayName: displayName,
+      description: description,
       effect: 'lifesteal',
       value: 0.15 // 15% 흡혈
     };
@@ -36,8 +41,9 @@ export function mapAbilityToGameEffect(abilityName: string, description: string)
   if (name.includes('pixilate') || name.includes('aerilate') || 
       name.includes('refrigerate') || name.includes('galvanize')) {
     return {
-      name: abilityName,
-      description,
+      name: abilityData.name,
+      displayName: displayName,
+      description: description,
       effect: 'aoe',
       value: 1.2 // AOE 데미지 20% 증가
     };
@@ -48,8 +54,9 @@ export function mapAbilityToGameEffect(abilityName: string, description: string)
       name.includes('swift-swim') || name.includes('sand-rush') || 
       name.includes('slush-rush') || name.includes('unburden')) {
     return {
-      name: abilityName,
-      description,
+      name: abilityData.name,
+      displayName: displayName,
+      description: description,
       effect: 'speed',
       value: 1.5 // 공격 속도 50% 증가
     };
@@ -60,8 +67,9 @@ export function mapAbilityToGameEffect(abilityName: string, description: string)
       name.includes('solid-rock') || name.includes('filter') || 
       name.includes('prism-armor') || name.includes('fluffy')) {
     return {
-      name: abilityName,
-      description,
+      name: abilityData.name,
+      displayName: displayName,
+      description: description,
       effect: 'tank',
       value: 0.75 // 받는 데미지 25% 감소
     };
@@ -74,12 +82,12 @@ export function mapAbilityToGameEffect(abilityName: string, description: string)
     { effect: 'speed', value: 1.2 },
     { effect: 'tank', value: 0.85 },
   ];
-  
   const randomEffect = randomEffects[Math.floor(Math.random() * randomEffects.length)];
   
   return {
-    name: abilityName,
-    description,
+    name: abilityData.name,
+    displayName: displayName,
+    description: description,
     effect: randomEffect.effect,
     value: randomEffect.value
   };
@@ -94,7 +102,6 @@ export function applyAbilityEffects(
   effectType: 'damage' | 'defense' | 'speed'
 ): number {
   if (!ability) return baseValue;
-  
   switch (effectType) {
     case 'damage':
       if (ability.effect === 'crit') {
@@ -108,7 +115,6 @@ export function applyAbilityEffects(
         return baseValue * (1 / ability.value); // 방어력 증가 효과
       }
       return baseValue;
-      
     case 'speed':
       if (ability.effect === 'speed') {
         return baseValue * ability.value;
