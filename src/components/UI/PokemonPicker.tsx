@@ -1,7 +1,9 @@
+// src/components/UI/PokemonPicker.tsx
+
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
-import { pokeAPI } from '../../api/pokeapi';
+import { pokeAPI, PokemonData } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
 import { GameMove, MoveEffect, Gender } from '../../types/game';
 import { Rarity, RARITY_COLORS } from '../../data/evolution';
@@ -11,7 +13,7 @@ const REROLL_COST = 20;
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
 interface PokemonChoice {
-  data: any;
+  data: PokemonData;
   cost: number;
   rarity: Rarity;
   gender: Gender;
@@ -19,16 +21,50 @@ interface PokemonChoice {
 
 const determineGender = (pokemonId: number): Gender => {
   const genderlessIds = [
-    132, 137, 233, 474, 81, 82, 100, 101, 120, 121, 
-    201, 292, 337, 338, 343, 344, 374, 375, 376, 
-    436, 437, 462, 474, 486, 487, 488, 489, 490,
-    599, 600, 601, 615, 622, 623, 638, 639, 640,
-    649, 703, 716, 717, 718, 720, 721, 772, 773,
-    774, 781, 789, 790, 791, 792, 793, 794, 795,
-    796, 797, 798, 799, 
-    800, 801, 
-    802, 803, 804, 805, 806
+    // Gen 1
+    81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146, 150, 151,
+
+    // Gen 2
+    201, 233, 243, 244, 245, 249, 250, 251,
+
+    // Gen 3
+    292, 337, 338, 343, 344, 374, 375, 376, 377, 378, 379, 382, 383, 384, 385, 386,
+
+    // Gen 4
+    436, 437, 462, 474, 479, 480, 481, 482, 483, 484, 486, 487,
+    489, 490, 491, 492, 493,
+
+    // Gen 5
+    494, 599, 600, 601, 615, 622, 623, 638, 639, 640,
+    643, 644, 646, 647, 648, 649,
+
+    // Gen 6
+    703, 716, 717, 718, 719, 720, 721,
+
+    // Gen 7
+    772, 773, 774, 781,
+    785, 786, 787, 788, 789, 790, 791, 792,
+    793, 794, 795, 796, 797, 798, 799,
+    800, 801, 802, 803, 804, 805, 806, 807, 808, 809,
+
+    // Gen 8
+    854, 855, 870, 880, 881, 882, 883,
+    888, 889, 890, 893, 894, 895, 896, 897, 898,
+
+    // Gen 9
+    924, 925,                // Tandemaus, Maushold 
+    984, 985, 986, 987, 988, 989, // Great Tusk~Sandy Shocks 
+    990, 991, 992, 993, 994, 995, // Iron Treads~Iron Thorns 
+    999, 1000,                    // Gimmighoul, Gholdengo 
+    1001, 1002, 1003, 1004,       // Wo-Chien, Chien-Pao, Ting-Lu, Chi-Yu 
+    1005, 1006,                   // Roaring Moon, Iron Valiant
+    1007, 1008,                   // Koraidon, Miraidon 
+    1009, 1010,                   // Walking Wake, Iron Leaves 
+    1012, 1013,                   // Poltchageist, Sinistcha
+    1020, 1021, 1022, 1023,       // Gouging Fire, Raging Bolt, Iron Boulder, Iron Crown 
+    1025                          // Pecharunt 
   ];
+
   if (genderlessIds.includes(pokemonId)) {
     return 'genderless';
   }
@@ -64,7 +100,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     const id1 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id2 = await pokeAPI.getRandomPokemonIdWithRarity();
     const id3 = await pokeAPI.getRandomPokemonIdWithRarity();
-
+    
     const data = await Promise.all([
       pokeAPI.getPokemon(id1),
       pokeAPI.getPokemon(id2),
@@ -92,7 +128,6 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     if (isLoading) return;
     
     setIsLoading(true);
-
     try {
       const poke = choice.data;
       const moveNames = poke.moves.slice(0, 10);
@@ -107,8 +142,11 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
       }
       
       if (!usableMove) {
+        // ⭐️ 수정된 부분: t() 함수 대신 localStorage를 직접 읽어 폴백 이름 지정
+        const lang = localStorage.getItem('language');
         usableMove = {
           name: 'tackle',
+          displayName: lang === 'en' ? 'Tackle' : '몸통박치기', // ⭐️ 수정
           type: 'normal',
           power: 40,
           accuracy: 100,
@@ -163,6 +201,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
       const equippedMoves: GameMove[] = [{
         name: usableMove.name,
+        displayName: usableMove.displayName,
         type: usableMove.type,
         power: usableMove.power || 40,
         accuracy: usableMove.accuracy || 100,
@@ -174,12 +213,12 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         aoeRadius: isAOE ? 100 : undefined,
         manualCast: false,
       }];
-
+      
       let ability = undefined;
       if (poke.abilities && poke.abilities.length > 0) {
         const randomIndex = Math.floor(Math.random() * poke.abilities.length);
         const randomAbility = poke.abilities[randomIndex];
-        ability = mapAbilityToGameEffect(randomAbility.name, randomAbility.description);
+        ability = mapAbilityToGameEffect(randomAbility);
       }
       
       setPokemonToPlace({
@@ -189,7 +228,6 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         cost: choice.cost,
         gender: choice.gender,
       });
-
     } catch (error) {
       console.error("Failed to fetch moves:", error);
       alert(t('alerts.skillLoadFailed'));
@@ -220,7 +258,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         <Subtitle>{t('picker.subtitle')}</Subtitle>
 
         <CardGrid>
-          {choices.map((choice, i) => {
+           {choices.map((choice, i) => {
             const p = choice.data;
             const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
                                 p.stats.specialAttack + p.stats.specialDefense + p.stats.speed;
@@ -231,12 +269,12 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                 $rarityColor={RARITY_COLORS[choice.rarity] || '#888'}
                 onClick={() => handleSelect(choice)}
               >
-                <Sprite src={p.sprite} alt={p.name} />
+                <Sprite src={p.sprite} alt={p.displayName} />
                 <Info>
                   <NameRow>
-                    <Name>{p.name}</Name>
+                    <Name>{p.displayName}</Name>
                     <GenderIcon $gender={choice.gender}>
-                      {getGenderIcon(choice.gender)}
+                       {getGenderIcon(choice.gender)}
                     </GenderIcon>
                   </NameRow>
                   

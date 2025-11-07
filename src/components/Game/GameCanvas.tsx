@@ -371,6 +371,7 @@ export const GameCanvas: React.FC = () => {
       id: `tower-${Date.now()}`,
       pokemonId: poke.id,
       name: poke.name,
+      displayName: poke.displayName,
       level: 1,
       experience: 0,
       currentHp: poke.stats.hp,
@@ -424,7 +425,7 @@ export const GameCanvas: React.FC = () => {
           }}
         >
           <TooltipTitle>
-            {hoveredTower.name} (Lv.{hoveredTower.level})
+            {hoveredTower.displayName} (Lv.{hoveredTower.level})
           </TooltipTitle>
           
           <TooltipTypes>
@@ -450,7 +451,7 @@ export const GameCanvas: React.FC = () => {
             <TooltipStatRow>{t('picker.speed')}: {hoveredTower.speed}</TooltipStatRow>
             {hoveredTower.equippedMoves[0] && (
               <TooltipMove>
-                ⚔️ {hoveredTower.equippedMoves[0].name} (
+                ⚔️ {hoveredTower.equippedMoves[0].displayName} (
                 {hoveredTower.equippedMoves[0].power})
               </TooltipMove>
             )}

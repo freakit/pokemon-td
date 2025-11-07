@@ -1,19 +1,24 @@
-// src/api/pokeapi.ts
-
 import axios from 'axios';
 import { EVOLUTION_CHAINS, getFinalEvolutionId, calculateRarity, RARITY_WEIGHTS, Rarity } from '../data/evolution';
 import { GameMove, MoveEffect } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
+const getCurrentLanguage = (): 'ko' | 'en' => {
+  const lang = localStorage.getItem('language');
+  return lang === 'en' ? 'en' : 'ko';
+};
+
 export interface PokemonAbilityData {
   name: string;
+  displayName: string;
   description: string;
 }
 
 export interface PokemonData {
   id: number;
   name: string;
+  displayName: string;
   types: string[];
   stats: { hp: number; attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number };
   sprite: string;
@@ -23,40 +28,60 @@ export interface PokemonData {
 
 export interface MoveData {
   name: string;
+  displayName: string;
   type: string;
   power: number | null;
   accuracy: number | null;
   damageClass: 'physical' | 'special' | 'status';
   effectChance: number | null;
   target: string;
-  // 'all-opponents', 'all-other-pokemon' 등
-  effectEntries: string[]; // 기술 효과 설명
+  effectEntries: string[];
 }
 
-// 진화형 포켓몬 ID 목록 (기본형만 뽑기 위함)
 const EVOLVED_POKEMON_IDS = new Set(EVOLUTION_CHAINS.map(e => e.to));
 
 class PokeAPIService {
   private pokemonCache = new Map<number, PokemonData>();
   private moveCache = new Map<string, MoveData>();
-  private rarityCache = new Map<number, Rarity>(); // 기본형 포켓몬의 레어도 캐시
+  private rarityCache = new Map<number, Rarity>();
+
+  // ⭐️ [수정] 레어도 가중치 리스트를 캐시할 변수 추가
+  private weightedPokemonList: Array<{ id: number; weight: number }> = [];
 
   async getPokemon(id: number): Promise<PokemonData> {
     if (this.pokemonCache.has(id)) return this.pokemonCache.get(id)!;
-
+    
     try {
-      const res = await axios.get(`${API_BASE}/pokemon/${id}`);
+      const lang = getCurrentLanguage();
+      
+      const [res, speciesRes] = await Promise.all([
+        axios.get(`${API_BASE}/pokemon/${id}`),
+        axios.get(`${API_BASE}/pokemon-species/${id}`)
+      ]);
+      
       const d = res.data;
+      const s = speciesRes.data;
 
-      // 특성 가져오기
+      const nameEntry = s.names.find((n: any) => n.language.name === lang) ||
+                        s.names.find((n: any) => n.language.name === 'en');
+      const displayName = nameEntry ? nameEntry.name : d.name;
+
       const abilities: PokemonAbilityData[] = [];
       for (const abilityData of d.abilities) {
         try {
           const abilityRes = await axios.get(abilityData.ability.url);
           const abilityInfo = abilityRes.data;
-          const descEntry = abilityInfo.effect_entries.find((e: any) => e.language.name === 'en');
+          
+          const abilityNameEntry = abilityInfo.names.find((n: any) => n.language.name === lang) ||
+                                   abilityInfo.names.find((n: any) => n.language.name === 'en');
+          const abilityDisplayName = abilityNameEntry ? abilityNameEntry.name : abilityInfo.name;
+
+          const descEntry = abilityInfo.effect_entries.find((e: any) => e.language.name === lang) ||
+                            abilityInfo.effect_entries.find((e: any) => e.language.name === 'en');
+          
           abilities.push({
             name: abilityInfo.name,
+            displayName: abilityDisplayName,
             description: descEntry?.short_effect || descEntry?.effect || 'No description',
           });
         } catch {
@@ -67,6 +92,7 @@ class PokeAPIService {
       const pokemon: PokemonData = {
         id: d.id,
         name: d.name,
+        displayName: displayName,
         types: d.types.map((t: any) => t.type.name),
         stats: {
           hp: d.stats[0].base_stat,
@@ -80,7 +106,7 @@ class PokeAPIService {
         moves: d.moves.map((m: any) => m.move.name).slice(0, 20),
         abilities,
       };
-
+      
       this.pokemonCache.set(id, pokemon);
       return pokemon;
     } catch {
@@ -90,18 +116,23 @@ class PokeAPIService {
 
   async getMove(name: string): Promise<MoveData> {
     if (this.moveCache.has(name)) return this.moveCache.get(name)!;
-
+    
     try {
+      const lang = getCurrentLanguage();
       const res = await axios.get(`${API_BASE}/move/${name}`);
       const d = res.data;
+      
+      const nameEntry = d.names.find((n: any) => n.language.name === lang) ||
+                        d.names.find((n: any) => n.language.name === 'en');
+      const displayName = nameEntry ? nameEntry.name : d.name;
 
-      // 기술 효과 설명 가져오기
-      const effectEntries = d.effect_entries
-        .filter((e: any) => e.language.name === 'en')
-        .map((e: any) => e.short_effect || e.effect);
+      const effectEntry = d.effect_entries.find((e: any) => e.language.name === lang) ||
+                          d.effect_entries.find((e: any) => e.language.name === 'en');
+      const effectEntries = [effectEntry?.short_effect || effectEntry?.effect || 'No description'];
 
       const move: MoveData = {
         name: d.name,
+        displayName: displayName,
         type: d.type.name,
         power: d.power,
         accuracy: d.accuracy,
@@ -110,7 +141,7 @@ class PokeAPIService {
         target: d.target.name,
         effectEntries,
       };
-
+      
       this.moveCache.set(name, move);
       return move;
     } catch {
@@ -118,43 +149,32 @@ class PokeAPIService {
     }
   }
 
-  // 특정 포켓몬의 레어도 계산 (기본형만)
   async getRarity(basePokemonId: number): Promise<Rarity> {
     if (this.rarityCache.has(basePokemonId)) {
       return this.rarityCache.get(basePokemonId)!;
     }
     
     try {
-      // 최종 진화체 ID 가져오기
       const finalEvolutionId = getFinalEvolutionId(basePokemonId);
-      // 최종 진화체 데이터 가져오기
       const finalPokemon = await this.getPokemon(finalEvolutionId);
-      
       const statTotal = finalPokemon.stats.hp + finalPokemon.stats.attack + 
                        finalPokemon.stats.defense + finalPokemon.stats.specialAttack +
                        finalPokemon.stats.specialDefense + finalPokemon.stats.speed;
-      
       const rarity = calculateRarity(statTotal);
       this.rarityCache.set(basePokemonId, rarity);
       return rarity;
     } catch {
-      return 'Bronze'; // 오류 시 기본값
+      return 'Bronze';
     }
   }
 
-  // 레어도 기반 가중치 랜덤 선택
-  async getRandomPokemonIdWithRarity(maxGen: number = 9): Promise<number> {
-    const max = maxGen === 1 ? 151 : 
-                maxGen === 2 ? 251 : 
-                maxGen === 3 ? 386 : 
-                maxGen === 4 ? 493 :
-                maxGen === 5 ? 649 :
-                maxGen === 6 ? 721 :
-                maxGen === 7 ? 809 :
-                maxGen === 8 ? 905 :
-                1025; // 9세대
-    
-    // 기본형 포켓몬 목록 생성
+  // ⭐️ [추가] 게임 시작 시 호출할 사전 로딩 함수
+  async preloadRarities(): Promise<void> {
+    if (this.weightedPokemonList.length > 0) return; // 이미 로드됨
+
+    console.log("Preloading Pokémon rarities... This may take a moment.");
+
+    const max = 1025; // 9세대 기준
     const basePokemonIds: number[] = [];
     for (let i = 1; i <= max; i++) {
       if (!EVOLVED_POKEMON_IDS.has(i)) {
@@ -162,28 +182,46 @@ class PokeAPIService {
       }
     }
     
-    // 각 포켓몬의 레어도와 가중치 계산
-    const pokemonWithWeights: Array<{ id: number; weight: number }> = [];
+    const tempWeightedList: Array<{ id: number; weight: number }> = [];
     
-    for (const id of basePokemonIds) {
-      const rarity = await this.getRarity(id);
-      const weight = RARITY_WEIGHTS[rarity];
-      pokemonWithWeights.push({ id, weight });
+    // 모든 기본 포켓몬의 레어도를 계산 (병렬 처리)
+    await Promise.all(basePokemonIds.map(async (id) => {
+      try {
+        const rarity = await this.getRarity(id);
+        const weight = RARITY_WEIGHTS[rarity];
+        tempWeightedList.push({ id, weight });
+      } catch (e) {
+        // 일부 포켓몬 로드 실패 시 무시
+      }
+    }));
+
+    this.weightedPokemonList = tempWeightedList;
+    console.log(`Rarity preloading complete. ${this.weightedPokemonList.length} Pokémon weighted.`);
+  }
+
+  // ⭐️ [수정] 레어도 가중치 추첨 함수 (maxGen 파라미터 제거 및 캐시 사용)
+  async getRandomPokemonIdWithRarity(): Promise<number> {
+    
+    // 1. 캐시된 리스트가 있는지 확인
+    if (this.weightedPokemonList.length === 0) {
+      console.warn("Rarities not preloaded. Loading on demand...");
+      // 2. 캐시가 없다면(비정상) 지금이라도 로드 (느림)
+      await this.preloadRarities();
     }
-    
-    // 가중치 기반 랜덤 선택
-    const totalWeight = pokemonWithWeights.reduce((sum, p) => sum + p.weight, 0);
+
+    // 3. 캐시된 리스트에서 가중치 추첨 (매우 빠름)
+    const totalWeight = this.weightedPokemonList.reduce((sum, p) => sum + p.weight, 0);
     let random = Math.random() * totalWeight;
     
-    for (const pokemon of pokemonWithWeights) {
+    for (const pokemon of this.weightedPokemonList) {
       random -= pokemon.weight;
       if (random <= 0) {
         return pokemon.id;
       }
     }
     
-    // 폴백: 첫 번째 포켓몬
-    return basePokemonIds[0];
+    // (폴백) 오류 발생 시
+    return this.weightedPokemonList[0]?.id || 1;
   }
 
   getRandomPokemonId(maxGen: number = 9): number {
@@ -195,10 +233,9 @@ class PokeAPIService {
                 maxGen === 6 ? 721 :
                 maxGen === 7 ? 809 :
                 maxGen === 8 ? 905 :
-                1025; // 9세대
+                1025;
     let randomId = 0;
     
-    // 기본형(진화형이 아닌) 포켓몬이 나올 때까지 반복
     do {
       randomId = Math.floor(Math.random() * max) + 1;
     } while (EVOLVED_POKEMON_IDS.has(randomId));
@@ -206,13 +243,11 @@ class PokeAPIService {
     return randomId;
   }
 
-  // 레벨업 시 배울 수 있는 기술 가져오기
   async getLearnableMoves(pokemonId: number, level: number): Promise<GameMove[]> {
     try {
       const res = await axios.get(`${API_BASE}/pokemon/${pokemonId}`);
       const d = res.data;
       
-      // 레벨업으로 배우는 기술만 필터링
       const levelMoves = d.moves
         .filter((m: any) => 
           m.version_group_details.some((vg: any) => 
@@ -220,36 +255,29 @@ class PokeAPIService {
           )
         )
         .map((m: any) => m.move.name)
-        .slice(0, 5); // 최대 5개
+        .slice(0, 5);
       
       if (levelMoves.length === 0) return [];
 
-      // 기술 데이터 가져오기
-      const moves = await Promise.all(levelMoves.map((name: string) => this.getMove(name)));
-      
-      // status 기술 제외하고 GameMove로 변환
+      const moves: MoveData[] = await Promise.all(levelMoves.map((name: string) => this.getMove(name)));
+
       return moves
         .filter(m => m.damageClass !== 'status')
         .map(m => {
           const effect: MoveEffect = { type: 'damage' };
-          
-          // 실제 기술 효과 분석하여 상태이상 부여
           const effectText = m.effectEntries[0]?.toLowerCase() || '';
         
-          
-          // 2. 체력 흡수(Drain) 효과 감지 (수정됨)
           if (effectText.includes('drain') || effectText.includes('recover') || effectText.includes('restore')) {
-            if (effectText.includes('75%')) { // Draining Kiss
-              effect.drainPercent = 0.75;
+            if (effectText.includes('75%')) {
+               effect.drainPercent = 0.75;
             } else {
-              effect.drainPercent = 0.5; // Absorb, Mega Drain, Giga Drain 등
+               effect.drainPercent = 0.5;
             }
           }
 
-          // 1. 상태이상 효과 감지 (API 확률 사용)
           if (effectText.includes('burn')) {
             effect.statusInflict = 'burn';
-            effect.statusChance = m.effectChance; // API 값 (null일 수 있음)
+            effect.statusChance = m.effectChance;
           } else if (effectText.includes('paralyze') || effectText.includes('paralysis')) {
             effect.statusInflict = 'paralysis';
             effect.statusChance = m.effectChance;
@@ -267,12 +295,10 @@ class PokeAPIService {
             effect.statusChance = m.effectChance;
           }
           
-          // 추가 효과 정보 저장
           if (effectText) {
             effect.additionalEffects = effectText;
           }
           
-          // 광역 기술 판단 - target이 여러 적을 공격하는 경우
           const isAOE = [
             'all-opponents',
             'all-other-pokemon',
@@ -282,6 +308,7 @@ class PokeAPIService {
           
           return {
             name: m.name,
+            displayName: m.displayName,
             type: m.type,
             power: m.power || 40,
             accuracy: m.accuracy || 100,

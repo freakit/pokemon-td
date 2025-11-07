@@ -249,8 +249,8 @@ export const Shop: React.FC = () => {
                   $isEvolveTarget={isSelectable && !!currentItem}
                   onClick={() => isSelectable && handleTargetSelect(tower.id)}
                 >
-                  <TowerImg src={tower.sprite} alt={tower.name} />
-                  <TowerName>{tower.name}</TowerName>
+                  <TowerImg src={tower.sprite} alt={tower.displayName} />
+                  <TowerName>{tower.displayName}</TowerName>
                   <TowerInfo>Lv.{tower.level} | HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
                   {tower.isFainted && <FaintedLabel>{t('manager.fainted')}</FaintedLabel>}
                   

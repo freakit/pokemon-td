@@ -23,6 +23,7 @@ import { EvolutionConfirmModal } from './components/Modals/EvolutionConfirmModal
 import { SynergyTracker } from './components/UI/SynergyTracker';
 import { SynergyDetails } from './components/UI/SynergyDetails';
 import GlobalLanguageSwitcher from './components/UI/GlobalLanguageSwitcher';
+import { pokeAPI } from './api/pokeapi'; // ⭐️ [추가]
 
 function App() {
   const { t } = useTranslation();
@@ -32,6 +33,8 @@ function App() {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(true);
+  
+  // ⭐️ [수정] isPreloading 상태와 setPreloading 액션 가져오기
   const {
     nextWave,
     isWaveActive,
@@ -41,6 +44,8 @@ function App() {
     waveEndItemPick,
     spendMoney,
     wave50Clear,
+    isPreloading,
+    setPreloading,
   } = useGameStore((state) => ({
     nextWave: state.nextWave,
     isWaveActive: state.isWaveActive,
@@ -50,6 +55,8 @@ function App() {
     waveEndItemPick: state.waveEndItemPick,
     spendMoney: state.spendMoney,
     wave50Clear: state.wave50Clear,
+    isPreloading: state.isPreloading,
+    setPreloading: state.setPreloading,
   }));
 
   const handleOpenPicker = () => {
@@ -78,22 +85,43 @@ function App() {
     window.location.reload();
   };
 
+  // ⭐️ [추가] 맵 선택 시 실행될 로딩 핸들러
+  const handleMapSelect = async () => {
+    setShowMapSelector(false); // 맵 선택기 숨기기
+    setPreloading(true);     // 로딩 오버레이 표시
+
+    try {
+      await pokeAPI.preloadRarities(); // ⭐️ 느린 작업 수행
+    } catch (err) {
+      console.error("Failed to preload rarities", err);
+      alert("게임 데이터 로드에 실패했습니다. 새로고침 해주세요.");
+    }
+
+    setPreloading(false);    // 로딩 오버레이 숨기기
+  };
+
   return (
     <AppContainer>
+      {/* ⭐️ [추가] 사전 로딩 오버레이 */}
+      {isPreloading && (
+        <PreloadingOverlay>
+          <LoadingText>{t('picker.loading')}</LoadingText>
+        </PreloadingOverlay>
+      )}
+
       <GameLayout>
         {/* Language Switcher */}
         <GlobalLanguageSwitcher />
         
-        {/* 게임 캔버스 - 전체 화면 */}
         <CanvasContainer>
           {showMapSelector && !isWaveActive ? (
-            <MapSelector onSelect={() => setShowMapSelector(false)} />
+            // ⭐️ [수정] MapSelector의 onSelect에 새 핸들러 연결
+            <MapSelector onSelect={handleMapSelect} />
           ) : (
             <GameCanvas />
           )}
         </CanvasContainer>
 
-        {/* 하단 컨트롤 패널 */}
         <BottomPanel>
           {(!showMapSelector || isWaveActive) && (
             <HUD
@@ -103,7 +131,6 @@ function App() {
             />
           )}
 
-          {/* 추가 버튼들 (항상 표시) */}
           <ExtraButtons>
             <BottomBtn
               onClick={() => setShowPokedex(true)}
@@ -123,7 +150,8 @@ function App() {
           </ExtraButtons>
         </BottomPanel>
 
-        {(!showMapSelector || isWaveActive) && <Shop />}
+        {(!showMapSelector ||
+ isWaveActive) && <Shop />}
       </GameLayout>
 
 
@@ -138,21 +166,15 @@ function App() {
       )}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
 
-      {/* 시너지 트래커 */}
       <SynergyTracker />
-      {/* 🆕 시너지 툴팁 */}
       <SynergyDetails />
 
-      {/* 좌측 기술 선택 사이드바 - 레벨업 시 표시 */}
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
 
-      {/* 진화 확인 모달 추가 */}
       <EvolutionConfirmModal />
 
-      {/* 웨이브 종료 시 아이템 선택 모달 */}
       {waveEndItemPick && <WaveEndPicker />}
 
-      {/* 웨이브 50 클리어 모달 */}
       {wave50Clear && (
         <Wave50ClearModal
           onContinue={() => {
@@ -197,7 +219,6 @@ const GameLayout = styled.div`
   height: 100vh;
   width: 100vw;
 `;
-
 const CanvasContainer = styled.div`
   flex: 1;
   display: flex;
@@ -212,7 +233,6 @@ const BottomPanel = styled.div`
   background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
   backdrop-filter: blur(10px);
 `;
-
 const ExtraButtons = styled.div`
   display: flex;
   gap: 12px;
@@ -239,7 +259,6 @@ const BottomBtn = styled.button`
     box-shadow: 0 6px 20px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
   }
 `;
-
 const GameOverOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -263,7 +282,6 @@ const GameOverOverlay = styled.div`
     }
   }
 `;
-
 const GameOverModal = styled.div`
   background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
   border-radius: 32px;
@@ -282,7 +300,6 @@ const GameOverModal = styled.div`
     }
   }
 `;
-
 const GameOverTitle = styled.h2`
   font-size: 56px;
   margin-bottom: 32px;
@@ -290,7 +307,6 @@ const GameOverTitle = styled.h2`
   text-shadow: 0 0 30px rgba(231, 76, 60, 0.8), 0 4px 8px rgba(0,0,0,0.8);
   font-weight: 900;
 `;
-
 const RestartBtn = styled.button`
   padding: 20px 60px;
   font-size: 22px;
@@ -313,6 +329,38 @@ const RestartBtn = styled.button`
 
   &:active {
     transform: translateY(0);
+  }
+`;
+
+// ⭐️ [추가] 로딩 오버레이 스타일
+const PreloadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  animation: fadeIn 0.3s ease-out;
+`;
+
+const LoadingText = styled.h1`
+  font-size: 24px;
+  color: #fff;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+  
+  &::after {
+    content: '...';
+    animation: dots 1.4s infinite;
+  }
+
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
   }
 `;
 

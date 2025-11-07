@@ -72,6 +72,10 @@ export const WaveEndPicker: React.FC = () => {
   };
 
   const getItemName = (item: Item) => {
+    // 메가스톤/다이버섯은 t() 번역을 거치지 않고 item.name (e.g., "이상해꽃의 메가스톤")을 그대로 사용
+    if (item.type === 'mega-stone' || item.type === 'max-mushroom') {
+      return item.name;
+    }
     if ('params' in item && item.params) {
       // @ts-ignore
       return t(item.name, item.params);
@@ -80,6 +84,10 @@ export const WaveEndPicker: React.FC = () => {
   };
 
   const getItemEffect = (item: Item) => {
+    // 메가스톤/다이버섯은 t() 번역을 거치지 않고 item.effect (e.g., "이상해꽃을 메가진화시킵니다")를 그대로 사용
+    if (item.type === 'mega-stone' || item.type === 'max-mushroom') {
+      return item.effect;
+    }
     if ('params' in item && item.params) {
       // @ts-ignore
       return t(item.effect, item.params);
@@ -110,8 +118,8 @@ export const WaveEndPicker: React.FC = () => {
                   $isSelectable={isSelectable}
                   onClick={() => isSelectable && handleTargetSelect(tower.id)}
                 >
-                  <TowerImg src={tower.sprite} alt={tower.name} />
-                  <TowerName>{tower.name}</TowerName>
+                  <TowerImg src={tower.sprite} alt={tower.displayName} />
+                  <TowerName>{tower.displayName}</TowerName>
                   <TowerInfo>Lv.{tower.level}</TowerInfo>
                   <TowerInfo>HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
                   
@@ -163,7 +171,6 @@ export const WaveEndPicker: React.FC = () => {
   );
 };
 
-// Styled Components
 const Overlay = styled.div`
   position: fixed;
   top: 0;

@@ -50,7 +50,7 @@ export const SkillPicker: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>⭐ {t('skillPicker.levelUpName', { name: tower.name })}</Title>
+        <Title>⭐ {t('skillPicker.levelUpName', { name: tower.displayName })}</Title>
         <PokemonName>{t('skillPicker.pokemonLevel', { level: tower.level })}</PokemonName>
       </Header>
       
@@ -60,7 +60,7 @@ export const SkillPicker: React.FC = () => {
         <SectionLabel>{t('skillPicker.current')}</SectionLabel>
         <SkillCard $isNew={false}>
           <SkillName>
-            {currentMove.name} | {getDamageClass(currentMove.damageClass)}
+            {currentMove.displayName} | {getDamageClass(currentMove.damageClass)}
             <TypeIcon 
               src={`${TYPE_ICON_API_BASE}${currentMove.type}.gif`} 
               alt={currentMove.type} 
@@ -99,7 +99,7 @@ export const SkillPicker: React.FC = () => {
         <SectionLabel>{t('skillPicker.new')}</SectionLabel>
         <SkillCard $isNew={true}>
           <SkillName>
-            {newMove.name} | {getDamageClass(newMove.damageClass)}
+            {newMove.displayName} | {getDamageClass(newMove.damageClass)}
             <TypeIcon 
               src={`${TYPE_ICON_API_BASE}${newMove.type}.gif`} 
               alt={newMove.type} 

@@ -34,9 +34,9 @@ export const EvolutionConfirmModal: React.FC = () => {
     <Overlay>
       <Modal>
         <Title>✨ {t('evoConfirm.title')}</Title>
-        <Sprite src={tower.sprite} alt={tower.name} />
+        <Sprite src={tower.sprite} alt={tower.displayName} />
         <Message>
-          <strong>{tower.name}</strong>{t('evoConfirm.messageSuffix')}
+          <strong>{tower.displayName}</strong>{t('evoConfirm.messageSuffix')}
         </Message>
         
         <Options>
