@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useTranslation } from "./i18n";
@@ -23,7 +21,7 @@ import { EvolutionConfirmModal } from './components/Modals/EvolutionConfirmModal
 import { SynergyTracker } from './components/UI/SynergyTracker';
 import { SynergyDetails } from './components/UI/SynergyDetails';
 import GlobalLanguageSwitcher from './components/UI/GlobalLanguageSwitcher';
-import { pokeAPI } from './api/pokeapi'; // ⭐️ [추가]
+import { pokeAPI } from './api/pokeapi';
 
 function App() {
   const { t } = useTranslation();
@@ -34,7 +32,6 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showMapSelector, setShowMapSelector] = useState(true);
   
-  // ⭐️ [수정] isPreloading 상태와 setPreloading 액션 가져오기
   const {
     nextWave,
     isWaveActive,
@@ -85,24 +82,22 @@ function App() {
     window.location.reload();
   };
 
-  // ⭐️ [추가] 맵 선택 시 실행될 로딩 핸들러
   const handleMapSelect = async () => {
-    setShowMapSelector(false); // 맵 선택기 숨기기
-    setPreloading(true);     // 로딩 오버레이 표시
+    setShowMapSelector(false);
+    setPreloading(true);
 
     try {
-      await pokeAPI.preloadRarities(); // ⭐️ 느린 작업 수행
+      await pokeAPI.preloadRarities();
     } catch (err) {
       console.error("Failed to preload rarities", err);
       alert("게임 데이터 로드에 실패했습니다. 새로고침 해주세요.");
     }
 
-    setPreloading(false);    // 로딩 오버레이 숨기기
+    setPreloading(false);
   };
 
   return (
     <AppContainer>
-      {/* ⭐️ [추가] 사전 로딩 오버레이 */}
       {isPreloading && (
         <PreloadingOverlay>
           <LoadingText>{t('picker.loading')}</LoadingText>
@@ -110,12 +105,11 @@ function App() {
       )}
 
       <GameLayout>
-        {/* Language Switcher */}
-        <GlobalLanguageSwitcher />
+        {/* 맵 선택 화면일 때만 언어 스위처 표시 */}
+        {showMapSelector && <GlobalLanguageSwitcher />}
         
         <CanvasContainer>
           {showMapSelector && !isWaveActive ? (
-            // ⭐️ [수정] MapSelector의 onSelect에 새 핸들러 연결
             <MapSelector onSelect={handleMapSelect} />
           ) : (
             <GameCanvas />
@@ -150,8 +144,7 @@ function App() {
           </ExtraButtons>
         </BottomPanel>
 
-        {(!showMapSelector ||
- isWaveActive) && <Shop />}
+        {(!showMapSelector || isWaveActive) && <Shop />}
       </GameLayout>
 
 
@@ -332,7 +325,6 @@ const RestartBtn = styled.button`
   }
 `;
 
-// ⭐️ [추가] 로딩 오버레이 스타일
 const PreloadingOverlay = styled.div`
   position: fixed;
   top: 0;
