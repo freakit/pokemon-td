@@ -466,8 +466,8 @@ export class GameManager {
       }
 
       const itemChoices: Item[] = [
-        { id: 'rare_candy', name: '이상한 사탕', type: 'candy', cost: 0, effect: '아군 1레벨 업' },
-        { id: 'revive_shard', name: '기력의 조각', type: 'revive', cost: 0, effect: '기절한 아군 1마리를 50% HP로 부활' },
+       { id: 'rare_candy', name: 'waveEnd.candyName', type: 'candy', cost: 0, effect: 'waveEnd.candyDesc' },
+       { id: 'revive_shard', name: 'waveEnd.reviveName', type: 'revive', cost: 0, effect: 'waveEnd.reviveDesc' },
       ];
 
       // 🔴 메가스톤 드랍 로직 (10% 확률)

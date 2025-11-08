@@ -54,12 +54,12 @@ class PokeAPIService {
     try {
       const lang = getCurrentLanguage();
       
-      const [res, speciesRes] = await Promise.all([
-        axios.get(`${API_BASE}/pokemon/${id}`),
-        axios.get(`${API_BASE}/pokemon-species/${id}`)
-      ]);
-      
+      // 1. 기본 포켓몬 데이터를 먼저 가져옵니다.
+      const res = await axios.get(`${API_BASE}/pokemon/${id}`);
       const d = res.data;
+
+      // 2. 응답에서 올바른 species URL을 가져와서 호출합니다.
+      const speciesRes = await axios.get(d.species.url);
       const s = speciesRes.data;
 
       const nameEntry = s.names.find((n: any) => n.language.name === lang) ||
