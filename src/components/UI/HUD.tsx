@@ -132,13 +132,13 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' }>
   ${props => {
     switch (props.$variant) {
       case 'wave':
-        return 'background: linear-gradient(135deg, #667eea, #764ba2);';
+        return 'background: #8755ba;';
       case 'pokemon':
-        return 'background: linear-gradient(135deg, #f093fb, #f5576c);';
+        return 'background: #dc4b5e;';
       case 'manage':
-        return 'background: linear-gradient(135deg, #4facfe, #00f2fe);';
+        return 'background: #4facfe;';
       case 'speed':
-        return 'background: linear-gradient(135deg, #43e97b, #38f9d7);';
+        return 'background: #22c458;';
     }
   }}
 

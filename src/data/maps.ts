@@ -43,7 +43,54 @@ export const MAPS: MapData[] = [
     ],
   },
 
-  // 3. 분기 후 합류형 (Medium)
+  // 3. 어그로 지름길 (Medium)
+  {
+    id: "extreme_aggro_shortcut",
+    name: "위험한 지름길",
+    difficulty: "medium",
+    description:
+      "기본 경로는 매우 깁니다. 중앙에 타워를 배치해 적의 경로를 바꾸세요.",
+    backgroundType: "water",
+    spawns: [{ x: -T, y: 1 * T }],
+    objectives: [{ x: 16 * T, y: 1 * T }],
+    paths: [
+      [
+        // 맵 하단을 크게 U자로 도는 경로
+        { x: -T, y: 1.5 * T },
+        { x: 2 * T, y: 1.5 * T },
+        { x: 2 * T, y: 8.5 * T },
+        { x: 12 * T, y: 8.5 * T },
+        { x: 12 * T, y: 1.5 * T },
+        { x: 16 * T, y: 1.5 * T },
+      ],
+      // 중앙 (x=3~11, y=2~7)이 비어있어 '어그로 섬' 배치 가능
+    ],
+  },
+
+  // 4. 다중 S자 맵 (Medium)
+  {
+    id: "medium_multi_s",
+    name: "구불구불 동굴",
+    difficulty: "medium",
+    description: "경로가 길게 굽이쳐, 타워가 공격할 수 있는 시간이 깁니다.",
+    backgroundType: "cave",
+    spawns: [{ x: -T, y: 1 * T }],
+    objectives: [{ x: 16 * T, y: 8 * T }],
+    paths: [
+      [
+        { x: -T, y: 1.5 * T },
+        { x: 12 * T, y: 1.5 * T },
+        { x: 12 * T, y: 3.5 * T },
+        { x: 2 * T, y: 3.5 * T },
+        { x: 2 * T, y: 5.5 * T },
+        { x: 12 * T, y: 5.5 * T },
+        { x: 12 * T, y: 8.5 * T },
+        { x: 16 * T, y: 8.5 * T },
+      ],
+    ],
+  },
+
+  // 5. 분기 후 합류형 (Medium)
   {
     id: "medium_merge",
     name: "합류 지점",
@@ -71,30 +118,7 @@ export const MAPS: MapData[] = [
     ],
   },
 
-  // 4. 다중 S자 맵 (Medium)
-  {
-    id: "medium_multi_s",
-    name: "구불구불 동굴",
-    difficulty: "medium",
-    description: "경로가 길게 굽이쳐, 타워가 공격할 수 있는 시간이 깁니다.",
-    backgroundType: "cave",
-    spawns: [{ x: -T, y: 1 * T }],
-    objectives: [{ x: 16 * T, y: 8 * T }],
-    paths: [
-      [
-        { x: -T, y: 1.5 * T },
-        { x: 12 * T, y: 1.5 * T },
-        { x: 12 * T, y: 3.5 * T },
-        { x: 2 * T, y: 3.5 * T },
-        { x: 2 * T, y: 5.5 * T },
-        { x: 12 * T, y: 5.5 * T },
-        { x: 12 * T, y: 8.5 * T },
-        { x: 16 * T, y: 8.5 * T },
-      ],
-    ],
-  },
-
-  // 2. 넓은 직선형 (Hard)
+  // 6. 넓은 직선형 (Hard)
   // (두 개의 경로를 붙여서 5칸 너비의 배치 불가 구역을 만듭니다)
   {
     id: "hard_straight_wide",
@@ -122,7 +146,7 @@ export const MAPS: MapData[] = [
     ],
   },
 
-  // 6. 듀얼 직선형 (커버 불가능) (Hard)
+  // 7. 듀얼 직선형 (커버 불가능) (Hard)
   {
     id: "hard_dual_path",
     name: "분리된 설원",
@@ -149,7 +173,7 @@ export const MAPS: MapData[] = [
     ],
   },
 
-  // 7. 중앙 집중형 (Extreme)
+  // 8. 중앙 집중형 (Extreme)
   {
     id: "extreme_central",
     name: "중앙 제단",
@@ -180,30 +204,6 @@ export const MAPS: MapData[] = [
         { x: 7.5 * T, y: 11 * T },
         { x: 7.5 * T, y: 4.5 * T },
       ], // 남쪽 -> 중앙
-    ],
-  },
-
-  // 8. 어그로 지름길 (Extreme)
-  {
-    id: "extreme_aggro_shortcut",
-    name: "위험한 지름길",
-    difficulty: "expert",
-    description:
-      "기본 경로는 매우 깁니다. 중앙에 타워를 배치해 적의 경로를 바꾸세요.",
-    backgroundType: "water",
-    spawns: [{ x: -T, y: 1 * T }],
-    objectives: [{ x: 16 * T, y: 1 * T }],
-    paths: [
-      [
-        // 맵 하단을 크게 U자로 도는 경로
-        { x: -T, y: 1.5 * T },
-        { x: 2 * T, y: 1.5 * T },
-        { x: 2 * T, y: 8.5 * T },
-        { x: 12 * T, y: 8.5 * T },
-        { x: 12 * T, y: 1.5 * T },
-        { x: 16 * T, y: 1.5 * T },
-      ],
-      // 중앙 (x=3~11, y=2~7)이 비어있어 '어그로 섬' 배치 가능
     ],
   },
 ];

@@ -420,7 +420,7 @@ export const GameCanvas: React.FC = () => {
       {hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
         <Tooltip
           style={{
-            left: `${mousePos.x * canvasScale + 40}px`,
+            left: `${mousePos.x * canvasScale + 80}px`,
             top: `${mousePos.y * canvasScale - 20}px`,
           }}
         >
@@ -738,7 +738,7 @@ const Tooltip = styled.div`
   font-weight: bold;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  z-index: 999;
+  z-index: 1001;
   min-width: 180px;
   max-width: 220px;
 `;
