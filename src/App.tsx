@@ -129,12 +129,12 @@ function App() {
             <BottomBtn
               onClick={() => setShowPokedex(true)}
             >
-              {t('nav.pokedex')}
+              {t('nav.pokedex')} (미구현)
             </BottomBtn>
             <BottomBtn
               onClick={() => setShowAchievements(true)}
             >
-              {t('nav.achievements')}
+              {t('nav.achievements')} (미구현)
             </BottomBtn>
             <BottomBtn
               onClick={() => setShowSettings(true)}
