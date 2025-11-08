@@ -20,7 +20,6 @@ class SaveService {
       const existing = this.load();
       const merged = { ...existing, ...data };
       localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
-      console.log('Game saved successfully');
     } catch (error) {
       console.error('Failed to save game:', error);
     }
