@@ -82,6 +82,7 @@
     "spAttack": "Sp. Atk",
     "spDefense": "Sp. Def",
     "speed": "Speed",
+    "move": "Skill",
     "total": "Total",
     "cost": "{cost}G",
     "currentMoney": "Current: {money}G",
@@ -187,6 +188,7 @@
   "evoConfirm": {
     "title": "Evolution",
     "message": "<strong>{name}</strong> is ready to evolve!",
+    "messageSuffix": " is ready to evolve!",
     "evolveTo": "{name}",
     "methodLevel": "Level {level}",
     "methodItem": "Item required",

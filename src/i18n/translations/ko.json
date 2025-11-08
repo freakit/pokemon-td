@@ -82,6 +82,7 @@
     "spAttack": "특공",
     "spDefense": "특방",
     "speed": "스핏",
+    "move": "기술",
     "total": "총합",
     "cost": "💰 {cost}원",
     "currentMoney": "💰 현재 {money}원",
@@ -187,6 +188,7 @@
   "evoConfirm": {
     "title": "진화 확인",
     "message": "<strong>{name}</strong>(이)가 진화할 수 있습니다!",
+    "messageSuffix": "(이)가 진화할 수 있습니다!",
     "evolveTo": "{name}",
     "methodLevel": "레벨 {level}",
     "methodItem": "아이템 필요",

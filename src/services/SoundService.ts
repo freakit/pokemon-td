@@ -88,8 +88,6 @@ class SoundService {
         volume: this.sfxVolume, // 개별 볼륨 적용
       });
       sfx.play();
-    } else {
-      console.log(`(SFX: ${soundName})`); // 맵핑 안된 사운드
     }
   }
   
