@@ -1,3 +1,4 @@
+// src/i18n/I18nProvider.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import ko from './translations/ko.json';
 import en from './translations/en.json';

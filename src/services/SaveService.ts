@@ -1,6 +1,7 @@
 // src/services/SaveService.ts
 
 import { SaveData, GameStats, Achievement } from '../types/game';
+import { databaseService } from './DatabaseService';
 
 const SAVE_KEY = 'pokemon-td-save';
 
@@ -80,10 +81,8 @@ class SaveService {
     }
   }
   
-  updateAchievement(achievementId: string, progress: number) {
+updateAchievement(achievementId: string, progress: number) {
     const data = this.load();
-    
-    // 1. 'Achievement' 타입을 명시적으로 사용하여 경고 해결
     const achievement: Achievement | undefined = data.achievements.find(a => a.id === achievementId);
     
     if (achievement) {
@@ -91,9 +90,14 @@ class SaveService {
       if (progress >= achievement.target && !achievement.unlocked) {
         achievement.unlocked = true;
         console.log(`Achievement unlocked: ${achievement.name}`);
+        alert(`업적 달성: ${achievement.name}`);
         // TODO: 업적 달성 알림 UI 표시
       }
       this.save(data);
+
+      databaseService.updateUserAchievement(achievement)
+        .catch(err => console.error("DB Achievement update failed:", err));
+
     }
   }
   

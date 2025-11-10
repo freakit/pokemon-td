@@ -1,3 +1,4 @@
+// src/components/UI/SynergyTracker.tsx
 import React from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
