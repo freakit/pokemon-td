@@ -80,7 +80,7 @@ export interface PlayerGameState {
   isAlive: boolean;
   rating: number;
   placement?: number;
-  ratingChange?: number; // ⭐ 추가
+  ratingChange?: number;
 }
 
 export interface MultiplayerGameState {
@@ -88,4 +88,15 @@ export interface MultiplayerGameState {
   players: PlayerGameState[];
   startTime: number;
   rankings: string[];
+}
+
+export interface TowerDetail {
+  pokemonId: number;
+  name: string;
+  level: number;
+  sprite: string;
+  position: { x: number; y: number };
+  currentHp: number;
+  maxHp: number;
+  isFainted: boolean;
 }

@@ -21,7 +21,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedMap, setSelectedMap] = useState(MAPS[0].id);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
-  const [isRejoining, setIsRejoining] = useState(true);
+  const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
+  const [rejoinableRoom, setRejoinableRoom] = useState<Room | null>(null);
   const user = authService.getCurrentUser();
   
   const [showPokedex, setShowPokedex] = useState(false);
@@ -36,29 +37,27 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         try {
           const { room, canRejoin } = await multiplayerService.rejoinRoom(savedRoomId);
           if (canRejoin && room) {
-            if (room.status === 'playing' || room.status === 'starting') {
-              onStartGame(room.id, room.mapId);
-              return;
-            }
-            setCurrentRoom(room);
-            setView('room');
+            setRejoinableRoom(room);
+          } else {
+            multiplayerService.clearCurrentRoom();
           }
         } catch (error) {
-          console.error('Failed to rejoin room:', error);
+          console.error('Failed to check rejoin room:', error);
+          multiplayerService.clearCurrentRoom();
         }
       }
-      setIsRejoining(false);
+      setIsCheckingRejoin(false);
     };
 
     checkRejoin();
-  }, [onStartGame]);
+  }, []);
 
   useEffect(() => {
-    if (!isRejoining) {
+    if (!isCheckingRejoin && !rejoinableRoom) {
       const unsubscribe = multiplayerService.onRoomsUpdate(setRooms);
       return unsubscribe;
     }
-  }, [isRejoining]);
+  }, [isCheckingRejoin, rejoinableRoom]);
 
   useEffect(() => {
     const roomId = multiplayerService.getCurrentRoomId();
@@ -146,13 +145,46 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     }
   };
 
-  if (isRejoining) {
+  const handleRejoin = () => {
+    if (!rejoinableRoom) return;
+    if (rejoinableRoom.status === 'playing' || rejoinableRoom.status === 'starting') {
+      onStartGame(rejoinableRoom.id, rejoinableRoom.mapId);
+    } else {
+      setCurrentRoom(rejoinableRoom);
+      setView('room');
+    }
+    setRejoinableRoom(null);
+  };
+
+  const handleAbandon = async () => {
+    if (!rejoinableRoom) return;
+    try {
+      await multiplayerService.leaveRoom(rejoinableRoom.id);
+    } catch (err) {
+      console.error("Failed to leave room:", err);
+      multiplayerService.clearCurrentRoom();
+    }
+    setRejoinableRoom(null);
+    setView('list');
+  };
+
+  if (isCheckingRejoin) {
     return (
       <Overlay>
         <Container>
           <LoadingText>재접속 확인 중...</LoadingText>
         </Container>
       </Overlay>
+    );
+  }
+
+  if (rejoinableRoom) {
+    return (
+      <RejoinPrompt
+        roomName={rejoinableRoom.name}
+        onRejoin={handleRejoin}
+        onAbandon={handleAbandon}
+      />
     );
   }
 
@@ -250,7 +282,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     const isHost = currentRoom.hostId === user?.uid;
     const currentPlayer = currentRoom.players.find(p => p.userId === user?.uid);
     const allReady = currentRoom.players.every(p => p.isReady);
-    
     const backAction = currentRoom.hostId === user?.uid ? handleBackToCreate : handleLeaveRoom;
 
     return (
@@ -369,6 +400,7 @@ const BackButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
+
   &:hover {
     background: rgba(255,255,255,0.3);
   }
@@ -484,6 +516,7 @@ const MapCard = styled.div<{ selected: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
+
   &:hover {
     transform: translateY(-2px);
   }
@@ -511,6 +544,7 @@ const CreateButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -578,6 +612,7 @@ const ReadyButton = styled.button<{ ready: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
+
   &:hover {
     opacity: 0.9;
   }
@@ -594,6 +629,7 @@ const StartButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
+
   &:hover:not(:disabled) {
     background: #45a049;
   }
@@ -610,3 +646,75 @@ const LoadingText = styled.div`
   font-size: 1.5rem;
   padding: 2rem;
 `;
+
+// --- Rejoin Prompt Components ---
+
+const PromptOverlay = styled(Overlay)`
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.95);
+`;
+
+const PromptContainer = styled(Container)`
+  max-width: 500px;
+  text-align: center;
+  background: linear-gradient(135deg, #1f2838 0%, #3d4e68 100%);
+  border: 2px solid #667eea;
+`;
+
+const PromptTitle = styled.h2`
+  color: white;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+`;
+
+const PromptText = styled.p`
+  color: #e0e0e0;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+`;
+
+const PromptButtonRow = styled.div`
+  display: flex;
+  gap: 1rem;
+`;
+
+const RejoinButton = styled(CreateRoomButton)`
+  background: #4caf50;
+  color: white;
+  &:hover {
+    background: #45a049;
+  }
+`;
+
+const AbandonButton = styled(CreateRoomButton)`
+  background: #f44336;
+  color: white;
+  &:hover {
+    background: #d32f2f;
+  }
+`;
+
+interface RejoinPromptProps {
+  roomName: string;
+  onRejoin: () => void;
+  onAbandon: () => void;
+}
+
+const RejoinPrompt: React.FC<RejoinPromptProps> = ({ roomName, onRejoin, onAbandon }) => {
+  return (
+    <PromptOverlay>
+      <PromptContainer>
+        <PromptTitle>진행 중인 게임 발견</PromptTitle>
+        <PromptText>
+          '{roomName}' 방에 참여 중인 기록이 있습니다.<br />
+          이어서 플레이하시겠습니까?
+        </PromptText>
+        <PromptButtonRow>
+          <AbandonButton onClick={onAbandon}>아니오 (방 나가기)</AbandonButton>
+          <RejoinButton onClick={onRejoin}>예 (다시 참가)</RejoinButton>
+        </PromptButtonRow>
+      </PromptContainer>
+    </PromptOverlay>
+  );
+};

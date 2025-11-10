@@ -1,7 +1,7 @@
 // src/services/MultiplayerService.ts
 import { ref, set, onValue, push, update, remove, get, off } from 'firebase/database';
 import { rtdb } from '../config/firebase';
-import { Room, RoomPlayer, PlayerGameState, AIDifficulty, DebuffItem } from '../types/multiplayer';
+import { Room, RoomPlayer, PlayerGameState, AIDifficulty, DebuffItem, TowerDetail } from '../types/multiplayer';
 import { authService } from './AuthService';
 import { databaseService } from './DatabaseService';
 
@@ -23,7 +23,7 @@ class MultiplayerService {
     const roomsRef = ref(rtdb, 'rooms');
     const newRoomRef = push(roomsRef);
     const roomId = newRoomRef.key!;
-
+    
     const room: Room = {
       id: roomId,
       name: `${user.displayName}의 방`,
@@ -57,7 +57,6 @@ class MultiplayerService {
     const snapshot = await get(roomRef);
     
     if (!snapshot.exists()) throw new Error('Room not found');
-    
     const room = snapshot.val() as Room;
     
     if (room.players.length >= room.maxPlayers) {
@@ -90,14 +89,13 @@ class MultiplayerService {
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
+
     if (!snapshot.exists()) {
       this.clearCurrentRoom();
       return { room: null as any, canRejoin: false };
     }
     
     const room = snapshot.val() as Room;
-    
     const isPlayerInRoom = room.players.some(p => p.userId === user.uid);
     
     if (!isPlayerInRoom) {
@@ -143,17 +141,22 @@ class MultiplayerService {
     localStorage.removeItem('currentRoomId');
   }
 
+  async getRoom(roomId: string): Promise<Room | null> {
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    const snapshot = await get(roomRef);
+    if (!snapshot.exists()) return null;
+    return snapshot.val() as Room;
+  }
+
   async addAI(roomId: string, difficulty: AIDifficulty): Promise<void> {
     const user = authService.getCurrentUser();
     if (!user) throw new Error('Not authenticated');
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
     if (!snapshot.exists()) throw new Error('Room not found');
     
     const room = snapshot.val() as Room;
-
     if (room.hostId !== user.uid) {
       throw new Error('Only host can add AI');
     }
@@ -189,7 +192,6 @@ class MultiplayerService {
     const updatedPlayers = room.players.map(p => 
       p.userId === user.uid ? { ...p, isReady: !p.isReady } : p
     );
-
     await update(roomRef, { players: updatedPlayers });
   }
 
@@ -199,11 +201,9 @@ class MultiplayerService {
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
     if (!snapshot.exists()) throw new Error('Room not found');
     
     const room = snapshot.val() as Room;
-
     if (room.hostId !== user.uid) {
       throw new Error('Only host can start game');
     }
@@ -213,7 +213,7 @@ class MultiplayerService {
     }
 
     await update(roomRef, { status: 'starting' });
-    
+
     setTimeout(async () => {
       await update(roomRef, { status: 'playing' });
       
@@ -238,10 +238,7 @@ class MultiplayerService {
     }, 3000);
   }
 
-  async updatePlayerState(roomId: string, state: Partial<PlayerGameState>): Promise<void> {
-    const user = authService.getCurrentUser();
-    if (!user) return;
-
+  async updatePlayerState(roomId: string, userId: string, state: Partial<PlayerGameState>): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
     
@@ -249,26 +246,21 @@ class MultiplayerService {
 
     const gameState = snapshot.val();
     const updatedPlayers = (gameState.players || []).map((p: PlayerGameState) =>
-      p.userId === user.uid ? { ...p, ...state, lastUpdate: Date.now() } : p
+      p.userId === userId ? { ...p, ...state, lastUpdate: Date.now() } : p
     );
-
     await update(gameStateRef, { players: updatedPlayers });
   }
 
-  async updatePlayerTowerDetails(roomId: string, towerDetails: any[]): Promise<void> {
-    const user = authService.getCurrentUser();
-    if (!user) return;
-
-    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${user.uid}`);
+  async updatePlayerTowerDetails(roomId: string, userId: string, towerDetails: TowerDetail[]): Promise<void> {
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
     await set(towerDetailsRef, {
       towers: towerDetails,
       lastUpdate: Date.now()
     });
   }
 
-  onTowerDetailsUpdate(roomId: string, userId: string, callback: (towers: any[]) => void): () => void {
+  onTowerDetailsUpdate(roomId: string, userId: string, callback: (towers: TowerDetail[]) => void): () => void {
     const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
-    
     const listener = onValue(towerDetailsRef, (snapshot) => {
       if (!snapshot.exists()) {
         callback([]);
@@ -277,7 +269,6 @@ class MultiplayerService {
       const data = snapshot.val();
       callback(data.towers || []);
     });
-
     return () => off(towerDetailsRef, 'value', listener);
   }
 
@@ -290,10 +281,7 @@ class MultiplayerService {
     });
   }
 
-  async playerDefeated(roomId: string): Promise<void> {
-    const user = authService.getCurrentUser();
-    if (!user) return;
-
+  async playerDefeated(roomId: string, userId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
     
@@ -302,10 +290,9 @@ class MultiplayerService {
     const gameState = snapshot.val();
     const players = gameState.players || [];
     const updatedPlayers = players.map((p: PlayerGameState) =>
-      p.userId === user.uid ? { ...p, isAlive: false, placement: this.calculatePlacement(players) } : p
+      p.userId === userId ? { ...p, isAlive: false, placement: this.calculatePlacement(players) } : p
     );
-
-    const rankings = [...(gameState.rankings || []), user.uid];
+    const rankings = [...(gameState.rankings || []), userId];
 
     await update(gameStateRef, { 
       players: updatedPlayers,
@@ -345,7 +332,6 @@ class MultiplayerService {
 
       for (let j = 0; j < sortedPlayers.length; j++) {
         if (i === j) continue;
-        
         const opponent = sortedPlayers[j];
         const expectedScore = 1 / (1 + Math.pow(10, (opponent.rating - player.rating) / 400));
         const actualScore = placement < (j + 1) ? 1 : 0;
@@ -361,7 +347,6 @@ class MultiplayerService {
 
   onRoomsUpdate(callback: (rooms: Room[]) => void): () => void {
     const roomsRef = ref(rtdb, 'rooms');
-    
     const listener = onValue(roomsRef, (snapshot) => {
       if (!snapshot.exists()) {
         callback([]);
@@ -375,13 +360,11 @@ class MultiplayerService {
       
       callback(rooms.filter(r => r.status === 'waiting'));
     });
-
     return () => off(roomsRef, 'value', listener);
   }
 
   onRoomUpdate(roomId: string, callback: (room: Room | null) => void): () => void {
     const roomRef = ref(rtdb, `rooms/${roomId}`);
-    
     const listener = onValue(roomRef, (snapshot) => {
       if (!snapshot.exists()) {
         callback(null);
@@ -389,13 +372,11 @@ class MultiplayerService {
       }
       callback(snapshot.val() as Room);
     });
-
     return () => off(roomRef, 'value', listener);
   }
 
   onGameStateUpdate(roomId: string, callback: (players: PlayerGameState[]) => void): () => void {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    
     const listener = onValue(gameStateRef, (snapshot) => {
       if (!snapshot.exists()) {
         callback([]);
@@ -405,7 +386,6 @@ class MultiplayerService {
       const players = gameState.players || [];
       callback(Array.isArray(players) ? players : Object.values(players));
     });
-
     return () => off(gameStateRef, 'value', listener);
   }
 
@@ -414,7 +394,6 @@ class MultiplayerService {
     if (!user) return () => {};
 
     const debuffRef = ref(rtdb, `debuffs/${roomId}/${user.uid}`);
-    
     const listener = onValue(debuffRef, (snapshot) => {
       if (!snapshot.exists()) return;
       
@@ -424,7 +403,6 @@ class MultiplayerService {
         remove(child.ref);
       });
     });
-
     return () => off(debuffRef, 'value', listener);
   }
 
