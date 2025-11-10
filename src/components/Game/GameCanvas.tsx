@@ -190,13 +190,11 @@ export const GameCanvas: React.FC = () => {
 
   // 게임 루프
   useEffect(() => {
-    const { tick } = useGameStore.getState();
     const gameLoop = () => {
       const now = Date.now();
       const dt = (now - lastTimeRef.current) / 1000;
       lastTimeRef.current = now;
       GameManager.getInstance().update(dt);
-      tick();
       requestAnimationFrame(gameLoop);
     };
     const id = requestAnimationFrame(gameLoop);
