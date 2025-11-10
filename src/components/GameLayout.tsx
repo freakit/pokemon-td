@@ -25,7 +25,8 @@ import { SynergyTracker } from './UI/SynergyTracker';
 import { SynergyDetails } from './UI/SynergyDetails';
 import GlobalLanguageSwitcher from './UI/GlobalLanguageSwitcher';
 import { authService } from '../services/AuthService';
-import { PlayerGameState } from '../types/multiplayer';
+import { PlayerGameState, TowerDetail } from '../types/multiplayer';
+import { aiPlayerManager } from '../services/AIPlayer';
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -33,7 +34,6 @@ interface GameLayoutProps {
 
 export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const { t } = useTranslation();
-
   const [showPicker, setShowPicker] = useState(false);
   const [showPokemonManager, setShowPokemonManager] = useState(false);
   const [showPokedex, setShowPokedex] = useState(false);
@@ -46,7 +46,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const [finalPlayers, setFinalPlayers] = useState<PlayerGameState[]>([]);
   const multiRoomId = multiplayerService.getCurrentRoomId();
   const user = authService.getCurrentUser();
-
   const {
     nextWave,
     isWaveActive,
@@ -93,7 +92,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   };
 
   useEffect(() => {
-    if (multiRoomId) {
+    if (multiRoomId && user) {
       const unsubscribe = useGameStore.subscribe(
         (state, prevState) => {
           if (state.isWaveActive && (
@@ -102,7 +101,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             state.money !== prevState.money ||
             state.towers.length !== prevState.towers.length
           )) {
-            multiplayerService.updatePlayerState(multiRoomId, {
+            multiplayerService.updatePlayerState(multiRoomId, user.uid, {
               wave: state.wave,
               lives: state.lives,
               money: state.money,
@@ -114,24 +113,25 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       );
       return unsubscribe;
     }
-  }, [multiRoomId, wave, lives, money, towers.length, isWaveActive]);
+  }, [multiRoomId, user, wave, lives, money, towers.length, isWaveActive]);
 
-  // ⭐ 타워 상세 정보 동기화
   useEffect(() => {
-    if (!multiRoomId) return;
+    if (!multiRoomId || !user) return;
 
-    const towerDetails = towers
-      .filter(t => !t.isFainted)
+    const towerDetails: TowerDetail[] = towers
       .map(t => ({
         pokemonId: t.pokemonId,
-        name: t.name,
+        name: t.displayName,
         level: t.level,
         sprite: t.sprite,
-        position: t.position
+        position: t.position,
+        currentHp: t.currentHp,
+        maxHp: t.maxHp,
+        isFainted: t.isFainted
       }));
 
-    multiplayerService.updatePlayerTowerDetails(multiRoomId, towerDetails);
-  }, [multiRoomId, towers]);
+    multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
+  }, [multiRoomId, user, towers]);
 
   useEffect(() => {
     if (multiRoomId) {
@@ -141,21 +141,20 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       return unsubscribe;
     }
   }, [multiRoomId]);
-  
+
   useEffect(() => {
-    if (multiRoomId) {
+    if (multiRoomId && user) {
       const unsubscribe = useGameStore.subscribe(
         (state) => {
           if (state.lives <= 0 && state.isWaveActive) {
-            multiplayerService.playerDefeated(multiRoomId);
+            multiplayerService.playerDefeated(multiRoomId, user.uid);
           }
         }
       );
       return unsubscribe;
     }
-  }, [multiRoomId, isWaveActive]);
+  }, [multiRoomId, user, isWaveActive]);
 
-  // ⭐ 게임 종료 감지
   useEffect(() => {
     if (!multiRoomId) return;
 
@@ -173,6 +172,27 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     });
 
     return unsubscribe;
+  }, [multiRoomId]);
+  
+  useEffect(() => {
+    if (multiRoomId) {
+      const startAIs = async () => {
+        const room = await multiplayerService.getRoom(multiRoomId);
+        const user = authService.getCurrentUser();
+        if (room && user && room.hostId === user.uid) {
+          for (const player of room.players) {
+            if (player.isAI && player.aiDifficulty) {
+              aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
+            }
+          }
+        }
+      };
+      startAIs();
+    }
+
+    return () => {
+      aiPlayerManager.stopAll();
+    };
   }, [multiRoomId]);
 
   const applyDebuff = (debuff: any) => {
@@ -386,6 +406,7 @@ const BottomBtn = styled.button`
   backdrop-filter: blur(5px);
   text-shadow: 0 0 10px rgba(76, 175, 255, 0.5);
   transition: all 0.3s ease;
+
   &:hover {
     background: linear-gradient(135deg, rgba(76, 175, 255, 0.25), rgba(76, 175, 255, 0.15));
     transform: translateY(-2px);

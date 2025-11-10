@@ -2,30 +2,26 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { multiplayerService } from '../../services/MultiplayerService';
-import { PlayerGameState, DebuffItem } from '../../types/multiplayer';
+import { PlayerGameState, DebuffItem, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
+import { OpponentCanvas } from './OpponentCanvas';
 
 interface MultiplayerViewProps {
   roomId: string;
   onClose: () => void;
 }
 
-interface TowerDetail {
-  pokemonId: number;
-  name: string;
-  level: number;
-  sprite: string;
-  position: { x: number; y: number };
-}
-
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
   const [viewingPlayer, setViewingPlayer] = useState<string | null>(null);
-  const [viewingPlayerTowers, setViewingPlayerTowers] = useState<TowerDetail[]>([]);
+  
+  const [allTowerDetails, setAllTowerDetails] = useState<Map<string, TowerDetail[]>>(new Map());
+  
   const [debuffItems] = useState<DebuffItem[]>(multiplayerService.getDebuffItems());
   const user = authService.getCurrentUser();
+  const currentMap = useGameStore((state) => state.currentMap);
 
   useEffect(() => {
     try {
@@ -38,45 +34,57 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
   }, [roomId]);
 
-  // 내 타워 정보 실시간 동기화
   const towers = useGameStore((state) => state.towers);
+  
   useEffect(() => {
     if (!user || !roomId) return;
 
     const towerDetails: TowerDetail[] = towers
-      .filter(t => !t.isFainted)
       .map(t => ({
         pokemonId: t.pokemonId,
-        name: t.name,
+        name: t.displayName,
         level: t.level,
         sprite: t.sprite,
-        position: t.position
+        position: t.position,
+        currentHp: t.currentHp,
+        maxHp: t.maxHp,
+        isFainted: t.isFainted,
       }));
 
-    multiplayerService.updatePlayerTowerDetails(roomId, towerDetails);
+    multiplayerService.updatePlayerTowerDetails(roomId, user.uid, towerDetails);
   }, [towers, roomId, user]);
 
-  // 관전 중인 플레이어의 타워 정보 구독
   useEffect(() => {
-    if (!viewingPlayer) {
-      setViewingPlayerTowers([]);
+    if (!players || players.length === 0 || !user) {
       return;
     }
 
-    const unsubscribe = multiplayerService.onTowerDetailsUpdate(
-      roomId,
-      viewingPlayer,
-      (towers) => {
-        setViewingPlayerTowers(towers);
-      }
-    );
+    const unsubscribers: (() => void)[] = [];
 
-    return unsubscribe;
-  }, [roomId, viewingPlayer]);
+    for (const player of players) {
+      if (player.userId === user.uid) continue;
+
+      const unsub = multiplayerService.onTowerDetailsUpdate(
+        roomId,
+        player.userId,
+        (towers) => {
+          setAllTowerDetails(prevMap => {
+            const newMap = new Map(prevMap);
+            newMap.set(player.userId, towers);
+            return newMap;
+          });
+        }
+      );
+      unsubscribers.push(unsub);
+    }
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [roomId, players, user]);
 
   const handleBuyDebuff = async (debuff: DebuffItem, targetUserId: string) => {
     if (!user) return;
-    
     const myState = players.find(p => p.userId === user.uid);
     if (!myState || myState.money < debuff.cost) {
       alert('골드가 부족합니다!');
@@ -147,6 +155,21 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                   <StatValue>{player.towers}</StatValue>
                 </Stat>
               </PlayerStats>
+
+              <TowerDisplayContainer>
+                {(player.userId === user?.uid ? towers : allTowerDetails.get(player.userId) || []).map((tower, index) => (
+                  <TowerIconWrapper key={index} title={`${tower.name} (Lv.${tower.level})`}>
+                    <TowerIcon 
+                      src={tower.sprite} 
+                      alt={tower.name} 
+                      $isFainted={tower.isFainted}
+                    />
+                    <TowerLevel $isFainted={tower.isFainted}>
+                      {tower.level}
+                    </TowerLevel>
+                  </TowerIconWrapper>
+                ))}
+              </TowerDisplayContainer>
 
               {player.userId !== user?.uid && player.isAlive && myState?.isAlive && (
                 <ButtonRow>
@@ -233,30 +256,12 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                     </DetailStat>
                   </DetailedStats>
 
-                  <PokemonSection>
-                    <SectionTitle>배치된 포켓몬</SectionTitle>
-                    {viewingPlayerTowers.length === 0 ? (
-                      <EmptyMessage>아직 배치된 포켓몬이 없습니다</EmptyMessage>
-                    ) : (
-                      <PokemonGrid>
-                        {viewingPlayerTowers.map((tower, idx) => (
-                          <PokemonCard key={idx}>
-                            <PokemonSprite
-                              src={tower.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${tower.pokemonId}.png`}
-                              alt={tower.name}
-                              onError={(e) => {
-                                e.currentTarget.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';
-                              }}
-                            />
-                            <PokemonInfo>
-                              <PokemonName>{tower.name}</PokemonName>
-                              <PokemonLevel>Lv. {tower.level}</PokemonLevel>
-                            </PokemonInfo>
-                          </PokemonCard>
-                        ))}
-                      </PokemonGrid>
-                    )}
-                  </PokemonSection>
+                  <OpponentCanvasWrapper>
+                    <OpponentCanvas 
+                      towers={allTowerDetails.get(viewingPlayer) || []} 
+                      mapId={currentMap} 
+                    />
+                  </OpponentCanvasWrapper>
                 </>
               )}
             </ViewerContent>
@@ -385,10 +390,53 @@ const StatValue = styled.div`
   color: white;
 `;
 
+const TowerDisplayContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  min-height: 54px; 
+`;
+
+const TowerIconWrapper = styled.div`
+  position: relative;
+  width: 40px;
+  height: 40px;
+`;
+
+const TowerIcon = styled.img<{ $isFainted: boolean }>`
+  width: 40px;
+  height: 40px;
+  image-rendering: pixelated;
+  border: 2px solid #555;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  opacity: ${props => props.$isFainted ? 0.4 : 1};
+  filter: ${props => props.$isFainted ? 'grayscale(100%)' : 'none'};
+`;
+
+const TowerLevel = styled.div<{ $isFainted: boolean }>`
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: ${props => props.$isFainted ? '#555' : 'rgba(0, 0, 0, 0.8)'};
+  color: ${props => props.$isFainted ? '#aaa' : '#fff'};
+  font-size: 10px;
+  font-weight: bold;
+  padding: 1px 3px;
+  border-radius: 3px;
+  border: 1px solid ${props => props.$isFainted ? '#333' : '#fff'};
+`;
+
+
 const ButtonRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+  margin-top: 1rem; 
 `;
 
 const AttackButton = styled.button`
@@ -537,7 +585,7 @@ const ViewerModal = styled.div`
   background: #1a1a2e;
   padding: 2rem;
   border-radius: 20px;
-  max-width: 800px;
+  max-width: 1000px;
   width: 90%;
   max-height: 85vh;
   overflow-y: auto;
@@ -606,72 +654,15 @@ const DetailValue = styled.div`
   color: white;
 `;
 
-const PokemonSection = styled.div`
-  background: #2d2d44;
-  padding: 1.5rem;
-  border-radius: 15px;
-`;
-
-const SectionTitle = styled.h4`
-  font-size: 1.2rem;
-  color: white;
-  margin-bottom: 1rem;
-  font-weight: bold;
-`;
-
-const PokemonGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 1rem;
-`;
-
-const PokemonCard = styled.div`
-  background: #1a1a2e;
-  padding: 0.75rem;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border: 2px solid rgba(76, 175, 255, 0.3);
-  transition: all 0.3s;
-
-  &:hover {
-    border-color: rgba(76, 175, 255, 0.6);
-    transform: translateY(-2px);
-  }
-`;
-
-const PokemonSprite = styled.img`
-  width: 64px;
-  height: 64px;
-  image-rendering: pixelated;
-  margin-bottom: 0.5rem;
-`;
-
-const PokemonInfo = styled.div`
-  text-align: center;
+const OpponentCanvasWrapper = styled.div`
   width: 100%;
-`;
-
-const PokemonName = styled.div`
-  font-size: 0.9rem;
-  color: white;
-  font-weight: bold;
-  margin-bottom: 0.25rem;
-  white-space: nowrap;
+  height: 50vh;
+  background: #0f1419;
+  border: 2px solid #2196F3;
+  border-radius: 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const PokemonLevel = styled.div`
-  font-size: 0.8rem;
-  color: #ffd700;
-  font-weight: bold;
-`;
-
-const EmptyMessage = styled.div`
-  text-align: center;
-  color: rgba(255,255,255,0.5);
-  padding: 2rem;
-  font-size: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1rem;
 `;
