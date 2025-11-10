@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { multiplayerService } from '../services/MultiplayerService';
 import { PlayerGameState, DebuffItem } from '../types/multiplayer';
 import { authService } from '../services/AuthService';
+import { useGameStore } from '../store/gameStore';
 
 interface MultiplayerViewProps {
   roomId: string;
@@ -24,7 +25,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     if (!user) return;
     
     const myState = players.find(p => p.userId === user.uid);
-    if (!myState || myState.money < debuff.cost) {
+    if (!myState || useGameStore.getState().money < debuff.cost) {
       alert('골드가 부족합니다!');
       return;
     }

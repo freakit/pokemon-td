@@ -253,7 +253,7 @@ export interface GameState {
   difficulty: Difficulty;
   gameSpeed: number;
   combo: number;
-  gameTick: number;
+  gameTime: number;
   isSpawning: boolean;
   pokemonToPlace: any | null;
   timeOfDay: "day" | "night";
