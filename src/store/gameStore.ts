@@ -6,6 +6,7 @@ import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
 import { calculateActiveSynergies } from '../utils/synergyManager';
+import { ACHIEVEMENTS } from '../data/achievements'; // 1. 업적 데이터 임포트
 
 interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
@@ -26,7 +27,7 @@ interface GameStore extends GameState {
   setGameSpeed: (speed: number) => void;
   nextWave: () => void;
   reset: () => void;
-  tick: () => void;
+  incrementGameTime: (dt: number) => void; // 2. tick -> incrementGameTime
   setPokemonToPlace: (pokemon: any | null) => void;
   addSkillChoice: (choice: { towerId: string; newMoves: GameMove[] }) => void;
   removeCurrentSkillChoice: () => void;
@@ -61,7 +62,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   difficulty: 'normal',
   gameSpeed: 1,
   combo: 0,
-  gameTick: 0,
+  gameTime: 0, // 3. gameTick -> gameTime
   isSpawning: false,
   pokemonToPlace: null,
   skillChoiceQueue: [],
@@ -123,7 +124,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   removeProjectile: (id) => set((state) => ({ projectiles: state.projectiles.filter(p => p.id !== id) })),
   
   addDamageNumber: (dmg) => set((state) => ({ damageNumbers: [...state.damageNumbers, dmg] })),
-  removeDamageNumber: (id) => set((state) => ({ damageNumbers: state.damageNumbers.filter(d => d.id !== id) })),
+  removeDamageNumber: (id) => set((state) => 
+    ({ damageNumbers: state.damageNumbers.filter(d => d.id !== id) })),
   
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
   spendMoney: (amount) => {
@@ -138,13 +140,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setDifficulty: (difficulty) => set({ difficulty }),
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
   
-  nextWave: () => set((state) => ({ 
-    wave: state.wave + 1, 
-    isWaveActive: true,
-    timeOfDay: state.timeOfDay === 'day' ? 'night' : 'day'
-  })),
+  // 4. nextWave 수정: 업적 체크 로직 추가
+  nextWave: () => {
+    const newWave = get().wave + 1;
+    set((state) => ({ 
+      wave: newWave, 
+      isWaveActive: true,
+      timeOfDay: state.timeOfDay === 'day' ? 'night' : 'day'
+    }));
+
+    // 웨이브 달성 업적 확인
+    const waveAchievements = ACHIEVEMENTS.filter(a => a.condition === 'wave' && a.id !== 'wave50'); // wave50은 클리어 시점에 체크
+    for (const ach of waveAchievements) {
+      if (newWave >= ach.target) {
+        // saveService가 DB 업데이트까지 처리
+        saveService.updateAchievement(ach.id, ach.target);
+      }
+    }
+  },
   
-  // ⭐️ [수정] reset 함수에 isPreloading 추가
+  // 5. reset 수정: gameTime: 0 추가
   reset: () => set({
     wave: 0,
     money: 500,
@@ -157,7 +172,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     gameOver: false,
     victory: false,
     combo: 0,
-    gameTick: 0,
+    gameTime: 0, // 5. gameTime 초기화
     isSpawning: false,
     pokemonToPlace: null,
     skillChoiceQueue: [],
@@ -171,7 +186,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isPreloading: false,
   }),
   
-   tick: () => set((state) => ({ gameTick: state.gameTick + 1 })),
+  // 6. incrementGameTime (dt는 초 단위)
+  incrementGameTime: (dt) => set((state) => ({ gameTime: state.gameTime + (dt * 1000) })), // ms로 저장
+
   setSpawning: (isSpawning) => set({ isSpawning }),
   
   setPokemonToPlace: (pokemon) => set({ pokemonToPlace: pokemon }),
@@ -240,11 +257,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (towers.length < 2) return false;
       const aliveTowers = towers.filter(t => !t.isFainted);
       if (aliveTowers.length < 2) return false;
-      
       const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
       const lowestLevelTower = sortedTowers[0];
       const secondLowestLevel = sortedTowers[1].level;
-      
       if (lowestLevelTower.level < secondLowestLevel) {
         const levelDiff = secondLowestLevel - lowestLevelTower.level;
         const statMultiplier = Math.pow(1.05, levelDiff);
@@ -313,7 +328,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         attack: Math.floor(tower.attack * 1.05),
         baseAttack: Math.floor(tower.baseAttack * 1.05),
         defense: Math.floor(tower.defense * 1.05),
-        specialAttack: Math.floor(tower.specialAttack * 1.05),
+        specialAttack: Math.floor(tower.specialAttack * 1.05), 
         specialDefense: Math.floor(tower.specialDefense * 1.05),
       });
       pokeAPI.getLearnableMoves(tower.pokemonId, newLevel).then(moves => {
@@ -324,13 +339,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             !rejectedMoves.includes(move.name) && 
             !equippedMoveNames.includes(move.name)
           );
+    
           
           if (availableMoves.length > 0) {
             get().addSkillChoice({ towerId: tower.id, newMoves: availableMoves });
           }
         }
       }).catch(() => {});
-      
       const currentState = get();
       const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
         if (chain.from !== tower.pokemonId) return false;
@@ -340,7 +355,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
         return true;
       });
-      
       if (possibleEvolutions.length > 0) {
         Promise.all(possibleEvolutions.map(async (evo) => {
           const targetData = await pokeAPI.getPokemon(evo.to);
@@ -348,7 +362,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (evo.level) method = `레벨 ${evo.level}`;
           if (evo.gender) method += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
           if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
-          
+           
           return {
             targetId: evo.to,
             targetName: targetData.displayName,
@@ -356,6 +370,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
         })).then(options => {
           set(state => ({
+          
             evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
               towerId,
               evolutionOptions: options,
@@ -396,12 +411,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
           
           if (chain.level && tower.level < chain.level) return false;
           if (chain.item && chain.item !== item) return false;
+        
           if (chain.gender && chain.gender !== tower.gender) return false;
           if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
           
           return true;
         });
-        
         if (possibleEvolutions.length === 0) return false;
         
         if (possibleEvolutions.length === 1) {
@@ -412,16 +427,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
             let method = '';
             if (evo.item) method = `아이템 필요`;
             else if (evo.level) method = `레벨 ${evo.level}`;
-            if (evo.gender) method += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
+            if (evo.gender) method 
+ += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
             if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
             
             return {
               targetId: evo.to,
               targetName: targetData.displayName,
+              
               method,
             };
           }));
-          
           set(state => ({
             evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
               towerId,
@@ -435,14 +451,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     try {
       const oldName = tower.displayName;
-      const targetData = await pokeAPI.getPokemon(targetId);
+      const targetData = await pokeAPI.getPokemon(targetId!); // targetId가 확정되었으므로 ! 사용
       const levelMultiplier = Math.pow(1.05, tower.level - 1);
       
       const currentHpRatio = tower.currentHp / tower.maxHp;
       const newMaxHp = Math.floor(targetData.stats.hp * levelMultiplier);
       
       get().updateTower(towerId, {
-        pokemonId: targetId,
+        pokemonId: targetId!, // targetId가 확정되었으므로 ! 사용
         name: targetData.name,
         displayName: targetData.displayName,
         sprite: targetData.sprite,
@@ -451,6 +467,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentHp: Math.floor(newMaxHp * currentHpRatio),
         baseAttack: Math.floor(targetData.stats.attack * levelMultiplier),
         attack: Math.floor(targetData.stats.attack * levelMultiplier),
+      
         defense: Math.floor(targetData.stats.defense * levelMultiplier),
         specialAttack: Math.floor(targetData.stats.specialAttack * levelMultiplier),
         specialDefense: Math.floor(targetData.stats.specialDefense * levelMultiplier),
@@ -472,11 +489,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set({ evolutionToast: null });
         }
       }, 3000);
-      
       set(state => ({
         evolutionConfirmQueue: state.evolutionConfirmQueue.filter(e => e.towerId !== towerId)
       }));
-      
       saveService.updateStats({
         evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
       });
@@ -497,13 +512,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const materialTower = get().towers.find(t => t.id === materialId);
     
     if (!baseTower || !materialTower) return false;
-    
     const fusion = FUSION_DATA.find(f => 
       f.base === baseTower.pokemonId && 
       f.material === materialTower.pokemonId && 
       f.item === item
     );
-    
     if (!fusion) return false;
     
     get().removeTower(materialId);
@@ -514,7 +527,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       const currentHpRatio = baseTower.currentHp / baseTower.maxHp;
       const newMaxHp = Math.floor(resultData.stats.hp * levelMultiplier);
-      
       get().updateTower(baseId, {
         pokemonId: fusion.result,
         name: resultData.name,
@@ -525,7 +537,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         baseAttack: Math.floor(resultData.stats.attack * levelMultiplier),
         attack: Math.floor(resultData.stats.attack * levelMultiplier),
         defense: Math.floor(resultData.stats.defense * levelMultiplier),
-        specialAttack: Math.floor(resultData.stats.specialAttack * levelMultiplier),
+        specialAttack: Math.floor(resultData.stats.specialAttack 
+ * levelMultiplier),
         specialDefense: Math.floor(resultData.stats.specialDefense * levelMultiplier),
         speed: resultData.stats.speed,
         types: resultData.types,
@@ -559,6 +572,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setHoveredSynergy: (synergy) => set({ hoveredSynergy: synergy }),
 
-  // ⭐️ [수정] setPreloading 액션 정의
   setPreloading: (isLoading) => set({ isPreloading: isLoading }),
 }));

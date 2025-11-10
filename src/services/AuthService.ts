@@ -1,5 +1,11 @@
 // src/services/AuthService.ts
-import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import {
+  signOut, 
+  onAuthStateChanged, 
+  User as FirebaseUser,
+  signInWithRedirect,
+  getRedirectResult
+} from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
 import { User } from '../types/multiplayer';
@@ -9,6 +15,16 @@ class AuthService {
   private listeners: ((user: User | null) => void)[] = [];
 
   constructor() {
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result) {
+          console.log("Redirect result processed.");
+        }
+      })
+      .catch((error) => {
+        console.error("Auth Redirect Error:", error);
+      });
+
     onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const user = await this.getUserData(firebaseUser);
@@ -23,7 +39,6 @@ class AuthService {
 
   private async getUserData(firebaseUser: FirebaseUser): Promise<User> {
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    
     if (!userDoc.exists()) {
       const newUser: User = {
         uid: firebaseUser.uid,
@@ -33,25 +48,21 @@ class AuthService {
         rating: 1000,
         createdAt: Date.now()
       };
-      
       await setDoc(doc(db, 'users', firebaseUser.uid), {
         ...newUser,
         lastLogin: serverTimestamp()
       });
-      
       return newUser;
     }
     
     await setDoc(doc(db, 'users', firebaseUser.uid), {
       lastLogin: serverTimestamp()
     }, { merge: true });
-    
     return userDoc.data() as User;
   }
 
-  async signInWithGoogle(): Promise<User> {
-    const result = await signInWithPopup(auth, googleProvider);
-    return await this.getUserData(result.user);
+  async signInWithGoogle(): Promise<void> {
+    await signInWithRedirect(auth, googleProvider);
   }
 
   async signOut(): Promise<void> {
@@ -66,7 +77,6 @@ class AuthService {
   onAuthStateChange(callback: (user: User | null) => void): () => void {
     this.listeners.push(callback);
     callback(this.currentUser);
-    
     return () => {
       this.listeners = this.listeners.filter(l => l !== callback);
     };

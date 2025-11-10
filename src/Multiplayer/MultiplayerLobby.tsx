@@ -1,3 +1,4 @@
+// src/Multiplayer/MultiplayerLobby.tsx
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { multiplayerService } from '../services/MultiplayerService';
@@ -43,9 +44,18 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
   const handleCreateRoom = async () => {
     try {
+      const map = MAPS.find(m => m.id === selectedMap);
+      if (!map) {
+        alert('맵을 선택해주세요.');
+        return;
+      }
+      
+      await multiplayerService.createRoom(map.id, map.name);
+
       setView('room');
     } catch (err: any) {
       alert(err.message);
+      setView('list');
     }
   };
 
@@ -103,7 +113,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
           <ButtonRow>
             <CreateRoomButton onClick={() => setView('create')}>
-              ➕ 방 만들기
+               ➕ 방 만들기
             </CreateRoomButton>
           </ButtonRow>
 
@@ -111,12 +121,12 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             {rooms.length === 0 ? (
               <EmptyMessage>생성된 방이 없습니다</EmptyMessage>
             ) : (
-              rooms.map(room => (
+               rooms.map(room => (
                 <RoomCard key={room.id}>
                   <RoomInfo>
                     <RoomName>{room.name}</RoomName>
                     <RoomDetails>
-                      맵: {room.mapName} | 호스트: {room.hostName}
+                     맵: {room.mapName} | 호스트: {room.hostName}
                     </RoomDetails>
                   </RoomInfo>
                   <RoomPlayers>
@@ -126,7 +136,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                     onClick={() => handleJoinRoom(room.id)}
                     disabled={room.players.length >= room.maxPlayers}
                   >
-                    참가
+                   참가
                   </JoinButton>
                 </RoomCard>
               ))
@@ -148,7 +158,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
           <Section>
             <SectionTitle>맵 선택</SectionTitle>
-            <MapGrid>
+             <MapGrid>
               {MAPS.map(map => (
                 <MapCard
                   key={map.id}
@@ -160,7 +170,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                 </MapCard>
               ))}
             </MapGrid>
-          </Section>
+           </Section>
 
           <CreateButton onClick={handleCreateRoom}>
             방 만들기
@@ -174,7 +184,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     const isHost = currentRoom.hostId === user?.uid;
     const currentPlayer = currentRoom.players.find(p => p.userId === user?.uid);
     const allReady = currentRoom.players.every(p => p.isReady);
-
     return (
       <Overlay>
         <Container>
@@ -187,18 +196,18 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             <SectionTitle>맵: {currentRoom.mapName}</SectionTitle>
           </Section>
 
-          <Section>
+           <Section>
             <SectionTitle>플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})</SectionTitle>
             <PlayerList>
               {currentRoom.players.map(player => (
                 <PlayerCard key={player.userId}>
                   <PlayerName>
-                    {player.userName}
+                     {player.userName}
                     {player.userId === currentRoom.hostId && ' 👑'}
                     {player.isAI && ' 🤖'}
                   </PlayerName>
                   <PlayerRating>Rating: {player.rating}</PlayerRating>
-                  <PlayerStatus ready={player.isReady}>
+                   <PlayerStatus ready={player.isReady}>
                     {player.isReady ? '✓ 준비완료' : '대기중'}
                   </PlayerStatus>
                 </PlayerCard>
@@ -206,13 +215,13 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </PlayerList>
           </Section>
 
-          {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
+           {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
             <Section>
               <SectionTitle>AI 추가</SectionTitle>
               <AIButtons>
                 <AIButton onClick={() => handleAddAI('easy')}>Easy AI</AIButton>
                 <AIButton onClick={() => handleAddAI('normal')}>Normal AI</AIButton>
-                <AIButton onClick={() => handleAddAI('hard')}>Hard AI</AIButton>
+                 <AIButton onClick={() => handleAddAI('hard')}>Hard AI</AIButton>
               </AIButtons>
             </Section>
           )}
@@ -227,7 +236,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             {isHost && (
               <StartButton
                 onClick={handleStartGame}
-                disabled={!allReady || currentRoom.players.length < 2}
+                 disabled={!allReady || currentRoom.players.length < 2}
               >
                 게임 시작
               </StartButton>
@@ -253,7 +262,6 @@ const Overlay = styled.div`
   justify-content: center;
   z-index: 1000;
 `;
-
 const Container = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem;
@@ -270,7 +278,6 @@ const Header = styled.div`
   align-items: center;
   margin-bottom: 2rem;
 `;
-
 const Title = styled.h2`
   font-size: 2rem;
   color: white;
@@ -285,7 +292,6 @@ const BackButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     background: rgba(255,255,255,0.3);
   }
@@ -296,7 +302,6 @@ const ButtonRow = styled.div`
   gap: 1rem;
   margin-bottom: 1rem;
 `;
-
 const CreateRoomButton = styled.button`
   flex: 1;
   padding: 1rem;
@@ -313,7 +318,6 @@ const CreateRoomButton = styled.button`
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
   }
 `;
-
 const RoomList = styled.div`
   display: flex;
   flex-direction: column;
@@ -340,7 +344,6 @@ const RoomCard = styled.div`
 const RoomInfo = styled.div`
   flex: 1;
 `;
-
 const RoomName = styled.div`
   font-size: 1.2rem;
   font-weight: bold;
@@ -357,7 +360,6 @@ const RoomPlayers = styled.div`
   color: #667eea;
   font-size: 1.1rem;
 `;
-
 const JoinButton = styled.button`
   padding: 0.75rem 1.5rem;
   background: #667eea;
@@ -393,7 +395,6 @@ const MapGrid = styled.div`
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
 `;
-
 const MapCard = styled.div<{ selected: boolean }>`
   padding: 1.5rem;
   background: ${props => props.selected ? 'white' : 'rgba(255,255,255,0.8)'};
@@ -401,7 +402,6 @@ const MapCard = styled.div<{ selected: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
   }
@@ -412,7 +412,6 @@ const MapName = styled.div`
   font-weight: bold;
   margin-bottom: 0.5rem;
 `;
-
 const MapDifficulty = styled.div`
   font-size: 0.9rem;
   color: #666;
@@ -429,7 +428,6 @@ const CreateButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -447,7 +445,6 @@ const PlayerCard = styled.div`
   background: white;
   border-radius: 10px;
 `;
-
 const PlayerName = styled.div`
   font-size: 1.1rem;
   font-weight: bold;
@@ -469,7 +466,6 @@ const AIButtons = styled.div`
   display: flex;
   gap: 0.5rem;
 `;
-
 const AIButton = styled.button`
   flex: 1;
   padding: 0.75rem;
@@ -485,7 +481,6 @@ const AIButton = styled.button`
     background: #f0f0f0;
   }
 `;
-
 const ReadyButton = styled.button<{ ready: boolean }>`
   flex: 1;
   padding: 1rem;
@@ -497,7 +492,6 @@ const ReadyButton = styled.button<{ ready: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     opacity: 0.9;
   }
@@ -514,7 +508,6 @@ const StartButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover:not(:disabled) {
     background: #45a049;
   }

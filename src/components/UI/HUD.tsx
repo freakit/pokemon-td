@@ -10,9 +10,16 @@ interface Props {
   onManagePokemon: () => void;
 }
 
+const formatTime = (ms: number) => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
   const { t } = useTranslation();
-  const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay } = useGameStore();
+  const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay, gameTime } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
 
   return (
@@ -40,6 +47,10 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
           </TimeIndicator>
         </StatGroup>
       </LeftSection>
+
+      <CenterSection>
+        <TimerDisplay>⏰ {formatTime(gameTime)}</TimerDisplay>
+      </CenterSection>
       
       <ButtonSection>
         <Btn $variant="wave" onClick={onStartWave} disabled={isWaveActive}>
@@ -71,6 +82,7 @@ const Container = styled.div`
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
   backdrop-filter: blur(10px);
+  position: relative;
 `;
 
 const LeftSection = styled.div`
@@ -112,6 +124,27 @@ const TimeIndicator = styled.div`
   display: flex;
   align-items: center;
   gap: 5px;
+`;
+
+const CenterSection = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none; /* 타이머가 클릭 방해하지 않도록 함 */
+`;
+
+const TimerDisplay = styled.div`
+  font-size: 24px;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 `;
 
 const ButtonSection = styled.div`
