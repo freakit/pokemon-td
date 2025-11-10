@@ -23,9 +23,10 @@ export const LoginScreen = () => {
   return (
     <Container>
       <Content>
-        <Logo>🎮 포켓몬 아이기스</Logo>
-        <Title>Pokemon Aegis</Title>
-        <Subtitle>1세대부터 9세대까지 1025마리의 포켓몬과 함께하는 타워 디펜스</Subtitle>
+        <Logo>
+          <img src="/images/pokemon-aegis.png" alt="Pokemon Aegis" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+        </Logo>
+        <Subtitle>1025마리의 포켓몬과 함께하는 타워 디펜스</Subtitle>
         
         <LoginButton onClick={handleGoogleLogin} disabled={loading}>
           <GoogleIcon>G</GoogleIcon>
@@ -48,7 +49,7 @@ const Container = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
 `;
 
 const Content = styled.div`
@@ -64,13 +65,6 @@ const Content = styled.div`
 const Logo = styled.div`
   font-size: 4rem;
   margin-bottom: 1rem;
-`;
-
-const Title = styled.h1`
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #333;
 `;
 
 const Subtitle = styled.p`

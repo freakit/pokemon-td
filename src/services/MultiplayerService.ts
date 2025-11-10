@@ -9,7 +9,6 @@ const DEBUFF_ITEMS: DebuffItem[] = [
   { id: 'instant_kill', name: '즉사', description: '상대 포켓몬 1마리 즉사', cost: 300, effect: 'instant_kill' },
   { id: 'slow_attack', name: '공속 감소', description: '상대 모든 포켓몬 공속 50% 감소 (10초)', cost: 200, effect: 'slow_attack', value: 10 },
   { id: 'spawn_boss', name: '보스 투입', description: '상대 맵에 강력한 보스 투입', cost: 500, effect: 'spawn_boss' },
-  { id: 'reduce_gold', name: '골드 강탈', description: '상대 골드 200 감소', cost: 150, effect: 'reduce_gold', value: 200 },
   { id: 'freeze_towers', name: '타워 동결', description: '상대 모든 포켓몬 5초간 공격 불가', cost: 250, effect: 'freeze_towers', value: 5 },
   { id: 'disable_shop', name: '상점 봉쇄', description: '상대 상점 15초간 사용 불가', cost: 180, effect: 'disable_shop', value: 15 }
 ];
@@ -46,6 +45,7 @@ class MultiplayerService {
 
     await set(newRoomRef, room);
     this.currentRoomId = roomId;
+    localStorage.setItem('currentRoomId', roomId);
     return roomId;
   }
 
@@ -81,6 +81,36 @@ class MultiplayerService {
     });
 
     this.currentRoomId = roomId;
+    localStorage.setItem('currentRoomId', roomId);
+  }
+
+  async rejoinRoom(roomId: string): Promise<{ room: Room, canRejoin: boolean }> {
+    const user = authService.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    const snapshot = await get(roomRef);
+    
+    if (!snapshot.exists()) {
+      this.clearCurrentRoom();
+      return { room: null as any, canRejoin: false };
+    }
+    
+    const room = snapshot.val() as Room;
+    
+    const isPlayerInRoom = room.players.some(p => p.userId === user.uid);
+    
+    if (!isPlayerInRoom) {
+      this.clearCurrentRoom();
+      return { room: null as any, canRejoin: false };
+    }
+
+    if (room.status === 'playing' || room.status === 'starting') {
+      this.currentRoomId = roomId;
+      return { room, canRejoin: true };
+    }
+
+    return { room, canRejoin: true };
   }
 
   async leaveRoom(roomId: string): Promise<void> {
@@ -105,7 +135,12 @@ class MultiplayerService {
       });
     }
 
+    this.clearCurrentRoom();
+  }
+
+  clearCurrentRoom(): void {
     this.currentRoomId = null;
+    localStorage.removeItem('currentRoomId');
   }
 
   async addAI(roomId: string, difficulty: AIDifficulty): Promise<void> {
@@ -183,7 +218,7 @@ class MultiplayerService {
       await update(roomRef, { status: 'playing' });
       
       const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-      const initialPlayers: PlayerGameState[] = room.players.map(p => ({
+      const playersArray: PlayerGameState[] = room.players.map(p => ({
         userId: p.userId,
         userName: p.userName,
         wave: 0,
@@ -196,7 +231,7 @@ class MultiplayerService {
 
       await set(gameStateRef, {
         roomId,
-        players: initialPlayers,
+        players: playersArray,
         startTime: Date.now(),
         rankings: []
       });
@@ -212,8 +247,38 @@ class MultiplayerService {
     
     if (!snapshot.exists()) return;
 
-    const playerStateRef = ref(rtdb, `gameStates/${roomId}/players/${user.uid}`);
-    await update(playerStateRef, state);
+    const gameState = snapshot.val();
+    const updatedPlayers = (gameState.players || []).map((p: PlayerGameState) =>
+      p.userId === user.uid ? { ...p, ...state, lastUpdate: Date.now() } : p
+    );
+
+    await update(gameStateRef, { players: updatedPlayers });
+  }
+
+  async updatePlayerTowerDetails(roomId: string, towerDetails: any[]): Promise<void> {
+    const user = authService.getCurrentUser();
+    if (!user) return;
+
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${user.uid}`);
+    await set(towerDetailsRef, {
+      towers: towerDetails,
+      lastUpdate: Date.now()
+    });
+  }
+
+  onTowerDetailsUpdate(roomId: string, userId: string, callback: (towers: any[]) => void): () => void {
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+    
+    const listener = onValue(towerDetailsRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
+      const data = snapshot.val();
+      callback(data.towers || []);
+    });
+
+    return () => off(towerDetailsRef, 'value', listener);
   }
 
   async applyDebuff(roomId: string, targetUserId: string, debuff: DebuffItem): Promise<void> {
@@ -235,8 +300,9 @@ class MultiplayerService {
     if (!snapshot.exists()) return;
     
     const gameState = snapshot.val();
-    const updatedPlayers = gameState.players.map((p: PlayerGameState) =>
-      p.userId === user.uid ? { ...p, isAlive: false, placement: this.calculatePlacement(gameState.players) } : p
+    const players = gameState.players || [];
+    const updatedPlayers = players.map((p: PlayerGameState) =>
+      p.userId === user.uid ? { ...p, isAlive: false, placement: this.calculatePlacement(players) } : p
     );
 
     const rankings = [...(gameState.rankings || []), user.uid];
@@ -248,7 +314,7 @@ class MultiplayerService {
 
     const alivePlayers = updatedPlayers.filter((p: PlayerGameState) => p.isAlive);
     if (alivePlayers.length === 1) {
-      await this.endGame(roomId, gameState);
+      await this.endGame(roomId, { ...gameState, players: updatedPlayers });
     }
   }
 
@@ -336,7 +402,8 @@ class MultiplayerService {
         return;
       }
       const gameState = snapshot.val();
-      callback(gameState.players);
+      const players = gameState.players || [];
+      callback(Array.isArray(players) ? players : Object.values(players));
     });
 
     return () => off(gameStateRef, 'value', listener);
@@ -366,6 +433,9 @@ class MultiplayerService {
   }
 
   getCurrentRoomId(): string | null {
+    if (!this.currentRoomId) {
+      this.currentRoomId = localStorage.getItem('currentRoomId');
+    }
     return this.currentRoomId;
   }
 }

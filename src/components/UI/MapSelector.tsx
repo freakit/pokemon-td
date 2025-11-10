@@ -8,7 +8,7 @@ import { Difficulty, MapData } from "../../types/game";
 
 type DifficultyFilter = "easiest" | "easy" | "medium" | "hard" | "expert";
 
-export const MapSelector: React.FC<{ onSelect: () => void }> = ({
+export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
   onSelect,
 }) => {
   const { t } = useTranslation();
@@ -30,7 +30,7 @@ export const MapSelector: React.FC<{ onSelect: () => void }> = ({
     const gameDifficulty: Difficulty =
       map.difficulty === "medium" ? "normal" : (map.difficulty as Difficulty);
     setDifficulty(gameDifficulty);
-    onSelect();
+    onSelect(map.id);
   };
 
   const filteredMaps = selectedFilter

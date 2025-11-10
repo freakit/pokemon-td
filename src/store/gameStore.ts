@@ -6,7 +6,8 @@ import { pokeAPI } from '../api/pokeapi';
 import { soundService } from '../services/SoundService';
 import { saveService } from '../services/SaveService';
 import { calculateActiveSynergies } from '../utils/synergyManager';
-import { ACHIEVEMENTS } from '../data/achievements'; // 1. 업적 데이터 임포트
+import { ACHIEVEMENTS } from '../data/achievements';
+import { EVOLUTION_ITEMS } from '../data/evolutionItems';
 
 interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
@@ -27,7 +28,7 @@ interface GameStore extends GameState {
   setGameSpeed: (speed: number) => void;
   nextWave: () => void;
   reset: () => void;
-  incrementGameTime: (dt: number) => void; // 2. tick -> incrementGameTime
+  incrementGameTime: (dt: number) => void;
   setPokemonToPlace: (pokemon: any | null) => void;
   addSkillChoice: (choice: { towerId: string; newMoves: GameMove[] }) => void;
   removeCurrentSkillChoice: () => void;
@@ -62,7 +63,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   difficulty: 'normal',
   gameSpeed: 1,
   combo: 0,
-  gameTime: 0, // 3. gameTick -> gameTime
+  gameTime: 0,
   isSpawning: false,
   pokemonToPlace: null,
   skillChoiceQueue: [],
@@ -74,6 +75,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   activeSynergies: [],
   hoveredSynergy: null,
   isPreloading: false,
+  isShopDisabled: false,
   
   addTower: (tower) => {
     set((state) => ({ towers: [...state.towers, tower] }));
@@ -140,7 +142,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setDifficulty: (difficulty) => set({ difficulty }),
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
   
-  // 4. nextWave 수정: 업적 체크 로직 추가
   nextWave: () => {
     const newWave = get().wave + 1;
     set((state) => ({ 
@@ -148,18 +149,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isWaveActive: true,
       timeOfDay: state.timeOfDay === 'day' ? 'night' : 'day'
     }));
-
-    // 웨이브 달성 업적 확인
-    const waveAchievements = ACHIEVEMENTS.filter(a => a.condition === 'wave' && a.id !== 'wave50'); // wave50은 클리어 시점에 체크
+    
+    const waveAchievements = ACHIEVEMENTS.filter(a => a.condition === 'wave' && a.id !== 'wave50');
     for (const ach of waveAchievements) {
       if (newWave >= ach.target) {
-        // saveService가 DB 업데이트까지 처리
         saveService.updateAchievement(ach.id, ach.target);
       }
     }
   },
   
-  // 5. reset 수정: gameTime: 0 추가
   reset: () => set({
     wave: 0,
     money: 500,
@@ -172,7 +170,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     gameOver: false,
     victory: false,
     combo: 0,
-    gameTime: 0, // 5. gameTime 초기화
+    gameTime: 0,
     isSpawning: false,
     pokemonToPlace: null,
     skillChoiceQueue: [],
@@ -186,8 +184,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     isPreloading: false,
   }),
   
-  // 6. incrementGameTime (dt는 초 단위)
-  incrementGameTime: (dt) => set((state) => ({ gameTime: state.gameTime + (dt * 1000) })), // ms로 저장
+  incrementGameTime: (dt) => set((state) => ({ gameTime: state.gameTime + (dt * 1000) })), 
 
   setSpawning: (isSpawning) => set({ isSpawning }),
   
@@ -205,11 +202,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   setWaveEndItemPick: (items) => set({ waveEndItemPick: items }),
 
+  // [수정] Shop 로직 중앙화 (비용 계산 포함)
   useItem: (itemType, targetTowerId) => {
     const towers = get().towers;
-    if (towers.length === 0) return false;
+    if (towers.length === 0 && itemType !== 'potion' && itemType !== 'potion_good' && itemType !== 'potion_super') return false;
 
     if (itemType === 'potion') {
+      if (!get().spendMoney(20)) return false;
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
@@ -218,8 +217,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().updateTower(target.id, { currentHp: newHp });
         return true;
       }
+      get().addMoney(20); // 환불
+      return false;
     }
+    
     if (itemType === 'potion_good') {
+      if (!get().spendMoney(100)) return false;
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
@@ -229,8 +232,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().updateTower(target.id, { currentHp: newHp });
         return true;
       }
+      get().addMoney(100); // 환불
+      return false;
     }
+    
     if (itemType === 'potion_super') {
+      if (!get().spendMoney(500)) return false;
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && !t.isFainted)
         : towers.filter(t => !t.isFainted).sort((a, b) => (a.currentHp / a.maxHp) - (b.currentHp / b.maxHp))[0];
@@ -240,27 +247,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
         get().updateTower(target.id, { currentHp: newHp });
         return true;
       }
+      get().addMoney(500); // 환불
+      return false;
     }
+
     if (itemType === 'candy') {
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId)
         : towers.sort((a, b) => a.level - b.level)[0];
       if (target) {
-        if (target.level >= 100) {
-          return false;
-        }
+        if (target.level >= 100) return false;
+        const candyCost = target.level * 25;
+        if (!get().spendMoney(candyCost)) return false;
+        
         get().addXpToTower(target.id, 100);
         return true;
       }
+      return false;
     }
+    
     if (itemType === 'exp_candy') {
       if (towers.length < 2) return false;
       const aliveTowers = towers.filter(t => !t.isFainted);
       if (aliveTowers.length < 2) return false;
+      
       const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
       const lowestLevelTower = sortedTowers[0];
       const secondLowestLevel = sortedTowers[1].level;
+      
+      if (targetTowerId !== lowestLevelTower.id) return false;
+      
       if (lowestLevelTower.level < secondLowestLevel) {
+        const expCandyCost = secondLowestLevel * 50;
+        if (!get().spendMoney(expCandyCost)) return false;
+
         const levelDiff = secondLowestLevel - lowestLevelTower.level;
         const statMultiplier = Math.pow(1.05, levelDiff);
         const newBaseExperience = (secondLowestLevel - 1) * 100;
@@ -272,24 +292,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
           attack: Math.floor(lowestLevelTower.attack * statMultiplier),
           baseAttack: Math.floor(lowestLevelTower.baseAttack * statMultiplier),
           defense: Math.floor(lowestLevelTower.defense * statMultiplier),
-          specialAttack: Math.floor(lowestLevelTower.specialAttack * statMultiplier),
+          specialAttack: Math.floor(lowestLevelTower.specialAttack * statMultiplier), 
           specialDefense: Math.floor(lowestLevelTower.specialDefense * statMultiplier),
         });
         return true;
       }
       return false;
     }
+    
     if (itemType === 'revive') {
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && t.isFainted)
         : towers.find(t => t.isFainted);
       if (target) {
+        const reviveCost = target.level * 10;
+        if (!get().spendMoney(reviveCost)) return false;
+        
         get().updateTower(target.id, {
           isFainted: false,
           currentHp: Math.floor(target.maxHp * 0.5),
         });
         return true;
       }
+      return false;
     }
     return false;
   },
@@ -331,6 +356,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         specialAttack: Math.floor(tower.specialAttack * 1.05), 
         specialDefense: Math.floor(tower.specialDefense * 1.05),
       });
+
       pokeAPI.getLearnableMoves(tower.pokemonId, newLevel).then(moves => {
         if (moves.length > 0) {
           const rejectedMoves = tower.rejectedMoves || [];
@@ -339,13 +365,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
             !rejectedMoves.includes(move.name) && 
             !equippedMoveNames.includes(move.name)
           );
-    
           
           if (availableMoves.length > 0) {
             get().addSkillChoice({ towerId: tower.id, newMoves: availableMoves });
           }
         }
       }).catch(() => {});
+      
       const currentState = get();
       const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
         if (chain.from !== tower.pokemonId) return false;
@@ -355,6 +381,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
         return true;
       });
+
       if (possibleEvolutions.length > 0) {
         Promise.all(possibleEvolutions.map(async (evo) => {
           const targetData = await pokeAPI.getPokemon(evo.to);
@@ -362,7 +389,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           if (evo.level) method = `레벨 ${evo.level}`;
           if (evo.gender) method += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
           if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
-           
+          
           return {
             targetId: evo.to,
             targetName: targetData.displayName,
@@ -370,7 +397,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
           };
         })).then(options => {
           set(state => ({
-          
             evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
               towerId,
               evolutionOptions: options,
@@ -384,81 +410,91 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  // [수정] Shop 로직 중앙화 (진화 비용 계산 포함)
   evolvePokemon: async (towerId, item, targetId) => {
     const tower = get().towers.find(t => t.id === towerId);
     if (!tower) return false;
     
     const currentState = get();
+    let cost = 0;
+    let evolutionItemId: string | undefined = item;
     
+    // 1. 비용 계산 및 ID 확정
     if (!targetId) {
       if (item) {
-        const megaEvolution = canMegaEvolve(tower.pokemonId, item);
-        if (megaEvolution) {
-          targetId = megaEvolution.to;
+        // 아이템 진화 (메가진화, 거다이맥스, 일반 아이템)
+        const itemData = EVOLUTION_ITEMS[item];
+        if (itemData) {
+          cost = itemData.price;
+        } else if (item.startsWith('mega_stone_')) {
+          // 메가스톤 (WaveEndPicker에서 옴, 비용 0)
+          cost = 0;
+          const megaStoneName = item.replace('mega_stone_', '');
+          const megaEvolution = canMegaEvolve(tower.pokemonId, megaStoneName);
+          if (megaEvolution) targetId = megaEvolution.to;
+        } else if (item.startsWith('max_mushroom')) {
+          // 다이버섯 (WaveEndPicker에서 옴, 비용 0)
+          cost = 0;
+          const gigantamax = canGigantamax(tower.pokemonId, 'max-mushroom');
+          if (gigantamax) targetId = gigantamax.to;
+          evolutionItemId = 'max-mushroom'; // item ID 정규화
         }
-      }
-      
-      if (!targetId && item === 'max-mushroom') {
-        const gigantamax = canGigantamax(tower.pokemonId, item);
-        if (gigantamax) {
-          targetId = gigantamax.to;
+        
+        if (!targetId) {
+          // 일반 아이템 진화
+          const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => 
+            chain.from === tower.pokemonId && chain.item === item
+          );
+          if (possibleEvolutions.length === 1) {
+            targetId = possibleEvolutions[0].to;
+          } else {
+             // 대상이 없거나, 분기 진화 (여기서는 아이템 진화 분기 없다고 가정)
+          }
         }
-      }
-      
-      if (!targetId) {
+
+      } else {
+        // 레벨업 진화 (비용 0)
+        cost = 0;
         const possibleEvolutions = EVOLUTION_CHAINS.filter(chain => {
           if (chain.from !== tower.pokemonId) return false;
-          
           if (chain.level && tower.level < chain.level) return false;
-          if (chain.item && chain.item !== item) return false;
-        
+          if (chain.item) return false;
           if (chain.gender && chain.gender !== tower.gender) return false;
           if (chain.timeOfDay && chain.timeOfDay !== currentState.timeOfDay) return false;
-          
           return true;
         });
+
         if (possibleEvolutions.length === 0) return false;
         
         if (possibleEvolutions.length === 1) {
           targetId = possibleEvolutions[0].to;
         } else {
-          const options = await Promise.all(possibleEvolutions.map(async (evo) => {
-            const targetData = await pokeAPI.getPokemon(evo.to);
-            let method = '';
-            if (evo.item) method = `아이템 필요`;
-            else if (evo.level) method = `레벨 ${evo.level}`;
-            if (evo.gender) method 
- += ` (${evo.gender === 'male' ? '♂' : '♀'})`;
-            if (evo.timeOfDay) method += ` (${evo.timeOfDay === 'day' ? '☀️' : '🌙'})`;
-            
-            return {
-              targetId: evo.to,
-              targetName: targetData.displayName,
-              
-              method,
-            };
-          }));
-          set(state => ({
-            evolutionConfirmQueue: [...state.evolutionConfirmQueue, {
-              towerId,
-              evolutionOptions: options,
-            }],
-          }));
+          // 분기 진화 (이 함수는 targetId가 정해지지 않은 분기 진화는 처리하지 않음, 큐에 넣어야 함)
+          // 이 함수는 'evolvePokemon'을 직접 호출하는 Shop이나 SkillPicker에서만 사용됨
+          // 큐에 넣는 로직은 addXpToTower에 있음.
           return false;
         }
       }
     }
     
+    // 2. targetId가 확정되지 않았으면 실패
+    if (!targetId) return false;
+
+    // 3. 비용 지불
+    if (cost > 0) {
+      if (!get().spendMoney(cost)) return false; // 돈 부족
+    }
+    
+    // 4. 진화 실행
     try {
       const oldName = tower.displayName;
-      const targetData = await pokeAPI.getPokemon(targetId!); // targetId가 확정되었으므로 ! 사용
+      const targetData = await pokeAPI.getPokemon(targetId);
       const levelMultiplier = Math.pow(1.05, tower.level - 1);
-      
       const currentHpRatio = tower.currentHp / tower.maxHp;
       const newMaxHp = Math.floor(targetData.stats.hp * levelMultiplier);
       
       get().updateTower(towerId, {
-        pokemonId: targetId!, // targetId가 확정되었으므로 ! 사용
+        pokemonId: targetId,
         name: targetData.name,
         displayName: targetData.displayName,
         sprite: targetData.sprite,
@@ -467,7 +503,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentHp: Math.floor(newMaxHp * currentHpRatio),
         baseAttack: Math.floor(targetData.stats.attack * levelMultiplier),
         attack: Math.floor(targetData.stats.attack * levelMultiplier),
-      
         defense: Math.floor(targetData.stats.defense * levelMultiplier),
         specialAttack: Math.floor(targetData.stats.specialAttack * levelMultiplier),
         specialDefense: Math.floor(targetData.stats.specialDefense * levelMultiplier),
@@ -489,9 +524,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
           set({ evolutionToast: null });
         }
       }, 3000);
+      
       set(state => ({
         evolutionConfirmQueue: state.evolutionConfirmQueue.filter(e => e.towerId !== towerId)
       }));
+      
       saveService.updateStats({
         evolutionsAchieved: saveService.load().stats.evolutionsAchieved + 1,
       });
@@ -499,9 +536,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return true;
     } catch (e) {
       console.error('Evolution failed:', e);
+      if (cost > 0) get().addMoney(cost); // 4.b. 실패 시 환불
       return false;
     }
   },
+
 
   removeEvolutionConfirm: () => set(state => ({
     evolutionConfirmQueue: state.evolutionConfirmQueue.slice(1),
@@ -512,6 +551,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const materialTower = get().towers.find(t => t.id === materialId);
     
     if (!baseTower || !materialTower) return false;
+    
     const fusion = FUSION_DATA.find(f => 
       f.base === baseTower.pokemonId && 
       f.material === materialTower.pokemonId && 
@@ -519,6 +559,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     );
     if (!fusion) return false;
     
+    // [수정] 합체 비용 500원 지불 로직 (gameStore에서 처리)
+    const fusionCost = 500;
+    if (!get().spendMoney(fusionCost)) return false;
+
     get().removeTower(materialId);
     
     try {
@@ -527,6 +571,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       
       const currentHpRatio = baseTower.currentHp / baseTower.maxHp;
       const newMaxHp = Math.floor(resultData.stats.hp * levelMultiplier);
+      
       get().updateTower(baseId, {
         pokemonId: fusion.result,
         name: resultData.name,
@@ -537,8 +582,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         baseAttack: Math.floor(resultData.stats.attack * levelMultiplier),
         attack: Math.floor(resultData.stats.attack * levelMultiplier),
         defense: Math.floor(resultData.stats.defense * levelMultiplier),
-        specialAttack: Math.floor(resultData.stats.specialAttack 
- * levelMultiplier),
+        specialAttack: Math.floor(resultData.stats.specialAttack * levelMultiplier),
         specialDefense: Math.floor(resultData.stats.specialDefense * levelMultiplier),
         speed: resultData.stats.speed,
         types: resultData.types,
@@ -561,6 +605,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return true;
     } catch (e) {
       console.error('Fusion failed:', e);
+      get().addMoney(fusionCost); // 퓨전 실패 시 환불
+      // 재료 포켓몬을 되돌리는 것은 복잡하므로 여기서는 생략
       return false;
     }
   },

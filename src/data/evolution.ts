@@ -123,6 +123,7 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   
   // 아이템 진화 (2세대)
   { from: 42, to: 169, item: 'friendship-evolution' }, // 골뱃 -> 크로뱃 (친밀도)
+  { from: 61, to: 186, item: 'kings-rock' }, // 수륙챙이 -> 왕구리 (왕의징표석+교환)
   { from: 79, to: 199, item: 'kings-rock' }, // 야돈 -> 야도킹 (왕의징표석+교환)
   { from: 95, to: 208, item: 'metal-coat' }, // 롱스톤 -> 강철톤 (금속코트+교환)
   { from: 113, to: 242, item: 'friendship-evolution' }, // 럭키 -> 해피너스 (친밀도)
