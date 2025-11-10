@@ -122,7 +122,7 @@ export interface GamePokemon {
   rejectedMoves?: string[];        // ⭐️ [수정] 2. 타입을 GameMove[]에서 string[]로 변경
   
   // 추가 속성 (optional)
-  statusEffects?: StatusEffect[];
+  statusEffect?: StatusEffect;
   rarity?: PokemonRarity;          // 레어도
   gender?: Gender;                 // 성별
   ability?: PokemonAbility;        // 특성
@@ -156,6 +156,7 @@ export interface Enemy {
   range: number;
   attackCooldown: number;
   pokemonId: number;
+  statusEffect?: StatusEffect;
 }
 
 export interface Projectile {

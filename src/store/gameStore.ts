@@ -417,27 +417,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     const currentState = get();
     let cost = 0;
-    let evolutionItemId: string | undefined = item;
-    
-    // 1. 비용 계산 및 ID 확정
     if (!targetId) {
       if (item) {
-        // 아이템 진화 (메가진화, 거다이맥스, 일반 아이템)
         const itemData = EVOLUTION_ITEMS[item];
         if (itemData) {
           cost = itemData.price;
         } else if (item.startsWith('mega_stone_')) {
-          // 메가스톤 (WaveEndPicker에서 옴, 비용 0)
           cost = 0;
           const megaStoneName = item.replace('mega_stone_', '');
           const megaEvolution = canMegaEvolve(tower.pokemonId, megaStoneName);
           if (megaEvolution) targetId = megaEvolution.to;
         } else if (item.startsWith('max_mushroom')) {
-          // 다이버섯 (WaveEndPicker에서 옴, 비용 0)
           cost = 0;
           const gigantamax = canGigantamax(tower.pokemonId, 'max-mushroom');
-          if (gigantamax) targetId = gigantamax.to;
-          evolutionItemId = 'max-mushroom'; // item ID 정규화
+          if (gigantamax) {
+            targetId = gigantamax.to;
+          }
         }
         
         if (!targetId) {

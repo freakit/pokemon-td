@@ -197,8 +197,8 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                   <CardBody>
                     <NameRow>
                       <PokeName>{tower.displayName}</PokeName>
-                      <GenderIcon $gender={tower.gender}>
-                         {getGenderIcon(tower.gender)}
+                      <GenderIcon $gender={tower.gender || 'genderless'}>
+                        {getGenderIcon(tower.gender || 'genderless')}
                       </GenderIcon>
                     </NameRow>
                     <InfoRow>
