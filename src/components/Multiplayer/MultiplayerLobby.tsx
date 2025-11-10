@@ -6,6 +6,11 @@ import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 
+import { Pokedex } from '../Modals/Pokedex';
+import { AchievementsPanel } from '../Modals/Achievements';
+import { HallOfFame } from '../Modals/HallOfFame';
+import { Rankings } from '../Modals/Rankings';
+
 interface MultiplayerLobbyProps {
   onBack: () => void;
   onStartGame: (roomId: string, mapId: string) => void;
@@ -16,16 +21,48 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedMap, setSelectedMap] = useState(MAPS[0].id);
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
+  const [isRejoining, setIsRejoining] = useState(true);
   const user = authService.getCurrentUser();
+  
+  const [showPokedex, setShowPokedex] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = multiplayerService.onRoomsUpdate(setRooms);
-    return unsubscribe;
-  }, []);
+    const checkRejoin = async () => {
+      const savedRoomId = multiplayerService.getCurrentRoomId();
+      if (savedRoomId) {
+        try {
+          const { room, canRejoin } = await multiplayerService.rejoinRoom(savedRoomId);
+          if (canRejoin && room) {
+            if (room.status === 'playing' || room.status === 'starting') {
+              onStartGame(room.id, room.mapId);
+              return;
+            }
+            setCurrentRoom(room);
+            setView('room');
+          }
+        } catch (error) {
+          console.error('Failed to rejoin room:', error);
+        }
+      }
+      setIsRejoining(false);
+    };
+
+    checkRejoin();
+  }, [onStartGame]);
+
+  useEffect(() => {
+    if (!isRejoining) {
+      const unsubscribe = multiplayerService.onRoomsUpdate(setRooms);
+      return unsubscribe;
+    }
+  }, [isRejoining]);
 
   useEffect(() => {
     const roomId = multiplayerService.getCurrentRoomId();
-    if (roomId) {
+    if (roomId && view === 'room') {
       const unsubscribe = multiplayerService.onRoomUpdate(roomId, (room) => {
         if (!room) {
           setView('list');
@@ -40,10 +77,16 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       });
       return unsubscribe;
     }
-  }, [view]);
+  }, [view, onStartGame]);
 
   const handleCreateRoom = async () => {
     try {
+      const selectedMapData = MAPS.find(m => m.id === selectedMap);
+      if (!selectedMapData) throw new Error('Invalid map');
+      
+      const roomId = await multiplayerService.createRoom(selectedMap, selectedMapData.name);
+      const room = await multiplayerService.rejoinRoom(roomId);
+      setCurrentRoom(room.room);
       setView('room');
     } catch (err: any) {
       alert(err.message);
@@ -53,6 +96,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const handleJoinRoom = async (roomId: string) => {
     try {
       await multiplayerService.joinRoom(roomId);
+      const room = await multiplayerService.rejoinRoom(roomId);
+      setCurrentRoom(room.room);
       setView('room');
     } catch (err: any) {
       alert(err.message);
@@ -65,6 +110,14 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       setView('list');
       setCurrentRoom(null);
     }
+  };
+  
+  const handleBackToCreate = () => {
+    if (currentRoom) {
+        multiplayerService.leaveRoom(currentRoom.id);
+        setCurrentRoom(null);
+    }
+    setView('create');
   };
 
   const handleAddAI = async (difficulty: AIDifficulty) => {
@@ -93,81 +146,103 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     }
   };
 
-  if (view === 'list') {
+  if (isRejoining) {
     return (
       <Overlay>
         <Container>
-          <Header>
-            <Title>멀티플레이어 로비</Title>
-            <BackButton onClick={onBack}>← 뒤로가기</BackButton>
-          </Header>
-
-          <ButtonRow>
-            <CreateRoomButton onClick={() => setView('create')}>
-              ➕ 방 만들기
-            </CreateRoomButton>
-          </ButtonRow>
-
-          <RoomList>
-            {rooms.length === 0 ? (
-              <EmptyMessage>생성된 방이 없습니다</EmptyMessage>
-            ) : (
-              rooms.map(room => (
-                <RoomCard key={room.id}>
-                  <RoomInfo>
-                    <RoomName>{room.name}</RoomName>
-                    <RoomDetails>
-                      맵: {room.mapName} | 호스트: {room.hostName}
-                    </RoomDetails>
-                  </RoomInfo>
-                  <RoomPlayers>
-                    {room.players.length} / {room.maxPlayers}
-                  </RoomPlayers>
-                  <JoinButton
-                    onClick={() => handleJoinRoom(room.id)}
-                    disabled={room.players.length >= room.maxPlayers}
-                  >
-                    참가
-                  </JoinButton>
-                </RoomCard>
-              ))
-            )}
-          </RoomList>
+          <LoadingText>재접속 확인 중...</LoadingText>
         </Container>
       </Overlay>
     );
   }
 
+  if (view === 'list') {
+    return (
+      <>
+        <Overlay>
+          <Container>
+            <Header>
+              <Title>멀티플레이어 로비</Title>
+              <BackButton onClick={onBack}>← 뒤로가기</BackButton>
+            </Header>
+
+            <ButtonRow>
+              <CreateRoomButton onClick={() => setView('create')}>
+                ➕ 방 만들기
+              </CreateRoomButton>
+            </ButtonRow>
+
+            <RoomList>
+              {rooms.length === 0 ? (
+                <EmptyMessage>생성된 방이 없습니다</EmptyMessage>
+              ) : (
+                rooms.map(room => (
+                  <RoomCard key={room.id}>
+                    <RoomInfo>
+                      <RoomName>{room.name}</RoomName>
+                      <RoomDetails>
+                        맵: {room.mapName} | 호스트: {room.hostName}
+                      </RoomDetails>
+                    </RoomInfo>
+                    <RoomPlayers>
+                      {room.players.length} / {room.maxPlayers}
+                    </RoomPlayers>
+                    <JoinButton
+                      onClick={() => handleJoinRoom(room.id)}
+                      disabled={room.players.length >= room.maxPlayers}
+                    >
+                      참가
+                    </JoinButton>
+                  </RoomCard>
+                ))
+              )}
+            </RoomList>
+          </Container>
+        </Overlay>
+        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+        {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+        {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+      </>
+    );
+  }
+
   if (view === 'create') {
     return (
-      <Overlay>
-        <Container>
-          <Header>
-            <Title>방 만들기</Title>
-            <BackButton onClick={() => setView('list')}>← 뒤로가기</BackButton>
-          </Header>
+      <>
+        <Overlay>
+          <Container>
+            <Header>
+              <Title>방 만들기</Title>
+              <BackButton onClick={() => setView('list')}>← 뒤로가기</BackButton>
+            </Header>
 
-          <Section>
-            <SectionTitle>맵 선택</SectionTitle>
-            <MapGrid>
-              {MAPS.map(map => (
-                <MapCard
-                  key={map.id}
-                  selected={selectedMap === map.id}
-                  onClick={() => setSelectedMap(map.id)}
-                >
-                  <MapName>{map.name}</MapName>
-                  <MapDifficulty>난이도: {map.difficulty}</MapDifficulty>
-                </MapCard>
-              ))}
-            </MapGrid>
-          </Section>
+            <Section>
+              <SectionTitle>맵 선택</SectionTitle>
+              <MapGrid>
+                {MAPS.map(map => (
+                  <MapCard
+                    key={map.id}
+                    selected={selectedMap === map.id}
+                    onClick={() => setSelectedMap(map.id)}
+                  >
+                    <MapName>{map.name}</MapName>
+                    <MapDifficulty>난이도: {map.difficulty}</MapDifficulty>
+                  </MapCard>
+                ))}
+              </MapGrid>
+            </Section>
 
-          <CreateButton onClick={handleCreateRoom}>
-            방 만들기
-          </CreateButton>
-        </Container>
-      </Overlay>
+            <CreateButton onClick={handleCreateRoom}>
+              방 만들기
+            </CreateButton>
+          </Container>
+        </Overlay>
+        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+        {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+        {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+      </>
     );
   }
 
@@ -175,67 +250,75 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     const isHost = currentRoom.hostId === user?.uid;
     const currentPlayer = currentRoom.players.find(p => p.userId === user?.uid);
     const allReady = currentRoom.players.every(p => p.isReady);
+    
+    const backAction = currentRoom.hostId === user?.uid ? handleBackToCreate : handleLeaveRoom;
 
     return (
-      <Overlay>
-        <Container>
-          <Header>
-            <Title>{currentRoom.name}</Title>
-            <BackButton onClick={handleLeaveRoom}>← 나가기</BackButton>
-          </Header>
+      <>
+        <Overlay>
+          <Container>
+            <Header>
+              <Title>{currentRoom.name}</Title>
+              <BackButton onClick={backAction}>← 나가기</BackButton>
+            </Header>
 
-          <Section>
-            <SectionTitle>맵: {currentRoom.mapName}</SectionTitle>
-          </Section>
-
-          <Section>
-            <SectionTitle>플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})</SectionTitle>
-            <PlayerList>
-              {currentRoom.players.map(player => (
-                <PlayerCard key={player.userId}>
-                  <PlayerName>
-                    {player.userName}
-                    {player.userId === currentRoom.hostId && ' 👑'}
-                    {player.isAI && ' 🤖'}
-                  </PlayerName>
-                  <PlayerRating>Rating: {player.rating}</PlayerRating>
-                  <PlayerStatus ready={player.isReady}>
-                    {player.isReady ? '✓ 준비완료' : '대기중'}
-                  </PlayerStatus>
-                </PlayerCard>
-              ))}
-            </PlayerList>
-          </Section>
-
-          {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
             <Section>
-              <SectionTitle>AI 추가</SectionTitle>
-              <AIButtons>
-                <AIButton onClick={() => handleAddAI('easy')}>Easy AI</AIButton>
-                <AIButton onClick={() => handleAddAI('normal')}>Normal AI</AIButton>
-                <AIButton onClick={() => handleAddAI('hard')}>Hard AI</AIButton>
-              </AIButtons>
+              <SectionTitle>맵: {currentRoom.mapName}</SectionTitle>
             </Section>
-          )}
 
-          <ButtonRow>
-            {!isHost && (
-              <ReadyButton onClick={handleToggleReady} ready={currentPlayer?.isReady || false}>
-                {currentPlayer?.isReady ? '준비 취소' : '준비'}
-              </ReadyButton>
+            <Section>
+              <SectionTitle>플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})</SectionTitle>
+              <PlayerList>
+                {currentRoom.players.map(player => (
+                  <PlayerCard key={player.userId}>
+                    <PlayerName>
+                      {player.userName}
+                      {player.userId === currentRoom.hostId && ' 👑'}
+                      {player.isAI && ' 🤖'}
+                    </PlayerName>
+                    <PlayerRating>Rating: {player.rating}</PlayerRating>
+                    <PlayerStatus ready={player.isReady}>
+                      {player.isReady ? '✓ 준비완료' : '대기중'}
+                    </PlayerStatus>
+                  </PlayerCard>
+                ))}
+              </PlayerList>
+            </Section>
+
+            {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
+              <Section>
+                <SectionTitle>AI 추가</SectionTitle>
+                <AIButtons>
+                  <AIButton onClick={() => handleAddAI('easy')}>Easy AI</AIButton>
+                  <AIButton onClick={() => handleAddAI('normal')}>Normal AI</AIButton>
+                  <AIButton onClick={() => handleAddAI('hard')}>Hard AI</AIButton>
+                </AIButtons>
+              </Section>
             )}
-            
-            {isHost && (
-              <StartButton
-                onClick={handleStartGame}
-                disabled={!allReady || currentRoom.players.length < 2}
-              >
-                게임 시작
-              </StartButton>
-            )}
-          </ButtonRow>
-        </Container>
-      </Overlay>
+
+            <ButtonRow>
+              {!isHost && (
+                <ReadyButton onClick={handleToggleReady} ready={currentPlayer?.isReady || false}>
+                  {currentPlayer?.isReady ? '준비 취소' : '준비'}
+                </ReadyButton>
+              )}
+              
+              {isHost && (
+                <StartButton
+                  onClick={handleStartGame}
+                  disabled={!allReady || currentRoom.players.length < 2}
+                >
+                  게임 시작
+                </StartButton>
+              )}
+            </ButtonRow>
+          </Container>
+        </Overlay>
+        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+        {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+        {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+      </>
     );
   }
 
@@ -286,7 +369,6 @@ const BackButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     background: rgba(255,255,255,0.3);
   }
@@ -402,7 +484,6 @@ const MapCard = styled.div<{ selected: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
   }
@@ -430,7 +511,6 @@ const CreateButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -498,7 +578,6 @@ const ReadyButton = styled.button<{ ready: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     opacity: 0.9;
   }
@@ -515,7 +594,6 @@ const StartButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover:not(:disabled) {
     background: #45a049;
   }
@@ -524,4 +602,11 @@ const StartButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const LoadingText = styled.div`
+  text-align: center;
+  color: white;
+  font-size: 1.5rem;
+  padding: 2rem;
 `;

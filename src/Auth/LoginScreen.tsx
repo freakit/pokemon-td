@@ -9,10 +9,11 @@ export const LoginScreen = () => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
-    
     try {
+      console.log('AuthScreen: Google 로그인 시도...'); // [추가]
       await authService.signInWithGoogle();
     } catch (err: any) {
+      console.error('AuthScreen: 로그인 실패', err); // [추가]
       setError(err.message || '로그인에 실패했습니다');
     } finally {
       setLoading(false);

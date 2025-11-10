@@ -11,16 +11,68 @@ interface MultiplayerViewProps {
   onClose: () => void;
 }
 
+interface TowerDetail {
+  pokemonId: number;
+  name: string;
+  level: number;
+  sprite: string;
+  position: { x: number; y: number };
+}
+
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  const [viewingPlayer, setViewingPlayer] = useState<string | null>(null);
+  const [viewingPlayerTowers, setViewingPlayerTowers] = useState<TowerDetail[]>([]);
   const [debuffItems] = useState<DebuffItem[]>(multiplayerService.getDebuffItems());
   const user = authService.getCurrentUser();
 
   useEffect(() => {
-    const unsubscribe = multiplayerService.onGameStateUpdate(roomId, setPlayers);
-    return unsubscribe;
+    try {
+      const unsubscribe = multiplayerService.onGameStateUpdate(roomId, (updatedPlayers) => {
+        setPlayers(updatedPlayers);
+      });
+      return unsubscribe;
+    } catch (error) {
+      console.error('Failed to subscribe to game state:', error);
+    }
   }, [roomId]);
+
+  // 내 타워 정보 실시간 동기화
+  const towers = useGameStore((state) => state.towers);
+  useEffect(() => {
+    if (!user || !roomId) return;
+
+    const towerDetails: TowerDetail[] = towers
+      .filter(t => !t.isFainted)
+      .map(t => ({
+        pokemonId: t.pokemonId,
+        name: t.name,
+        level: t.level,
+        sprite: t.sprite,
+        position: t.position
+      }));
+
+    multiplayerService.updatePlayerTowerDetails(roomId, towerDetails);
+  }, [towers, roomId, user]);
+
+  // 관전 중인 플레이어의 타워 정보 구독
+  useEffect(() => {
+    if (!viewingPlayer) {
+      setViewingPlayerTowers([]);
+      return;
+    }
+
+    const unsubscribe = multiplayerService.onTowerDetailsUpdate(
+      roomId,
+      viewingPlayer,
+      (towers) => {
+        setViewingPlayerTowers(towers);
+      }
+    );
+
+    return unsubscribe;
+  }, [roomId, viewingPlayer]);
 
   const handleBuyDebuff = async (debuff: DebuffItem, targetUserId: string) => {
     if (!user) return;
@@ -37,23 +89,23 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
 
     try {
-      // 1. 디버프 먼저 전송
       await multiplayerService.applyDebuff(roomId, targetUserId, debuff);
-
-      // 2. Zustand store의 골드 즉시 차감
-      useGameStore.getState().spendMoney(debuff.cost); 
-      // 3. (3번 제안 적용 시) subscribe가 이 변경을 감지하고 자동으로 RTDB에 갱신해줌.
-
+      useGameStore.getState().spendMoney(debuff.cost);
       alert(`${debuff.name}을(를) 사용했습니다!`);
+      setSelectedPlayer(null);
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || '디버프 사용에 실패했습니다.');
     }
   };
 
   const myState = players.find(p => p.userId === user?.uid);
 
   return (
-    <Overlay>
+    <Overlay onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
       <Container>
         <Header>
           <Title>멀티플레이어 전황</Title>
@@ -97,9 +149,14 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
               </PlayerStats>
 
               {player.userId !== user?.uid && player.isAlive && myState?.isAlive && (
-                <AttackButton onClick={() => setSelectedPlayer(player.userId)}>
-                  🎯 공격
-                </AttackButton>
+                <ButtonRow>
+                  <AttackButton onClick={() => setSelectedPlayer(player.userId)}>
+                    🎯 공격
+                  </AttackButton>
+                  <ViewButton onClick={() => setViewingPlayer(player.userId)}>
+                    👁️ 보기
+                  </ViewButton>
+                </ButtonRow>
               )}
 
               {!player.isAlive && (
@@ -134,6 +191,76 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
               ))}
             </DebuffGrid>
           </DebuffShop>
+        )}
+
+        {viewingPlayer && (
+          <ViewerModal>
+            <ViewerHeader>
+              <ViewerTitle>
+                {players.find(p => p.userId === viewingPlayer)?.userName}의 게임 화면
+              </ViewerTitle>
+              <ViewerClose onClick={() => setViewingPlayer(null)}>✕</ViewerClose>
+            </ViewerHeader>
+            <ViewerContent>
+              {players.find(p => p.userId === viewingPlayer) && (
+                <>
+                  <DetailedStats>
+                    <DetailStat>
+                      <DetailLabel>웨이브</DetailLabel>
+                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.wave}</DetailValue>
+                    </DetailStat>
+                    <DetailStat>
+                      <DetailLabel>라이프</DetailLabel>
+                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.lives}</DetailValue>
+                    </DetailStat>
+                    <DetailStat>
+                      <DetailLabel>골드</DetailLabel>
+                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.money}</DetailValue>
+                    </DetailStat>
+                    <DetailStat>
+                      <DetailLabel>타워</DetailLabel>
+                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.towers}</DetailValue>
+                    </DetailStat>
+                    <DetailStat>
+                      <DetailLabel>레이팅</DetailLabel>
+                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.rating}</DetailValue>
+                    </DetailStat>
+                    <DetailStat>
+                      <DetailLabel>상태</DetailLabel>
+                      <DetailValue>
+                        {players.find(p => p.userId === viewingPlayer)?.isAlive ? '✅ 생존' : '❌ 탈락'}
+                      </DetailValue>
+                    </DetailStat>
+                  </DetailedStats>
+
+                  <PokemonSection>
+                    <SectionTitle>배치된 포켓몬</SectionTitle>
+                    {viewingPlayerTowers.length === 0 ? (
+                      <EmptyMessage>아직 배치된 포켓몬이 없습니다</EmptyMessage>
+                    ) : (
+                      <PokemonGrid>
+                        {viewingPlayerTowers.map((tower, idx) => (
+                          <PokemonCard key={idx}>
+                            <PokemonSprite
+                              src={tower.sprite || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${tower.pokemonId}.png`}
+                              alt={tower.name}
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';
+                              }}
+                            />
+                            <PokemonInfo>
+                              <PokemonName>{tower.name}</PokemonName>
+                              <PokemonLevel>Lv. {tower.level}</PokemonLevel>
+                            </PokemonInfo>
+                          </PokemonCard>
+                        ))}
+                      </PokemonGrid>
+                    )}
+                  </PokemonSection>
+                </>
+              )}
+            </ViewerContent>
+          </ViewerModal>
         )}
       </Container>
     </Overlay>
@@ -258,8 +385,13 @@ const StatValue = styled.div`
   color: white;
 `;
 
+const ButtonRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+`;
+
 const AttackButton = styled.button`
-  width: 100%;
   padding: 0.75rem;
   background: #f44336;
   color: white;
@@ -271,6 +403,22 @@ const AttackButton = styled.button`
 
   &:hover {
     background: #d32f2f;
+    transform: translateY(-2px);
+  }
+`;
+
+const ViewButton = styled.button`
+  padding: 0.75rem;
+  background: #2196F3;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    background: #1976D2;
     transform: translateY(-2px);
   }
 `;
@@ -379,4 +527,151 @@ const BuyButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const ViewerModal = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1a1a2e;
+  padding: 2rem;
+  border-radius: 20px;
+  max-width: 800px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: 3000;
+  border: 3px solid #2196F3;
+`;
+
+const ViewerHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+`;
+
+const ViewerTitle = styled.h3`
+  font-size: 1.5rem;
+  color: white;
+  font-weight: bold;
+`;
+
+const ViewerClose = styled.button`
+  width: 35px;
+  height: 35px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.3rem;
+  transition: all 0.3s;
+
+  &:hover {
+    background: rgba(255,255,255,0.2);
+  }
+`;
+
+const ViewerContent = styled.div`
+  color: white;
+`;
+
+const DetailedStats = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+`;
+
+const DetailStat = styled.div`
+  background: #2d2d44;
+  padding: 1rem;
+  border-radius: 10px;
+  text-align: center;
+`;
+
+const DetailLabel = styled.div`
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 0.5rem;
+`;
+
+const DetailValue = styled.div`
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+`;
+
+const PokemonSection = styled.div`
+  background: #2d2d44;
+  padding: 1.5rem;
+  border-radius: 15px;
+`;
+
+const SectionTitle = styled.h4`
+  font-size: 1.2rem;
+  color: white;
+  margin-bottom: 1rem;
+  font-weight: bold;
+`;
+
+const PokemonGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+`;
+
+const PokemonCard = styled.div`
+  background: #1a1a2e;
+  padding: 0.75rem;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid rgba(76, 175, 255, 0.3);
+  transition: all 0.3s;
+
+  &:hover {
+    border-color: rgba(76, 175, 255, 0.6);
+    transform: translateY(-2px);
+  }
+`;
+
+const PokemonSprite = styled.img`
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  margin-bottom: 0.5rem;
+`;
+
+const PokemonInfo = styled.div`
+  text-align: center;
+  width: 100%;
+`;
+
+const PokemonName = styled.div`
+  font-size: 0.9rem;
+  color: white;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const PokemonLevel = styled.div`
+  font-size: 0.8rem;
+  color: #ffd700;
+  font-weight: bold;
+`;
+
+const EmptyMessage = styled.div`
+  text-align: center;
+  color: rgba(255,255,255,0.5);
+  padding: 2rem;
+  font-size: 1rem;
 `;

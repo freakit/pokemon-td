@@ -383,7 +383,7 @@ export const GameCanvas: React.FC = () => {
       types: poke.types,
       position: { x: mousePos.x, y: mousePos.y },
       equippedMoves: poke.equippedMoves,
-      rejectedMoves: poke.rejectedMoves || [], // 거부한 기술 목록
+      rejectedMoves: poke.rejectedMoves || [], 
       isFainted: false,
       sprite: poke.sprite,
       range: 3,
@@ -392,6 +392,7 @@ export const GameCanvas: React.FC = () => {
       damageDealt: 0,
       gender: poke.gender,
       ability: poke.ability,
+      targetEnemyId: null,
     };
     addTower(tower);
     setPokemonToPlace(null);

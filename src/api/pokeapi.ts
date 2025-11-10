@@ -45,21 +45,17 @@ class PokeAPIService {
   private pokemonCache = new Map<number, PokemonData>();
   private moveCache = new Map<string, MoveData>();
   private rarityCache = new Map<number, Rarity>();
-
-  // ⭐️ [수정] 레어도 가중치 리스트를 캐시할 변수 추가
   private weightedPokemonList: Array<{ id: number; weight: number }> = [];
 
   async getPokemon(id: number): Promise<PokemonData> {
     if (this.pokemonCache.has(id)) return this.pokemonCache.get(id)!;
-    
+
     try {
       const lang = getCurrentLanguage();
       
-      // 1. 기본 포켓몬 데이터를 먼저 가져옵니다.
       const res = await axios.get(`${API_BASE}/pokemon/${id}`);
       const d = res.data;
 
-      // 2. 응답에서 올바른 species URL을 가져와서 호출합니다.
       const speciesRes = await axios.get(d.species.url);
       const s = speciesRes.data;
 
@@ -107,7 +103,6 @@ class PokeAPIService {
         moves: d.moves.map((m: any) => m.move.name).slice(0, 20),
         abilities,
       };
-      
       this.pokemonCache.set(id, pokemon);
       return pokemon;
     } catch {
@@ -117,12 +112,12 @@ class PokeAPIService {
 
   async getMove(name: string): Promise<MoveData> {
     if (this.moveCache.has(name)) return this.moveCache.get(name)!;
-    
+
     try {
       const lang = getCurrentLanguage();
       const res = await axios.get(`${API_BASE}/move/${name}`);
       const d = res.data;
-      
+
       const nameEntry = d.names.find((n: any) => n.language.name === lang) ||
                         d.names.find((n: any) => n.language.name === 'en');
       const displayName = nameEntry ? nameEntry.name : d.name;
@@ -142,7 +137,6 @@ class PokeAPIService {
         target: d.target.name,
         effectEntries,
       };
-      
       this.moveCache.set(name, move);
       return move;
     } catch {
@@ -169,48 +163,48 @@ class PokeAPIService {
     }
   }
 
-  // ⭐️ [추가] 게임 시작 시 호출할 사전 로딩 함수
+  // [수정] WaveSystem 버그 해결을 위해 1-1025 모든 포켓몬을 캐시하도록 변경
   async preloadRarities(): Promise<void> {
     if (this.weightedPokemonList.length > 0) return; // 이미 로드됨
 
-    console.log("Preloading Pokémon rarities... This may take a moment.");
+    console.log("Preloading Pokémon data (1-1025) for cache and rarities... This may take a moment.");
 
     const max = 1025; // 9세대 기준
-    const basePokemonIds: number[] = [];
-    for (let i = 1; i <= max; i++) {
-      if (!EVOLVED_POKEMON_IDS.has(i)) {
-        basePokemonIds.push(i);
-      }
-    }
-    
     const tempWeightedList: Array<{ id: number; weight: number }> = [];
     
-    // 모든 기본 포켓몬의 레어도를 계산 (병렬 처리)
-    await Promise.all(basePokemonIds.map(async (id) => {
+    // [수정] 1-1025까지 모든 포켓몬을 병렬로 호출하여 캐시(pokemonCache)에 저장
+    // 동시에 기본형(EVOLVED_POKEMON_IDS에 없는) 포켓몬의 레어도를 계산하여 weightedPokemonList를 채움
+    
+    const allIds = Array.from({ length: max }, (_, i) => i + 1);
+
+    await Promise.all(allIds.map(async (id) => {
       try {
-        const rarity = await this.getRarity(id);
-        const weight = RARITY_WEIGHTS[rarity];
-        tempWeightedList.push({ id, weight });
+        // 1. (중요) getPokemon을 호출하여 pokemonCache에 저장
+        // 이것이 WaveSystem 버그를 해결
+        await this.getPokemon(id);
+        
+        // 2. 기본형 포켓몬인 경우에만 레어도 가중치 리스트(weightedPokemonList)에 추가
+        if (!EVOLVED_POKEMON_IDS.has(id)) {
+          const rarity = await this.getRarity(id);
+          const weight = RARITY_WEIGHTS[rarity];
+          tempWeightedList.push({ id, weight });
+        }
       } catch (e) {
         // 일부 포켓몬 로드 실패 시 무시
+        console.warn(`Failed to preload data for Pokémon ${id}`, e);
       }
     }));
 
     this.weightedPokemonList = tempWeightedList;
-    console.log(`Rarity preloading complete. ${this.weightedPokemonList.length} Pokémon weighted.`);
+    console.log(`Preloading complete. ${this.pokemonCache.size} Pokémon cached. ${this.weightedPokemonList.length} base Pokémon weighted.`);
   }
 
-  // ⭐️ [수정] 레어도 가중치 추첨 함수 (maxGen 파라미터 제거 및 캐시 사용)
   async getRandomPokemonIdWithRarity(): Promise<number> {
-    
-    // 1. 캐시된 리스트가 있는지 확인
     if (this.weightedPokemonList.length === 0) {
       console.warn("Rarities not preloaded. Loading on demand...");
-      // 2. 캐시가 없다면(비정상) 지금이라도 로드 (느림)
       await this.preloadRarities();
     }
 
-    // 3. 캐시된 리스트에서 가중치 추첨 (매우 빠름)
     const totalWeight = this.weightedPokemonList.reduce((sum, p) => sum + p.weight, 0);
     let random = Math.random() * totalWeight;
     
@@ -221,7 +215,6 @@ class PokeAPIService {
       }
     }
     
-    // (폴백) 오류 발생 시
     return this.weightedPokemonList[0]?.id || 1;
   }
 
@@ -235,6 +228,7 @@ class PokeAPIService {
                 maxGen === 7 ? 809 :
                 maxGen === 8 ? 905 :
                 1025;
+                
     let randomId = 0;
     
     do {
@@ -257,11 +251,11 @@ class PokeAPIService {
         )
         .map((m: any) => m.move.name)
         .slice(0, 5);
-      
+
       if (levelMoves.length === 0) return [];
 
       const moves: MoveData[] = await Promise.all(levelMoves.map((name: string) => this.getMove(name)));
-
+      
       return moves
         .filter(m => m.damageClass !== 'status')
         .map(m => {
@@ -270,7 +264,7 @@ class PokeAPIService {
         
           if (effectText.includes('drain') || effectText.includes('recover') || effectText.includes('restore')) {
             if (effectText.includes('75%')) {
-               effect.drainPercent = 0.75;
+                effect.drainPercent = 0.75;
             } else {
                effect.drainPercent = 0.5;
             }
@@ -306,7 +300,7 @@ class PokeAPIService {
             'all-pokemon',
             'user-and-allies'
           ].includes(m.target);
-          
+
           return {
             name: m.name,
             displayName: m.displayName,

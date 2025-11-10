@@ -38,10 +38,8 @@ export class WaveSystem {
     const count = this.getEnemyCount(wave);
     const mult = DIFFICULTY_MULTIPLIERS[difficulty];
     let lastSpawnTime = 0;
-
     const pathsToUse = map.paths; // 맵의 모든 경로 사용
     if (pathsToUse.length === 0) return;
-
     const enemyPerPath = Math.ceil(count / pathsToUse.length); // 경로당 적 수 (근사치)
 
     for (let i = 0; i < count; i++) {
@@ -51,7 +49,6 @@ export class WaveSystem {
 
       // 스폰 시간은 경로별로 동일하게 진행 (예: 0, 800, 1600...)
       const spawnTime = Math.floor(i / pathsToUse.length) * 800;
-
       setTimeout(() => {
         // 🔴 spawnEnemy에 올바른 경로(currentPath)를 전달
         this.spawnEnemy(wave, currentPath, false, mult, addEnemy);
@@ -63,8 +60,8 @@ export class WaveSystem {
       // 보스는 첫 번째 경로로 스폰
       const bossSpawnTime = enemyPerPath * 800 + 2000;
       setTimeout(() => {
-        // 🔴 spawnBoss에 첫 번째 경로(pathsToUse[0]) 전달
-        this.spawnBoss(wave, pathsToUse[0], mult, addEnemy);
+        // 🔴 spawnBossInternal에 첫 번째 경로(pathsToUse[0]) 전달
+        this.spawnBossInternal(wave, pathsToUse[0], mult, addEnemy);
       }, bossSpawnTime);
       lastSpawnTime = bossSpawnTime;
     }
@@ -91,7 +88,8 @@ export class WaveSystem {
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
 
       // 기하급수적 난이도 증가 (exponential scaling)
-      const waveMultiplier = Math.pow(1.1, wave - 1); // 1.10 ^ (wave - 1)
+      const waveMultiplier = Math.pow(1.1, wave - 1);
+      // 1.10 ^ (wave - 1)
 
       const baseHp = pokemonData.stats.hp * waveMultiplier * mult.hp;
       const baseAttack =
@@ -127,7 +125,6 @@ export class WaveSystem {
         range: 80,
         attackCooldown: 0,
       };
-
       addEnemy(enemy);
     } catch (e) {
       console.error("Failed to spawn enemy pokemon:", e);
@@ -184,7 +181,6 @@ export class WaveSystem {
           poke.stats.specialAttack +
           poke.stats.specialDefense +
           poke.stats.speed;
-
         if (statTotal >= minStatTotal && statTotal <= maxStatTotal) {
           suitablePokemon.push(i);
         }
@@ -211,7 +207,6 @@ export class WaveSystem {
     const baseHp = (50 + wave * 12) * mult.hp;
     const baseAttack = (10 + wave * 2) * mult.attack;
     const baseDefense = 5 + wave;
-
     const enemy: Enemy = {
       id: `enemy-${this.enemyCounter++}`,
       name: isBoss ? `Boss ${wave}` : `Enemy ${wave}`,
@@ -236,16 +231,28 @@ export class WaveSystem {
       range: 80,
       attackCooldown: 0,
     };
-
     addEnemy(enemy);
   }
 
-  private spawnBoss(
+  // 내부용: 정기 웨이브의 보스 스폰
+  private spawnBossInternal(
     wave: number,
     path: any[],
     mult: any,
     addEnemy: (enemy: Enemy) => void
   ) {
     this.spawnEnemy(wave, path, true, mult, addEnemy);
+  }
+
+  // ⭐ 디버프로 보스 투입 시 사용하는 public 메서드
+  spawnDebuffBoss(wave: number) {
+    const { currentMap, difficulty, addEnemy } = useGameStore.getState();
+    const map = getMapById(currentMap);
+    if (!map || map.paths.length === 0) return;
+
+    const mult = DIFFICULTY_MULTIPLIERS[difficulty];
+    const firstPath = map.paths[0];
+    // 보스 즉시 생성 (현재 웨이브 + 5 레벨의 강력한 보스)
+    this.spawnEnemy(wave + 5, firstPath, true, mult, addEnemy);
   }
 }

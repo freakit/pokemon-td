@@ -11,16 +11,16 @@ type ShopTab = 'general' | 'evolution';
 
 export const Shop: React.FC = () => {
   const { t } = useTranslation();
-  const { money, spendMoney, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
+  const { money, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
     money: state.money,
-    spendMoney: state.spendMoney,
     useItem: state.useItem,
     towers: state.towers,
     evolvePokemon: state.evolvePokemon,
     isWaveActive: state.isWaveActive,
   }));
   const [itemMode, setItemMode] = useState<ItemMode>('none');
-  const [selectedCost, setSelectedCost] = useState(0);
+  // [수정] selectedCost 상태 변수 제거
+  // const [selectedCost, setSelectedCost] = useState(0); 
   const [activeTab, setActiveTab] = useState<ShopTab>('general');
 
   useEffect(() => {
@@ -29,175 +29,75 @@ export const Shop: React.FC = () => {
     }
   }, [isWaveActive]);
 
+  // [수정] setSelectedCost 호출 제거
   const handleBuyPotion = () => {
-    if (spendMoney(20)) {
-      setItemMode('potion');
-      setSelectedCost(20);
-    } else {
+    if (money < 20) {
       alert(t('alerts.notEnoughMoney'));
+      return;
     }
+    setItemMode('potion');
   };
-
   const handleBuyPotionGood = () => {
-    if (spendMoney(100)) {
-      setItemMode('potion_good');
-      setSelectedCost(100);
-    } else {
+    if (money < 100) {
       alert(t('alerts.notEnoughMoney'));
+      return;
     }
+    setItemMode('potion_good');
   };
-
   const handleBuyPotionSuper = () => {
-    if (spendMoney(500)) {
-      setItemMode('potion_super');
-      setSelectedCost(500);
-    } else {
+    if (money < 500) {
       alert(t('alerts.notEnoughMoney'));
+      return;
     }
+    setItemMode('potion_super');
   };
-
   const handleBuyCandy = () => {
     setItemMode('candy');
-    setSelectedCost(0);
   };
-
   const handleBuyRevive = () => {
     setItemMode('revive');
-    setSelectedCost(0);
   };
-
   const handleBuyExpCandy = () => {
     setItemMode('exp_candy');
-    setSelectedCost(0);
   };
 
   const handleBuyEvolutionItem = (item: EvolutionItem) => {
-    const cost = item.price;
-    if (spendMoney(cost)) {
-      setItemMode(item.id);
-      setSelectedCost(cost);
-    } else {
+    if (money < item.price) {
       alert(t('alerts.notEnoughMoney'));
+      return;
     }
+    setItemMode(item.id);
   };
 
   const handleTargetSelect = async (towerId: string) => {
-    if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super') {
-      const success = useItem(itemMode, towerId);
-      if (success) {
-        setItemMode('none');
-        setSelectedCost(0);
-      } else {
+    let success = false;
+
+    if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super' ||
+        itemMode === 'revive' || itemMode === 'candy' || itemMode === 'exp_candy') {
+      
+      success = useItem(itemMode, towerId);
+      
+      if (!success) {
         alert(t('alerts.cannotUseItem'));
-        useGameStore.getState().addMoney(selectedCost);
-        setItemMode('none');
-        setSelectedCost(0);
-      }
-    } else if (itemMode === 'revive') {
-      const tower = towers.find(t => t.id === towerId);
-      if (!tower) {
-        alert(t('alerts.targetNotFound'));
-        setItemMode('none');
-        return;
       }
       
-      const reviveCost = tower.level * 10;
-      if (spendMoney(reviveCost)) {
-        const success = useItem('revive', towerId);
-        if (success) {
-          setItemMode('none');
-          setSelectedCost(0);
-        } else {
-          alert(t('alerts.cannotUseItem'));
-          useGameStore.getState().addMoney(reviveCost);
-          setItemMode('none');
-          setSelectedCost(0);
-        }
-      } else {
-        alert(t('alerts.notEnoughMoneyWithCost', { cost: reviveCost }));
-        setItemMode('none');
-        setSelectedCost(0);
-      }
-    } else if (itemMode === 'candy') {
-      const tower = towers.find(t => t.id === towerId);
-      if (!tower) {
-        alert(t('alerts.targetNotFound'));
-        setItemMode('none');
-        return;
-      }
-      
-      const candyCost = tower.level * 25;
-      if (spendMoney(candyCost)) {
-        const success = useItem('candy', towerId);
-        if (success) {
-          setItemMode('none');
-          setSelectedCost(0);
-        } else {
-          alert(t('alerts.cannotUseItem'));
-          useGameStore.getState().addMoney(candyCost);
-          setItemMode('none');
-          setSelectedCost(0);
-        }
-      } else {
-        alert(t('alerts.notEnoughMoneyWithCost', { cost: candyCost }));
-        setItemMode('none');
-        setSelectedCost(0);
-      }
-    } else if (itemMode === 'exp_candy') {
-      const aliveTowers = towers.filter(t => !t.isFainted);
-      if (aliveTowers.length < 2) {
-        alert(t('alerts.notEnoughPokemon'));
-        setItemMode('none');
-        return;
-      }
-      
-      const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-      const lowestLevelTower = sortedTowers[0];
-      const secondLowestLevel = sortedTowers[1].level;
-      
-      if (towerId !== lowestLevelTower.id) {
-        alert(t('alerts.onlyLowestLevel'));
-        setItemMode('none');
-        return;
-      }
-      
-      const expCandyCost = secondLowestLevel * 50;
-      if (spendMoney(expCandyCost)) {
-        const success = useItem('exp_candy', towerId);
-        if (success) {
-          alert(t('alerts.levelChanged', { from: lowestLevelTower.level, to: secondLowestLevel }));
-          setItemMode('none');
-          setSelectedCost(0);
-        } else {
-          alert(t('alerts.cannotUseItem'));
-          useGameStore.getState().addMoney(expCandyCost);
-          setItemMode('none');
-          setSelectedCost(0);
-        }
-      } else {
-        alert(t('alerts.notEnoughMoneyWithCost', { cost: expCandyCost }));
-        setItemMode('none');
-        setSelectedCost(0);
-      }
     } else if (itemMode !== 'none') {
-      const success = await evolvePokemon(towerId, itemMode);
+      success = await evolvePokemon(towerId, itemMode);
+      
       if (success) {
         alert(t('alerts.evolutionSuccess'));
-        setItemMode('none');
-        setSelectedCost(0);
       } else {
         alert(t('alerts.cannotEvolveWithItem'));
-        useGameStore.getState().addMoney(selectedCost);
-        setItemMode('none');
-        setSelectedCost(0);
       }
     }
+    
+    setItemMode('none');
+    // [수정] setSelectedCost 호출 제거
   };
 
   const handleCancel = () => {
-    useGameStore.getState().addMoney(selectedCost);
     setItemMode('none');
-    setSelectedCost(0);
+    // [수정] setSelectedCost 호출 제거
   };
 
   const currentItem = Object.values(EVOLUTION_ITEMS_BY_CATEGORY)
@@ -284,7 +184,7 @@ export const Shop: React.FC = () => {
               );
             })}
           </TowerGrid>
-          <CancelBtn onClick={handleCancel}>{t('shop.cancelRefund')}</CancelBtn>
+          <CancelBtn onClick={handleCancel}>{t('common.cancel')}</CancelBtn>
         </TargetModal>
       </TargetOverlay>
     );
@@ -438,6 +338,8 @@ export const Shop: React.FC = () => {
     </ShopOverlay>
   );
 };
+
+// --- Styled Components (변경 없음) ---
 
 const TargetOverlay = styled.div`
   position: fixed;
@@ -685,7 +587,7 @@ const BuyBtn = styled.button`
   font-weight: bold;
   font-size: 11px;
   box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
-  
+
   &:hover {
     background: linear-gradient(135deg, #d68910 0%, #b8730e 100%);
   }
@@ -726,7 +628,7 @@ const EvoItemBtn = styled.button`
   transition: all 0.2s ease;
   color: white;
   text-align: left;
-  
+
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     border-color: #f39c12;

@@ -3,8 +3,7 @@ import {
   signOut, 
   onAuthStateChanged, 
   User as FirebaseUser,
-  signInWithRedirect,
-  getRedirectResult
+  signInWithPopup
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
@@ -15,17 +14,9 @@ class AuthService {
   private listeners: ((user: User | null) => void)[] = [];
 
   constructor() {
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          console.log("Redirect result processed.");
-        }
-      })
-      .catch((error) => {
-        console.error("Auth Redirect Error:", error);
-      });
-
     onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('AuthService(onAuthStateChanged):', firebaseUser?.displayName || 'null');
+      
       if (firebaseUser) {
         const user = await this.getUserData(firebaseUser);
         this.currentUser = user;
@@ -62,7 +53,14 @@ class AuthService {
   }
 
   async signInWithGoogle(): Promise<void> {
-    await signInWithRedirect(auth, googleProvider);
+    try {
+      console.log('AuthService: Popup 로그인 시작');
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log('AuthService: Popup 로그인 성공:', result.user.displayName);
+    } catch (error: any) {
+      console.error('AuthService: Popup 로그인 실패:', error);
+      throw error;
+    }
   }
 
   async signOut(): Promise<void> {
@@ -76,6 +74,7 @@ class AuthService {
 
   onAuthStateChange(callback: (user: User | null) => void): () => void {
     this.listeners.push(callback);
+    // 즉시 현재 상태 전달
     callback(this.currentUser);
     return () => {
       this.listeners = this.listeners.filter(l => l !== callback);

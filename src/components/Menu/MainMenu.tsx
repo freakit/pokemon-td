@@ -1,29 +1,22 @@
 // src/components/Menu/MainMenu.tsx
-
+import { useState } from 'react';
 import styled from 'styled-components';
 import { authService } from '../../services/AuthService';
+import { useNavigate } from 'react-router-dom';
 
+import { Pokedex } from '../Modals/Pokedex';
+import { AchievementsPanel } from '../Modals/Achievements';
+import { HallOfFame } from '../Modals/HallOfFame';
+import { Rankings } from '../Modals/Rankings';
 
-interface MainMenuProps {
-  onSinglePlay: () => void;
-  onMultiPlay: () => void;
-  onShowPokedex: () => void;
-  onShowAchievements: () => void;
-  onShowHallOfFame: () => void;
-  onShowRankings: () => void;
-}
-
-export const MainMenu = ({
-  onSinglePlay,
-  onMultiPlay,
-  onShowPokedex,
-  onShowAchievements,
-  onShowHallOfFame,
-  onShowRankings
-}: MainMenuProps) => {
-
+export const MainMenu = () => {
+  const navigate = useNavigate();
   const user = authService.getCurrentUser();
 
+  const [showPokedex, setShowPokedex] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
 
   const handleSignOut = async () => {
     if (confirm('로그아웃 하시겠습니까?')) {
@@ -31,58 +24,69 @@ export const MainMenu = ({
     }
   };
 
-
+  const handleSinglePlay = () => navigate('/map-select');
+  const handleMultiPlay = () => navigate('/lobby');
 
   return (
-    <Overlay>
-      <Container>
-        <Header>
-          <UserInfo>
-            <Avatar src={user?.photoURL} alt={user?.displayName} />
-            <UserName>{user?.displayName}</UserName>
-            <Rating>⭐ Rating: {user?.rating}</Rating>
-          </UserInfo>
-          <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
-        </Header>
+    <>
+      <Overlay>
+        <Container>
+          <Header>
+            <UserInfo>
+              <Avatar src={user?.photoURL} alt={user?.displayName} />
+              <UserName>{user?.displayName}</UserName>
+              <Rating>⭐ Rating: {user?.rating}</Rating>
+            </UserInfo>
+            <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
+          </Header>
 
-        <Title>🎮 포켓몬 아이기스</Title>
-        
-        <MenuSection>
-          <SectionTitle>게임 모드</SectionTitle>
-          <GameModeButtons>
-            <ModeButton onClick={onSinglePlay}>
-              <ModeIcon>👤</ModeIcon>
-              <ModeTitle>싱글 플레이</ModeTitle>
-              <ModeDesc>혼자서 즐기는 타워 디펜스</ModeDesc>
-            </ModeButton>
-            
-            <ModeButton onClick={onMultiPlay}>
-              <ModeIcon>👥</ModeIcon>
-              <ModeTitle>멀티 플레이</ModeTitle>
-              <ModeDesc>최대 4인 대전 모드</ModeDesc>
-            </ModeButton>
-          </GameModeButtons>
-        </MenuSection>
+          <Title>
+            <img src="/images/kaist-ball.png" alt="Pokemon Aegis Logo" style={{ width: '80px', objectFit: 'contain', marginRight: '16px' }} />
+            포켓몬 아이기스
+          </Title>
+          
+          <MenuSection>
+            <SectionTitle>게임 모드</SectionTitle>
+            <GameModeButtons>
+              <ModeButton onClick={handleSinglePlay}>
+                <ModeIcon>👤</ModeIcon>
+                <ModeTitle>싱글 플레이</ModeTitle>
+                <ModeDesc>혼자서 즐기는 타워 디펜스</ModeDesc>
+              </ModeButton>
+              
+              <ModeButton onClick={handleMultiPlay}>
+                <ModeIcon>👥</ModeIcon>
+                <ModeTitle>멀티 플레이</ModeTitle>
+                <ModeDesc>최대 4인 대전 모드</ModeDesc>
+              </ModeButton>
+            </GameModeButtons>
+          </MenuSection>
 
-        <MenuSection>
-          <SectionTitle>내 정보</SectionTitle>
-          <BottomButtons>
-            <BottomButton onClick={onShowPokedex}>
-              📖 도감
-            </BottomButton>
-            <BottomButton onClick={onShowAchievements}>
-              🏆 업적
-            </BottomButton>
-            <BottomButton onClick={onShowHallOfFame}>
-              👑 전당등록
-            </BottomButton>
-            <BottomButton onClick={onShowRankings}>
-              📊 랭킹
-            </BottomButton>
-          </BottomButtons>
-        </MenuSection>
-      </Container>
-    </Overlay>
+          <MenuSection>
+            <SectionTitle>내 정보</SectionTitle>
+            <BottomButtons>
+              <BottomButton onClick={() => setShowPokedex(true)}>
+                📖 도감
+              </BottomButton>
+              <BottomButton onClick={() => setShowAchievements(true)}>
+                🏆 업적
+              </BottomButton>
+              <BottomButton onClick={() => setShowHallOfFame(true)}>
+                👑 전당등록
+              </BottomButton>
+              <BottomButton onClick={() => setShowRankings(true)}>
+                📊 랭킹
+              </BottomButton>
+            </BottomButtons>
+          </MenuSection>
+        </Container>
+      </Overlay>
+
+      {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+      {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+    </>
   );
 };
 
@@ -161,11 +165,14 @@ const SignOutButton = styled.button`
 `;
 
 const Title = styled.h1`
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 2.5rem;
   font-weight: bold;
   color: white;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
 `;
 
@@ -194,7 +201,6 @@ const ModeButton = styled.button`
   cursor: pointer;
   transition: all 0.3s;
   text-align: center;
-
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);

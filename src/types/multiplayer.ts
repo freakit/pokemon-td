@@ -80,6 +80,7 @@ export interface PlayerGameState {
   isAlive: boolean;
   rating: number;
   placement?: number;
+  ratingChange?: number; // ⭐ 추가
 }
 
 export interface MultiplayerGameState {
