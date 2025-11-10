@@ -1,3 +1,4 @@
+// src/store/gameStore.ts
 import { create } from 'zustand';
 import { GameState, GamePokemon, Enemy, Projectile, DamageNumber, Difficulty, Item, GameMove, Synergy } from '../types/game';
 import { EVOLUTION_CHAINS, canMegaEvolve, canGigantamax, FUSION_DATA } from '../data/evolution';

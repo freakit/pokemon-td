@@ -128,7 +128,7 @@ const EvolveBtn = styled.button`
   padding: 15px;
   font-size: 16px;
   font-weight: bold;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
   color: white;
   border: none;
   border-radius: 12px;

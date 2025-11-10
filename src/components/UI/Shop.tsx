@@ -1,3 +1,4 @@
+// src/components/UI/Shop.tsx
 import React, { useEffect, useState } from 'react';
 import styled, { css } from 'styled-components';
 import { useTranslation } from '../../i18n';

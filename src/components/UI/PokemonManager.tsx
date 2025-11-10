@@ -277,7 +277,7 @@ const Header = styled.div`
 const Title = styled.h2`
   font-size: 28px;
   font-weight: bold;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
@@ -303,7 +303,7 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   color: #fff;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #667eea, #764ba2)'};
+  background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #1c3bb6 0%, #020842 100%)'};
 
   &:hover {
     filter: brightness(1.2);

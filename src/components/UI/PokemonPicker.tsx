@@ -352,7 +352,7 @@ const Header = styled.div`
 const Title = styled.h2`
   font-size: 28px;
   font-weight: bold;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
@@ -489,7 +489,7 @@ const RerollBtn = styled.button`
   padding: 12px 30px;
   font-size: 16px;
   font-weight: bold;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -497,6 +497,6 @@ const RerollBtn = styled.button`
   transition: all 0.3s ease;
   
   &:hover {
-    background: linear-gradient(135deg, #764ba2, #667eea);
+    background: linear-gradient(135deg, #3388ff, #6666ff);
   }
 `;

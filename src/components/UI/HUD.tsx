@@ -1,3 +1,4 @@
+// src/components/UI/HUD.tsx
 import React from 'react';
 import styled from 'styled-components';
 import { useGameStore } from '../../store/gameStore';

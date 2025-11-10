@@ -1,3 +1,4 @@
+// src/api/pokeapi.ts
 import axios from 'axios';
 import { EVOLUTION_CHAINS, getFinalEvolutionId, calculateRarity, RARITY_WEIGHTS, Rarity } from '../data/evolution';
 import { GameMove, MoveEffect } from '../types/game';
