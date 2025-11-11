@@ -26,9 +26,9 @@ export const WaveEndPicker: React.FC = () => {
         
         let evolutionItem: string;
         if (item.type === 'mega-stone') {
-          evolutionItem = item.id.replace('mega_stone_', '');
-        } else {
-          evolutionItem = 'max-mushroom';
+          evolutionItem = item.id; // 'mega_stone_venusaurite'와 같이 전체 ID를 전달
+        } else { // item.type === 'max-mushroom'
+          evolutionItem = 'max-mushroom'; // 이 부분은 기존 로직 유지
         }
             
         useGameStore.getState().evolvePokemon(targetTower.id, evolutionItem);
