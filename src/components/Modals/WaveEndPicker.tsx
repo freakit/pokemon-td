@@ -8,10 +8,10 @@ import { Item } from '../../types/game';
 
 export const WaveEndPicker: React.FC = () => {
   const { t } = useTranslation();
-  const { waveEndItemPick, setWaveEndItemPick, useItem, towers, wave } = useGameStore(state => ({
+  const { waveEndItemPick, setWaveEndItemPick, useRewardItem, towers, wave } = useGameStore(state => ({
     waveEndItemPick: state.waveEndItemPick,
     setWaveEndItemPick: state.setWaveEndItemPick,
-    useItem: state.useItem,
+    useRewardItem: state.useRewardItem,
     towers: state.towers,
     wave: state.wave,
   }));
@@ -45,7 +45,7 @@ export const WaveEndPicker: React.FC = () => {
     if (!selectedItem) return;
 
     if (selectedItem.type === 'candy') {
-      useItem('candy', towerId);
+      useRewardItem('candy', towerId);
     } else if (selectedItem.type === 'heal') {
       const tower = towers.find(t => t.id === towerId);
       if (tower && !tower.isFainted) {
@@ -53,7 +53,7 @@ export const WaveEndPicker: React.FC = () => {
         useGameStore.getState().updateTower(tower.id, { currentHp: newHp });
       }
     } else if (selectedItem.type === 'revive') {
-      useItem('revive', towerId);
+      useRewardItem('revive', towerId);
     }
     
     setSelectedItem(null);
