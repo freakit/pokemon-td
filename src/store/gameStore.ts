@@ -34,6 +34,7 @@ interface GameStore extends GameState {
   removeCurrentSkillChoice: () => void;
   setWaveEndItemPick: (items: Item[] | null) => void;
   useItem: (itemType: string, targetTowerId?: string) => boolean;
+  useRewardItem: (itemType: string, targetTowerId: string) => boolean;
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
   evolvePokemon: (towerId: string, item?: string, targetId?: number) => Promise<boolean>;
@@ -308,6 +309,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const reviveCost = target.level * 10;
         if (!get().spendMoney(reviveCost)) return false;
         
+        get().updateTower(target.id, {
+          isFainted: false,
+          currentHp: Math.floor(target.maxHp * 0.5),
+        });
+        return true;
+      }
+      return false;
+    }
+    return false;
+  },
+
+  useRewardItem: (itemType, targetTowerId) => {
+    const towers = get().towers;
+    if (towers.length === 0) return false;
+
+    if (itemType === 'candy') {
+      const target = towers.find(t => t.id === targetTowerId);
+      if (target) {
+        if (target.level >= 100) return false;
+        // spendMoney() 호출 없음
+        get().addXpToTower(target.id, 100);
+        return true;
+      }
+      return false;
+    }
+
+    if (itemType === 'revive') {
+      const target = towers.find(t => t.id === targetTowerId && t.isFainted);
+      if (target) {
+        // spendMoney() 호출 없음
         get().updateTower(target.id, {
           isFainted: false,
           currentHp: Math.floor(target.maxHp * 0.5),
