@@ -36,14 +36,16 @@ export class AIPlayer {
   private towers: GamePokemon[] = [];
   private isAlive: boolean = true;
   private isWaveActive: boolean = false;
-  private mapData = getMapById(this.mapId) || MAPS[0];
+  private mapData: any;
 
   constructor(
     private roomId: string,
     private playerId: string,
     private difficulty: AIDifficulty,
     private mapId: string
-  ) {}
+  ) {
+    this.mapData = getMapById(this.mapId) || MAPS[0];
+  }
 
   start() {
     if (this.isRunning) return;
@@ -61,6 +63,9 @@ export class AIPlayer {
         }
       }
     });
+
+    // 초기 상태 동기화 (빈 타워 리스트라도 전송)
+    this.updateTowerDetails();
 
     this.autoWaveInterval = setInterval(() => {
       this.tryStartWave();
@@ -211,18 +216,32 @@ export class AIPlayer {
 
       currentTick++;
       
-      // 웨이브가 강할수록 타워들이 더 많은 데미지를 받음
       const aliveTowers = this.towers.filter(t => !t.isFainted);
-      if (aliveTowers.length > 0 && towerPower < wavePower) {
-        const damagePerTick = (wavePower - towerPower) / combatTicks / aliveTowers.length;
+      
+      // 전투 로직 개선: 단순히 파워 비교가 아니라, 확률적 데미지 적용
+      if (aliveTowers.length > 0) {
+        // 파워 비율 계산 (타워 파워가 웨이브 파워의 몇 배인지)
+        const powerRatio = towerPower / Math.max(1, wavePower);
         
-        // 무작위로 타워들이 데미지를 받음
+        // 기본 데미지 확률 (파워가 낮을수록 높음)
+        // 파워가 같으면 30% 확률로 데미지
+        // 파워가 2배면 15% 확률
+        // 파워가 0.5배면 60% 확률
+        let damageChance = 0.3 / powerRatio;
+        damageChance = Math.min(0.9, Math.max(0.05, damageChance));
+
         aliveTowers.forEach(tower => {
-          // 레벨이 낮은 타워일수록 더 많은 데미지를 받을 확률이 높음
-          const damageChance = 0.3 + (0.5 / tower.level);
           if (Math.random() < damageChance) {
-            const damage = damagePerTick * (1 + Math.random());
-            tower.currentHp = Math.max(0, tower.currentHp - damage);
+            // 데미지량 계산
+            // 웨이브가 강할수록 기본 데미지 증가
+            const baseDamage = (wavePower / aliveTowers.length) * 0.1;
+            const damageMultiplier = 1 + (Math.random() * 0.5); // 1.0 ~ 1.5배 변동
+            
+            // 방어력(레벨)에 따른 데미지 감소
+            const defenseFactor = 1 + (tower.level * 0.05);
+            const finalDamage = (baseDamage * damageMultiplier) / defenseFactor;
+
+            tower.currentHp = Math.max(0, tower.currentHp - finalDamage);
             
             if (tower.currentHp <= 0) {
               tower.isFainted = true;
@@ -430,37 +449,27 @@ export class AIPlayer {
       let selectedChoice: AIChoice;
       
       // 난이도 및 게임 단계에 따른 전략
+      const scoredChoices = affordableChoices.map(choice => ({
+        ...choice,
+        score: this.evaluatePokemon(choice.data, choice.cost, choice.rarity, isEarlyGame)
+      }));
+
+      // 점수가 높은 순으로 정렬
+      scoredChoices.sort((a, b) => b.score - a.score);
+
+      // 난이도에 따른 선택
       if (this.difficulty === 'easy') {
-        // Easy: 항상 가장 저렴한 것
-        selectedChoice = affordableChoices.reduce((prev, curr) => (prev.cost < curr.cost ? prev : curr));
+        // Easy: 상위 50% 중 랜덤 선택 (가끔 멍청한 선택)
+        const poolSize = Math.max(1, Math.floor(scoredChoices.length * 0.5));
+        const pool = scoredChoices.slice(scoredChoices.length - poolSize); // 하위 50%
+        selectedChoice = pool[Math.floor(Math.random() * pool.length)];
       } else if (this.difficulty === 'normal') {
-        // Normal: 초반에는 가성비, 후반에는 희귀도
-        if (isEarlyGame || this.towers.length < 3) {
-          // 가성비 좋은 선택 (희귀도/비용 비율)
-          selectedChoice = affordableChoices.sort((a, b) => {
-            const ratioA = RARITY_SCORE[a.rarity] / (a.cost + 1);
-            const ratioB = RARITY_SCORE[b.rarity] / (b.cost + 1);
-            return ratioB - ratioA;
-          })[0];
-        } else {
-          // 희귀도 우선
-          selectedChoice = affordableChoices.sort((a, b) => 
-            RARITY_SCORE[b.rarity] - RARITY_SCORE[a.rarity]
-          )[0];
-        }
+        // Normal: 상위 3개 중 랜덤 선택
+        const pool = scoredChoices.slice(0, 3);
+        selectedChoice = pool[Math.floor(Math.random() * pool.length)];
       } else {
-        // Hard: 항상 최고 희귀도, 단 초반에는 타워 개수 우선
-        if (isEarlyGame && this.towers.length < 4) {
-          selectedChoice = affordableChoices.sort((a, b) => {
-            const ratioA = RARITY_SCORE[a.rarity] / (a.cost + 1);
-            const ratioB = RARITY_SCORE[b.rarity] / (b.cost + 1);
-            return ratioB - ratioA;
-          })[0];
-        } else {
-          selectedChoice = affordableChoices.sort((a, b) => 
-            RARITY_SCORE[b.rarity] - RARITY_SCORE[a.rarity]
-          )[0];
-        }
+        // Hard: 무조건 1등 선택
+        selectedChoice = scoredChoices[0];
       }
       
       this.money -= selectedChoice.cost;
@@ -617,6 +626,47 @@ export class AIPlayer {
     }
 
     return null;
+  }
+  private evaluatePokemon(data: PokemonData, cost: number, rarity: PokemonRarity, isEarlyGame: boolean): number {
+    let score = 0;
+    
+    // 1. 기본 스탯 점수 (총합)
+    const statTotal = data.stats.hp + data.stats.attack + data.stats.defense + 
+                     data.stats.specialAttack + data.stats.specialDefense + data.stats.speed;
+    score += statTotal / 10;
+
+    // 2. 가성비 점수 (스탯 / 비용)
+    const costEfficiency = (statTotal / cost) * 100;
+    score += costEfficiency;
+
+    // 3. 희귀도 점수
+    score += RARITY_SCORE[rarity] * 20;
+
+    // 4. 타입 시너지 점수 (기존 타워들과의 타입 조화)
+    // 간단하게, 기존에 없는 타입을 선호하도록
+    const existingTypes = new Set<string>();
+    this.towers.forEach(t => t.types.forEach(type => existingTypes.add(type)));
+    
+    let newTypeBonus = 0;
+    data.types.forEach(type => {
+      if (!existingTypes.has(type)) {
+        newTypeBonus += 30; // 새로운 타입이면 가산점
+      }
+    });
+    score += newTypeBonus;
+
+    // 5. 게임 단계별 가중치
+    if (isEarlyGame) {
+      // 초반에는 가성비와 스피드 중요
+      score += data.stats.speed / 2;
+      score += costEfficiency * 2;
+    } else {
+      // 후반에는 깡스탯과 희귀도 중요
+      score += statTotal / 5;
+      score += RARITY_SCORE[rarity] * 30;
+    }
+
+    return score;
   }
 }
 
