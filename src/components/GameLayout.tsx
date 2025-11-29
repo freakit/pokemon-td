@@ -27,6 +27,7 @@ import GlobalLanguageSwitcher from './UI/GlobalLanguageSwitcher';
 import { authService } from '../services/AuthService';
 import { PlayerGameState, TowerDetail } from '../types/multiplayer';
 import { aiPlayerManager } from '../services/AIPlayer';
+import { media } from '../utils/responsive.utils';
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -376,26 +377,38 @@ const CanvasContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 16px 16px 0 16px;
+  padding: 8px 8px 0 8px;
   overflow: auto;
+
+  ${media.mobile} {
+    padding: 4px 4px 0 4px;
+  }
 `;
 
 const BottomPanel = styled.div`
-  padding: 12px;
+  padding: 6px;
   background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
   backdrop-filter: blur(10px);
+
+  ${media.mobile} {
+    padding: 4px;
+  }
 `;
 
 const ExtraButtons = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 6px;
   justify-content: center;
   flex-wrap: wrap;
+
+  ${media.mobile} {
+    gap: 4px;
+  }
 `;
 
 const BottomBtn = styled.button`
-  padding: 10px 24px;
-  font-size: 14px;
+  padding: 6px 16px;
+  font-size: 13px;
   cursor: pointer;
   border-radius: 12px;
   border: 2px solid rgba(76, 175, 255, 0.3);
@@ -411,6 +424,18 @@ const BottomBtn = styled.button`
     background: linear-gradient(135deg, rgba(76, 175, 255, 0.25), rgba(76, 175, 255, 0.15));
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+
+  ${media.tablet} {
+    padding: 5px 12px;
+    font-size: 12px;
+  }
+
+  ${media.mobile} {
+    padding: 4px 10px;
+    font-size: 10px;
+    flex: 1;
+    min-width: 0;
   }
 `;
 
@@ -437,23 +462,44 @@ const GameOverOverlay = styled.div`
 const GameOverModal = styled.div`
   background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
   border-radius: 32px;
-  padding: 64px;
+  padding: 32px;
   text-align: center;
   border: 3px solid rgba(231, 76, 60, 0.4);
   box-shadow: 0 25px 80px rgba(231, 76, 60, 0.4), 0 0 100px rgba(231, 76, 60, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+
+  ${media.tablet} {
+    padding: 24px;
+    border-radius: 24px;
+  }
+
+  ${media.mobile} {
+    padding: 20px;
+    border-radius: 16px;
+    margin: 16px;
+  }
 `;
 
 const GameOverTitle = styled.h2`
-  font-size: 56px;
-  margin-bottom: 32px;
+  font-size: 48px;
+  margin-bottom: 24px;
   color: #ff6b6b;
   text-shadow: 0 0 30px rgba(231, 76, 60, 0.8), 0 4px 8px rgba(0,0,0,0.8);
   font-weight: 900;
+
+  ${media.tablet} {
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+
+  ${media.mobile} {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
 `;
 
 const RestartBtn = styled.button`
-  padding: 20px 60px;
-  font-size: 22px;
+  padding: 16px 48px;
+  font-size: 18px;
   background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
   color: #fff;
   border: 3px solid rgba(46, 204, 113, 0.4);
@@ -462,7 +508,7 @@ const RestartBtn = styled.button`
   font-weight: bold;
   box-shadow: 0 8px 32px rgba(46, 204, 113, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
   text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  margin-top: 24px;
+  margin-top: 20px;
   transition: all 0.3s ease;
 
   &:hover {
@@ -473,5 +519,15 @@ const RestartBtn = styled.button`
 
   &:active {
     transform: translateY(0);
+  }
+
+  ${media.tablet} {
+    padding: 12px 36px;
+    font-size: 16px;
+  }
+
+  ${media.mobile} {
+    padding: 10px 28px;
+    font-size: 14px;
   }
 `;

@@ -22,7 +22,7 @@ const PokemonImage: React.FC<{
   x: number;
   y: number;
   isFainted: boolean;
-}> = ({ src, x, y, isFainted }) => {
+}> = React.memo(({ src, x, y, isFainted }) => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const imageRef = useRef<any>(null);
   const imageSize = 64;
@@ -62,7 +62,7 @@ const PokemonImage: React.FC<{
       imageSmoothingEnabled={false}
     />
   );
-};
+});
 
 const HPBar: React.FC<{
   x: number;
@@ -71,7 +71,7 @@ const HPBar: React.FC<{
   max: number;
   width?: number;
   level?: number;
-}> = ({ x, y, current, max, width = 50, level }) => {
+}> = React.memo(({ x, y, current, max, width = 50, level }) => {
   const ratio = Math.max(0, Math.min(1, current / max));
   const color = ratio > 0.5 ? "#2ecc71" : ratio > 0.25 ? "#f39c12" : "#e74c3c";
 
@@ -112,14 +112,14 @@ const HPBar: React.FC<{
       />
     </>
   );
-};
+});
 
 interface OpponentCanvasProps {
   towers: TowerDetail[];
   mapId: string;
 }
 
-export const OpponentCanvas: React.FC<OpponentCanvasProps> = ({ towers, mapId }) => {
+export const OpponentCanvas: React.FC<OpponentCanvasProps> = React.memo(({ towers, mapId }) => {
   const [canvasScale, setCanvasScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const map = getMapById(mapId);
@@ -241,7 +241,7 @@ export const OpponentCanvas: React.FC<OpponentCanvasProps> = ({ towers, mapId })
       </StageWrapper>
     </CanvasContainer>
   );
-};
+});
 
 const CanvasContainer = styled.div`
   width: 100%;

@@ -13,8 +13,109 @@ const DEBUFF_ITEMS: DebuffItem[] = [
   { id: 'disable_shop', name: '상점 봉쇄', description: '상대 상점 15초간 사용 불가', cost: 180, effect: 'disable_shop', value: 15 }
 ];
 
+const ROOM_EXPIRY_TIME = 3 * 60 * 60 * 1000; // 3시간 (밀리초)
+const CLEANUP_INTERVAL = 10 * 60 * 1000; // 10분마다 정리
+
 class MultiplayerService {
   private currentRoomId: string | null = null;
+  private cleanupIntervalId: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // 서비스 시작 시 자동 정리 작업 시작
+    this.startAutoCleanup();
+  }
+
+  /**
+   * 오래된 방 자동 정리 시작
+   */
+  private startAutoCleanup(): void {
+    // 이미 실행 중이면 중지
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+    }
+
+    // 즉시 한 번 실행
+    this.cleanupExpiredRooms();
+
+    // 주기적으로 실행
+    this.cleanupIntervalId = setInterval(() => {
+      this.cleanupExpiredRooms();
+    }, CLEANUP_INTERVAL);
+  }
+
+  /**
+   * 만료된 방 정리
+   */
+  private async cleanupExpiredRooms(): Promise<void> {
+    try {
+      const roomsRef = ref(rtdb, 'rooms');
+      const snapshot = await get(roomsRef);
+
+      if (!snapshot.exists()) return;
+
+      const now = Date.now();
+      const roomsToDelete: string[] = [];
+
+      snapshot.forEach((child) => {
+        const room = child.val() as Room;
+        const roomAge = now - room.createdAt;
+
+        // 3시간 이상 경과한 방 삭제
+        if (roomAge > ROOM_EXPIRY_TIME) {
+          roomsToDelete.push(room.id);
+          console.log(`Deleting expired room: ${room.id} (age: ${Math.floor(roomAge / 1000 / 60)} minutes)`);
+        }
+      });
+
+      // 만료된 방 삭제
+      for (const roomId of roomsToDelete) {
+        await this.deleteRoom(roomId);
+      }
+
+      if (roomsToDelete.length > 0) {
+        console.log(`Cleaned up ${roomsToDelete.length} expired rooms`);
+      }
+    } catch (error) {
+      console.error('Failed to cleanup expired rooms:', error);
+    }
+  }
+
+  /**
+   * 방과 관련된 모든 데이터 삭제
+   */
+  private async deleteRoom(roomId: string): Promise<void> {
+    try {
+      // 방 데이터 삭제
+      const roomRef = ref(rtdb, `rooms/${roomId}`);
+      await remove(roomRef);
+
+      // 게임 상태 삭제
+      const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+      await remove(gameStateRef);
+
+      // 타워 상세 정보 삭제
+      const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
+      await remove(towerDetailsRef);
+
+      // 디버프 정보 삭제
+      const debuffsRef = ref(rtdb, `debuffs/${roomId}`);
+      await remove(debuffsRef);
+
+      console.log(`Successfully deleted room and related data: ${roomId}`);
+    } catch (error) {
+      console.error(`Failed to delete room ${roomId}:`, error);
+    }
+  }
+
+  /**
+   * 정리 작업 중지
+   */
+  public stopAutoCleanup(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+      this.cleanupIntervalId = null;
+    }
+  }
 
   async createRoom(mapId: string, mapName: string): Promise<string> {
     const user = authService.getCurrentUser();
@@ -59,6 +160,13 @@ class MultiplayerService {
     if (!snapshot.exists()) throw new Error('Room not found');
     const room = snapshot.val() as Room;
     
+    // 방이 만료되었는지 확인
+    const roomAge = Date.now() - room.createdAt;
+    if (roomAge > ROOM_EXPIRY_TIME) {
+      await this.deleteRoom(roomId);
+      throw new Error('Room has expired');
+    }
+    
     if (room.players.length >= room.maxPlayers) {
       throw new Error('Room is full');
     }
@@ -96,6 +204,15 @@ class MultiplayerService {
     }
     
     const room = snapshot.val() as Room;
+    
+    // 방이 만료되었는지 확인
+    const roomAge = Date.now() - room.createdAt;
+    if (roomAge > ROOM_EXPIRY_TIME) {
+      await this.deleteRoom(roomId);
+      this.clearCurrentRoom();
+      return { room: null as any, canRejoin: false };
+    }
+    
     const isPlayerInRoom = room.players.some(p => p.userId === user.uid);
     
     if (!isPlayerInRoom) {
@@ -124,7 +241,8 @@ class MultiplayerService {
     const updatedPlayers = room.players.filter(p => p.userId !== user.uid);
 
     if (updatedPlayers.length === 0) {
-      await remove(roomRef);
+      // 모든 플레이어가 나가면 방 삭제
+      await this.deleteRoom(roomId);
     } else {
       await update(roomRef, {
         players: updatedPlayers,
@@ -145,7 +263,17 @@ class MultiplayerService {
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
     if (!snapshot.exists()) return null;
-    return snapshot.val() as Room;
+    
+    const room = snapshot.val() as Room;
+    
+    // 방이 만료되었는지 확인
+    const roomAge = Date.now() - room.createdAt;
+    if (roomAge > ROOM_EXPIRY_TIME) {
+      await this.deleteRoom(roomId);
+      return null;
+    }
+    
+    return room;
   }
 
   async addAI(roomId: string, difficulty: AIDifficulty): Promise<void> {
@@ -251,7 +379,49 @@ class MultiplayerService {
     await update(gameStateRef, { players: updatedPlayers });
   }
 
+  private lastTowerUpdate: Map<string, number> = new Map();
+  private towerUpdateThrottle: number = 1000; // 1초
+  private pendingTowerUpdates: Map<string, { roomId: string, userId: string, towerDetails: TowerDetail[] }> = new Map();
+  private towerUpdateTimeouts: Map<string, NodeJS.Timeout> = new Map();
+
   async updatePlayerTowerDetails(roomId: string, userId: string, towerDetails: TowerDetail[]): Promise<void> {
+    const now = Date.now();
+    const lastUpdate = this.lastTowerUpdate.get(userId) || 0;
+    
+    // 이전에 예약된 업데이트가 있다면 취소 (최신 데이터로 덮어쓰기 위해)
+    if (this.towerUpdateTimeouts.has(userId)) {
+      clearTimeout(this.towerUpdateTimeouts.get(userId)!);
+      this.towerUpdateTimeouts.delete(userId);
+    }
+
+    if (now - lastUpdate < this.towerUpdateThrottle) {
+      // 스로틀링 중이면 대기열에 저장하고 타이머 설정
+      this.pendingTowerUpdates.set(userId, { roomId, userId, towerDetails });
+      
+      const delay = this.towerUpdateThrottle - (now - lastUpdate);
+      const timeout = setTimeout(() => {
+        this.flushPendingTowerUpdate(userId);
+      }, delay);
+      this.towerUpdateTimeouts.set(userId, timeout);
+      return;
+    }
+    
+    // 즉시 전송
+    await this.sendTowerUpdate(roomId, userId, towerDetails);
+  }
+
+  private async flushPendingTowerUpdate(userId: string) {
+    const pending = this.pendingTowerUpdates.get(userId);
+    if (pending) {
+      const { roomId, userId: uid, towerDetails } = pending;
+      await this.sendTowerUpdate(roomId, uid, towerDetails);
+      this.pendingTowerUpdates.delete(userId);
+    }
+    this.towerUpdateTimeouts.delete(userId);
+  }
+
+  private async sendTowerUpdate(roomId: string, userId: string, towerDetails: TowerDetail[]) {
+    this.lastTowerUpdate.set(userId, Date.now());
     const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
     await set(towerDetailsRef, {
       towers: towerDetails,
@@ -268,6 +438,24 @@ class MultiplayerService {
       }
       const data = snapshot.val();
       callback(data.towers || []);
+    });
+    return () => off(towerDetailsRef, 'value', listener);
+  }
+
+  onAllTowerDetailsUpdate(roomId: string, callback: (allTowers: Map<string, TowerDetail[]>) => void): () => void {
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
+    const listener = onValue(towerDetailsRef, (snapshot) => {
+      const allTowers = new Map<string, TowerDetail[]>();
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const userId = child.key!;
+          const data = child.val();
+          if (data.towers) {
+            allTowers.set(userId, data.towers);
+          }
+        });
+      }
+      callback(allTowers);
     });
     return () => off(towerDetailsRef, 'value', listener);
   }
@@ -354,11 +542,19 @@ class MultiplayerService {
       }
 
       const rooms: Room[] = [];
+      const now = Date.now();
+      
       snapshot.forEach((child) => {
-        rooms.push(child.val() as Room);
+        const room = child.val() as Room;
+        const roomAge = now - room.createdAt;
+        
+        // 만료되지 않은 대기 중인 방만 반환
+        if (roomAge <= ROOM_EXPIRY_TIME && room.status === 'waiting') {
+          rooms.push(room);
+        }
       });
       
-      callback(rooms.filter(r => r.status === 'waiting'));
+      callback(rooms);
     });
     return () => off(roomsRef, 'value', listener);
   }
@@ -370,7 +566,18 @@ class MultiplayerService {
         callback(null);
         return;
       }
-      callback(snapshot.val() as Room);
+      
+      const room = snapshot.val() as Room;
+      const roomAge = Date.now() - room.createdAt;
+      
+      // 방이 만료되었으면 null 반환
+      if (roomAge > ROOM_EXPIRY_TIME) {
+        this.deleteRoom(roomId);
+        callback(null);
+        return;
+      }
+      
+      callback(room);
     });
     return () => off(roomRef, 'value', listener);
   }
@@ -415,6 +622,22 @@ class MultiplayerService {
       this.currentRoomId = localStorage.getItem('currentRoomId');
     }
     return this.currentRoomId;
+  }
+
+  /**
+   * 방의 남은 시간 (밀리초)
+   */
+  getRoomRemainingTime(room: Room): number {
+    const roomAge = Date.now() - room.createdAt;
+    return Math.max(0, ROOM_EXPIRY_TIME - roomAge);
+  }
+
+  /**
+   * 방의 만료 여부
+   */
+  isRoomExpired(room: Room): boolean {
+    const roomAge = Date.now() - room.createdAt;
+    return roomAge > ROOM_EXPIRY_TIME;
   }
 }
 

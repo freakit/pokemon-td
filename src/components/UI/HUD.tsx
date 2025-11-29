@@ -3,6 +3,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
+import { media } from '../../utils/responsive.utils';
 
 interface Props {
   onStartWave: () => void;
@@ -73,8 +74,8 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
 
 const Container = styled.div`
   color: #e8edf3;
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: 6px;
+  margin-bottom: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -83,114 +84,227 @@ const Container = styled.div`
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
   backdrop-filter: blur(10px);
   position: relative;
+
+  ${media.tablet} {
+    padding: 5px;
+    margin-bottom: 5px;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  ${media.mobile} {
+    padding: 4px;
+    margin-bottom: 4px;
+    flex-direction: column;
+    gap: 4px;
+  }
 `;
 
 const LeftSection = styled.div`
   display: flex;
-  gap: 20px;
+  gap: 12px;
   align-items: center;
+
+  ${media.tablet} {
+    gap: 8px;
+  }
+
+  ${media.mobile} {
+    width: 100%;
+    justify-content: space-between;
+    gap: 6px;
+  }
 `;
 
 const StatGroup = styled.div`
   display: flex;
-  gap: 20px;
+  gap: 12px;
   align-items: center;
+
+  ${media.tablet} {
+    gap: 8px;
+  }
+
+  ${media.mobile} {
+    gap: 6px;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-around;
+  }
 `;
 
 const StatItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: bold;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  ${media.tablet} {
+    padding: 3px 6px;
+    gap: 3px;
+  }
+
+  ${media.mobile} {
+    padding: 2px 5px;
+    font-size: 11px;
+  }
 `;
 
 const StatIcon = styled.span`
-  font-size: 24px;
+  font-size: 16px;
+
+  ${media.tablet} {
+    font-size: 14px;
+  }
+
+  ${media.mobile} {
+    font-size: 12px;
+  }
 `;
 
 const StatValue = styled.span`
-  font-size: 20px;
-  color: #FFD700;
+  font-size: 14px;
+  font-weight: bold;
+  color: #4cafff;
+
+  ${media.tablet} {
+    font-size: 12px;
+  }
+
+  ${media.mobile} {
+    font-size: 10px;
+  }
 `;
 
 const TimeIndicator = styled.div`
-  font-size: 18px;
-  font-weight: bold;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  ${media.tablet} {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+
+  ${media.mobile} {
+    font-size: 10px;
+    padding: 2px 5px;
+  }
 `;
 
 const CenterSection = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none; /* 타이머가 클릭 방해하지 않도록 함 */
+
+  ${media.mobile} {
+    width: 100%;
+    justify-content: center;
+  }
 `;
 
 const TimerDisplay = styled.div`
-  font-size: 24px;
+  font-size: 16px;
   font-weight: bold;
-  color: #FFD700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
-  background: rgba(0, 0, 0, 0.6);
-  padding: 8px 16px;
-  border-radius: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f39c12;
+
+  ${media.tablet} {
+    font-size: 14px;
+    padding: 3px 10px;
+  }
+
+  ${media.mobile} {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
 `;
 
 const ButtonSection = styled.div`
   display: flex;
-  gap: 12px;
-`;
+  gap: 6px;
 
-const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' }>`
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  
-  ${props => {
-    switch (props.$variant) {
-      case 'wave':
-        return 'background: #8755ba;';
-      case 'pokemon':
-        return 'background: #dc4b5e;';
-      case 'manage':
-        return 'background: #4facfe;';
-      case 'speed':
-        return 'background: #22c458;';
-    }
-  }}
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  ${media.tablet} {
+    gap: 5px;
+    flex-wrap: wrap;
   }
 
-  &:active {
-    transform: translateY(0);
+  ${media.mobile} {
+    width: 100%;
+    justify-content: space-around;
+    gap: 4px;
+  }
+`;
+
+interface BtnProps {
+  $variant: 'wave' | 'pokemon' | 'manage' | 'speed';
+}
+
+const Btn = styled.button<BtnProps>`
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 2px solid ${props => {
+    switch(props.$variant) {
+      case 'wave': return 'rgba(46, 204, 113, 0.5)';
+      case 'pokemon': return 'rgba(52, 152, 219, 0.5)';
+      case 'manage': return 'rgba(155, 89, 182, 0.5)';
+      case 'speed': return 'rgba(243, 156, 18, 0.5)';
+    }
+  }};
+  background: linear-gradient(135deg, ${props => {
+    switch(props.$variant) {
+      case 'wave': return 'rgba(46, 204, 113, 0.2), rgba(46, 204, 113, 0.1)';
+      case 'pokemon': return 'rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1)';
+      case 'manage': return 'rgba(155, 89, 182, 0.2), rgba(155, 89, 182, 0.1)';
+      case 'speed': return 'rgba(243, 156, 18, 0.2), rgba(243, 156, 18, 0.1)';
+    }
+  }});
+  color: ${props => {
+    switch(props.$variant) {
+      case 'wave': return '#2ecc71';
+      case 'pokemon': return '#3498db';
+      case 'manage': return '#9b59b6';
+      case 'speed': return '#f39c12';
+    }
+  }};
+  font-weight: bold;
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px ${props => {
+      switch(props.$variant) {
+        case 'wave': return 'rgba(46, 204, 113, 0.3)';
+        case 'pokemon': return 'rgba(52, 152, 219, 0.3)';
+        case 'manage': return 'rgba(155, 89, 182, 0.3)';
+        case 'speed': return 'rgba(243, 156, 18, 0.3)';
+      }
+    }};
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    &:hover {
-      transform: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
+  }
+
+  ${media.tablet} {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  ${media.mobile} {
+    padding: 5px 8px;
+    font-size: 10px;
+    flex: 1;
+    min-width: 0;
   }
 `;
