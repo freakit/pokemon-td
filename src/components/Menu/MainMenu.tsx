@@ -57,7 +57,7 @@ export const MainMenu = () => {
               <ModeButton onClick={handleMultiPlay}>
                 <ModeIcon>👥</ModeIcon>
                 <ModeTitle>멀티 플레이</ModeTitle>
-                <ModeDesc>최대 4인 대전 모드</ModeDesc>
+                <ModeDesc>최대 8인 대전 모드</ModeDesc>
               </ModeButton>
             </GameModeButtons>
           </MenuSection>

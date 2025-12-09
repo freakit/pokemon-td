@@ -22,6 +22,14 @@ export class GameManager {
     }
     return GameManager.instance;
   }
+
+  /**
+   * 라이프 감소 (로컬 + 멀티플레이어 Firebase 동기화)
+   */
+  private loseLife(amount: number) {
+    const newLives = Math.max(0, useGameStore.getState().lives - amount);
+    useGameStore.setState({ lives: newLives });
+  }
   
   update(dt: number) {
     const { isPaused, gameOver, gameSpeed } = useGameStore.getState();
@@ -61,7 +69,13 @@ export class GameManager {
           t.statusEffect = undefined;
           if (eff.type === 'burn') t.attack = t.baseAttack;
         } else if (eff.tickDamage) {
+          const startHp = t.currentHp;
           t.currentHp = Math.max(0, t.currentHp - (eff.tickDamage * dt));
+          if (startHp > 0 && t.currentHp <= 0) {
+            t.isFainted = true;
+            // Force update to store to ensure React re-renders and logic syncs
+            useGameStore.getState().updateTower(t.id, { currentHp: 0, isFainted: true });
+          }
         }
       }
     });
@@ -123,7 +137,9 @@ export class GameManager {
           }
         } else {
           removeEnemy(e.id);
-          useGameStore.setState(state => ({ lives: state.lives - 1 }));
+          console.log(`[GameManager] Enemy leaked: ${e.id}. Current lives: ${useGameStore.getState().lives}`);
+          this.loseLife(1);
+          console.log(`[GameManager] Lives after loseLife: ${useGameStore.getState().lives}`);
           if (useGameStore.getState().lives <= 0) {
             useGameStore.setState({ gameOver: true, isWaveActive: false });
             soundService.playDefeatSound();
@@ -202,8 +218,14 @@ export class GameManager {
   }
   
   private updateTowers(_dt: number) {
-    const { towers, enemies } = useGameStore.getState();
+    const { towers, enemies, updateTower } = useGameStore.getState();
     towers.forEach(tower => {
+      // Self-Correction: If HP <= 0 but not marked fainted, faint it.
+      if (tower.currentHp <= 0 && !tower.isFainted) {
+         updateTower(tower.id, { currentHp: 0, isFainted: true });
+         return;
+      }
+
       if (tower.isFainted) return;
       
       const target = this.findTarget(tower, enemies);

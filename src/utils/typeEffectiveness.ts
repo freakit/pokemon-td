@@ -165,7 +165,9 @@ const TYPE_CHART: Record<string, Record<string, number>> = {
 export function getTypeEffectiveness(attackType: string, defenseTypes: string[]): number {
   let multiplier = 1;
   for (const defType of defenseTypes) {
-    multiplier *= (TYPE_CHART[attackType]?.[defType] ?? 1);
+    const eff = TYPE_CHART[attackType]?.[defType] ?? 1;
+    // 0배(무효)를 0.1배로 변경 - 극미한 데미지는 들어가게
+    multiplier *= (eff === 0 ? 0.1 : eff);
   }
   return multiplier;
 }

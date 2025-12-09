@@ -1,9 +1,12 @@
 // src/components/UI/HUD.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
 import { media } from '../../utils/responsive.utils';
+import { multiplayerService } from '../../services/MultiplayerService';
+import { authService } from '../../services/AuthService';
+import { GamePhase } from '../../types/multiplayer';
 
 interface Props {
   onStartWave: () => void;
@@ -18,10 +21,82 @@ const formatTime = (ms: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+const getPhaseText = (phase: GamePhase, round: number, countdown: number | null): string => {
+  switch (phase) {
+    case 'shopping': return '🛒 쇼핑 중';
+    case 'waiting_wave': 
+      return round === 0 
+        ? `⏳ 게임 시작: ${countdown || 0}초` 
+        : `⏳ 다음 웨이브: ${countdown || 0}초`;
+    case 'wave': return `🌊 웨이브 ${round} 진행 중`;
+    case 'waiting_battle': return `⚔️ 대전 준비: ${countdown || 0}초`;
+    case 'battle': return '🔥 대전 진행 중!';
+    default: return '';
+  }
+};
+
 export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
   const { t } = useTranslation();
   const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay, gameTime } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
+  
+  // 멀티플레이어 상태
+  const multiRoomId = multiplayerService.getCurrentRoomId();
+  const isMultiplayer = !!multiRoomId;
+  
+  const [multiPhase, setMultiPhase] = useState<GamePhase>('shopping');
+  const [multiRound, setMultiRound] = useState(0);
+  const [multiCountdown, setMultiCountdown] = useState<number | null>(null);
+  const [multiMoney, setMultiMoney] = useState(500);
+  const [multiLives, setMultiLives] = useState(100);
+  const [phaseEndTime, setPhaseEndTime] = useState<number | null>(null);
+  
+  // 멀티플레이어 상태 구독 (페이즈 + 플레이어 상태)
+  useEffect(() => {
+    if (!multiRoomId) return;
+    
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
+      if (state) {
+        setMultiPhase(state.currentPhase);
+        setMultiRound(state.currentRound);
+        // 서버에서 페이즈 종료 시간 받기
+        setPhaseEndTime(state.phaseEndTime ?? null);
+        
+        // 내 플레이어 상태 찾아서 돈/체력 업데이트
+        const user = authService.getCurrentUser();
+        if (user) {
+          const myState = state.players.find(p => p.userId === user.uid);
+          if (myState) {
+            setMultiMoney(myState.money);
+            setMultiLives(myState.lives);
+          }
+        }
+      }
+    });
+    
+    return unsubscribe;
+  }, [multiRoomId]);
+
+  // 서버 시간 기반 카운트다운 계산 (1초마다 갱신)
+  useEffect(() => {
+    if (!isMultiplayer) return;
+    
+    const timer = setInterval(() => {
+      if (phaseEndTime) {
+        const remaining = Math.max(0, Math.floor((phaseEndTime - Date.now()) / 1000));
+        setMultiCountdown(remaining);
+      } else {
+        setMultiCountdown(null);
+      }
+    }, 200); // 200ms마다 갱신으로 더 정확한 동기화
+    
+    return () => clearInterval(timer);
+  }, [isMultiplayer, phaseEndTime]);
+
+  // 멀티플레이어일 때는 Firebase 값, 아니면 로컬 값
+  const displayMoney = isMultiplayer ? multiMoney : money;
+  const displayLives = isMultiplayer ? multiLives : lives;
+  const displayWave = isMultiplayer ? multiRound : wave;
 
   return (
     <Container>
@@ -29,15 +104,15 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
         <StatGroup>
           <StatItem>
             <StatIcon>🌊</StatIcon>
-            <StatValue>{wave}</StatValue>
+            <StatValue>{displayWave}</StatValue>
           </StatItem>
           <StatItem>
             <StatIcon>💰</StatIcon>
-            <StatValue>{money}</StatValue>
+            <StatValue>{displayMoney}</StatValue>
           </StatItem>
           <StatItem>
             <StatIcon>❤️</StatIcon>
-            <StatValue>{lives}</StatValue>
+            <StatValue>{displayLives}</StatValue>
           </StatItem>
           <StatItem>
             <StatIcon>⚡</StatIcon>
@@ -50,13 +125,22 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
       </LeftSection>
 
       <CenterSection>
-        <TimerDisplay>⏰ {formatTime(gameTime)}</TimerDisplay>
+        {isMultiplayer ? (
+          <PhaseDisplay $phase={multiPhase}>
+            {getPhaseText(multiPhase, multiRound, multiCountdown)}
+          </PhaseDisplay>
+        ) : (
+          <TimerDisplay>⏰ {formatTime(gameTime)}</TimerDisplay>
+        )}
       </CenterSection>
       
       <ButtonSection>
-        <Btn $variant="wave" onClick={onStartWave} disabled={isWaveActive}>
-          🎯 {t('hud.startWave')}
-        </Btn>
+        {/* 멀티플레이어에서는 웨이브 시작 버튼 숨김 - 동기화된 카운트다운으로 자동 시작 */}
+        {!isMultiplayer && (
+          <Btn $variant="wave" onClick={onStartWave} disabled={isWaveActive}>
+            🎯 {t('hud.startWave')}
+          </Btn>
+        )}
         <Btn 
           $variant="pokemon" onClick={onAddPokemon}>
           ➕ {t('hud.addPokemon')}
@@ -64,9 +148,12 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
         <Btn $variant="manage" onClick={onManagePokemon}>
           🎒 {t('hud.managePokemon')} ({towers.length}/6)
         </Btn>
-        <Btn $variant="speed" onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed + 1)}>
-          ⏩ {t('hud.speed')}
-        </Btn>
+        {/* 멀티플레이어에서는 속도 고정 (3x) */}
+        {!isMultiplayer && (
+          <Btn $variant="speed" onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed + 1)}>
+            ⏩ {t('hud.speed')}
+          </Btn>
+        )}
       </ButtonSection>
     </Container>
   );
@@ -224,6 +311,48 @@ const TimerDisplay = styled.div`
   ${media.mobile} {
     font-size: 12px;
     padding: 3px 8px;
+  }
+`;
+
+const PhaseDisplay = styled.div<{ $phase: GamePhase }>`
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 14px;
+  background: ${props => {
+    switch (props.$phase) {
+      case 'waiting_wave': return 'rgba(46, 204, 113, 0.3)';
+      case 'wave': return 'rgba(52, 152, 219, 0.3)';
+      case 'waiting_battle': return 'rgba(231, 76, 60, 0.3)';
+      case 'battle': return 'rgba(231, 76, 60, 0.5)';
+      default: return 'rgba(243, 156, 18, 0.3)';
+    }
+  }};
+  border-radius: 10px;
+  border: 2px solid ${props => {
+    switch (props.$phase) {
+      case 'waiting_wave': return 'rgba(46, 204, 113, 0.6)';
+      case 'wave': return 'rgba(52, 152, 219, 0.6)';
+      case 'waiting_battle': return 'rgba(231, 76, 60, 0.6)';
+      case 'battle': return 'rgba(231, 76, 60, 0.8)';
+      default: return 'rgba(243, 156, 18, 0.6)';
+    }
+  }};
+  color: #fff;
+  animation: ${props => props.$phase === 'battle' || props.$phase === 'waiting_battle' ? 'pulse 1s infinite' : 'none'};
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  ${media.tablet} {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  ${media.mobile} {
+    font-size: 11px;
+    padding: 4px 8px;
   }
 `;
 

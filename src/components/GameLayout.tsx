@@ -17,6 +17,7 @@ import { WaveSystem } from "../game/WaveSystem";
 import { multiplayerService } from "../services/MultiplayerService";
 import { MultiplayerView } from "./Multiplayer/MultiplayerView";
 import { MultiplayerGameOverModal } from "./Multiplayer/MultiplayerGameOverModal";
+import { BattlePhaseUI } from "./Multiplayer/BattlePhaseUI";
 import { SkillPicker } from './Modals/SkillPicker';
 import { WaveEndPicker } from './Modals/WaveEndPicker';
 import { Wave50ClearModal } from './Modals/Wave50ClearModal';
@@ -46,7 +47,24 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState<PlayerGameState[]>([]);
   const multiRoomId = multiplayerService.getCurrentRoomId();
+  const isMultiplayer = !!multiRoomId;
   const user = authService.getCurrentUser();
+
+  // 멀티플레이어 초기화: lives 100, speed 3x
+  // 멀티플레이어 초기화: lives 100, speed 3x
+  const initializedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (isMultiplayer && !initializedRef.current) {
+      console.log('[GameLayout] Initializing Multiplayer State (Once)');
+      initializedRef.current = true;
+      useGameStore.setState({ 
+        lives: 100, 
+        money: 500,
+        gameSpeed: 3 
+      });
+    }
+  }, [isMultiplayer]);
   const {
     nextWave,
     isWaveActive,
@@ -96,12 +114,19 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     if (multiRoomId && user) {
       const unsubscribe = useGameStore.subscribe(
         (state, prevState) => {
-          if (state.isWaveActive && (
+          if (
             state.wave !== prevState.wave ||
             state.lives !== prevState.lives ||
             state.money !== prevState.money ||
             state.towers.length !== prevState.towers.length
-          )) {
+          ) {
+            console.log(`[GameLayout] State changed - Wave: ${state.wave}, Lives: ${state.lives}, Money: ${state.money}`);
+            // 초기화 전(lives=50) 상태가 Firebase로 전송되는 것 방지
+            // 멀티플레이어 시작 시 100라이프로 설정되는데, 그 전에 50이 전송되면 안됨
+            if (state.lives === 50 && state.wave === 0 && !state.isWaveActive) {
+                return;
+            }
+            
             multiplayerService.updatePlayerState(multiRoomId, user.uid, {
               wave: state.wave,
               lives: state.lives,
@@ -134,15 +159,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
   }, [multiRoomId, user, towers]);
 
-  useEffect(() => {
-    if (multiRoomId) {
-      const unsubscribe = multiplayerService.onDebuffReceived(multiRoomId, (debuff) => {
-        applyDebuff(debuff);
-      });
-      return unsubscribe;
-    }
-  }, [multiRoomId]);
+  // 디버프 시스템 제거됨 - TFT 스타일 PvP 대전으로 대체
 
+  // 플레이어 탈락 처리
   useEffect(() => {
     if (multiRoomId && user) {
       const unsubscribe = useGameStore.subscribe(
@@ -156,6 +175,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     }
   }, [multiRoomId, user, isWaveActive]);
 
+  // 게임 종료 감지
   useEffect(() => {
     if (!multiRoomId) return;
 
@@ -174,13 +194,66 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
     return unsubscribe;
   }, [multiRoomId]);
+
+  // 멀티플레이어: 페이즈가 'wave'로 변경되면 웨이브 시작
+  useEffect(() => {
+    if (!multiRoomId) return;
+
+    let lastPhase: string | null = null;
+    
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
+      if (!state) return;
+      
+      const currentPhase = state.currentPhase;
+      const currentRound = state.currentRound;
+      
+      // 페이즈가 'wave'로 변경되었을 때만 웨이브 시작
+      if (currentPhase === 'wave' && lastPhase !== 'wave') {
+        console.log('[GameLayout] Phase changed to wave, starting wave:', currentRound);
+        
+        // 로컬 게임 상태 업데이트
+        const gameStore = useGameStore.getState();
+        if (!gameStore.isWaveActive) {
+          useGameStore.setState({ 
+            wave: currentRound, 
+            isWaveActive: true, 
+            isPaused: false 
+          });
+          WaveSystem.getInstance().startWave(currentRound);
+        }
+      }
+      
+      lastPhase = currentPhase;
+    });
+
+    return unsubscribe;
+  }, [multiRoomId]);
+
+  // 멀티플레이어: 웨이브 완료 감지 → markWaveCompleted 호출
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+    
+    let wasWaveActive = false;
+    
+    const unsubscribe = useGameStore.subscribe((state, prevState) => {
+      // 웨이브가 끝났을 때 (isWaveActive: true → false)
+      if (prevState.isWaveActive && !state.isWaveActive && wasWaveActive) {
+        console.log('[GameLayout] Wave completed, marking as completed');
+        multiplayerService.markWaveCompleted(multiRoomId, user.uid);
+      }
+      wasWaveActive = state.isWaveActive;
+    });
+    
+    return unsubscribe;
+  }, [multiRoomId, user]);
   
+  // AI 플레이어 시작
   useEffect(() => {
     if (multiRoomId) {
       const startAIs = async () => {
         const room = await multiplayerService.getRoom(multiRoomId);
-        const user = authService.getCurrentUser();
-        if (room && user && room.hostId === user.uid) {
+        const currentUser = authService.getCurrentUser();
+        if (room && currentUser && room.hostId === currentUser.uid) {
           for (const player of room.players) {
             if (player.isAI && player.aiDifficulty) {
               aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
@@ -196,65 +269,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     };
   }, [multiRoomId]);
 
-  const applyDebuff = (debuff: any) => {
-    switch (debuff.type) {
-      case 'instant_kill':
-        if (towers.length > 0) {
-          const randomIndex = Math.floor(Math.random() * towers.length);
-          useGameStore.getState().updateTower(towers[randomIndex].id, { 
-            currentHp: 0, 
-            isFainted: true 
-          });
-          alert('상대가 포켓몬 즉사 디버프를 사용했습니다!');
-        }
-        break;
-      case 'slow_attack':
-        towers.forEach(tower => {
-          useGameStore.getState().updateTower(tower.id, { 
-            speed: tower.speed * 0.5 
-          });
-        });
-        setTimeout(() => {
-          towers.forEach(tower => {
-            useGameStore.getState().updateTower(tower.id, { 
-              speed: tower.speed * 2 
-            });
-          });
-        }, debuff.value * 1000);
-        alert('상대가 공속 감소 디버프를 사용했습니다!');
-        break;
-      case 'freeze_towers':
-        towers.forEach(tower => {
-          tower.equippedMoves.forEach((m) => {
-            m.currentCooldown = debuff.value * 1000;
-          });
-        });
-        setTimeout(() => {
-          towers.forEach(tower => {
-            tower.equippedMoves.forEach(m => {
-              m.currentCooldown = 0;
-            });
-          });
-        }, debuff.value * 1000);
-        alert(`상대가 타워 동결 디버프를 사용했습니다! ${debuff.value}초간 공격 불가!`);
-        break;
-      case 'spawn_boss':
-        const waveSystem = WaveSystem.getInstance();
-        const currentWave = useGameStore.getState().wave;
-        waveSystem.spawnDebuffBoss(currentWave);
-        alert('⚠️ 상대가 보스를 투입했습니다!');
-        break;
-      case 'disable_shop':
-        useGameStore.setState({ isShopDisabled: true });
-        alert(`🚫 상대가 상점을 봉쇄했습니다! ${debuff.value}초간 상점 사용 불가!`);
-        setTimeout(() => {
-          useGameStore.setState({ isShopDisabled: false });
-          alert('✅ 상점 봉쇄가 해제되었습니다!');
-        }, debuff.value * 1000);
-        break;
-    }
-  };
-
   return (
     <AppContainer>
       <GameLayoutContainer>
@@ -263,6 +277,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <CanvasContainer>
           <GameCanvas />
         </CanvasContainer>
+
+        {/* BattlePhaseUI는 페이즈 전환 로직 담당 (UI는 HUD에서 표시) */}
+        {multiRoomId && <BattlePhaseUI roomId={multiRoomId} />}
 
         <BottomPanel>
           <HUD

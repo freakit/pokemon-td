@@ -1,7 +1,7 @@
 // src/services/AIPlayer.ts
 import { multiplayerService } from './MultiplayerService';
 import { pokeAPI, PokemonData } from '../api/pokeapi';
-import { AIDifficulty, TowerDetail } from '../types/multiplayer';
+import { AIDifficulty, TowerDetail, MultiplayerGameState, GamePhase } from '../types/multiplayer';
 import { GamePokemon, GameMove, MoveEffect, Position, PokemonRarity } from '../types/game';
 import { getMapById, MAPS } from '../data/maps';
 
@@ -29,14 +29,18 @@ export class AIPlayer {
   private autoWaveInterval: NodeJS.Timeout | null = null;
   private autoPurchaseInterval: NodeJS.Timeout | null = null;
   private gameStateListener: (() => void) | null = null;
+  private phaseListener: (() => void) | null = null;
 
   private wave: number = 0;
   private money: number = 500;
-  private lives: number = 50;
+  private lives: number = 100;
   private towers: GamePokemon[] = [];
   private isAlive: boolean = true;
   private isWaveActive: boolean = false;
   private mapData: any;
+  
+  // TFT 스타일 페이즈 추적
+  private currentPhase: GamePhase = 'shopping';
 
   constructor(
     private roomId: string,
@@ -51,12 +55,14 @@ export class AIPlayer {
     if (this.isRunning) return;
     this.isRunning = true;
 
+    // 게임 상태 구독 (돈, 라이프 등)
     this.gameStateListener = multiplayerService.onGameStateUpdate(this.roomId, (players) => {
       const myState = players.find(p => p.userId === this.playerId);
       if (myState) {
         this.money = myState.money;
         this.lives = myState.lives;
         this.isAlive = myState.isAlive;
+        this.wave = myState.wave;
         
         if (!this.isAlive && this.isRunning) {
           this.stop();
@@ -64,17 +70,58 @@ export class AIPlayer {
       }
     });
 
+    // TFT 스타일 페이즈 구독
+    this.phaseListener = multiplayerService.onGameStateUpdateWithPhase(this.roomId, (gameState) => {
+      if (!gameState || !this.isRunning || !this.isAlive) return;
+      
+      const prevPhase = this.currentPhase;
+      this.currentPhase = gameState.currentPhase;
+      
+      // 페이즈 변경 시 행동
+      if (prevPhase !== this.currentPhase) {
+        this.handlePhaseChange(gameState);
+      }
+    });
+
     // 초기 상태 동기화 (빈 타워 리스트라도 전송)
     this.updateTowerDetails();
 
-    this.autoWaveInterval = setInterval(() => {
-      this.tryStartWave();
-    }, this.getWaveDelay());
-
+    // 쇼핑 페이즈에서 주기적으로 포켓몬 구매
     this.autoPurchaseInterval = setInterval(() => {
-      this.tryReviveFaintedPokemon();
-      this.tryPurchasePokemon();
+      if (this.currentPhase === 'shopping' || this.currentPhase === 'waiting_wave') {
+        this.tryReviveFaintedPokemon();
+        this.tryPurchasePokemon();
+      }
     }, this.getPurchaseDelay());
+  }
+
+  /**
+   * 페이즈 변경 시 AI 행동
+   */
+  private handlePhaseChange(_gameState: MultiplayerGameState) {
+    switch (this.currentPhase) {
+      case 'wave':
+        // 웨이브 시작 - 전투 시뮬레이션 후 완료 표시
+        this.isWaveActive = true;
+        this.simulateWaveCombat();
+        break;
+        
+      case 'waiting_battle':
+        // 대전 대기 - 준비 완료
+        this.isWaveActive = false;
+        this.runWaveEndLogic();
+        break;
+        
+      case 'battle':
+        // 대전 페이즈 - AI는 자동으로 결과 처리됨 (호스트가 시뮬레이션)
+        break;
+        
+      case 'shopping':
+      case 'waiting_wave':
+        // 쇼핑/대기 - 포켓몬 구매 및 준비
+        this.isWaveActive = false;
+        break;
+    }
   }
 
   stop() {
@@ -91,14 +138,9 @@ export class AIPlayer {
       this.gameStateListener();
       this.gameStateListener = null;
     }
-  }
-
-  private getWaveDelay(): number {
-    switch (this.difficulty) {
-      case 'easy': return 20000;
-      case 'normal': return 15000;
-      case 'hard': return 10000;
-      default: return 15000;
+    if (this.phaseListener) {
+      this.phaseListener();
+      this.phaseListener = null;
     }
   }
 
@@ -137,6 +179,7 @@ export class AIPlayer {
       maxHp: t.maxHp,
       isFainted: t.isFainted
     }));
+    console.log(`[AI ${this.playerId}] Updating tower details:`, towerDetails.length, 'towers');
     multiplayerService.updatePlayerTowerDetails(this.roomId, this.playerId, towerDetails);
   }
 
@@ -303,55 +346,13 @@ export class AIPlayer {
     if (this.isAlive) {
       multiplayerService.updatePlayerState(this.roomId, this.playerId, { 
         money: this.money,
-        lives: this.lives
+        lives: this.lives,
+        waveCompleted: true
       });
-    }
-  }
-
-  private tryStartWave() {
-    if (this.isWaveActive || !this.isAlive) {
-      return;
-    }
-
-    const aliveTowers = this.towers.filter(t => !t.isFainted);
-    const faintedTowers = this.towers.filter(t => t.isFainted);
-    
-    // 난이도에 따른 최소 타워 개수
-    const minTowers = this.difficulty === 'easy' ? 0 : this.difficulty === 'normal' ? 1 : 2;
-    
-    // 기본 조건: 최소 타워 개수
-    if (aliveTowers.length < minTowers && this.wave > 0) {
-      return;
-    }
-
-    // 전략적 대기: 기절한 타워가 많으면 부활을 기다림
-    if (this.wave > 5) {
-      const totalTowers = this.towers.length;
-      if (totalTowers > 0) {
-        const faintedRatio = faintedTowers.length / totalTowers;
-        
-        // 기절한 타워가 50% 이상이면 웨이브 시작 보류 (부활 대기)
-        if (faintedRatio >= 0.5 && this.difficulty !== 'easy') {
-          return;
-        }
-      }
-    }
-
-    // 타워들의 평균 체력 확인 (너무 낮으면 대기)
-    if (aliveTowers.length > 0 && this.wave > 3) {
-      const avgHpRatio = aliveTowers.reduce((sum, t) => sum + (t.currentHp / t.maxHp), 0) / aliveTowers.length;
       
-      // 평균 체력이 40% 미만이면 회복 대기 (hard 난이도에서만)
-      if (avgHpRatio < 0.4 && this.difficulty === 'hard') {
-        return;
-      }
+      // TFT 스타일: 웨이브 완료를 서버에 알림
+      multiplayerService.markWaveCompleted(this.roomId, this.playerId);
     }
-
-    this.isWaveActive = true;
-    this.wave++;
-    multiplayerService.updatePlayerState(this.roomId, this.playerId, { wave: this.wave });
-    
-    this.simulateWaveCombat();
   }
 
   private tryReviveFaintedPokemon() {

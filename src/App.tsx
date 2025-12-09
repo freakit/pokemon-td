@@ -76,11 +76,15 @@ function App() {
   // [수정] 멀티플레이 맵 로딩 버그 수정
   const handlePreloadAndNavigate = async (mapId: string, gameMode: 'single' | 'multi') => {
     
+    // 게임 시작 시 기존 상태 초기화
+    resetGame();
+    
     // [수정] 맵 ID를 스토어에 설정하는 로직을 공통으로 이동
     useGameStore.getState().setMap(mapId);
     
     if (gameMode === 'single') {
-      // 싱글플레이 전용 로직 (필요시)
+      // 싱글플레이 시 멀티플레이 룸 ID 제거
+      multiplayerService.clearCurrentRoom();
     }
     
     setIsGamePreloading(true);

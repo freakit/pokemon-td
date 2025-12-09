@@ -130,10 +130,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   removeDamageNumber: (id) => set((state) => 
     ({ damageNumbers: state.damageNumbers.filter(d => d.id !== id) })),
   
-  addMoney: (amount) => set((state) => ({ money: state.money + amount })),
+  addMoney: (amount) => {
+    const newMoney = get().money + amount;
+    set({ money: newMoney });
+  },
   spendMoney: (amount) => {
     if (get().money >= amount) {
-      set((state) => ({ money: state.money - amount }));
+      const newMoney = get().money - amount;
+      set({ money: newMoney });
+      
+
+      
       return true;
     }
     return false;
@@ -302,6 +309,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     
     if (itemType === 'revive') {
+      // Safeguard: If targetTowerId is provided, STRICTLY check if it matches and is fainted.
+      if (targetTowerId) {
+        const strictTarget = towers.find(t => t.id === targetTowerId);
+        if (strictTarget && !strictTarget.isFainted) {
+           console.warn(`[useItem] Attempted to revive ALIVE tower: ${strictTarget.displayName} (HP: ${strictTarget.currentHp})`);
+           return false;
+        }
+      }
+
       const target = targetTowerId 
         ? towers.find(t => t.id === targetTowerId && t.isFainted)
         : towers.find(t => t.isFainted);
