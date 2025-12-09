@@ -133,12 +133,14 @@ export const GameCanvas: React.FC = () => {
     setPokemonToPlace,
     addTower,
     spendMoney,
+    addMoney,
     isWaveActive,
   } = useGameStore((state) => ({
     pokemonToPlace: state.pokemonToPlace,
     setPokemonToPlace: state.setPokemonToPlace,
     addTower: state.addTower,
     spendMoney: state.spendMoney,
+    addMoney: state.addMoney,
     isWaveActive: state.isWaveActive,
   }));
   const {
@@ -424,11 +426,15 @@ export const GameCanvas: React.FC = () => {
     // 포켓몬 6마리 제한
     if (towers.length >= 6) {
       alert(t('alerts.maxPokemon'));
+      // Refund if already paid
+      if (pokemonToPlace.originalCost) {
+        addMoney(pokemonToPlace.originalCost);
+      }
       setPokemonToPlace(null);
       return;
     }
 
-    const cost = pokemonToPlace.cost || 100;
+    const cost = pokemonToPlace.cost || 0; // Should be 0 if paid
     if (!isValidPlacement(snappedX, snappedY)) {
       alert(t('alerts.cannotPlaceHere'));
       return;
@@ -464,7 +470,7 @@ export const GameCanvas: React.FC = () => {
       isFainted: false,
       sprite: poke.sprite,
       range: 3,
-      sellValue: 50,
+      sellValue: Math.floor((poke.originalCost || 100) * 0.5),
       kills: 0,
       damageDealt: 0,
       gender: poke.gender,
@@ -477,6 +483,11 @@ export const GameCanvas: React.FC = () => {
 
   const handleRightClick = (e: any) => {
     e.evt.preventDefault();
+    // Refund on cancel
+    if (pokemonToPlace && pokemonToPlace.originalCost) {
+      // useGameStore.getState().addMoney is available via hook too, but getState is safe
+      useGameStore.getState().addMoney(pokemonToPlace.originalCost);
+    }
     setPokemonToPlace(null);
     setSelectedTowerForReposition(null);
   };

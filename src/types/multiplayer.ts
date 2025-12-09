@@ -61,13 +61,51 @@ export interface RoomPlayer {
   rating: number;
 }
 
-export interface DebuffItem {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  effect: 'instant_kill' | 'slow_attack' | 'spawn_boss' | 'reduce_gold' | 'freeze_towers' | 'disable_shop';
-  value?: number;
+// DebuffItem 제거됨 - TFT 스타일 PvP 시스템으로 대체
+
+// 게임 페이즈 (멀티플레이어)
+export type GamePhase = 'shopping' | 'wave' | 'waiting_battle' | 'battle' | 'waiting_wave';
+
+// Battle Log Entry
+export interface BattleLogEntry {
+  turn: number;
+  attackerId: string; // "p1-0", "p2-3" etc (index based)
+  targetId: string;
+  action: 'attack' | 'skill';
+  damage: number;
+  isCrit: boolean;
+  isMiss: boolean;
+  isFainted: boolean;
+  healed?: number;
+  moveName?: string;
+  timestamp: number;
+}
+
+// PvP 대전 결과
+export interface PvPBattleResult {
+  matchId: string;
+  roundNumber: number;
+  player1Id: string;
+  player2Id: string;
+  winnerId: string;
+  player1RemainingPokemon: number;
+  player2RemainingPokemon: number;
+  lifeLost: number; // 패배자가 잃는 라이프 = 상대 남은 포켓몬 수
+  battleLog: BattleLogEntry[];
+  timestamp: number;
+}
+
+// 라운드 매칭
+export interface RoundMatchup {
+  roundNumber: number;
+  matches: Array<{ player1Id: string; player2Id: string }>;
+  skipPlayerId: string | null; // 홀수일 때 스킵하는 플레이어 (꼴지), Firebase 호환을 위해 null 사용
+  timestamp: number;
+}
+
+// 플레이어 간 만남 횟수 기록
+export interface EncounterRecord {
+  [playerId: string]: { [opponentId: string]: number };
 }
 
 export interface PlayerGameState {
@@ -81,6 +119,11 @@ export interface PlayerGameState {
   rating: number;
   placement?: number;
   ratingChange?: number;
+  waveCompleted?: boolean; // 현재 웨이브 완료 여부
+  battleRecord?: {
+    wins: number;
+    losses: number;
+  };
 }
 
 export interface MultiplayerGameState {
@@ -88,6 +131,12 @@ export interface MultiplayerGameState {
   players: PlayerGameState[];
   startTime: number;
   rankings: string[];
+  currentRound: number;
+  currentPhase: GamePhase;
+  roundMatchups?: RoundMatchup;
+  encounterRecord: EncounterRecord;
+  battleResults: PvPBattleResult[];
+  phaseEndTime?: number; // 페이즈 종료 시간 (서버 타임스탬프) - 모든 클라이언트가 동일하게 계산
 }
 
 export interface TowerDetail {
@@ -99,4 +148,11 @@ export interface TowerDetail {
   currentHp: number;
   maxHp: number;
   isFainted: boolean;
+  // PvP 대전용 추가 정보
+  attack?: number;
+  defense?: number;
+  specialAttack?: number;
+  specialDefense?: number;
+  speed?: number;
+  types?: string[];
 }

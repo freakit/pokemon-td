@@ -1,17 +1,17 @@
 // src/services/MultiplayerService.ts
 import { ref, set, onValue, push, update, remove, get, off } from 'firebase/database';
 import { rtdb } from '../config/firebase';
-import { Room, RoomPlayer, PlayerGameState, AIDifficulty, DebuffItem, TowerDetail } from '../types/multiplayer';
+import { Room, RoomPlayer, PlayerGameState, AIDifficulty, TowerDetail, GamePhase, MultiplayerGameState, RoundMatchup, PvPBattleResult } from '../types/multiplayer';
+import { pvpBattleService } from './PvPBattleService';
 import { authService } from './AuthService';
 import { databaseService } from './DatabaseService';
 
-const DEBUFF_ITEMS: DebuffItem[] = [
-  { id: 'instant_kill', name: '즉사', description: '상대 포켓몬 1마리 즉사', cost: 300, effect: 'instant_kill' },
-  { id: 'slow_attack', name: '공속 감소', description: '상대 모든 포켓몬 공속 50% 감소 (10초)', cost: 200, effect: 'slow_attack', value: 10 },
-  { id: 'spawn_boss', name: '보스 투입', description: '상대 맵에 강력한 보스 투입', cost: 500, effect: 'spawn_boss' },
-  { id: 'freeze_towers', name: '타워 동결', description: '상대 모든 포켓몬 5초간 공격 불가', cost: 250, effect: 'freeze_towers', value: 5 },
-  { id: 'disable_shop', name: '상점 봉쇄', description: '상대 상점 15초간 사용 불가', cost: 180, effect: 'disable_shop', value: 15 }
-];
+// 디버프 시스템 제거됨 - TFT 스타일 PvP 대전으로 대체
+
+// 페이즈 타이밍 상수
+const PHASE_COUNTDOWN_SECONDS = 10; // 다음 페이즈까지 카운트다운
+const FIRST_WAVE_PREP_SECONDS = 60; // 첫 웨이브 준비 시간 (1분)
+const BATTLE_WAVE_INTERVAL = 3; // 3의 배수 웨이브마다 대전
 
 const ROOM_EXPIRY_TIME = 3 * 60 * 60 * 1000; // 3시간 (밀리초)
 const CLEANUP_INTERVAL = 10 * 60 * 1000; // 10분마다 정리
@@ -97,9 +97,9 @@ class MultiplayerService {
       const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
       await remove(towerDetailsRef);
 
-      // 디버프 정보 삭제
-      const debuffsRef = ref(rtdb, `debuffs/${roomId}`);
-      await remove(debuffsRef);
+      // PvP 대전 결과 삭제
+      const battleResultsRef = ref(rtdb, `battleResults/${roomId}`);
+      await remove(battleResultsRef);
 
       console.log(`Successfully deleted room and related data: ${roomId}`);
     } catch (error) {
@@ -139,7 +139,7 @@ class MultiplayerService {
         isAI: false,
         rating: user.rating
       }],
-      maxPlayers: 4,
+      maxPlayers: 8,
       status: 'waiting',
       createdAt: Date.now()
     };
@@ -345,24 +345,8 @@ class MultiplayerService {
     setTimeout(async () => {
       await update(roomRef, { status: 'playing' });
       
-      const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-      const playersArray: PlayerGameState[] = room.players.map(p => ({
-        userId: p.userId,
-        userName: p.userName,
-        wave: 0,
-        lives: 50,
-        money: 500,
-        towers: 0,
-        isAlive: true,
-        rating: p.rating
-      }));
-
-      await set(gameStateRef, {
-        roomId,
-        players: playersArray,
-        startTime: Date.now(),
-        rankings: []
-      });
+      // TFT 스타일 PvP 게임 상태 초기화
+      await this.initializePvPGameState(roomId, room.players);
     }, 3000);
   }
 
@@ -422,11 +406,43 @@ class MultiplayerService {
 
   private async sendTowerUpdate(roomId: string, userId: string, towerDetails: TowerDetail[]) {
     this.lastTowerUpdate.set(userId, Date.now());
+    
+    // AI 플레이어인 경우 별도 처리 (Firebase 보안 규칙 우회)
+    if (userId.startsWith('ai_')) {
+      await this.updateAITowerDetailsInGameState(roomId, userId, towerDetails);
+      return;
+    }
+
     const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
-    await set(towerDetailsRef, {
-      towers: towerDetails,
-      lastUpdate: Date.now()
-    });
+    
+    try {
+      await set(towerDetailsRef, {
+        towers: towerDetails,
+        lastUpdate: Date.now()
+      });
+    } catch (error: any) {
+      // AI 플레이어의 경우 권한 오류 무시 (Firebase 규칙이 인증된 사용자만 허용)
+      // 대신 호스트가 AI 타워 정보를 gameStates에 저장
+      if (userId.startsWith('ai_')) {
+        // AI 타워 정보는 gameStates에 저장
+        await this.updateAITowerDetailsInGameState(roomId, userId, towerDetails);
+      } else {
+        console.error('Failed to update tower details:', error);
+      }
+    }
+  }
+
+  private async updateAITowerDetailsInGameState(roomId: string, aiUserId: string, towerDetails: TowerDetail[]) {
+    try {
+      const aiTowerRef = ref(rtdb, `gameStates/${roomId}/aiTowers/${aiUserId}`);
+      await set(aiTowerRef, {
+        towers: towerDetails,
+        lastUpdate: Date.now()
+      });
+    } catch (error) {
+      // 호스트로서 gameStates에도 쓰기 실패하면 그냥 무시
+      console.warn(`[AI] Could not store tower details for ${aiUserId}`);
+    }
   }
 
   onTowerDetailsUpdate(roomId: string, userId: string, callback: (towers: TowerDetail[]) => void): () => void {
@@ -444,30 +460,60 @@ class MultiplayerService {
 
   onAllTowerDetailsUpdate(roomId: string, callback: (allTowers: Map<string, TowerDetail[]>) => void): () => void {
     const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
-    const listener = onValue(towerDetailsRef, (snapshot) => {
-      const allTowers = new Map<string, TowerDetail[]>();
+    const aiTowersRef = ref(rtdb, `gameStates/${roomId}/aiTowers`);
+    
+    let playerTowers = new Map<string, TowerDetail[]>();
+    let aiTowerData = new Map<string, TowerDetail[]>();
+    
+    const emitCombined = () => {
+      const combined = new Map<string, TowerDetail[]>();
+      // 먼저 플레이어 타워 추가
+      playerTowers.forEach((towers, id) => combined.set(id, towers));
+      // AI 타워 추가 (중복 방지)
+      aiTowerData.forEach((towers, id) => {
+        if (!combined.has(id)) combined.set(id, towers);
+      });
+      console.log('[onAllTowerDetailsUpdate] Received towers:', [...combined.entries()].map(([k, v]) => [k, v.length]));
+      callback(combined);
+    };
+    
+    // 플레이어 타워 구독
+    const playerListener = onValue(towerDetailsRef, (snapshot) => {
+      playerTowers = new Map<string, TowerDetail[]>();
       if (snapshot.exists()) {
         snapshot.forEach((child) => {
           const userId = child.key!;
           const data = child.val();
           if (data.towers) {
-            allTowers.set(userId, data.towers);
+            playerTowers.set(userId, data.towers);
           }
         });
       }
-      callback(allTowers);
+      emitCombined();
     });
-    return () => off(towerDetailsRef, 'value', listener);
+    
+    // AI 타워 구독
+    const aiListener = onValue(aiTowersRef, (snapshot) => {
+      aiTowerData = new Map<string, TowerDetail[]>();
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const aiUserId = child.key!;
+          const data = child.val();
+          if (data.towers) {
+            aiTowerData.set(aiUserId, data.towers);
+          }
+        });
+      }
+      emitCombined();
+    });
+    
+    return () => {
+      off(towerDetailsRef, 'value', playerListener);
+      off(aiTowersRef, 'value', aiListener);
+    };
   }
 
-  async applyDebuff(roomId: string, targetUserId: string, debuff: DebuffItem): Promise<void> {
-    const debuffRef = ref(rtdb, `debuffs/${roomId}/${targetUserId}/${Date.now()}`);
-    await set(debuffRef, {
-      type: debuff.effect,
-      value: debuff.value,
-      timestamp: Date.now()
-    });
-  }
+  // applyDebuff 제거됨 - TFT 스타일 PvP 대전으로 대체
 
   async playerDefeated(roomId: string, userId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
@@ -596,25 +642,258 @@ class MultiplayerService {
     return () => off(gameStateRef, 'value', listener);
   }
 
-  onDebuffReceived(roomId: string, callback: (debuff: any) => void): () => void {
-    const user = authService.getCurrentUser();
-    if (!user) return () => {};
+  // ===========================================
+  // TFT 스타일 PvP 대전 시스템
+  // ===========================================
 
-    const debuffRef = ref(rtdb, `debuffs/${roomId}/${user.uid}`);
-    const listener = onValue(debuffRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-      
-      snapshot.forEach((child) => {
-        const debuff = child.val();
-        callback(debuff);
-        remove(child.ref);
-      });
-    });
-    return () => off(debuffRef, 'value', listener);
+  /**
+   * 게임 상태를 초기 PvP 모드로 설정 (startGame에서 호출됨)
+   */
+  private async initializePvPGameState(roomId: string, players: RoomPlayer[]): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    
+    const initialState: MultiplayerGameState = {
+      roomId,
+      players: players.map(p => ({
+        userId: p.userId,
+        userName: p.userName,
+        wave: 0,
+        lives: 100,
+        money: 500,
+        towers: 0,
+        isAlive: true,
+        rating: p.rating,
+        waveCompleted: false,
+        battleRecord: { wins: 0, losses: 0 }
+      })),
+      startTime: Date.now(),
+      rankings: [],
+      currentRound: 0,
+      currentPhase: 'waiting_wave',
+      encounterRecord: {},
+      battleResults: [],
+      phaseEndTime: Date.now() + FIRST_WAVE_PREP_SECONDS * 1000
+    };
+
+    await set(gameStateRef, initialState);
   }
 
-  getDebuffItems(): DebuffItem[] {
-    return DEBUFF_ITEMS;
+  /**
+   * 현재 게임 페이즈 변경
+   */
+  async setGamePhase(roomId: string, phase: GamePhase): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const needsCountdown = phase === 'waiting_wave' || phase === 'waiting_battle';
+    await update(gameStateRef, { 
+      currentPhase: phase,
+      phaseEndTime: needsCountdown ? Date.now() + PHASE_COUNTDOWN_SECONDS * 1000 : null
+    });
+  }
+
+  /**
+   * 카운트다운 업데이트
+   */
+  // updateCountdown 제거됨 - phaseEndTime을 사용하므로 불필요
+  // 클라이언트에서 (phaseEndTime - Date.now()) / 1000으로 남은 시간 계산
+
+  /**
+   * 동기화된 웨이브 시작 (모든 플레이어 동시에)
+   */
+  async startSynchronizedWave(roomId: string): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    const newRound = gameState.currentRound + 1;
+
+    // 모든 플레이어의 waveCompleted 초기화
+    const updatedPlayers = gameState.players.map((p: PlayerGameState) => ({
+      ...p,
+      wave: p.isAlive ? newRound : p.wave,
+      waveCompleted: false
+    }));
+
+    await update(gameStateRef, {
+      currentRound: newRound,
+      currentPhase: 'wave',
+      players: updatedPlayers,
+      phaseEndTime: null
+    });
+  }
+
+  /**
+   * 플레이어 웨이브 완료 표시
+   */
+  async markWaveCompleted(roomId: string, userId: string): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    const updatedPlayers = gameState.players.map((p: PlayerGameState) =>
+      p.userId === userId ? { ...p, waveCompleted: true } : p
+    );
+
+    await update(gameStateRef, { players: updatedPlayers });
+
+    // 모든 생존 플레이어가 완료했는지 확인
+    const alivePlayers = updatedPlayers.filter((p: PlayerGameState) => p.isAlive);
+    const allCompleted = alivePlayers.every((p: PlayerGameState) => p.waveCompleted);
+
+    if (allCompleted) {
+      // 3의 배수 웨이브에만 대전, 그 외에는 다음 웨이브 준비
+      if (gameState.currentRound > 0 && gameState.currentRound % BATTLE_WAVE_INTERVAL === 0) {
+        await this.setGamePhase(roomId, 'waiting_battle');
+      } else {
+        await this.setGamePhase(roomId, 'waiting_wave');
+      }
+    }
+  }
+
+  /**
+   * PvP 대전 페이즈 시작 - 매칭 생성 및 저장
+   */
+  async startBattlePhase(roomId: string): Promise<RoundMatchup | null> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return null;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
+
+    // 생존자가 1명 이하면 게임 종료
+    if (alivePlayers.length <= 1) {
+      return null;
+    }
+
+    // 매칭 생성
+    const matchups = pvpBattleService.generateMatchups(
+      alivePlayers,
+      gameState.encounterRecord || {},
+      gameState.currentRound
+    );
+
+    await update(gameStateRef, {
+      currentPhase: 'battle',
+      roundMatchups: matchups,
+      phaseEndTime: null
+    });
+
+    return matchups;
+  }
+
+  /**
+   * 대전 결과 저장 및 만남 기록 업데이트
+   */
+  async submitBattleResult(roomId: string, result: PvPBattleResult): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    
+    // 만남 기록 업데이트
+    const encounterRecord = pvpBattleService.updateEncounterRecord(
+      gameState.encounterRecord || {},
+      result.player1Id,
+      result.player2Id
+    );
+
+    // 패배자 라이프 감소 및 승패 기록
+    const loserId = result.winnerId === result.player1Id ? result.player2Id : result.player1Id;
+    const updatedPlayers = gameState.players.map((p: PlayerGameState) => {
+      if (p.userId === result.winnerId) {
+        return {
+          ...p,
+          money: p.money + 50, // 승리 보너스
+          battleRecord: {
+            wins: (p.battleRecord?.wins ?? 0) + 1,
+            losses: p.battleRecord?.losses ?? 0
+          }
+        };
+      } else if (p.userId === loserId) {
+        const newLives = p.lives - result.lifeLost;
+        return {
+          ...p,
+          lives: newLives,
+          isAlive: newLives > 0,
+          battleRecord: {
+            wins: p.battleRecord?.wins ?? 0,
+            losses: (p.battleRecord?.losses ?? 0) + 1
+          }
+        };
+      }
+      return p;
+    });
+
+    // 대전 결과 저장
+    const battleResults = [...(gameState.battleResults || []), result];
+
+    await update(gameStateRef, {
+      players: updatedPlayers,
+      encounterRecord,
+      battleResults
+    });
+
+    // 탈락자 처리
+    const newlyEliminated = updatedPlayers.find(
+      (p: PlayerGameState) => p.userId === loserId && !p.isAlive
+    );
+    if (newlyEliminated) {
+      await this.playerDefeated(roomId, loserId);
+    }
+  }
+
+  /**
+   * 모든 대전 완료 확인
+   */
+  async checkAllBattlesComplete(roomId: string): Promise<boolean> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return false;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    if (!gameState.roundMatchups) return true;
+
+    const currentRoundResults = (gameState.battleResults || []).filter(
+      (r: PvPBattleResult) => r.roundNumber === gameState.currentRound
+    );
+
+    return currentRoundResults.length >= gameState.roundMatchups.matches.length;
+  }
+
+  /**
+   * 다음 라운드 대기 페이즈로 전환
+   */
+  async startWaitingWavePhase(roomId: string): Promise<void> {
+    await this.setGamePhase(roomId, 'waiting_wave');
+  }
+
+  /**
+   * 게임 상태 구독 (페이즈 정보 포함)
+   */
+  onGameStateUpdateWithPhase(roomId: string, callback: (state: MultiplayerGameState | null) => void): () => void {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const listener = onValue(gameStateRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        callback(null);
+        return;
+      }
+      callback(snapshot.val() as MultiplayerGameState);
+    });
+    return () => off(gameStateRef, 'value', listener);
+  }
+
+  /**
+   * 매칭 정보 구독
+   */
+  onMatchupUpdate(roomId: string, callback: (matchups: RoundMatchup | null) => void): () => void {
+    const matchupRef = ref(rtdb, `gameStates/${roomId}/roundMatchups`);
+    const listener = onValue(matchupRef, (snapshot) => {
+      callback(snapshot.exists() ? snapshot.val() : null);
+    });
+    return () => off(matchupRef, 'value', listener);
   }
 
   getCurrentRoomId(): string | null {

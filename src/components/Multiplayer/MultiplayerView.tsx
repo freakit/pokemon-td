@@ -1,11 +1,12 @@
 // src/components/Multiplayer/MultiplayerView.tsx
+// 간소화된 멀티플레이어 현황 뷰 - 플레이어 체력 순 정렬
+
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { multiplayerService } from '../../services/MultiplayerService';
-import { PlayerGameState, DebuffItem, TowerDetail } from '../../types/multiplayer';
+import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
-import { OpponentCanvas } from './OpponentCanvas';
 import { media } from '../../utils/responsive.utils';
 
 interface MultiplayerViewProps {
@@ -15,14 +16,9 @@ interface MultiplayerViewProps {
 
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  const [viewingPlayer, setViewingPlayer] = useState<string | null>(null);
-  
   const [allTowerDetails, setAllTowerDetails] = useState<Map<string, TowerDetail[]>>(new Map());
   
-  const [debuffItems] = useState<DebuffItem[]>(multiplayerService.getDebuffItems());
   const user = authService.getCurrentUser();
-  const currentMap = useGameStore((state) => state.currentMap);
 
   useEffect(() => {
     try {
@@ -58,7 +54,6 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   useEffect(() => {
     if (!roomId) return;
 
-    // 전체 타워 정보 구독 (최적화)
     const unsub = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
       setAllTowerDetails(allTowers);
     });
@@ -66,30 +61,11 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     return () => unsub();
   }, [roomId]);
 
-  const handleBuyDebuff = async (debuff: DebuffItem, targetUserId: string) => {
-    if (!user) return;
-    const myState = players.find(p => p.userId === user.uid);
-    if (!myState || myState.money < debuff.cost) {
-      alert('골드가 부족합니다!');
-      return;
-    }
-
-    if (!myState.isAlive) {
-      alert('이미 탈락했습니다!');
-      return;
-    }
-
-    try {
-      await multiplayerService.applyDebuff(roomId, targetUserId, debuff);
-      useGameStore.getState().spendMoney(debuff.cost);
-      alert(`${debuff.name}을(를) 사용했습니다!`);
-      setSelectedPlayer(null);
-    } catch (err: any) {
-      alert(err.message || '디버프 사용에 실패했습니다.');
-    }
-  };
-
-  const myState = players.find(p => p.userId === user?.uid);
+  // 체력 기준 내림차순 정렬 (생존자 먼저, 탈락자 나중)
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.isAlive !== b.isAlive) return b.isAlive ? 1 : -1;
+    return b.lives - a.lives;
+  });
 
   return (
     <Overlay onClick={(e) => {
@@ -99,169 +75,73 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }}>
       <Container>
         <Header>
-          <Title>멀티플레이어 전황</Title>
-          <MyGold>내 골드: {myState?.money || 0}G</MyGold>
+          <Title>🏆 플레이어 순위</Title>
           <CloseButton onClick={onClose}>✕</CloseButton>
         </Header>
 
-        <GridContainer>
-          {players.map(player => (
-            <PlayerBox
-              key={player.userId}
-              isMe={player.userId === user?.uid}
-              isDead={!player.isAlive}
-            >
-              <PlayerHeader>
-                <PlayerName>
-                  {player.userName}
-                  {player.userId === user?.uid && ' (나)'}
-                  {player.placement && ` - ${player.placement}등`}
-                </PlayerName>
-                <PlayerRating>⭐ {player.rating}</PlayerRating>
-              </PlayerHeader>
-              
-              <PlayerStats>
-                <Stat>
-                  <StatLabel>Wave</StatLabel>
-                  <StatValue>{player.wave}</StatValue>
-                </Stat>
-                <Stat>
-                  <StatLabel>Lives</StatLabel>
-                  <StatValue>{player.lives}</StatValue>
-                </Stat>
-                <Stat>
-                  <StatLabel>Gold</StatLabel>
-                  <StatValue>{player.money}</StatValue>
-                </Stat>
-                <Stat>
-                  <StatLabel>Towers</StatLabel>
-                  <StatValue>{player.towers}</StatValue>
-                </Stat>
-              </PlayerStats>
-
-              <TowerDisplayContainer>
-                {(player.userId === user?.uid ? towers : allTowerDetails.get(player.userId) || []).map((tower, index) => (
-                  <TowerIconWrapper key={index} title={`${tower.name} (Lv.${tower.level})`}>
-                    <TowerIcon 
-                      src={tower.sprite} 
-                      alt={tower.name} 
-                      $isFainted={tower.isFainted}
-                    />
-                    <TowerLevel $isFainted={tower.isFainted}>
-                      {tower.level}
-                    </TowerLevel>
-                  </TowerIconWrapper>
-                ))}
-              </TowerDisplayContainer>
-
-              {player.userId !== user?.uid && player.isAlive && myState?.isAlive && (
-                <ButtonRow>
-                  <AttackButton onClick={() => setSelectedPlayer(player.userId)}>
-                    🎯 공격
-                  </AttackButton>
-                  <ViewButton onClick={() => setViewingPlayer(player.userId)}>
-                    👁️ 보기
-                  </ViewButton>
-                </ButtonRow>
-              )}
-
-              {!player.isAlive && (
-                <DefeatedBadge>탈락</DefeatedBadge>
-              )}
-            </PlayerBox>
-          ))}
-        </GridContainer>
-
-        {selectedPlayer && (
-          <DebuffShop>
-            <ShopHeader>
-              <ShopTitle>
-                {players.find(p => p.userId === selectedPlayer)?.userName}에게 디버프 사용
-              </ShopTitle>
-              <ShopClose onClick={() => setSelectedPlayer(null)}>✕</ShopClose>
-            </ShopHeader>
+        <PlayerList>
+          {sortedPlayers.map((player, index) => {
+            const playerTowers = player.userId === user?.uid 
+              ? towers.map(t => ({ ...t, name: t.displayName })) 
+              : allTowerDetails.get(player.userId) || [];
+            const alivePokemon = playerTowers.filter(t => !t.isFainted).length;
+            const totalPokemon = playerTowers.length;
             
-            <DebuffGrid>
-              {debuffItems.map(debuff => (
-                <DebuffCard key={debuff.id}>
-                  <DebuffName>{debuff.name}</DebuffName>
-                  <DebuffDesc>{debuff.description}</DebuffDesc>
-                  <DebuffCost>{debuff.cost}G</DebuffCost>
-                  <BuyButton
-                    onClick={() => handleBuyDebuff(debuff, selectedPlayer)}
-                    disabled={!myState || myState.money < debuff.cost}
-                  >
-                    구매
-                  </BuyButton>
-                </DebuffCard>
-              ))}
-            </DebuffGrid>
-          </DebuffShop>
-        )}
+            return (
+              <PlayerRow
+                key={player.userId}
+                $isMe={player.userId === user?.uid}
+                $isDead={!player.isAlive}
+              >
+                <RankBadge $rank={index + 1}>{index + 1}</RankBadge>
+                
+                <PlayerInfo>
+                  <PlayerName>
+                    {player.userName}
+                    {player.userId === user?.uid && <MeTag>(나)</MeTag>}
+                  </PlayerName>
+                  <PlayerStats>
+                    <StatIcon>❤️ {player.lives}</StatIcon>
+                    <StatIcon>💰 {player.money}</StatIcon>
+                    <StatIcon>🌊 {player.wave}</StatIcon>
+                  </PlayerStats>
+                </PlayerInfo>
 
-        {viewingPlayer && (
-          <ViewerModal>
-            <ViewerHeader>
-              <ViewerTitle>
-                {players.find(p => p.userId === viewingPlayer)?.userName}의 게임 화면
-              </ViewerTitle>
-              <ViewerClose onClick={() => setViewingPlayer(null)}>✕</ViewerClose>
-            </ViewerHeader>
-            <ViewerContent>
-              {players.find(p => p.userId === viewingPlayer) && (
-                <>
-                  <DetailedStats>
-                    <DetailStat>
-                      <DetailLabel>웨이브</DetailLabel>
-                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.wave}</DetailValue>
-                    </DetailStat>
-                    <DetailStat>
-                      <DetailLabel>라이프</DetailLabel>
-                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.lives}</DetailValue>
-                    </DetailStat>
-                    <DetailStat>
-                      <DetailLabel>골드</DetailLabel>
-                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.money}</DetailValue>
-                    </DetailStat>
-                    <DetailStat>
-                      <DetailLabel>타워</DetailLabel>
-                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.towers}</DetailValue>
-                    </DetailStat>
-                    <DetailStat>
-                      <DetailLabel>레이팅</DetailLabel>
-                      <DetailValue>{players.find(p => p.userId === viewingPlayer)?.rating}</DetailValue>
-                    </DetailStat>
-                    <DetailStat>
-                      <DetailLabel>상태</DetailLabel>
-                      <DetailValue>
-                        {players.find(p => p.userId === viewingPlayer)?.isAlive ? '✅ 생존' : '❌ 탈락'}
-                      </DetailValue>
-                    </DetailStat>
-                  </DetailedStats>
+                <PokemonSection>
+                  <PokemonCount>
+                    ⚔️ {alivePokemon}/{totalPokemon}
+                  </PokemonCount>
+                  <PokemonIcons>
+                    {playerTowers.slice(0, 6).map((tower, idx) => (
+                      <PokemonIcon 
+                        key={idx}
+                        src={tower.sprite}
+                        alt={tower.name}
+                        $isFainted={tower.isFainted}
+                        title={`${tower.name} Lv.${tower.level}${tower.isFainted ? ' (기절)' : ''}`}
+                      />
+                    ))}
+                  </PokemonIcons>
+                </PokemonSection>
 
-                  <OpponentCanvasWrapper>
-                    <OpponentCanvas 
-                      towers={allTowerDetails.get(viewingPlayer) || []} 
-                      mapId={currentMap} 
-                    />
-                  </OpponentCanvasWrapper>
-                </>
-              )}
-            </ViewerContent>
-          </ViewerModal>
-        )}
+                {!player.isAlive && <DeadBadge>💀 탈락</DeadBadge>}
+              </PlayerRow>
+            );
+          })}
+        </PlayerList>
       </Container>
     </Overlay>
   );
 };
 
+// Styled Components
 const Overlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -269,24 +149,19 @@ const Overlay = styled.div`
 `;
 
 const Container = styled.div`
-  background: #1a1a2e;
-  padding: 1rem;
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  padding: 1.5rem;
   border-radius: 20px;
-  max-width: 1400px;
+  max-width: 600px;
   width: 95%;
-  max-height: 95vh;
+  max-height: 85vh;
   overflow-y: auto;
-
-  ${media.tablet} {
-    padding: 0.8rem;
-    width: 98%;
-  }
+  border: 2px solid rgba(255, 215, 0, 0.3);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
 
   ${media.mobile} {
-    padding: 0.6rem;
-    width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
+    padding: 1rem;
+    max-height: 95vh;
   }
 `;
 
@@ -294,582 +169,161 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
-  gap: 8px;
-  flex-wrap: wrap;
-
-  ${media.mobile} {
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.4rem;
-  }
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 `;
 
 const Title = styled.h2`
-  font-size: 1.5rem;
-  color: white;
-  font-weight: bold;
-
-  ${media.tablet} {
-    font-size: 1.3rem;
-  }
-
-  ${media.mobile} {
-    font-size: 1.1rem;
-    flex: 1 1 100%;
-  }
-`;
-
-const MyGold = styled.div`
-  font-size: 1.1rem;
   color: #ffd700;
-  font-weight: bold;
-
-  ${media.tablet} {
-    font-size: 1rem;
-  }
+  margin: 0;
+  font-size: 1.4rem;
 
   ${media.mobile} {
-    font-size: 0.9rem;
+    font-size: 1.2rem;
   }
 `;
 
 const CloseButton = styled.button`
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #fff;
   width: 36px;
   height: 36px;
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border: none;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.3rem;
-  transition: all 0.3s;
+  font-size: 1.2rem;
+  transition: all 0.2s;
 
   &:hover {
-    background: rgba(255,255,255,0.2);
-  }
-
-  ${media.mobile} {
-    width: 32px;
-    height: 32px;
-    font-size: 1.1rem;
+    background: rgba(255, 107, 107, 0.3);
   }
 `;
 
-const GridContainer = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+const PlayerList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const PlayerRow = styled.div<{ $isMe: boolean; $isDead: boolean }>`
+  display: flex;
+  align-items: center;
   gap: 1rem;
-  margin-bottom: 1rem;
-
-  ${media.tablet} {
-    gap: 0.8rem;
-    margin-bottom: 0.8rem;
-  }
-
-  ${media.mobile} {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-    margin-bottom: 0.6rem;
-  }
-`;
-
-const PlayerBox = styled.div<{ isMe: boolean; isDead: boolean }>`
-  padding: 0.8rem;
-  background: ${props => props.isMe ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#2d2d44'};
-  border: 3px solid ${props => props.isMe ? '#ffd700' : 'transparent'};
-  border-radius: 15px;
-  opacity: ${props => props.isDead ? 0.5 : 1};
+  padding: 1rem;
+  background: ${props => props.$isMe 
+    ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1))' 
+    : 'rgba(255, 255, 255, 0.05)'};
+  border-radius: 12px;
+  border: 2px solid ${props => props.$isMe ? 'rgba(52, 152, 219, 0.4)' : 'transparent'};
+  opacity: ${props => props.$isDead ? 0.5 : 1};
   position: relative;
 
   ${media.mobile} {
-    padding: 0.6rem;
-    border-width: 2px;
-    border-radius: 10px;
+    padding: 0.75rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
   }
 `;
 
-const PlayerHeader = styled.div`
+const RankBadge = styled.div<{ $rank: number }>`
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.6rem;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+  background: ${props => {
+    if (props.$rank === 1) return 'linear-gradient(135deg, #ffd700, #ff8c00)';
+    if (props.$rank === 2) return 'linear-gradient(135deg, #c0c0c0, #a0a0a0)';
+    if (props.$rank === 3) return 'linear-gradient(135deg, #cd7f32, #a0522d)';
+    return 'rgba(255, 255, 255, 0.1)';
+  }};
+  color: ${props => props.$rank <= 3 ? '#000' : '#fff'};
+  flex-shrink: 0;
+`;
 
-  ${media.mobile} {
-    margin-bottom: 0.4rem;
-  }
+const PlayerInfo = styled.div`
+  flex: 1;
+  min-width: 120px;
 `;
 
 const PlayerName = styled.div`
-  font-size: 1.2rem;
+  color: #fff;
   font-weight: bold;
-  color: white;
-
-  ${media.tablet} {
-    font-size: 1.1rem;
-  }
-
-  ${media.mobile} {
-    font-size: 0.95rem;
-  }
+  font-size: 1rem;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
-const PlayerRating = styled.div`
-  font-size: 0.95rem;
-  color: #ffd700;
-  font-weight: bold;
-
-  ${media.mobile} {
-    font-size: 0.85rem;
-  }
+const MeTag = styled.span`
+  color: #3498db;
+  font-size: 0.8rem;
 `;
 
 const PlayerStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 0.6rem;
-
-  ${media.mobile} {
-    gap: 0.4rem;
-    margin-bottom: 0.4rem;
-    grid-template-columns: repeat(2, 1fr);
-  }
-`;
-
-const Stat = styled.div`
-  text-align: center;
-`;
-
-const StatLabel = styled.div`
-  font-size: 0.75rem;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 0.2rem;
-
-  ${media.mobile} {
-    font-size: 0.7rem;
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: white;
-
-  ${media.mobile} {
-    font-size: 1rem;
-  }
-`;
-
-const TowerDisplayContainer = styled.div`
   display: flex;
+  gap: 10px;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 6px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  min-height: 50px;
-
-  ${media.mobile} {
-    gap: 4px;
-    padding: 4px;
-    min-height: 45px;
-  }
 `;
 
-const TowerIconWrapper = styled.div`
-  position: relative;
-  width: 36px;
-  height: 36px;
-
-  ${media.mobile} {
-    width: 32px;
-    height: 32px;
-  }
-`;
-
-const TowerIcon = styled.img<{ $isFainted: boolean }>`
-  width: 36px;
-  height: 36px;
-  image-rendering: pixelated;
-  border: 2px solid #555;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.1);
-  opacity: ${props => props.$isFainted ? 0.4 : 1};
-  filter: ${props => props.$isFainted ? 'grayscale(100%)' : 'none'};
-
-  ${media.mobile} {
-    width: 32px;
-    height: 32px;
-  }
-`;
-
-const TowerLevel = styled.div<{ $isFainted: boolean }>`
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  background: ${props => props.$isFainted ? '#555' : 'rgba(0, 0, 0, 0.8)'};
-  color: ${props => props.$isFainted ? '#aaa' : '#fff'};
-  font-size: 9px;
-  font-weight: bold;
-  padding: 1px 3px;
-  border-radius: 3px;
-  border: 1px solid ${props => props.$isFainted ? '#333' : '#fff'};
-
-  ${media.mobile} {
-    font-size: 8px;
-  }
-`;
-
-const ButtonRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-  margin-top: 0.6rem;
-
-  ${media.mobile} {
-    gap: 0.3rem;
-    margin-top: 0.4rem;
-  }
-`;
-
-const AttackButton = styled.button`
-  padding: 0.6rem;
-  background: #f44336;
-  color: white;
-  font-weight: bold;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-
-  &:hover {
-    background: #d32f2f;
-    transform: translateY(-2px);
-  }
-
-  ${media.mobile} {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-`;
-
-const ViewButton = styled.button`
-  padding: 0.6rem;
-  background: #2196F3;
-  color: white;
-  font-weight: bold;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-
-  &:hover {
-    background: #1976D2;
-    transform: translateY(-2px);
-  }
-
-  ${media.mobile} {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-`;
-
-const DefeatedBadge = styled.div`
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 1.8rem;
-  font-weight: bold;
-  color: #f44336;
-  background: rgba(0,0,0,0.8);
-  padding: 0.8rem 1.6rem;
-  border-radius: 10px;
-
-  ${media.mobile} {
-    font-size: 1.4rem;
-    padding: 0.6rem 1.2rem;
-  }
-`;
-
-const DebuffShop = styled.div`
-  background: #2d2d44;
-  padding: 1rem;
-  border-radius: 15px;
-  margin-top: 1rem;
-
-  ${media.mobile} {
-    padding: 0.6rem;
-    margin-top: 0.6rem;
-    border-radius: 10px;
-  }
-`;
-
-const ShopHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
-
-  ${media.mobile} {
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.4rem;
-  }
-`;
-
-const ShopTitle = styled.h3`
-  font-size: 1.2rem;
-  color: white;
-  font-weight: bold;
-
-  ${media.mobile} {
-    font-size: 1rem;
-  }
-`;
-
-const ShopClose = styled.button`
-  width: 28px;
-  height: 28px;
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.1rem;
-  transition: all 0.3s;
-
-  &:hover {
-    background: rgba(255,255,255,0.2);
-  }
-
-  ${media.mobile} {
-    width: 24px;
-    height: 24px;
-    font-size: 1rem;
-  }
-`;
-
-const DebuffGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.8rem;
-
-  ${media.mobile} {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-  }
-`;
-
-const DebuffCard = styled.div`
-  padding: 0.8rem;
-  background: #1a1a2e;
-  border-radius: 10px;
-  border: 2px solid rgba(255,255,255,0.1);
-
-  ${media.mobile} {
-    padding: 0.6rem;
-  }
-`;
-
-const DebuffName = styled.div`
-  font-size: 1rem;
-  font-weight: bold;
-  color: white;
-  margin-bottom: 0.4rem;
-
-  ${media.mobile} {
-    font-size: 0.9rem;
-  }
-`;
-
-const DebuffDesc = styled.div`
+const StatIcon = styled.span`
   font-size: 0.85rem;
-  color: rgba(255,255,255,0.7);
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
-
-  ${media.mobile} {
-    font-size: 0.8rem;
-  }
+  color: rgba(255, 255, 255, 0.8);
 `;
 
-const DebuffCost = styled.div`
-  font-size: 0.95rem;
-  color: #ffd700;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-
-  ${media.mobile} {
-    font-size: 0.85rem;
-  }
-`;
-
-const BuyButton = styled.button`
-  width: 100%;
-  padding: 0.5rem;
-  background: #4caf50;
-  color: white;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-
-  &:hover:not(:disabled) {
-    background: #45a049;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  ${media.mobile} {
-    padding: 0.4rem;
-    font-size: 0.8rem;
-  }
-`;
-
-const ViewerModal = styled.div`
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #1a1a2e;
-  padding: 1.2rem;
-  border-radius: 20px;
-  max-width: 1000px;
-  width: 90%;
-  max-height: 85vh;
-  overflow-y: auto;
-  z-index: 3000;
-  border: 3px solid #2196F3;
-
-  ${media.mobile} {
-    width: 95%;
-    max-height: 95vh;
-    padding: 0.8rem;
-    border-radius: 10px;
-    border-width: 2px;
-  }
-`;
-
-const ViewerHeader = styled.div`
+const PokemonSection = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 
   ${media.mobile} {
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.4rem;
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 `;
 
-const ViewerTitle = styled.h3`
-  font-size: 1.3rem;
-  color: white;
-  font-weight: bold;
-
-  ${media.mobile} {
-    font-size: 1.1rem;
-  }
+const PokemonCount = styled.span`
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
 `;
 
-const ViewerClose = styled.button`
+const PokemonIcons = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const PokemonIcon = styled.img<{ $isFainted: boolean }>`
   width: 32px;
   height: 32px;
-  background: rgba(255,255,255,0.1);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.3s;
-
-  &:hover {
-    background: rgba(255,255,255,0.2);
-  }
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: ${props => props.$isFainted ? 0.4 : 1};
+  filter: ${props => props.$isFainted ? 'grayscale(100%)' : 'none'};
+  border: 2px solid ${props => props.$isFainted ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
 
   ${media.mobile} {
     width: 28px;
     height: 28px;
-    font-size: 1rem;
   }
 `;
 
-const ViewerContent = styled.div`
-  color: white;
-`;
-
-const DetailedStats = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.8rem;
-  margin-bottom: 1.2rem;
-
-  ${media.mobile} {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
-    margin-bottom: 0.8rem;
-  }
-`;
-
-const DetailStat = styled.div`
-  background: #2d2d44;
-  padding: 0.8rem;
-  border-radius: 10px;
-  text-align: center;
-
-  ${media.mobile} {
-    padding: 0.6rem;
-  }
-`;
-
-const DetailLabel = styled.div`
+const DeadBadge = styled.div`
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  transform: translateY(-50%);
+  background: rgba(255, 107, 107, 0.3);
+  color: #ff6b6b;
+  padding: 4px 10px;
+  border-radius: 8px;
   font-size: 0.85rem;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 0.4rem;
-
-  ${media.mobile} {
-    font-size: 0.75rem;
-  }
-`;
-
-const DetailValue = styled.div`
-  font-size: 1.3rem;
   font-weight: bold;
-  color: white;
-
-  ${media.mobile} {
-    font-size: 1.1rem;
-  }
-`;
-
-const OpponentCanvasWrapper = styled.div`
-  width: 100%;
-  height: 45vh;
-  background: #0f1419;
-  border: 2px solid #2196F3;
-  border-radius: 10px;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 0.8rem;
-
-  ${media.mobile} {
-    height: 35vh;
-    margin-top: 0.6rem;
-  }
 `;

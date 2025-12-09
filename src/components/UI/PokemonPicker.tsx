@@ -221,11 +221,26 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         ability = mapAbilityToGameEffect(randomAbility);
       }
       
+      // [NEW] Pay-on-Pick Logic
+      // 1. If we are already holding a pokemon (swapping), refund the previous one
+      const currentHeld = useGameStore.getState().pokemonToPlace;
+      if (currentHeld && currentHeld.originalCost) {
+        useGameStore.getState().addMoney(currentHeld.originalCost);
+      }
+
+      // 2. Pay for the new pokemon
+      if (!spendMoney(choice.cost)) {
+        alert(t('alerts.notEnoughMoneyWithCost', { cost: choice.cost }));
+        setIsLoading(false);
+        return;
+      }
+
       setPokemonToPlace({
         ...poke,
         equippedMoves: equippedMoves,
         ability: ability,
-        cost: choice.cost,
+        cost: 0, // Cost is already paid
+        originalCost: choice.cost, // Store for refund/sell logic
         gender: choice.gender,
       });
     } catch (error) {
