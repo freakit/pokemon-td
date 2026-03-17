@@ -1,5 +1,5 @@
 // src/components/GameLayout.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { useTranslation } from "../i18n";
 import { GameCanvas } from "./Game/GameCanvas";
@@ -46,25 +46,37 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const [showMultiView, setShowMultiView] = useState(false);
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [finalPlayers, setFinalPlayers] = useState<PlayerGameState[]>([]);
+
   const multiRoomId = multiplayerService.getCurrentRoomId();
   const isMultiplayer = !!multiRoomId;
   const user = authService.getCurrentUser();
 
-  // 멀티플레이어 초기화: lives 100, speed 3x
-  // 멀티플레이어 초기화: lives 100, speed 3x
-  const initializedRef = React.useRef(false);
+  // ─── [수정] 멀티플레이어 초기화: 반드시 구독보다 먼저 완료되어야 함 ───
+  // isMultiplayerReady가 true가 될 때까지 Firebase로 상태를 전송하지 않음
+  const isMultiplayerReady = useRef(false);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     if (isMultiplayer && !initializedRef.current) {
       console.log('[GameLayout] Initializing Multiplayer State (Once)');
       initializedRef.current = true;
-      useGameStore.setState({ 
-        lives: 100, 
+      // 동기적으로 상태 설정 후 ready 플래그 활성화
+      useGameStore.setState({
+        lives: 100,
         money: 500,
-        gameSpeed: 3 
+        gameSpeed: 3
       });
+      // 다음 tick에 ready 설정 (setState가 반영된 후)
+      setTimeout(() => {
+        isMultiplayerReady.current = true;
+        console.log('[GameLayout] Multiplayer ready, Firebase sync enabled');
+      }, 0);
+    } else if (!isMultiplayer) {
+      // 싱글플레이는 즉시 ready
+      isMultiplayerReady.current = true;
     }
   }, [isMultiplayer]);
+
   const {
     nextWave,
     isWaveActive,
@@ -74,9 +86,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     spendMoney,
     wave50Clear,
     towers,
-    wave,
-    lives,
-    money
   } = useGameStore((state) => ({
     nextWave: state.nextWave,
     isWaveActive: state.isWaveActive,
@@ -86,14 +95,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     spendMoney: state.spendMoney,
     wave50Clear: state.wave50Clear,
     towers: state.towers,
-    wave: state.wave,
-    lives: state.lives,
-    money: state.money,
   }));
 
   const handleOpenPicker = () => {
     if (!spendMoney(20)) {
-      alert(t('alerts.notEnoughMoneyEntryFee'));
+      alert(t('alerts.notEnoughMoneyPicker'));
       return;
     }
     setShowPicker(true);
@@ -110,70 +116,133 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     onLeaveGame();
   };
 
-  useEffect(() => {
-    if (multiRoomId && user) {
-      const unsubscribe = useGameStore.subscribe(
-        (state, prevState) => {
-          if (
-            state.wave !== prevState.wave ||
-            state.lives !== prevState.lives ||
-            state.money !== prevState.money ||
-            state.towers.length !== prevState.towers.length
-          ) {
-            console.log(`[GameLayout] State changed - Wave: ${state.wave}, Lives: ${state.lives}, Money: ${state.money}`);
-            // 초기화 전(lives=50) 상태가 Firebase로 전송되는 것 방지
-            // 멀티플레이어 시작 시 100라이프로 설정되는데, 그 전에 50이 전송되면 안됨
-            if (state.lives === 50 && state.wave === 0 && !state.isWaveActive) {
-                return;
-            }
-            
-            multiplayerService.updatePlayerState(multiRoomId, user.uid, {
-              wave: state.wave,
-              lives: state.lives,
-              money: state.money,
-              towers: state.towers.length,
-              isAlive: state.lives > 0
-            });
-          }
-        }
-      );
-      return unsubscribe;
-    }
-  }, [multiRoomId, user, wave, lives, money, towers.length, isWaveActive]);
-
+  // ─── [수정] 로컬 → Firebase 상태 동기화 ───────────────────────────
+  // isMultiplayerReady가 true일 때만 전송 (초기화 전 lives:50 유출 원천 차단)
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
-    const towerDetails: TowerDetail[] = towers
-      .map(t => ({
-        pokemonId: t.pokemonId,
-        name: t.displayName,
-        level: t.level,
-        sprite: t.sprite,
-        position: t.position,
-        currentHp: t.currentHp,
-        maxHp: t.maxHp,
-        isFainted: t.isFainted
-      }));
+    const unsubscribe = useGameStore.subscribe((state, prevState) => {
+      // 초기화 완료 전에는 전송하지 않음
+      if (!isMultiplayerReady.current) return;
+
+      const changed =
+        state.wave !== prevState.wave ||
+        state.lives !== prevState.lives ||
+        state.money !== prevState.money ||
+        state.towers.length !== prevState.towers.length;
+
+      if (!changed) return;
+
+      multiplayerService.updatePlayerState(multiRoomId, user.uid, {
+        wave: state.wave,
+        lives: state.lives,
+        money: state.money,
+        towers: state.towers.length,
+        isAlive: state.lives > 0
+      });
+    });
+
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // 타워 상세 정보 동기화
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+
+    const towerDetails: TowerDetail[] = towers.map(t => ({
+      pokemonId: t.pokemonId,
+      name: t.displayName,
+      level: t.level,
+      sprite: t.sprite,
+      position: t.position,
+      currentHp: t.currentHp,
+      maxHp: t.maxHp,
+      isFainted: t.isFainted
+    }));
 
     multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
   }, [multiRoomId, user, towers]);
 
-  // 디버프 시스템 제거됨 - TFT 스타일 PvP 대전으로 대체
+  // ─── [수정] 탈락 처리 ────────────────────────────────────────────
+  // 중복 호출 방지: 이미 탈락 처리됐으면 재호출하지 않음
+  const defeatedRef = useRef(false);
 
-  // 플레이어 탈락 처리
   useEffect(() => {
-    if (multiRoomId && user) {
-      const unsubscribe = useGameStore.subscribe(
-        (state) => {
-          if (state.lives <= 0 && state.isWaveActive) {
-            multiplayerService.playerDefeated(multiRoomId, user.uid);
-          }
+    if (!multiRoomId || !user) return;
+
+    const unsubscribe = useGameStore.subscribe((state) => {
+      if (state.lives <= 0 && !defeatedRef.current) {
+        defeatedRef.current = true;
+        console.log('[GameLayout] Player defeated');
+        multiplayerService.playerDefeated(multiRoomId, user.uid);
+      }
+    });
+
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // ─── [수정] 웨이브 완료 감지 → markWaveCompleted 호출 ────────────
+  // wasWaveActive를 ref로 관리해 클로저 오감지 방지
+  // 탈락 후에는 호출하지 않음
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+
+    const wasWaveActiveRef = { current: false };
+
+    const unsubscribe = useGameStore.subscribe((state, prevState) => {
+      // 탈락 후에는 무시
+      if (defeatedRef.current) return;
+
+      // isWaveActive가 true → false 로 바뀔 때만 (웨이브 종료)
+      if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
+        console.log('[GameLayout] Wave completed, notifying Firebase');
+        multiplayerService.markWaveCompleted(multiRoomId, user.uid);
+      }
+
+      wasWaveActiveRef.current = state.isWaveActive;
+    });
+
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // ─── 페이즈 'wave' → 로컬 웨이브 시작 ──────────────────────────
+  // 탈락 후에는 로컬 웨이브를 시작하지 않음
+  useEffect(() => {
+    if (!multiRoomId) return;
+
+    let lastPhase: string | null = null;
+
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
+      if (!state) return;
+
+      const currentPhase = state.currentPhase;
+      const currentRound = state.currentRound;
+
+      if (currentPhase === 'wave' && lastPhase !== 'wave') {
+        console.log('[GameLayout] Phase changed to wave, starting wave:', currentRound);
+
+        // 탈락한 플레이어는 로컬 웨이브를 시작하지 않음
+        if (defeatedRef.current) {
+          lastPhase = currentPhase;
+          return;
         }
-      );
-      return unsubscribe;
-    }
-  }, [multiRoomId, user, isWaveActive]);
+
+        const gameStore = useGameStore.getState();
+        if (!gameStore.isWaveActive) {
+          useGameStore.setState({
+            wave: currentRound,
+            isWaveActive: true,
+            isPaused: false
+          });
+          WaveSystem.getInstance().startWave(currentRound);
+        }
+      }
+
+      lastPhase = currentPhase;
+    });
+
+    return unsubscribe;
+  }, [multiRoomId]);
 
   // 게임 종료 감지
   useEffect(() => {
@@ -181,72 +250,24 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
     const unsubscribe = multiplayerService.onGameStateUpdate(multiRoomId, (players) => {
       const alivePlayers = players.filter(p => p.isAlive);
-      
+
       if (alivePlayers.length <= 1 && players.length > 1) {
         setFinalPlayers(players);
         setShowGameOverModal(true);
-        
+
         import('../services/AIPlayer').then(({ aiPlayerManager }) => {
           aiPlayerManager.stopAll();
         });
+
+        // 게임 종료 시 레이팅 업데이트 (호스트가 처리)
+        // BattlePhaseUI에서 처리하도록 신호를 줄 수도 있지만,
+        // 여기서는 단순히 모달만 띄움
       }
     });
 
     return unsubscribe;
   }, [multiRoomId]);
 
-  // 멀티플레이어: 페이즈가 'wave'로 변경되면 웨이브 시작
-  useEffect(() => {
-    if (!multiRoomId) return;
-
-    let lastPhase: string | null = null;
-    
-    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
-      if (!state) return;
-      
-      const currentPhase = state.currentPhase;
-      const currentRound = state.currentRound;
-      
-      // 페이즈가 'wave'로 변경되었을 때만 웨이브 시작
-      if (currentPhase === 'wave' && lastPhase !== 'wave') {
-        console.log('[GameLayout] Phase changed to wave, starting wave:', currentRound);
-        
-        // 로컬 게임 상태 업데이트
-        const gameStore = useGameStore.getState();
-        if (!gameStore.isWaveActive) {
-          useGameStore.setState({ 
-            wave: currentRound, 
-            isWaveActive: true, 
-            isPaused: false 
-          });
-          WaveSystem.getInstance().startWave(currentRound);
-        }
-      }
-      
-      lastPhase = currentPhase;
-    });
-
-    return unsubscribe;
-  }, [multiRoomId]);
-
-  // 멀티플레이어: 웨이브 완료 감지 → markWaveCompleted 호출
-  useEffect(() => {
-    if (!multiRoomId || !user) return;
-    
-    let wasWaveActive = false;
-    
-    const unsubscribe = useGameStore.subscribe((state, prevState) => {
-      // 웨이브가 끝났을 때 (isWaveActive: true → false)
-      if (prevState.isWaveActive && !state.isWaveActive && wasWaveActive) {
-        console.log('[GameLayout] Wave completed, marking as completed');
-        multiplayerService.markWaveCompleted(multiRoomId, user.uid);
-      }
-      wasWaveActive = state.isWaveActive;
-    });
-    
-    return unsubscribe;
-  }, [multiRoomId, user]);
-  
   // AI 플레이어 시작
   useEffect(() => {
     if (multiRoomId) {
@@ -273,12 +294,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     <AppContainer>
       <GameLayoutContainer>
         {isWaveActive && <GlobalLanguageSwitcher />}
-        
+
         <CanvasContainer>
           <GameCanvas />
         </CanvasContainer>
 
-        {/* BattlePhaseUI는 페이즈 전환 로직 담당 (UI는 HUD에서 표시) */}
+        {/* BattlePhaseUI는 페이즈 전환 로직 담당 */}
         {multiRoomId && <BattlePhaseUI roomId={multiRoomId} />}
 
         <BottomPanel>
@@ -359,17 +380,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       {gameOver && (
         <GameOverOverlay>
           <GameOverModal>
-            <GameOverTitle>{t('gameOver.title')}</GameOverTitle>
-            <p>{t('gameOver.reachedWave', { wave: useGameStore.getState().wave })}</p>
+            <GameOverTitle>{t('game.gameOver')}</GameOverTitle>
+            <p>{t('game.waveReached', { wave: useGameStore.getState().wave })}</p>
             <RestartBtn onClick={handleResetAndLeave}>
-              {t('gameOver.restart')}
+              {t('game.restart')}
             </RestartBtn>
           </GameOverModal>
         </GameOverOverlay>
       )}
+
+      {/* 업적 달성 토스트 (alert 대체) */}
+      <AchievementToastDisplay />
     </AppContainer>
   );
 };
+
+// ─── Styled Components ────────────────────────────────────────────────────────
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -440,111 +466,91 @@ const BottomBtn = styled.button`
   &:hover {
     background: linear-gradient(135deg, rgba(76, 175, 255, 0.25), rgba(76, 175, 255, 0.15));
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-  }
-
-  ${media.tablet} {
-    padding: 5px 12px;
-    font-size: 12px;
+    box-shadow: 0 6px 20px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
   }
 
   ${media.mobile} {
-    padding: 4px 10px;
-    font-size: 10px;
-    flex: 1;
-    min-width: 0;
+    padding: 5px 10px;
+    font-size: 11px;
   }
 `;
 
 const GameOverOverlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(231, 76, 60, 0.3), rgba(0,0,0,0.9));
-  backdrop-filter: blur(10px);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.85);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  animation: fadeIn 0.5s ease-out;
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
 `;
 
 const GameOverModal = styled.div`
-  background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
-  border-radius: 32px;
-  padding: 32px;
+  background: linear-gradient(135deg, #1a2332, #0f1419);
+  border: 2px solid rgba(255, 100, 100, 0.5);
+  border-radius: 20px;
+  padding: 40px;
   text-align: center;
-  border: 3px solid rgba(231, 76, 60, 0.4);
-  box-shadow: 0 25px 80px rgba(231, 76, 60, 0.4), 0 0 100px rgba(231, 76, 60, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
-
-  ${media.tablet} {
-    padding: 24px;
-    border-radius: 24px;
-  }
-
-  ${media.mobile} {
-    padding: 20px;
-    border-radius: 16px;
-    margin: 16px;
-  }
+  color: #e8edf3;
 `;
 
 const GameOverTitle = styled.h2`
-  font-size: 48px;
-  margin-bottom: 24px;
-  color: #ff6b6b;
-  text-shadow: 0 0 30px rgba(231, 76, 60, 0.8), 0 4px 8px rgba(0,0,0,0.8);
-  font-weight: 900;
-
-  ${media.tablet} {
-    font-size: 36px;
-    margin-bottom: 20px;
-  }
-
-  ${media.mobile} {
-    font-size: 28px;
-    margin-bottom: 16px;
-  }
+  font-size: 32px;
+  color: #ff6464;
+  margin-bottom: 16px;
 `;
 
 const RestartBtn = styled.button`
-  padding: 16px 48px;
-  font-size: 18px;
-  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-  color: #fff;
-  border: 3px solid rgba(46, 204, 113, 0.4);
-  border-radius: 16px;
-  cursor: pointer;
-  font-weight: bold;
-  box-shadow: 0 8px 32px rgba(46, 204, 113, 0.5), inset 0 1px 0 rgba(255,255,255,0.2);
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
   margin-top: 20px;
+  padding: 12px 32px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 12px;
+  border: 2px solid rgba(76, 175, 255, 0.5);
+  background: rgba(76, 175, 255, 0.2);
+  color: #4cafff;
+  font-weight: bold;
   transition: all 0.3s ease;
 
   &:hover {
-    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    background: rgba(76, 175, 255, 0.35);
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(46, 204, 113, 0.6), inset 0 1px 0 rgba(255,255,255,0.2);
   }
+`;
 
-  &:active {
-    transform: translateY(0);
-  }
+// ─── 업적 달성 토스트 (alert 대체) ────────────────────────────────────────────
 
-  ${media.tablet} {
-    padding: 12px 36px;
-    font-size: 16px;
-  }
+const AchievementToastDisplay: React.FC = () => {
+  const { t } = useTranslation();
+  const achievementToast = useGameStore(s => s.achievementToast);
+  if (!achievementToast) return null;
+  return (
+    <AchievementToastOverlay>
+      🏆 {t('achievement.unlocked', { name: achievementToast.name })}
+    </AchievementToastOverlay>
+  );
+};
 
-  ${media.mobile} {
-    padding: 10px 28px;
-    font-size: 14px;
+const AchievementToastOverlay = styled.div`
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.95), rgba(184, 134, 11, 0.95));
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 215, 0, 0.7);
+  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
+  z-index: 9998;
+  pointer-events: none;
+  animation: slideUp 0.3s ease-out;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 `;

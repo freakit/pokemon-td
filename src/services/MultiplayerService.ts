@@ -1,56 +1,71 @@
 // src/services/MultiplayerService.ts
-import { ref, set, onValue, push, update, remove, get, off } from 'firebase/database';
+import {
+  ref, set, onValue, push, update, remove, get, off,
+  runTransaction
+} from 'firebase/database';
 import { rtdb } from '../config/firebase';
-import { Room, RoomPlayer, PlayerGameState, AIDifficulty, TowerDetail, GamePhase, MultiplayerGameState, RoundMatchup, PvPBattleResult } from '../types/multiplayer';
+import {
+  Room, RoomPlayer, PlayerGameState, AIDifficulty, TowerDetail,
+  GamePhase, MultiplayerGameState, RoundMatchup, PvPBattleResult
+} from '../types/multiplayer';
 import { pvpBattleService } from './PvPBattleService';
 import { authService } from './AuthService';
 import { databaseService } from './DatabaseService';
-
-// 디버프 시스템 제거됨 - TFT 스타일 PvP 대전으로 대체
+import { achievementService } from './AchievementService';
 
 // 페이즈 타이밍 상수
-const PHASE_COUNTDOWN_SECONDS = 10; // 다음 페이즈까지 카운트다운
-const FIRST_WAVE_PREP_SECONDS = 60; // 첫 웨이브 준비 시간 (1분)
-const BATTLE_WAVE_INTERVAL = 3; // 3의 배수 웨이브마다 대전
+const PHASE_COUNTDOWN_SECONDS = 10;
+const FIRST_WAVE_PREP_SECONDS = 60;
+const BATTLE_WAVE_INTERVAL = 3;
 
-const ROOM_EXPIRY_TIME = 3 * 60 * 60 * 1000; // 3시간 (밀리초)
-const CLEANUP_INTERVAL = 10 * 60 * 1000; // 10분마다 정리
+const ROOM_EXPIRY_TIME = 3 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL = 10 * 60 * 1000;
 
 class MultiplayerService {
   private currentRoomId: string | null = null;
   private cleanupIntervalId: NodeJS.Timeout | null = null;
 
+  // 서버-클라이언트 시간 오프셋 (ms)
+  private serverTimeOffset: number = 0;
+
   constructor() {
-    // 서비스 시작 시 자동 정리 작업 시작
     this.startAutoCleanup();
+    this.syncServerTime();
   }
 
   /**
-   * 오래된 방 자동 정리 시작
+   * Firebase 서버 시간과 클라이언트 시간의 오프셋을 동기화
+   * phaseEndTime 계산 시 이 오프셋을 적용해 시계 편차 보정
    */
+  private syncServerTime(): void {
+    const offsetRef = ref(rtdb, '.info/serverTimeOffset');
+    onValue(offsetRef, (snapshot) => {
+      this.serverTimeOffset = snapshot.val() || 0;
+    });
+  }
+
+  /** 보정된 현재 시간 (서버 기준) */
+  private now(): number {
+    return Date.now() + this.serverTimeOffset;
+  }
+
+  /** 외부에서 카운트다운 계산 시 사용할 수 있도록 오프셋 공개 */
+  getServerTimeOffset(): number {
+    return this.serverTimeOffset;
+  }
+
   private startAutoCleanup(): void {
-    // 이미 실행 중이면 중지
-    if (this.cleanupIntervalId) {
-      clearInterval(this.cleanupIntervalId);
-    }
-
-    // 즉시 한 번 실행
+    if (this.cleanupIntervalId) clearInterval(this.cleanupIntervalId);
     this.cleanupExpiredRooms();
-
-    // 주기적으로 실행
     this.cleanupIntervalId = setInterval(() => {
       this.cleanupExpiredRooms();
     }, CLEANUP_INTERVAL);
   }
 
-  /**
-   * 만료된 방 정리
-   */
   private async cleanupExpiredRooms(): Promise<void> {
     try {
       const roomsRef = ref(rtdb, 'rooms');
       const snapshot = await get(roomsRef);
-
       if (!snapshot.exists()) return;
 
       const now = Date.now();
@@ -58,58 +73,31 @@ class MultiplayerService {
 
       snapshot.forEach((child) => {
         const room = child.val() as Room;
-        const roomAge = now - room.createdAt;
-
-        // 3시간 이상 경과한 방 삭제
-        if (roomAge > ROOM_EXPIRY_TIME) {
+        if (now - room.createdAt > ROOM_EXPIRY_TIME) {
           roomsToDelete.push(room.id);
-          console.log(`Deleting expired room: ${room.id} (age: ${Math.floor(roomAge / 1000 / 60)} minutes)`);
         }
       });
 
-      // 만료된 방 삭제
       for (const roomId of roomsToDelete) {
         await this.deleteRoom(roomId);
-      }
-
-      if (roomsToDelete.length > 0) {
-        console.log(`Cleaned up ${roomsToDelete.length} expired rooms`);
       }
     } catch (error) {
       console.error('Failed to cleanup expired rooms:', error);
     }
   }
 
-  /**
-   * 방과 관련된 모든 데이터 삭제
-   */
   private async deleteRoom(roomId: string): Promise<void> {
     try {
-      // 방 데이터 삭제
-      const roomRef = ref(rtdb, `rooms/${roomId}`);
-      await remove(roomRef);
-
-      // 게임 상태 삭제
-      const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-      await remove(gameStateRef);
-
-      // 타워 상세 정보 삭제
-      const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
-      await remove(towerDetailsRef);
-
-      // PvP 대전 결과 삭제
-      const battleResultsRef = ref(rtdb, `battleResults/${roomId}`);
-      await remove(battleResultsRef);
-
+      await remove(ref(rtdb, `rooms/${roomId}`));
+      await remove(ref(rtdb, `gameStates/${roomId}`));
+      await remove(ref(rtdb, `towerDetails/${roomId}`));
+      await remove(ref(rtdb, `battleResults/${roomId}`));
       console.log(`Successfully deleted room and related data: ${roomId}`);
     } catch (error) {
       console.error(`Failed to delete room ${roomId}:`, error);
     }
   }
 
-  /**
-   * 정리 작업 중지
-   */
   public stopAutoCleanup(): void {
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
@@ -124,7 +112,7 @@ class MultiplayerService {
     const roomsRef = ref(rtdb, 'rooms');
     const newRoomRef = push(roomsRef);
     const roomId = newRoomRef.key!;
-    
+
     const room: Room = {
       id: roomId,
       name: `${user.displayName}의 방`,
@@ -156,24 +144,15 @@ class MultiplayerService {
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
     if (!snapshot.exists()) throw new Error('Room not found');
+
     const room = snapshot.val() as Room;
-    
-    // 방이 만료되었는지 확인
-    const roomAge = Date.now() - room.createdAt;
-    if (roomAge > ROOM_EXPIRY_TIME) {
+    if (Date.now() - room.createdAt > ROOM_EXPIRY_TIME) {
       await this.deleteRoom(roomId);
       throw new Error('Room has expired');
     }
-    
-    if (room.players.length >= room.maxPlayers) {
-      throw new Error('Room is full');
-    }
-
-    if (room.status !== 'waiting') {
-      throw new Error('Game already started');
-    }
+    if (room.players.length >= room.maxPlayers) throw new Error('Room is full');
+    if (room.status !== 'waiting') throw new Error('Game already started');
 
     const newPlayer: RoomPlayer = {
       userId: user.uid,
@@ -183,38 +162,30 @@ class MultiplayerService {
       rating: user.rating
     };
 
-    await update(roomRef, {
-      players: [...room.players, newPlayer]
-    });
-
+    await update(roomRef, { players: [...room.players, newPlayer] });
     this.currentRoomId = roomId;
     localStorage.setItem('currentRoomId', roomId);
   }
 
-  async rejoinRoom(roomId: string): Promise<{ room: Room, canRejoin: boolean }> {
+  async rejoinRoom(roomId: string): Promise<{ room: Room; canRejoin: boolean }> {
     const user = authService.getCurrentUser();
     if (!user) throw new Error('Not authenticated');
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-
     if (!snapshot.exists()) {
       this.clearCurrentRoom();
       return { room: null as any, canRejoin: false };
     }
-    
+
     const room = snapshot.val() as Room;
-    
-    // 방이 만료되었는지 확인
-    const roomAge = Date.now() - room.createdAt;
-    if (roomAge > ROOM_EXPIRY_TIME) {
+    if (Date.now() - room.createdAt > ROOM_EXPIRY_TIME) {
       await this.deleteRoom(roomId);
       this.clearCurrentRoom();
       return { room: null as any, canRejoin: false };
     }
-    
+
     const isPlayerInRoom = room.players.some(p => p.userId === user.uid);
-    
     if (!isPlayerInRoom) {
       this.clearCurrentRoom();
       return { room: null as any, canRejoin: false };
@@ -234,77 +205,54 @@ class MultiplayerService {
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
     if (!snapshot.exists()) return;
-    
+
     const room = snapshot.val() as Room;
     const updatedPlayers = room.players.filter(p => p.userId !== user.uid);
 
     if (updatedPlayers.length === 0) {
-      // 모든 플레이어가 나가면 방 삭제
       await this.deleteRoom(roomId);
     } else {
+      const newHostId = room.hostId === user.uid ? updatedPlayers[0].userId : room.hostId;
+      const newHostName = room.hostId === user.uid ? updatedPlayers[0].userName : room.hostName;
       await update(roomRef, {
         players: updatedPlayers,
-        hostId: room.hostId === user.uid ? updatedPlayers[0].userId : room.hostId,
-        hostName: room.hostId === user.uid ? updatedPlayers[0].userName : room.hostName
+        hostId: newHostId,
+        hostName: newHostName
       });
+    }
+
+    // 게임 진행 중이면 해당 플레이어 탈락 처리
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const gsSnap = await get(gameStateRef);
+    if (gsSnap.exists()) {
+      const gs = gsSnap.val() as MultiplayerGameState;
+      const updatedGsPlayers = gs.players.map((p: PlayerGameState) =>
+        p.userId === user.uid ? { ...p, isAlive: false } : p
+      );
+      await update(gameStateRef, { players: updatedGsPlayers });
     }
 
     this.clearCurrentRoom();
   }
 
-  clearCurrentRoom(): void {
-    this.currentRoomId = null;
-    localStorage.removeItem('currentRoomId');
-  }
-
-  async getRoom(roomId: string): Promise<Room | null> {
-    const roomRef = ref(rtdb, `rooms/${roomId}`);
-    const snapshot = await get(roomRef);
-    if (!snapshot.exists()) return null;
-    
-    const room = snapshot.val() as Room;
-    
-    // 방이 만료되었는지 확인
-    const roomAge = Date.now() - room.createdAt;
-    if (roomAge > ROOM_EXPIRY_TIME) {
-      await this.deleteRoom(roomId);
-      return null;
-    }
-    
-    return room;
-  }
-
   async addAI(roomId: string, difficulty: AIDifficulty): Promise<void> {
-    const user = authService.getCurrentUser();
-    if (!user) throw new Error('Not authenticated');
-
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    if (!snapshot.exists()) throw new Error('Room not found');
-    
+    if (!snapshot.exists()) return;
+
     const room = snapshot.val() as Room;
-    if (room.hostId !== user.uid) {
-      throw new Error('Only host can add AI');
-    }
-
-    if (room.players.length >= room.maxPlayers) {
-      throw new Error('Room is full');
-    }
-
+    const aiId = `ai_${difficulty}_${Date.now()}`;
     const aiPlayer: RoomPlayer = {
-      userId: `ai_${Date.now()}`,
-      userName: `AI (${difficulty.toUpperCase()})`,
+      userId: aiId,
+      userName: `AI (${difficulty})`,
       isReady: true,
       isAI: true,
       aiDifficulty: difficulty,
       rating: difficulty === 'easy' ? 800 : difficulty === 'normal' ? 1000 : 1200
     };
 
-    await update(roomRef, {
-      players: [...room.players, aiPlayer]
-    });
+    await update(roomRef, { players: [...room.players, aiPlayer] });
   }
 
   async toggleReady(roomId: string): Promise<void> {
@@ -313,11 +261,10 @@ class MultiplayerService {
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
-    
     if (!snapshot.exists()) return;
-    
+
     const room = snapshot.val() as Room;
-    const updatedPlayers = room.players.map(p => 
+    const updatedPlayers = room.players.map(p =>
       p.userId === user.uid ? { ...p, isReady: !p.isReady } : p
     );
     await update(roomRef, { players: updatedPlayers });
@@ -330,328 +277,25 @@ class MultiplayerService {
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     const snapshot = await get(roomRef);
     if (!snapshot.exists()) throw new Error('Room not found');
-    
-    const room = snapshot.val() as Room;
-    if (room.hostId !== user.uid) {
-      throw new Error('Only host can start game');
-    }
 
-    if (room.players.length < 2) {
-      throw new Error('Need at least 2 players');
-    }
+    const room = snapshot.val() as Room;
+    if (room.hostId !== user.uid) throw new Error('Only host can start game');
+    if (room.players.length < 2) throw new Error('Need at least 2 players');
 
     await update(roomRef, { status: 'starting' });
 
     setTimeout(async () => {
       await update(roomRef, { status: 'playing' });
-      
-      // TFT 스타일 PvP 게임 상태 초기화
       await this.initializePvPGameState(roomId, room.players);
     }, 3000);
   }
 
-  async updatePlayerState(roomId: string, userId: string, state: Partial<PlayerGameState>): Promise<void> {
-    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    
-    if (!snapshot.exists()) return;
-
-    const gameState = snapshot.val();
-    const updatedPlayers = (gameState.players || []).map((p: PlayerGameState) =>
-      p.userId === userId ? { ...p, ...state, lastUpdate: Date.now() } : p
-    );
-    await update(gameStateRef, { players: updatedPlayers });
-  }
-
-  private lastTowerUpdate: Map<string, number> = new Map();
-  private towerUpdateThrottle: number = 1000; // 1초
-  private pendingTowerUpdates: Map<string, { roomId: string, userId: string, towerDetails: TowerDetail[] }> = new Map();
-  private towerUpdateTimeouts: Map<string, NodeJS.Timeout> = new Map();
-
-  async updatePlayerTowerDetails(roomId: string, userId: string, towerDetails: TowerDetail[]): Promise<void> {
-    const now = Date.now();
-    const lastUpdate = this.lastTowerUpdate.get(userId) || 0;
-    
-    // 이전에 예약된 업데이트가 있다면 취소 (최신 데이터로 덮어쓰기 위해)
-    if (this.towerUpdateTimeouts.has(userId)) {
-      clearTimeout(this.towerUpdateTimeouts.get(userId)!);
-      this.towerUpdateTimeouts.delete(userId);
-    }
-
-    if (now - lastUpdate < this.towerUpdateThrottle) {
-      // 스로틀링 중이면 대기열에 저장하고 타이머 설정
-      this.pendingTowerUpdates.set(userId, { roomId, userId, towerDetails });
-      
-      const delay = this.towerUpdateThrottle - (now - lastUpdate);
-      const timeout = setTimeout(() => {
-        this.flushPendingTowerUpdate(userId);
-      }, delay);
-      this.towerUpdateTimeouts.set(userId, timeout);
-      return;
-    }
-    
-    // 즉시 전송
-    await this.sendTowerUpdate(roomId, userId, towerDetails);
-  }
-
-  private async flushPendingTowerUpdate(userId: string) {
-    const pending = this.pendingTowerUpdates.get(userId);
-    if (pending) {
-      const { roomId, userId: uid, towerDetails } = pending;
-      await this.sendTowerUpdate(roomId, uid, towerDetails);
-      this.pendingTowerUpdates.delete(userId);
-    }
-    this.towerUpdateTimeouts.delete(userId);
-  }
-
-  private async sendTowerUpdate(roomId: string, userId: string, towerDetails: TowerDetail[]) {
-    this.lastTowerUpdate.set(userId, Date.now());
-    
-    // AI 플레이어인 경우 별도 처리 (Firebase 보안 규칙 우회)
-    if (userId.startsWith('ai_')) {
-      await this.updateAITowerDetailsInGameState(roomId, userId, towerDetails);
-      return;
-    }
-
-    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
-    
-    try {
-      await set(towerDetailsRef, {
-        towers: towerDetails,
-        lastUpdate: Date.now()
-      });
-    } catch (error: any) {
-      // AI 플레이어의 경우 권한 오류 무시 (Firebase 규칙이 인증된 사용자만 허용)
-      // 대신 호스트가 AI 타워 정보를 gameStates에 저장
-      if (userId.startsWith('ai_')) {
-        // AI 타워 정보는 gameStates에 저장
-        await this.updateAITowerDetailsInGameState(roomId, userId, towerDetails);
-      } else {
-        console.error('Failed to update tower details:', error);
-      }
-    }
-  }
-
-  private async updateAITowerDetailsInGameState(roomId: string, aiUserId: string, towerDetails: TowerDetail[]) {
-    try {
-      const aiTowerRef = ref(rtdb, `gameStates/${roomId}/aiTowers/${aiUserId}`);
-      await set(aiTowerRef, {
-        towers: towerDetails,
-        lastUpdate: Date.now()
-      });
-    } catch (error) {
-      // 호스트로서 gameStates에도 쓰기 실패하면 그냥 무시
-      console.warn(`[AI] Could not store tower details for ${aiUserId}`);
-    }
-  }
-
-  onTowerDetailsUpdate(roomId: string, userId: string, callback: (towers: TowerDetail[]) => void): () => void {
-    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
-    const listener = onValue(towerDetailsRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        callback([]);
-        return;
-      }
-      const data = snapshot.val();
-      callback(data.towers || []);
-    });
-    return () => off(towerDetailsRef, 'value', listener);
-  }
-
-  onAllTowerDetailsUpdate(roomId: string, callback: (allTowers: Map<string, TowerDetail[]>) => void): () => void {
-    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
-    const aiTowersRef = ref(rtdb, `gameStates/${roomId}/aiTowers`);
-    
-    let playerTowers = new Map<string, TowerDetail[]>();
-    let aiTowerData = new Map<string, TowerDetail[]>();
-    
-    const emitCombined = () => {
-      const combined = new Map<string, TowerDetail[]>();
-      // 먼저 플레이어 타워 추가
-      playerTowers.forEach((towers, id) => combined.set(id, towers));
-      // AI 타워 추가 (중복 방지)
-      aiTowerData.forEach((towers, id) => {
-        if (!combined.has(id)) combined.set(id, towers);
-      });
-      console.log('[onAllTowerDetailsUpdate] Received towers:', [...combined.entries()].map(([k, v]) => [k, v.length]));
-      callback(combined);
-    };
-    
-    // 플레이어 타워 구독
-    const playerListener = onValue(towerDetailsRef, (snapshot) => {
-      playerTowers = new Map<string, TowerDetail[]>();
-      if (snapshot.exists()) {
-        snapshot.forEach((child) => {
-          const userId = child.key!;
-          const data = child.val();
-          if (data.towers) {
-            playerTowers.set(userId, data.towers);
-          }
-        });
-      }
-      emitCombined();
-    });
-    
-    // AI 타워 구독
-    const aiListener = onValue(aiTowersRef, (snapshot) => {
-      aiTowerData = new Map<string, TowerDetail[]>();
-      if (snapshot.exists()) {
-        snapshot.forEach((child) => {
-          const aiUserId = child.key!;
-          const data = child.val();
-          if (data.towers) {
-            aiTowerData.set(aiUserId, data.towers);
-          }
-        });
-      }
-      emitCombined();
-    });
-    
-    return () => {
-      off(towerDetailsRef, 'value', playerListener);
-      off(aiTowersRef, 'value', aiListener);
-    };
-  }
-
-  // applyDebuff 제거됨 - TFT 스타일 PvP 대전으로 대체
-
-  async playerDefeated(roomId: string, userId: string): Promise<void> {
-    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    
-    if (!snapshot.exists()) return;
-    
-    const gameState = snapshot.val();
-    const players = gameState.players || [];
-    const updatedPlayers = players.map((p: PlayerGameState) =>
-      p.userId === userId ? { ...p, isAlive: false, placement: this.calculatePlacement(players) } : p
-    );
-    const rankings = [...(gameState.rankings || []), userId];
-
-    await update(gameStateRef, { 
-      players: updatedPlayers,
-      rankings
-    });
-
-    const alivePlayers = updatedPlayers.filter((p: PlayerGameState) => p.isAlive);
-    if (alivePlayers.length === 1) {
-      await this.endGame(roomId, { ...gameState, players: updatedPlayers });
-    }
-  }
-
-  private calculatePlacement(players: PlayerGameState[]): number {
-    return players.filter(p => !p.isAlive).length + 1;
-  }
-
-  private async endGame(roomId: string, gameState: any): Promise<void> {
-    const roomRef = ref(rtdb, `rooms/${roomId}`);
-    await update(roomRef, { status: 'finished' });
-
-    await this.updateRatings(gameState.players);
-  }
-
-  private async updateRatings(players: PlayerGameState[]): Promise<void> {
-    const sortedPlayers = [...players].sort((a, b) => {
-      if (a.isAlive && !b.isAlive) return -1;
-      if (!a.isAlive && b.isAlive) return 1;
-      return (b.placement || 999) - (a.placement || 999);
-    });
-
-    for (let i = 0; i < sortedPlayers.length; i++) {
-      const player = sortedPlayers[i];
-      if (player.userId.startsWith('ai_')) continue;
-
-      let ratingChange = 0;
-      const placement = i + 1;
-
-      for (let j = 0; j < sortedPlayers.length; j++) {
-        if (i === j) continue;
-        const opponent = sortedPlayers[j];
-        const expectedScore = 1 / (1 + Math.pow(10, (opponent.rating - player.rating) / 400));
-        const actualScore = placement < (j + 1) ? 1 : 0;
-        
-        ratingChange += Math.round(32 * (actualScore - expectedScore));
-      }
-
-      const newRating = Math.max(0, player.rating + ratingChange);
-      
-      await databaseService.updateUserRating(player.userId, newRating);
-    }
-  }
-
-  onRoomsUpdate(callback: (rooms: Room[]) => void): () => void {
-    const roomsRef = ref(rtdb, 'rooms');
-    const listener = onValue(roomsRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        callback([]);
-        return;
-      }
-
-      const rooms: Room[] = [];
-      const now = Date.now();
-      
-      snapshot.forEach((child) => {
-        const room = child.val() as Room;
-        const roomAge = now - room.createdAt;
-        
-        // 만료되지 않은 대기 중인 방만 반환
-        if (roomAge <= ROOM_EXPIRY_TIME && room.status === 'waiting') {
-          rooms.push(room);
-        }
-      });
-      
-      callback(rooms);
-    });
-    return () => off(roomsRef, 'value', listener);
-  }
-
-  onRoomUpdate(roomId: string, callback: (room: Room | null) => void): () => void {
-    const roomRef = ref(rtdb, `rooms/${roomId}`);
-    const listener = onValue(roomRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        callback(null);
-        return;
-      }
-      
-      const room = snapshot.val() as Room;
-      const roomAge = Date.now() - room.createdAt;
-      
-      // 방이 만료되었으면 null 반환
-      if (roomAge > ROOM_EXPIRY_TIME) {
-        this.deleteRoom(roomId);
-        callback(null);
-        return;
-      }
-      
-      callback(room);
-    });
-    return () => off(roomRef, 'value', listener);
-  }
-
-  onGameStateUpdate(roomId: string, callback: (players: PlayerGameState[]) => void): () => void {
-    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const listener = onValue(gameStateRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        callback([]);
-        return;
-      }
-      const gameState = snapshot.val();
-      const players = gameState.players || [];
-      callback(Array.isArray(players) ? players : Object.values(players));
-    });
-    return () => off(gameStateRef, 'value', listener);
-  }
-
-  // ===========================================
-  // TFT 스타일 PvP 대전 시스템
-  // ===========================================
-
   /**
-   * 게임 상태를 초기 PvP 모드로 설정 (startGame에서 호출됨)
+   * 게임 상태 초기화 - 서버 보정 시간 사용
    */
   private async initializePvPGameState(roomId: string, players: RoomPlayer[]): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    
+
     const initialState: MultiplayerGameState = {
       roomId,
       players: players.map(p => ({
@@ -666,38 +310,32 @@ class MultiplayerService {
         waveCompleted: false,
         battleRecord: { wins: 0, losses: 0 }
       })),
-      startTime: Date.now(),
+      startTime: this.now(),
       rankings: [],
       currentRound: 0,
       currentPhase: 'waiting_wave',
       encounterRecord: {},
       battleResults: [],
-      phaseEndTime: Date.now() + FIRST_WAVE_PREP_SECONDS * 1000
+      phaseEndTime: this.now() + FIRST_WAVE_PREP_SECONDS * 1000
     };
 
     await set(gameStateRef, initialState);
   }
 
   /**
-   * 현재 게임 페이즈 변경
+   * 페이즈 변경 - 서버 보정 시간 사용
    */
   async setGamePhase(roomId: string, phase: GamePhase): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const needsCountdown = phase === 'waiting_wave' || phase === 'waiting_battle';
-    await update(gameStateRef, { 
+    await update(gameStateRef, {
       currentPhase: phase,
-      phaseEndTime: needsCountdown ? Date.now() + PHASE_COUNTDOWN_SECONDS * 1000 : null
+      phaseEndTime: needsCountdown ? this.now() + PHASE_COUNTDOWN_SECONDS * 1000 : null
     });
   }
 
   /**
-   * 카운트다운 업데이트
-   */
-  // updateCountdown 제거됨 - phaseEndTime을 사용하므로 불필요
-  // 클라이언트에서 (phaseEndTime - Date.now()) / 1000으로 남은 시간 계산
-
-  /**
-   * 동기화된 웨이브 시작 (모든 플레이어 동시에)
+   * 동기화된 웨이브 시작
    */
   async startSynchronizedWave(roomId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
@@ -707,7 +345,6 @@ class MultiplayerService {
     const gameState = snapshot.val() as MultiplayerGameState;
     const newRound = gameState.currentRound + 1;
 
-    // 모든 플레이어의 waveCompleted 초기화
     const updatedPlayers = gameState.players.map((p: PlayerGameState) => ({
       ...p,
       wave: p.isAlive ? newRound : p.wave,
@@ -723,36 +360,149 @@ class MultiplayerService {
   }
 
   /**
-   * 플레이어 웨이브 완료 표시
+   * 웨이브 완료 표시 - 트랜잭션으로 경쟁 조건 방지
+   * 모든 생존 플레이어가 완료하면 자동으로 다음 페이즈로 전환
    */
   async markWaveCompleted(roomId: string, userId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    if (!snapshot.exists()) return;
 
-    const gameState = snapshot.val() as MultiplayerGameState;
-    const updatedPlayers = gameState.players.map((p: PlayerGameState) =>
-      p.userId === userId ? { ...p, waveCompleted: true } : p
-    );
+    let shouldTransition = false;
+    let transitionPhase: GamePhase = 'waiting_wave';
+    let currentRound = 0;
 
-    await update(gameStateRef, { players: updatedPlayers });
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
 
-    // 모든 생존 플레이어가 완료했는지 확인
-    const alivePlayers = updatedPlayers.filter((p: PlayerGameState) => p.isAlive);
-    const allCompleted = alivePlayers.every((p: PlayerGameState) => p.waveCompleted);
+      // 이미 wave 페이즈가 아니면 무시 (중복 호출 방지)
+      if (gameState.currentPhase !== 'wave') return gameState;
 
-    if (allCompleted) {
-      // 3의 배수 웨이브에만 대전, 그 외에는 다음 웨이브 준비
-      if (gameState.currentRound > 0 && gameState.currentRound % BATTLE_WAVE_INTERVAL === 0) {
-        await this.setGamePhase(roomId, 'waiting_battle');
-      } else {
-        await this.setGamePhase(roomId, 'waiting_wave');
+      const updatedPlayers = gameState.players.map((p: PlayerGameState) =>
+        p.userId === userId ? { ...p, waveCompleted: true } : p
+      );
+
+      const alivePlayers = updatedPlayers.filter((p: PlayerGameState) => p.isAlive);
+      const allCompleted = alivePlayers.length > 0 &&
+        alivePlayers.every((p: PlayerGameState) => p.waveCompleted);
+
+      currentRound = gameState.currentRound;
+
+      if (allCompleted) {
+        shouldTransition = true;
+        if (gameState.currentRound > 0 && gameState.currentRound % BATTLE_WAVE_INTERVAL === 0) {
+          transitionPhase = 'waiting_battle';
+        } else {
+          transitionPhase = 'waiting_wave';
+        }
+
+        return {
+          ...gameState,
+          players: updatedPlayers,
+          currentPhase: transitionPhase,
+          phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000
+        };
       }
+
+      return { ...gameState, players: updatedPlayers };
+    });
+
+    if (shouldTransition) {
+      console.log(`[MultiplayerService] All players completed wave ${currentRound}, transitioning to ${transitionPhase}`);
     }
   }
 
   /**
-   * PvP 대전 페이즈 시작 - 매칭 생성 및 저장
+   * 플레이어 상태 업데이트 - 트랜잭션으로 덮어쓰기 방지
+   */
+  async updatePlayerState(
+    roomId: string,
+    userId: string,
+    state: Partial<PlayerGameState>
+  ): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+
+      const updatedPlayers = (gameState.players || []).map((p: PlayerGameState) =>
+        p.userId === userId
+          ? { ...p, ...state, lastUpdate: this.now() }
+          : p
+      );
+
+      return { ...gameState, players: updatedPlayers };
+    });
+  }
+
+  /**
+   * 타워 상세 정보 업데이트 (스로틀링 유지)
+   */
+  private lastTowerUpdate: Map<string, number> = new Map();
+  private towerUpdateThrottle = 1000;
+  private towerUpdateTimeouts: Map<string, NodeJS.Timeout> = new Map();
+
+  async updatePlayerTowerDetails(
+    roomId: string,
+    userId: string,
+    towerDetails: TowerDetail[]
+  ): Promise<void> {
+    const now = Date.now();
+    const lastUpdate = this.lastTowerUpdate.get(userId) || 0;
+
+    if (this.towerUpdateTimeouts.has(userId)) {
+      clearTimeout(this.towerUpdateTimeouts.get(userId)!);
+      this.towerUpdateTimeouts.delete(userId);
+    }
+
+    const doUpdate = async () => {
+      const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+      await set(towerDetailsRef, { towers: towerDetails, updatedAt: this.now() });
+      this.lastTowerUpdate.set(userId, Date.now());
+    };
+
+    if (now - lastUpdate >= this.towerUpdateThrottle) {
+      await doUpdate();
+    } else {
+      const timeout = setTimeout(async () => {
+        await doUpdate();
+        this.towerUpdateTimeouts.delete(userId);
+      }, this.towerUpdateThrottle - (now - lastUpdate));
+      this.towerUpdateTimeouts.set(userId, timeout);
+    }
+  }
+
+  /**
+   * 플레이어 탈락 처리 - 트랜잭션으로 중복 처리 방지
+   */
+  async playerDefeated(roomId: string, userId: string): Promise<void> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+
+    let placementRank = 0;
+    let aliveCount = 0;
+
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+
+      const target = gameState.players.find((p: PlayerGameState) => p.userId === userId);
+      if (!target || !target.isAlive) return; // 이미 탈락 처리됨 - 중복 방지
+
+      aliveCount = gameState.players.filter((p: PlayerGameState) => p.isAlive).length;
+      placementRank = aliveCount; // 탈락 순위
+
+      const rankings = [...(gameState.rankings || []), userId];
+      const updatedPlayers = gameState.players.map((p: PlayerGameState) =>
+        p.userId === userId
+          ? { ...p, isAlive: false, placement: placementRank }
+          : p
+      );
+
+      return { ...gameState, players: updatedPlayers, rankings };
+    });
+
+    console.log(`[MultiplayerService] Player ${userId} defeated at rank ${placementRank}`);
+  }
+
+  /**
+   * PvP 대전 페이즈 시작
    */
   async startBattlePhase(roomId: string): Promise<RoundMatchup | null> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
@@ -762,12 +512,8 @@ class MultiplayerService {
     const gameState = snapshot.val() as MultiplayerGameState;
     const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
 
-    // 생존자가 1명 이하면 게임 종료
-    if (alivePlayers.length <= 1) {
-      return null;
-    }
+    if (alivePlayers.length <= 1) return null;
 
-    // 매칭 생성
     const matchups = pvpBattleService.generateMatchups(
       alivePlayers,
       gameState.encounterRecord || {},
@@ -784,70 +530,82 @@ class MultiplayerService {
   }
 
   /**
-   * 대전 결과 저장 및 만남 기록 업데이트
+   * 대전 결과 저장 - 트랜잭션으로 중복 저장 방지
    */
   async submitBattleResult(roomId: string, result: PvPBattleResult): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    if (!snapshot.exists()) return;
 
-    const gameState = snapshot.val() as MultiplayerGameState;
-    
-    // 만남 기록 업데이트
-    const encounterRecord = pvpBattleService.updateEncounterRecord(
-      gameState.encounterRecord || {},
-      result.player1Id,
-      result.player2Id
-    );
+    let needsElimination = false;
+    let eliminatedId = '';
 
-    // 패배자 라이프 감소 및 승패 기록
-    const loserId = result.winnerId === result.player1Id ? result.player2Id : result.player1Id;
-    const updatedPlayers = gameState.players.map((p: PlayerGameState) => {
-      if (p.userId === result.winnerId) {
-        return {
-          ...p,
-          money: p.money + 50, // 승리 보너스
-          battleRecord: {
-            wins: (p.battleRecord?.wins ?? 0) + 1,
-            losses: p.battleRecord?.losses ?? 0
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+
+      // 이미 이 라운드의 결과가 있으면 중복 저장 방지
+      const existingResult = (gameState.battleResults || []).find(
+        (r: PvPBattleResult) =>
+          r.roundNumber === result.roundNumber &&
+          ((r.player1Id === result.player1Id && r.player2Id === result.player2Id) ||
+            (r.player1Id === result.player2Id && r.player2Id === result.player1Id))
+      );
+      if (existingResult) return; // 중단 - 트랜잭션 abort
+
+      const loserId = result.winnerId === result.player1Id ? result.player2Id : result.player1Id;
+
+      const encounterRecord = pvpBattleService.updateEncounterRecord(
+        gameState.encounterRecord || {},
+        result.player1Id,
+        result.player2Id
+      );
+
+      const updatedPlayers = gameState.players.map((p: PlayerGameState) => {
+        if (p.userId === result.winnerId) {
+          return {
+            ...p,
+            money: p.money + 50,
+            battleRecord: {
+              wins: (p.battleRecord?.wins ?? 0) + 1,
+              losses: p.battleRecord?.losses ?? 0
+            }
+          };
+        } else if (p.userId === loserId) {
+          const newLives = p.lives - result.lifeLost;
+          if (newLives <= 0) {
+            needsElimination = true;
+            eliminatedId = loserId;
           }
-        };
-      } else if (p.userId === loserId) {
-        const newLives = p.lives - result.lifeLost;
-        return {
-          ...p,
-          lives: newLives,
-          isAlive: newLives > 0,
-          battleRecord: {
-            wins: p.battleRecord?.wins ?? 0,
-            losses: (p.battleRecord?.losses ?? 0) + 1
-          }
-        };
-      }
-      return p;
+          return {
+            ...p,
+            lives: Math.max(0, newLives),
+            isAlive: newLives > 0,
+            battleRecord: {
+              wins: p.battleRecord?.wins ?? 0,
+              losses: (p.battleRecord?.losses ?? 0) + 1
+            }
+          };
+        }
+        return p;
+      });
+
+      const battleResults = [...(gameState.battleResults || []), result];
+
+      return { ...gameState, players: updatedPlayers, encounterRecord, battleResults };
     });
 
-    // 대전 결과 저장
-    const battleResults = [...(gameState.battleResults || []), result];
+    // 탈락자 처리 (트랜잭션 밖에서 별도 호출)
+    if (needsElimination && eliminatedId) {
+      await this.playerDefeated(roomId, eliminatedId);
+    }
 
-    await update(gameStateRef, {
-      players: updatedPlayers,
-      encounterRecord,
-      battleResults
-    });
-
-    // 탈락자 처리
-    const newlyEliminated = updatedPlayers.find(
-      (p: PlayerGameState) => p.userId === loserId && !p.isAlive
-    );
-    if (newlyEliminated) {
-      await this.playerDefeated(roomId, loserId);
+    // 현재 유저가 이 매치의 승자이면 승리 업적 체크
+    // (레이팅은 finalizeGame에서 확정되므로 여기선 임시값 전달 — updateRatings에서 재확인)
+    const currentUser = authService.getCurrentUser();
+    if (currentUser && result.winnerId === currentUser.uid) {
+      // 현재 레이팅을 기준으로 임시 체크 (정확한 레이팅은 updateRatings에서 처리)
+      achievementService.onMultiWin(currentUser.rating ?? 1000);
     }
   }
 
-  /**
-   * 모든 대전 완료 확인
-   */
   async checkAllBattlesComplete(roomId: string): Promise<boolean> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
@@ -863,37 +621,186 @@ class MultiplayerService {
     return currentRoundResults.length >= gameState.roundMatchups.matches.length;
   }
 
-  /**
-   * 다음 라운드 대기 페이즈로 전환
-   */
   async startWaitingWavePhase(roomId: string): Promise<void> {
     await this.setGamePhase(roomId, 'waiting_wave');
   }
 
   /**
-   * 게임 상태 구독 (페이즈 정보 포함)
+   * 게임 종료 처리 및 레이팅 업데이트
    */
-  onGameStateUpdateWithPhase(roomId: string, callback: (state: MultiplayerGameState | null) => void): () => void {
+  async finalizeGame(roomId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const listener = onValue(gameStateRef, (snapshot) => {
-      if (!snapshot.exists()) {
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return;
+
+    const gameState = snapshot.val() as MultiplayerGameState;
+    await this.updateRatings(gameState);
+  }
+
+  private async updateRatings(gameState: MultiplayerGameState): Promise<void> {
+    const players = gameState.players;
+    const currentUser = authService.getCurrentUser();
+
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      let ratingChange = 0;
+
+      for (let j = 0; j < players.length; j++) {
+        if (i === j) continue;
+        const opponent = players[j];
+        const expectedScore = 1 / (1 + Math.pow(10, (opponent.rating - player.rating) / 400));
+        const actualScore =
+          (player.placement ?? players.length) < (opponent.placement ?? players.length) ? 1 : 0;
+        ratingChange += Math.round(32 * (actualScore - expectedScore));
+      }
+
+      const newRating = Math.max(0, player.rating + ratingChange);
+      await databaseService.updateUserRating(player.userId, newRating);
+
+      // 현재 유저의 레이팅이 확정되면 레이팅 업적 정확하게 체크
+      if (currentUser && player.userId === currentUser.uid) {
+        achievementService.onRatingUpdate(newRating);
+      }
+    }
+  }
+
+  // ─── 구독 메서드들 ─────────────────────────────────────────────
+
+  onRoomsUpdate(callback: (rooms: Room[]) => void): () => void {
+    const roomsRef = ref(rtdb, 'rooms');
+    const listener = onValue(roomsRef, (snapshot) => {
+      if (!snapshot.exists()) { callback([]); return; }
+
+      const rooms: Room[] = [];
+      const now = Date.now();
+      snapshot.forEach((child) => {
+        const room = child.val() as Room;
+        if (now - room.createdAt <= ROOM_EXPIRY_TIME && room.status === 'waiting') {
+          rooms.push(room);
+        }
+      });
+      callback(rooms);
+    });
+    return () => off(roomsRef, 'value', listener);
+  }
+
+  onRoomUpdate(roomId: string, callback: (room: Room | null) => void): () => void {
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    const listener = onValue(roomRef, (snapshot) => {
+      if (!snapshot.exists()) { callback(null); return; }
+      const room = snapshot.val() as Room;
+      if (Date.now() - room.createdAt > ROOM_EXPIRY_TIME) {
+        this.deleteRoom(roomId);
         callback(null);
         return;
       }
-      callback(snapshot.val() as MultiplayerGameState);
+      callback(room);
+    });
+    return () => off(roomRef, 'value', listener);
+  }
+
+  onGameStateUpdate(roomId: string, callback: (players: PlayerGameState[]) => void): () => void {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const listener = onValue(gameStateRef, (snapshot) => {
+      if (!snapshot.exists()) { callback([]); return; }
+      const gameState = snapshot.val();
+      const players = gameState.players || [];
+      callback(Array.isArray(players) ? players : Object.values(players));
     });
     return () => off(gameStateRef, 'value', listener);
   }
 
-  /**
-   * 매칭 정보 구독
-   */
-  onMatchupUpdate(roomId: string, callback: (matchups: RoundMatchup | null) => void): () => void {
+  onGameStateUpdateWithPhase(
+    roomId: string,
+    callback: (state: MultiplayerGameState | null) => void
+  ): () => void {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const listener = onValue(gameStateRef, (snapshot) => {
+      callback(snapshot.exists() ? (snapshot.val() as MultiplayerGameState) : null);
+    });
+    return () => off(gameStateRef, 'value', listener);
+  }
+
+  onMatchupUpdate(
+    roomId: string,
+    callback: (matchups: RoundMatchup | null) => void
+  ): () => void {
     const matchupRef = ref(rtdb, `gameStates/${roomId}/roundMatchups`);
     const listener = onValue(matchupRef, (snapshot) => {
       callback(snapshot.exists() ? snapshot.val() : null);
     });
     return () => off(matchupRef, 'value', listener);
+  }
+
+  onTowerDetailsUpdate(
+    roomId: string,
+    userId: string,
+    callback: (towers: TowerDetail[]) => void
+  ): () => void {
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+    const listener = onValue(towerDetailsRef, (snapshot) => {
+      if (!snapshot.exists()) { callback([]); return; }
+      const data = snapshot.val();
+      callback(data.towers || []);
+    });
+    return () => off(towerDetailsRef, 'value', listener);
+  }
+
+  onAllTowerDetailsUpdate(
+    roomId: string,
+    callback: (allTowers: Map<string, TowerDetail[]>) => void
+  ): () => void {
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}`);
+    const aiTowersRef = ref(rtdb, `gameStates/${roomId}/aiTowers`);
+
+    let playerTowers = new Map<string, TowerDetail[]>();
+    let aiTowerData = new Map<string, TowerDetail[]>();
+
+    const emitCombined = () => {
+      const combined = new Map<string, TowerDetail[]>();
+      playerTowers.forEach((towers, id) => combined.set(id, towers));
+      aiTowerData.forEach((towers, id) => {
+        if (!combined.has(id)) combined.set(id, towers);
+      });
+      callback(combined);
+    };
+
+    const playerListener = onValue(towerDetailsRef, (snapshot) => {
+      playerTowers = new Map<string, TowerDetail[]>();
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const userId = child.key!;
+          const data = child.val();
+          if (data.towers) playerTowers.set(userId, data.towers);
+        });
+      }
+      emitCombined();
+    });
+
+    const aiListener = onValue(aiTowersRef, (snapshot) => {
+      aiTowerData = new Map<string, TowerDetail[]>();
+      if (snapshot.exists()) {
+        snapshot.forEach((child) => {
+          const aiUserId = child.key!;
+          const data = child.val();
+          if (data.towers) aiTowerData.set(aiUserId, data.towers);
+        });
+      }
+      emitCombined();
+    });
+
+    return () => {
+      off(towerDetailsRef, 'value', playerListener);
+      off(aiTowersRef, 'value', aiListener);
+    };
+  }
+
+  // ─── 유틸 ─────────────────────────────────────────────────────
+
+  async getRoom(roomId: string): Promise<Room | null> {
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    const snapshot = await get(roomRef);
+    return snapshot.exists() ? (snapshot.val() as Room) : null;
   }
 
   getCurrentRoomId(): string | null {
@@ -903,20 +810,17 @@ class MultiplayerService {
     return this.currentRoomId;
   }
 
-  /**
-   * 방의 남은 시간 (밀리초)
-   */
-  getRoomRemainingTime(room: Room): number {
-    const roomAge = Date.now() - room.createdAt;
-    return Math.max(0, ROOM_EXPIRY_TIME - roomAge);
+  clearCurrentRoom(): void {
+    this.currentRoomId = null;
+    localStorage.removeItem('currentRoomId');
   }
 
-  /**
-   * 방의 만료 여부
-   */
+  getRoomRemainingTime(room: Room): number {
+    return Math.max(0, ROOM_EXPIRY_TIME - (Date.now() - room.createdAt));
+  }
+
   isRoomExpired(room: Room): boolean {
-    const roomAge = Date.now() - room.createdAt;
-    return roomAge > ROOM_EXPIRY_TIME;
+    return Date.now() - room.createdAt > ROOM_EXPIRY_TIME;
   }
 }
 

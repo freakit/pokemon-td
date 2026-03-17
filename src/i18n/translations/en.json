@@ -204,7 +204,12 @@
   },
   "achievements": {
     "title": "Achievements",
+    "loading": "Loading achievements...",
+    "unlocked": "Unlocked! 🏆",
     "progress": "Progress: {progress}/{target}"
+  },
+  "achievement": {
+    "unlocked": "Achievement Unlocked: {name} 🏆"
   },
   "settings": {
     "title": "Settings",
@@ -261,249 +266,28 @@
     "steel": "Steel",
     "fairy": "Fairy"
   },
-  "items": {
-    "fire-stone": {
-      "name": "Fire Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "water-stone": {
-      "name": "Water Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "thunder-stone": {
-      "name": "Thunder Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "leaf-stone": {
-      "name": "Leaf Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "moon-stone": {
-      "name": "Moon Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "sun-stone": {
-      "name": "Sun Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "shiny-stone": {
-      "name": "Shiny Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "dusk-stone": {
-      "name": "Dusk Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "dawn-stone": {
-      "name": "Dawn Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "ice-stone": {
-      "name": "Ice Stone",
-      "description": "A peculiar stone that makes certain species of Pokémon evolve."
-    },
-    "linking-cord": {
-      "name": "Linking Cord",
-      "description": "Evolves Pokémon that normally evolve by trading."
-    },
-    "kings-rock": {
-      "name": "King's Rock",
-      "description": "Evolves Slowpoke or Poliwhirl."
-    },
-    "metal-coat": {
-      "name": "Metal Coat",
-      "description": "Evolves Onix or Scyther."
-    },
-    "dragon-scale": {
-      "name": "Dragon Scale",
-      "description": "Evolves Seadra into Kingdra."
-    },
-    "upgrade": {
-      "name": "Up-Grade",
-      "description": "Evolves Porygon into Porygon2."
-    },
-    "protector": {
-      "name": "Protector",
-      "description": "Evolves Rhydon into Rhyperior."
-    },
-    "electirizer": {
-      "name": "Electirizer",
-      "description": "Evolves Electabuzz into Electivire."
-    },
-    "magmarizer": {
-      "name": "Magmarizer",
-      "description": "Evolves Magmar into Magmortar."
-    },
-    "dubious-disc": {
-      "name": "Dubious Disc",
-      "description": "Evolves Porygon2 into Porygon-Z."
-    },
-    "reaper-cloth": {
-      "name": "Reaper Cloth",
-      "description": "Evolves Dusclops into Dusknoir."
-    },
-    "razor-claw": {
-      "name": "Razor Claw",
-      "description": "Evolves Sneasel into Weavile."
-    },
-    "razor-fang": {
-      "name": "Razor Fang",
-      "description": "Evolves Gligar into Gliscor."
-    },
-    "friendship-evolution": {
-      "name": "Soothe Bell",
-      "description": "Evolves Pokémon that evolve via friendship."
-    },
-    "special-evolution": {
-      "name": "Mystic Powder",
-      "description": "Evolves Pokémon with special conditions."
-    },
-    "deep-sea-tooth": {
-      "name": "Deep Sea Tooth",
-      "description": "Evolves Clamperl into Huntail."
-    },
-    "deep-sea-scale": {
-      "name": "Deep Sea Scale",
-      "description": "Evolves Clamperl into Gorebyss."
-    },
-    "sachet": {
-      "name": "Sachet",
-      "description": "Evolves Spritzee into Aromatisse."
-    },
-    "whipped-dream": {
-      "name": "Whipped Dream",
-      "description": "Evolves Swirlix into Slurpuff."
-    },
-    "tart-apple": {
-      "name": "Tart Apple",
-      "description": "Evolves Applin into Flapple."
-    },
-    "sweet-apple": {
-      "name": "Sweet Apple",
-      "description": "Evolves Applin into Appletun."
-    },
-    "galarica-cuff": {
-      "name": "Galarica Cuff",
-      "description": "Evolves Galarian Slowpoke into Slowbro."
-    },
-    "galarica-wreath": {
-      "name": "Galarica Wreath",
-      "description": "Evolves Galarian Slowpoke into Slowking."
-    },
-    "black-augurite": {
-      "name": "Black Augurite",
-      "description": "Evolves Scyther into Kleavor."
-    },
-    "auspicious-armor": {
-      "name": "Auspicious Armor",
-      "description": "Evolves Charcadet into Armarouge."
-    },
-    "malicious-armor": {
-      "name": "Malicious Armor",
-      "description": "Evolves Charcadet into Ceruledge."
-    },
-    "syrupy-apple": {
-      "name": "Syrupy Apple",
-      "description": "Evolves Applin into Dipplin."
-    },
-    "metal-alloy": {
-      "name": "Metal Alloy",
-      "description": "Evolves Duraludon into Archaludon."
-    },
-    "water-scroll": {
-      "name": "Scroll of Waters",
-      "description": "Evolves Kubfu into Urshifu (Rapid Strike)."
-    },
-    "dark-scroll": {
-      "name": "Scroll of Darkness",
-      "description": "Evolves Kubfu into Urshifu (Single Strike)."
-    }
-  },
   "achData": {
-    "wave5": {
-      "name": "First Step",
-      "description": "Reach Wave 5"
-    },
-    "wave10": {
-      "name": "Beginner",
-      "description": "Reach Wave 10"
-    },
-    "wave20": {
-      "name": "Intermediate",
-      "description": "Reach Wave 20"
-    },
-    "wave30": {
-      "name": "Advanced",
-      "description": "Reach Wave 30"
-    },
-    "wave50": {
-      "name": "Master",
-      "description": "Reach Wave 50"
-    },
-    "collect10": {
-      "name": "Collector",
-      "description": "Collect 10 Pokémon"
-    },
-    "collect50": {
-      "name": "Professor",
-      "description": "Collect 50 Pokémon"
-    },
-    "collect100": {
-      "name": "Pokémon Master",
-      "description": "Collect 100 Pokémon"
-    },
-    "evolve1": {
-      "name": "First Evolution",
-      "description": "Evolve 1 Pokémon"
-    },
-    "evolve10": {
-      "name": "Evolution Maniac",
-      "description": "Evolve 10 Pokémon"
-    },
-    "kill100": {
-      "name": "Hunter",
-      "description": "Defeat 100 enemies"
-    },
-    "kill1000": {
-      "name": "Slayer",
-      "description": "Defeat 1000 enemies"
-    },
-    "boss5": {
-      "name": "Boss Hunter",
-      "description": "Defeat 5 bosses"
-    },
-    "boss20": {
-      "name": "Boss Killer",
-      "description": "Defeat 20 bosses"
-    },
-    "money10k": {
-      "name": "Rich",
-      "description": "Earn 10,000G total"
-    },
-    "money100k": {
-      "name": "Tycoon",
-      "description": "Earn 100,000G total"
-    },
-    "perfect": {
-      "name": "Perfect Defense",
-      "description": "Clear Wave 10 without losing a life"
-    },
-    "speedrun": {
-      "name": "Speedrunner",
-      "description": "Clear Wave 20 within 30 minutes"
-    },
-    "nolosses": {
-      "name": "Invincible",
-      "description": "Reach Wave 30 without any Pokémon fainting"
-    },
-    "allstarters": {
-      "name": "Starter Master",
-      "description": "Collect Bulbasaur, Charmander, and Squirtle"
-    },
-    "legendary": {
-      "name": "Legendary Trainer",
-      "description": "Collect a Legendary Pokémon"
-    }
+    "wave5": { "name": "First Step", "description": "Reach Wave 5" },
+    "wave10": { "name": "Beginner", "description": "Reach Wave 10" },
+    "wave20": { "name": "Intermediate", "description": "Reach Wave 20" },
+    "wave30": { "name": "Advanced", "description": "Reach Wave 30" },
+    "wave50": { "name": "Master", "description": "Reach Wave 50" },
+    "collect10": { "name": "Collector", "description": "Collect 10 Pokémon" },
+    "collect50": { "name": "Professor", "description": "Collect 50 Pokémon" },
+    "collect100": { "name": "Pokémon Master", "description": "Collect 100 Pokémon" },
+    "evolve1": { "name": "First Evolution", "description": "Evolve 1 Pokémon" },
+    "evolve10": { "name": "Evolution Maniac", "description": "Evolve 10 Pokémon" },
+    "kill100": { "name": "Hunter", "description": "Defeat 100 enemies" },
+    "kill1000": { "name": "Slayer", "description": "Defeat 1000 enemies" },
+    "boss5": { "name": "Boss Hunter", "description": "Defeat 5 bosses" },
+    "boss20": { "name": "Boss Killer", "description": "Defeat 20 bosses" },
+    "money10k": { "name": "Rich", "description": "Earn 10,000G total" },
+    "money100k": { "name": "Tycoon", "description": "Earn 100,000G total" },
+    "perfect": { "name": "Perfect Defense", "description": "Clear Wave 10 without losing a life" },
+    "speedrun": { "name": "Speedrunner", "description": "Clear Wave 20 within 30 minutes" },
+    "nolosses": { "name": "Invincible", "description": "Reach Wave 30 without any Pokémon fainting" },
+    "allstarters": { "name": "Starter Master", "description": "Collect Bulbasaur, Charmander, and Squirtle" },
+    "legendary": { "name": "Legendary Trainer", "description": "Collect a Legendary Pokémon" }
   },
   "mapData": {
     "easiest_straight": {
@@ -517,26 +301,57 @@
     "medium_merge": {
       "name": "Merge Point",
       "description": "Two paths merge in the center. Early defense is critical."
-    },
-    "medium_multi_s": {
-      "name": "Winding Cave",
-      "description": "A long, winding path gives towers plenty of time to attack."
-    },
-    "hard_straight_wide": {
-      "name": "Wide Plains",
-      "description": "Enemies pass through a wide (4-tile) central path. Mind the gaps!"
-    },
-    "hard_dual_path": {
-      "name": "Split Snowfield",
-      "description": "Two paths are completely separate. You must defend both."
-    },
-    "extreme_central": {
-      "name": "Central Altar",
-      "description": "Enemies spawn from all four sides and rush the center."
-    },
-    "extreme_aggro_shortcut": {
-      "name": "Dangerous Shortcut",
-      "description": "The default path is long. Place towers in the center to change the route."
     }
+  },
+  "multiplayer": {
+    "phase": {
+      "shopping": "🛒 Shopping",
+      "waitingWave": "⏳ Next Wave: {countdown}s",
+      "waitingWaveFirst": "⏳ Starting: {countdown}s",
+      "wave": "🌊 Wave {round}",
+      "waitingBattle": "⚔️ Battle Prep: {countdown}s",
+      "battle": "🔥 Battle!"
+    }
+  },
+  "items": {
+    "fire-stone":           { "name": "Fire Stone",           "description": "Evolves certain Fire-type Pokémon." },
+    "water-stone":          { "name": "Water Stone",          "description": "Evolves certain Water-type Pokémon." },
+    "thunder-stone":        { "name": "Thunder Stone",        "description": "Evolves certain Electric-type Pokémon." },
+    "leaf-stone":           { "name": "Leaf Stone",           "description": "Evolves certain Grass-type Pokémon." },
+    "moon-stone":           { "name": "Moon Stone",           "description": "Evolves certain Pokémon." },
+    "sun-stone":            { "name": "Sun Stone",            "description": "Evolves certain Pokémon." },
+    "shiny-stone":          { "name": "Shiny Stone",          "description": "Evolves certain Pokémon." },
+    "dusk-stone":           { "name": "Dusk Stone",           "description": "Evolves certain Pokémon." },
+    "dawn-stone":           { "name": "Dawn Stone",           "description": "Evolves certain Pokémon." },
+    "ice-stone":            { "name": "Ice Stone",            "description": "Evolves certain Ice-type Pokémon." },
+    "linking-cord":         { "name": "Linking Cord",         "description": "Evolves Pokémon that normally need trading." },
+    "kings-rock":           { "name": "King's Rock",          "description": "Evolves Slowpoke or Poliwhirl." },
+    "metal-coat":           { "name": "Metal Coat",           "description": "Evolves Onix or Scyther." },
+    "dragon-scale":         { "name": "Dragon Scale",         "description": "Evolves Seadra into Kingdra." },
+    "upgrade":              { "name": "Up-Grade",             "description": "Evolves Porygon into Porygon2." },
+    "protector":            { "name": "Protector",            "description": "Evolves Rhydon into Rhyperior." },
+    "electirizer":          { "name": "Electirizer",          "description": "Evolves Electabuzz into Electivire." },
+    "magmarizer":           { "name": "Magmarizer",           "description": "Evolves Magmar into Magmortar." },
+    "dubious-disc":         { "name": "Dubious Disc",         "description": "Evolves Porygon2 into Porygon-Z." },
+    "reaper-cloth":         { "name": "Reaper Cloth",         "description": "Evolves Dusclops into Dusknoir." },
+    "razor-claw":           { "name": "Razor Claw",           "description": "Evolves Sneasel into Weavile." },
+    "razor-fang":           { "name": "Razor Fang",           "description": "Evolves Gligar into Gliscor." },
+    "friendship-evolution": { "name": "Friendship Orb",       "description": "Evolves Pokémon that evolve through friendship." },
+    "special-evolution":    { "name": "Mystery Powder",       "description": "Evolves Pokémon with special conditions." },
+    "deep-sea-tooth":       { "name": "DeepSeaTooth",         "description": "Evolves Clamperl into Huntail." },
+    "deep-sea-scale":       { "name": "DeepSeaScale",         "description": "Evolves Clamperl into Gorebyss." },
+    "sachet":               { "name": "Sachet",               "description": "Evolves Spritzee into Aromatisse." },
+    "whipped-dream":        { "name": "Whipped Dream",        "description": "Evolves Swirlix into Slurpuff." },
+    "tart-apple":           { "name": "Tart Apple",           "description": "Evolves Applin into Flapple." },
+    "sweet-apple":          { "name": "Sweet Apple",          "description": "Evolves Applin into Appletun." },
+    "galarica-cuff":        { "name": "Galarica Cuff",        "description": "Evolves Galarian Slowpoke into Slowbro." },
+    "galarica-wreath":      { "name": "Galarica Wreath",      "description": "Evolves Galarian Slowpoke into Slowking." },
+    "black-augurite":       { "name": "Black Augurite",       "description": "Evolves Scyther into Kleavor." },
+    "auspicious-armor":     { "name": "Auspicious Armor",     "description": "Evolves Charcadet into Armarouge." },
+    "malicious-armor":      { "name": "Malicious Armor",      "description": "Evolves Charcadet into Ceruledge." },
+    "syrupy-apple":         { "name": "Syrupy Apple",         "description": "Evolves Applin into Dipplin." },
+    "metal-alloy":          { "name": "Metal Alloy",          "description": "Evolves Duraludon into Archaludon." },
+    "water-scroll":         { "name": "Scroll of Waters",     "description": "Evolves Kubfu into Urshifu (Rapid Strike)." },
+    "dark-scroll":          { "name": "Scroll of Darkness",   "description": "Evolves Kubfu into Urshifu (Single Strike)." }
   }
 }
