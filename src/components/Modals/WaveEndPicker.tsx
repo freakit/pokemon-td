@@ -2,7 +2,7 @@
 // ✅ 거다이맥스 버그 수정: evolutionItem = 'max-mushroom' → evolutionItem = item.id
 
 import React, { useState } from 'react';
-import styled, { css } from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
@@ -142,6 +142,15 @@ export const WaveEndPicker: React.FC = () => {
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to   { opacity: 1; }
+`;
+
+const slideUp = keyframes`
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+`;
 
 const Overlay = styled.div`
   position: fixed; inset: 0;
@@ -149,6 +158,7 @@ const Overlay = styled.div`
   backdrop-filter: blur(10px);
   display: flex; justify-content: center; align-items: center;
   z-index: 1001;
+  animation: ${fadeIn} 0.35s ease-out; 
 `;
 
 const Modal = styled.div`
@@ -157,6 +167,7 @@ const Modal = styled.div`
   max-width: 1000px; width: 90%;
   box-shadow: 0 25px 80px rgba(46,204,113,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
   border: 2px solid rgba(46,204,113,0.3);
+  animation: ${slideUp} 0.35s ease-out;    
 `;
 
 const Header = styled.div`

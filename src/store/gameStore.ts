@@ -392,16 +392,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return false;
   },
 
-  // [수정] 기절한 타워도 30% HP로 부분 회복 (전량 기절 방지)
+  // healAllTowers - 기절한 포켓몬은 그대로 유지
   healAllTowers: () => {
     set(state => ({
-      towers: state.towers.map(t => ({
-        ...t,
-        currentHp: t.isFainted
-          ? Math.floor(t.maxHp * 0.3)   // 기절 → 30% 회복
-          : t.maxHp,                      // 생존 → 풀 회복
-        isFainted: false,                 // 모두 부활
-      })),
+      towers: state.towers.map(t => {
+        if (t.isFainted) return t; // 기절 포켓몬은 아무것도 변경하지 않음
+        return { ...t, currentHp: t.maxHp }; // 생존 포켓몬만 풀 회복
+      }),
     }));
   },
 
