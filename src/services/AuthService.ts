@@ -3,7 +3,9 @@ import {
   signOut, 
   onAuthStateChanged, 
   User as FirebaseUser,
-  signInWithPopup
+  signInWithPopup,
+  signInAnonymously,  // 추가
+  updateProfile       // 추가
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../config/firebase';
@@ -66,6 +68,30 @@ class AuthService {
   async signOut(): Promise<void> {
     await signOut(auth);
     this.currentUser = null;
+  }
+
+  async signInAsGuest(nickname: string): Promise<void> {
+    try {
+      const result = await signInAnonymously(auth);
+      // 닉네임 설정
+      await updateProfile(result.user, { displayName: nickname });
+      // Firestore에 게스트 유저 저장
+      const guestUser: User = {
+        uid: result.user.uid,
+        email: '',
+        displayName: nickname,
+        photoURL: '',
+        rating: 1000,
+        createdAt: Date.now()
+      };
+      await setDoc(doc(db, 'users', result.user.uid), {
+        ...guestUser,
+        isGuest: true,
+        lastLogin: serverTimestamp()
+      });
+    } catch (error: any) {
+      throw error;
+    }
   }
 
   getCurrentUser(): User | null {
