@@ -101,7 +101,8 @@
     "hp": "HP",
     "kills": "Kills",
     "skill": "Skill",
-    "sell": "Sell ({price}G)"
+    "sell": "Sell ({price}G)",
+    "canEvolve": "Can Evolve!"
   },
   "shop": {
     "targetTitle": "Select Target",

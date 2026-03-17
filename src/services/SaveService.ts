@@ -115,9 +115,19 @@ class SaveService {
 
     this.save(data);
 
-    databaseService
-      .updateUserAchievement(achievement)
-      .catch(err => console.error('DB Achievement update failed:', err));
+    // DB 저장 (로그인 상태일 때만, 에러는 조용히 무시)
+    try {
+      const { authService } = require('./AuthService');
+      if (authService.getCurrentUser()) {
+        databaseService
+          .updateUserAchievement(achievement)
+          .catch(() => {
+            // Firebase permission 에러 등은 조용히 무시 (로컬 저장은 이미 완료됨)
+          });
+      }
+    } catch {
+      // 모듈 로드 실패 시 무시
+    }
   }
 
   unlockMap(mapId: string) {
