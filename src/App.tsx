@@ -1,12 +1,11 @@
 // src/App.tsx
-import { useState, useEffect } from "react";
-import styled from "styled-components";
+import { useState, useEffect, useCallback } from "react";
+import styled, { keyframes } from "styled-components";
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { authService } from "./services/AuthService";
 import { User } from "./types/multiplayer";
 import { useGameStore } from "./store/gameStore";
 import { multiplayerService } from "./services/MultiplayerService";
-import { useTranslation } from "./i18n";
 import { pokeAPI } from './api/pokeapi';
 
 import { LoginScreen } from "./Auth/LoginScreen";
@@ -16,89 +15,103 @@ import { MapSelector } from "./components/UI/MapSelector";
 import { GameLayout } from "./components/GameLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
+const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
+
 const PreloadingOverlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.95));
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 9999;
-  animation: fadeIn 0.3s ease-out;
+  animation: ${fadeIn} 0.3s ease-out;
+  gap: 24px;
 `;
 
-const LoadingText = styled.h1`
+const LoadingTitle = styled.h1`
   font-size: 24px;
   color: #fff;
-  text-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
-  
-  &::after {
-    content: '...';
-    animation: dots 1.4s infinite;
-  }
-
-  @keyframes dots {
-    0%, 20% { content: '.'; }
-    40% { content: '..'; }
-    60%, 100% { content: '...'; }
-  }
+  text-shadow: 0 0 15px rgba(255,255,255,0.7);
+  margin: 0;
 `;
 
+const ProgressBarOuter = styled.div`
+  width: 320px;
+  height: 12px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 6px;
+  overflow: hidden;
+`;
+
+const ProgressBarInner = styled.div<{ $pct: number }>`
+  height: 100%;
+  width: ${p => p.$pct}%;
+  background: linear-gradient(90deg, #3498db, #2ecc71);
+  border-radius: 6px;
+  transition: width 0.2s ease;
+`;
+
+const ProgressText = styled.p`
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  margin: 0;
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function App() {
-  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isGamePreloading, setIsGamePreloading] = useState(false);
-  
+  const [preloadProgress, setPreloadProgress] = useState({ loaded: 0, total: 1025 });
+
   const navigate = useNavigate();
   const location = useLocation();
   const resetGame = useGameStore((state) => state.reset);
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChange((authedUser) => {
-      console.log('App.tsx(onAuthStateChange):', authedUser?.displayName || 'null', '현재 경로:', location.pathname);
-
       setUser(authedUser);
       setIsAuthLoading(false);
-      
       if (authedUser && location.pathname === '/login') {
-        console.log('App.tsx: 로그인 성공, /로 이동');
         navigate('/');
       }
-     
     });
     return unsubscribe;
   }, [navigate, location.pathname]);
 
-  // [수정] 멀티플레이 맵 로딩 버그 수정
-  const handlePreloadAndNavigate = async (mapId: string, gameMode: 'single' | 'multi') => {
-    
-    // 게임 시작 시 기존 상태 초기화
-    resetGame();
-    
-    // [수정] 맵 ID를 스토어에 설정하는 로직을 공통으로 이동
-    useGameStore.getState().setMap(mapId);
-    
-    if (gameMode === 'single') {
-      // 싱글플레이 시 멀티플레이 룸 ID 제거
-      multiplayerService.clearCurrentRoom();
-    }
-    
-    setIsGamePreloading(true);
-    try {
-      await pokeAPI.preloadRarities();
-      navigate('/game');
-    } catch (err) {
-      console.error("Failed to preload rarities", err);
-      alert("게임 데이터 로드에 실패했습니다. 새로고침 해주세요.");
-    }
-    setIsGamePreloading(false);
-  };
+  const handlePreloadAndNavigate = useCallback(
+    async (mapId: string, gameMode: 'single' | 'multi') => {
+      resetGame();
+      useGameStore.getState().setMap(mapId);
 
-  const handleLeaveGame = () => {
+      if (gameMode === 'single') {
+        multiplayerService.clearCurrentRoom();
+      }
+
+      setIsGamePreloading(true);
+      setPreloadProgress({ loaded: 0, total: 1025 });
+
+      try {
+        await pokeAPI.preloadRarities((loaded, total) => {
+          setPreloadProgress({ loaded, total });
+        });
+        navigate('/game');
+      } catch (err) {
+        console.error('Failed to preload rarities', err);
+        alert('게임 데이터 로드에 실패했습니다. 새로고침 해주세요.');
+      } finally {
+        setIsGamePreloading(false);
+      }
+    },
+    [resetGame, navigate]
+  );
+
+  const handleLeaveGame = useCallback(() => {
     resetGame();
     const multiRoomId = multiplayerService.getCurrentRoomId();
     if (multiRoomId) {
@@ -106,20 +119,32 @@ function App() {
     }
     multiplayerService.clearCurrentRoom();
     navigate('/');
-  };
+  }, [resetGame, navigate]);
 
   if (isAuthLoading) {
     return (
       <PreloadingOverlay>
-        <LoadingText>유저 정보 확인 중...</LoadingText>
+        <LoadingTitle>유저 정보 확인 중...</LoadingTitle>
       </PreloadingOverlay>
     );
   }
 
   if (isGamePreloading) {
+    const pct = preloadProgress.total > 0
+      ? Math.floor((preloadProgress.loaded / preloadProgress.total) * 100)
+      : 0;
+
     return (
       <PreloadingOverlay>
-        <LoadingText>{t('picker.loading')}</LoadingText>
+        <LoadingTitle>
+          {pct >= 100 ? '거의 다 됐어요! ✨' : '포켓몬 데이터 로딩 중...'}
+        </LoadingTitle>
+        <ProgressBarOuter>
+          <ProgressBarInner $pct={pct} />
+        </ProgressBarOuter>
+        <ProgressText>
+          {preloadProgress.loaded} / {preloadProgress.total} ({pct}%)
+        </ProgressText>
       </PreloadingOverlay>
     );
   }
@@ -127,19 +152,18 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
-      
+
       <Route path="/" element={
         <ProtectedRoute>
           <MainMenu />
         </ProtectedRoute>
       } />
-      
+
       <Route path="/lobby" element={
         <ProtectedRoute>
-          <MultiplayerLobby 
+          <MultiplayerLobby
             onBack={() => navigate('/')}
             onStartGame={(_roomId, mapId) => {
-              // [수정] gameMode: 'multi' 전달
               handlePreloadAndNavigate(mapId, 'multi');
             }}
           />
@@ -148,11 +172,10 @@ function App() {
 
       <Route path="/map-select" element={
         <ProtectedRoute>
-          <MapSelector 
+          <MapSelector
             onSelect={(mapId) => {
-              // [수정] gameMode: 'single' 전달
               handlePreloadAndNavigate(mapId, 'single');
-            }} 
+            }}
           />
         </ProtectedRoute>
       } />

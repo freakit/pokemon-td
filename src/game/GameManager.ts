@@ -1,21 +1,35 @@
 // src/game/GameManager.ts
-
 import { useGameStore } from '../store/gameStore';
-import { GamePokemon, Enemy, Projectile, Position, Item, GameMove } from '../types/game';
+import { GamePokemon, Enemy, Projectile, Position, GameMove } from '../types/game';
 import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
 import { saveService } from '../services/SaveService';
 import { soundService } from '../services/SoundService';
 import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
 import { getBuffedStats } from '../utils/synergyManager';
-// 1. 필요한 서비스 및 데이터 임포트
 import { databaseService } from '../services/DatabaseService';
 import { getMapById } from '../data/maps';
 import { pokeAPI } from '../api/pokeapi';
-
+import { multiplayerService } from '../services/MultiplayerService';
+import { achievementService } from '../services/AchievementService';
 
 export class GameManager {
   private static instance: GameManager;
+
+  // [수정] checkWaveComplete 중복 실행 방지 플래그
+  private isCompletingWave = false;
+
+  // [수정] killEnemy 중복 보상 방지: 이미 처리된 적 ID 추적
+  private killedEnemyIds = new Set<string>();
+
+  // [수정] saveService.load() 과다 호출 방지: stats 배치 업데이트
+  private pendingStats = {
+    enemiesKilled: 0,
+    totalMoneyEarned: 0,
+    bossesDefeated: 0,
+  };
+  private statFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
   static getInstance() {
     if (!GameManager.instance) {
       GameManager.instance = new GameManager();
@@ -23,23 +37,38 @@ export class GameManager {
     return GameManager.instance;
   }
 
-  /**
-   * 라이프 감소 (로컬 + 멀티플레이어 Firebase 동기화)
-   */
   private loseLife(amount: number) {
     const newLives = Math.max(0, useGameStore.getState().lives - amount);
     useGameStore.setState({ lives: newLives });
   }
-  
+
+  // stats를 배치로 모아서 0.5초마다 한 번에 저장
+  private flushStats() {
+    if (this.statFlushTimer) clearTimeout(this.statFlushTimer);
+    this.statFlushTimer = setTimeout(() => {
+      if (
+        this.pendingStats.enemiesKilled > 0 ||
+        this.pendingStats.totalMoneyEarned > 0 ||
+        this.pendingStats.bossesDefeated > 0
+      ) {
+        const cur = saveService.load().stats;
+        saveService.updateStats({
+          enemiesKilled: cur.enemiesKilled + this.pendingStats.enemiesKilled,
+          totalMoneyEarned: cur.totalMoneyEarned + this.pendingStats.totalMoneyEarned,
+          bossesDefeated: cur.bossesDefeated + this.pendingStats.bossesDefeated,
+        });
+        this.pendingStats = { enemiesKilled: 0, totalMoneyEarned: 0, bossesDefeated: 0 };
+      }
+    }, 500);
+  }
+
   update(dt: number) {
     const { isPaused, gameOver, gameSpeed } = useGameStore.getState();
     if (isPaused || gameOver) return;
-    
-    const delta = dt * gameSpeed;
 
-    // 2. gameTime 업데이트
+    const delta = dt * gameSpeed;
     useGameStore.getState().incrementGameTime(dt);
-    
+
     this.updateCooldowns(delta);
     this.updateStatusEffects(delta);
     this.updateEnemies(delta);
@@ -48,7 +77,7 @@ export class GameManager {
     this.updateDamageNumbers(delta);
     this.checkWaveComplete();
   }
-  
+
   private updateCooldowns(dt: number) {
     const { towers } = useGameStore.getState();
     towers.forEach(tower => {
@@ -58,176 +87,186 @@ export class GameManager {
       });
     });
   }
-  
+
+  // [수정] 직접 객체 변이(mutation) 제거 → updateTower / updateEnemy 경유
   private updateStatusEffects(dt: number) {
-    const { towers, enemies } = useGameStore.getState();
+    const { towers, enemies, updateTower, updateEnemy } = useGameStore.getState();
+
     towers.forEach(t => {
-      if (t.statusEffect) {
-        const eff = t.statusEffect;
-        eff.duration -= dt;
-        if (eff.duration <= 0) {
-          t.statusEffect = undefined;
-          if (eff.type === 'burn') t.attack = t.baseAttack;
-        } else if (eff.tickDamage) {
-          const startHp = t.currentHp;
-          t.currentHp = Math.max(0, t.currentHp - (eff.tickDamage * dt));
-          if (startHp > 0 && t.currentHp <= 0) {
-            t.isFainted = true;
-            // Force update to store to ensure React re-renders and logic syncs
-            useGameStore.getState().updateTower(t.id, { currentHp: 0, isFainted: true });
-          }
+      if (!t.statusEffect) return;
+      const remaining = t.statusEffect.duration - dt;
+
+      if (remaining <= 0) {
+        updateTower(t.id, {
+          statusEffect: undefined,
+          attack: t.statusEffect.type === 'burn' ? t.baseAttack : t.attack,
+        });
+      } else if (t.statusEffect.tickDamage) {
+        const dmg = t.statusEffect.tickDamage * dt;
+        const newHp = Math.max(0, t.currentHp - dmg);
+        if (newHp <= 0 && !t.isFainted) {
+          updateTower(t.id, {
+            currentHp: 0,
+            isFainted: true,
+            statusEffect: { ...t.statusEffect, duration: remaining },
+          });
+        } else {
+          updateTower(t.id, {
+            currentHp: newHp,
+            statusEffect: { ...t.statusEffect, duration: remaining },
+          });
         }
+      } else {
+        updateTower(t.id, {
+          statusEffect: { ...t.statusEffect, duration: remaining },
+        });
       }
     });
-    enemies.forEach(e => {
-      if (e.statusEffect) {
-        const eff = e.statusEffect;
-        eff.duration -= dt;
-        
-        if (eff.type === 'burn') {
-          e.attack = e.baseAttack * 0.5;
-        }
 
-        if (eff.duration <= 0) {
-          e.statusEffect = undefined;
-   
-          if (eff.type === 'burn') e.attack = e.baseAttack;
-        } else if (eff.tickDamage) {
-          e.hp = Math.max(0, e.hp - (eff.tickDamage * dt));
-          if (e.hp <= 0) this.killEnemy(e.id);
-        }
+    enemies.forEach(e => {
+      if (!e.statusEffect) return;
+      const remaining = e.statusEffect.duration - dt;
+
+      if (remaining <= 0) {
+        updateEnemy(e.id, { statusEffect: undefined });
+      } else if (e.statusEffect.tickDamage) {
+        const dmg = e.statusEffect.tickDamage * dt;
+        const newHp = Math.max(0, e.hp - dmg);
+        updateEnemy(e.id, {
+          hp: newHp,
+          statusEffect: { ...e.statusEffect, duration: remaining },
+        });
+        if (newHp <= 0) this.killEnemy(e.id);
+      } else {
+        updateEnemy(e.id, {
+          statusEffect: { ...e.statusEffect, duration: remaining },
+        });
       }
     });
   }
 
   private updateEnemies(dt: number) {
-    const { enemies, towers, removeEnemy } = useGameStore.getState();
-    for (let i = enemies.length - 1; i >= 0; i--) {
-      const e = enemies[i];
-      if (!e) continue;
+    const { enemies, lives } = useGameStore.getState();
+    if (lives <= 0) return;
 
-      if (e.statusEffect?.type === 'freeze' || e.statusEffect?.type === 'sleep') continue;
-      
-      e.attackCooldown = Math.max(0, e.attackCooldown - dt);
-      let speedMult = 1;
-      if (e.statusEffect?.type === 'paralysis') speedMult = 0.5;
+    enemies.forEach(enemy => {
+      if (enemy.statusEffect?.type === 'sleep' || enemy.statusEffect?.type === 'freeze') return;
 
-      let targetTower: GamePokemon |
- undefined = towers.find(t => t.id === e.targetTowerId && !t.isFainted);
+      const speedMult = enemy.statusEffect?.type === 'paralysis' ? 0.5 : 1;
 
-      if (!targetTower) {
-        targetTower = this.findTargetTower(e);
-        e.targetTowerId = targetTower ? targetTower.id : undefined;
-      }
-      
-      if (targetTower) {
-        const dx = targetTower.position.x - e.position.x;
-        const dy = targetTower.position.y - e.position.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= e.range) {
-          this.enemyAttackTower(e, targetTower);
-        } else {
-          this.moveEnemy(e, targetTower.position, dt, speedMult);
+      if (enemy.pathIndex < enemy.path.length - 1) {
+        const targetPos = enemy.path[enemy.pathIndex + 1];
+        const reached = this.moveEnemy(enemy, targetPos, dt, speedMult);
+        if (reached) {
+          useGameStore.getState().updateEnemy(enemy.id, { pathIndex: enemy.pathIndex + 1 });
         }
       } else {
-        if (e.pathIndex < e.path.length) {
-          const targetPos = e.path[e.pathIndex];
-          if (this.moveEnemy(e, targetPos, dt, speedMult)) {
-            e.pathIndex += 1;
-          }
-        } else {
-          removeEnemy(e.id);
-          console.log(`[GameManager] Enemy leaked: ${e.id}. Current lives: ${useGameStore.getState().lives}`);
-          this.loseLife(1);
-          console.log(`[GameManager] Lives after loseLife: ${useGameStore.getState().lives}`);
-          if (useGameStore.getState().lives <= 0) {
+        // 목표 지점 도달
+        useGameStore.getState().removeEnemy(enemy.id);
+        console.log(`[GameManager] Enemy reached end. Current lives: ${useGameStore.getState().lives}`);
+        this.loseLife(1);
+        if (useGameStore.getState().lives <= 0) {
+          const multiRoomId = multiplayerService.getCurrentRoomId();
+          if (!multiRoomId) {
             useGameStore.setState({ gameOver: true, isWaveActive: false });
             soundService.playDefeatSound();
           }
         }
       }
-    }
+
+      // 적이 타워 공격
+      if (enemy.attackCooldown > 0) {
+        useGameStore.getState().updateEnemy(enemy.id, {
+          attackCooldown: Math.max(0, enemy.attackCooldown - dt),
+        });
+      } else {
+        const target = this.findTargetTower(enemy);
+        if (target) {
+          this.enemyAttackTower(enemy, target);
+        }
+      }
+    });
   }
 
   private moveEnemy(enemy: Enemy, targetPos: Position, dt: number, speedMult: number): boolean {
     const dx = targetPos.x - enemy.position.x;
     const dy = targetPos.y - enemy.position.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 5) {
-      return true;
-    }
-    
+    if (dist < 5) return true;
+
     const move = enemy.moveSpeed * speedMult * dt;
     const ratio = Math.min(move / dist, 1);
-    enemy.position.x += dx * ratio;
-    enemy.position.y += dy * ratio;
+    useGameStore.getState().updateEnemy(enemy.id, {
+      position: {
+        x: enemy.position.x + dx * ratio,
+        y: enemy.position.y + dy * ratio,
+      },
+    });
     return false;
   }
 
   private findTargetTower(enemy: Enemy): GamePokemon | undefined {
     const { towers } = useGameStore.getState();
-    let closestTower: GamePokemon | null = null;
-    let minDiff = Infinity;
+    let closest: GamePokemon | null = null;
+    let minDist = Infinity;
+
     for (const tower of towers) {
       if (tower.isFainted) continue;
       const dx = tower.position.x - enemy.position.x;
       const dy = tower.position.y - enemy.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < minDiff && dist <= enemy.range * 2) {
-        minDiff = dist;
-        closestTower = tower;
+      if (dist < minDist && dist <= enemy.range * 2) {
+        minDist = dist;
+        closest = tower;
       }
     }
-    return closestTower || undefined;
+    return closest || undefined;
   }
 
   private enemyAttackTower(enemy: Enemy, tower: GamePokemon) {
-    if (enemy.attackCooldown > 0) return;
-    const { updateTower, activeSynergies } = useGameStore.getState(); 
-    
+    const { updateTower, activeSynergies } = useGameStore.getState();
     const buffedStats = getBuffedStats(tower, activeSynergies);
     const enemyAttackType = enemy.types[0] || 'normal';
     let eff = getTypeEffectiveness(enemyAttackType, tower.types);
-    
+
     let finalDamageMultiplier = 1.0;
-    const sixPieceTypeSynergies = activeSynergies.filter(s => s.id.startsWith('type:') && s.level === 3);
+    const sixPieceTypeSynergies = activeSynergies.filter(
+      s => s.id.startsWith('type:') && s.level === 3
+    );
     for (const syn of sixPieceTypeSynergies) {
       const synergyType = syn.id.split(':')[1];
       if (tower.types.includes(synergyType)) {
         const singleTypeEff = getTypeEffectiveness(enemyAttackType, [synergyType]);
-        if (singleTypeEff === 2) { 
+        if (singleTypeEff === 2) {
           finalDamageMultiplier = 0.5;
           break;
         }
       }
     }
-    
+
     const dmg = calculateDamage(enemy.attack, buffedStats.defense, 20, eff, false);
     const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier));
-    
     const newHp = Math.max(0, tower.currentHp - finalDmg);
-    
+
     if (newHp <= 0) {
       updateTower(tower.id, { currentHp: 0, isFainted: true });
-      enemy.targetTowerId = undefined;
+      useGameStore.getState().updateEnemy(enemy.id, { targetTowerId: undefined });
     } else {
       updateTower(tower.id, { currentHp: newHp });
     }
-    
-    enemy.attackCooldown = 2.0;
+
+    useGameStore.getState().updateEnemy(enemy.id, { attackCooldown: 2.0 });
   }
-  
+
   private updateTowers(_dt: number) {
     const { towers, enemies, updateTower } = useGameStore.getState();
     towers.forEach(tower => {
-      // Self-Correction: If HP <= 0 but not marked fainted, faint it.
       if (tower.currentHp <= 0 && !tower.isFainted) {
-         updateTower(tower.id, { currentHp: 0, isFainted: true });
-         return;
+        updateTower(tower.id, { currentHp: 0, isFainted: true });
+        return;
       }
-
       if (tower.isFainted) return;
-      
+
       const target = this.findTarget(tower, enemies);
       if (target) {
         const move = tower.equippedMoves.find(m => m.currentCooldown <= 0);
@@ -238,53 +277,50 @@ export class GameManager {
       }
     });
   }
-  
-  private findTarget(tower: GamePokemon, enemies: Enemy[]): Enemy |
-  null {
+
+  private findTarget(tower: GamePokemon, enemies: Enemy[]): Enemy | null {
     const range = tower.range * 64;
-    let closestEnemy: Enemy | null = null;
-    let minDiff = Infinity; 
+    let closest: Enemy | null = null;
+    let minDist = Infinity;
 
     for (const enemy of enemies) {
-        const dx = enemy.position.x - tower.position.x;
-        const dy = enemy.position.y - tower.position.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist <= range && dist < minDiff) {
-            minDiff = dist;
-            closestEnemy = enemy;
-        }
+      const dx = enemy.position.x - tower.position.x;
+      const dy = enemy.position.y - tower.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= range && dist < minDist) {
+        minDist = dist;
+        closest = enemy;
+      }
     }
-    return closestEnemy;
+    return closest;
   }
-  
+
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
     const m = tower.equippedMoves.find(m => m.name === move.name);
     if (m) {
       const hitChance = m.accuracy / 100;
       if (Math.random() > hitChance) {
-        const { addDamageNumber } = useGameStore.getState();
-        addDamageNumber({
+        useGameStore.getState().addDamageNumber({
           id: `miss-${Date.now()}-${Math.random()}`,
           value: 0,
           position: { ...target.position },
           isCrit: false,
-          isMiss: true, 
+          isMiss: true,
           lifetime: 1.0,
         });
-        const speedMultiplier = Math.max(0.5, 1 - (tower.speed / 300));
+        const speedMultiplier = Math.max(0.5, 1 - tower.speed / 300);
         m.currentCooldown = m.cooldown * speedMultiplier;
         return;
       }
-      
-      const speedMultiplier = Math.max(0.2, 1 - (tower.speed / 300));
+      const speedMultiplier = Math.max(0.2, 1 - tower.speed / 300);
       m.currentCooldown = m.cooldown * speedMultiplier;
     }
-    
+
     const { activeSynergies } = useGameStore.getState();
     const buffedStats = getBuffedStats(tower, activeSynergies);
+    const attackPower =
+      move.damageClass === 'physical' ? buffedStats.attack : buffedStats.specialAttack;
 
-    const attackPower = move.damageClass === 'physical' ? buffedStats.attack : buffedStats.specialAttack;
-    
     useGameStore.getState().addProjectile({
       id: `proj-${Date.now()}-${Math.random()}`,
       from: { ...tower.position },
@@ -297,15 +333,13 @@ export class GameManager {
       targetId: target.id,
       isAOE: move.isAOE,
       aoeRadius: move.aoeRadius,
-      
- 
-      attackPower, 
+      attackPower,
       damageClass: move.damageClass,
-      attackerTypes: tower.types, 
-      attackerId: tower.id, 
+      attackerTypes: tower.types,
+      attackerId: tower.id,
     } as any);
   }
-  
+
   private updateProjectiles(dt: number) {
     const { projectiles, enemies, removeProjectile } = useGameStore.getState();
     for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -317,10 +351,11 @@ export class GameManager {
         removeProjectile(proj.id);
         continue;
       }
-      
+
       const dx = target.position.x - proj.current.x;
       const dy = target.position.y - proj.current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+
       if (dist < 10) {
         this.projectileHit(proj, target);
         removeProjectile(proj.id);
@@ -332,7 +367,7 @@ export class GameManager {
       }
     }
   }
-  
+
   private projectileHit(proj: Projectile, enemy: Enemy) {
     if (proj.isAOE && proj.aoeRadius) {
       this.applyAOEDamage(proj.current, proj.aoeRadius, proj);
@@ -343,42 +378,44 @@ export class GameManager {
 
   private applyAOEDamage(center: Position, radius: number, proj: Projectile) {
     const { enemies } = useGameStore.getState();
-    const affectedEnemies = enemies.filter(e => {
+    const affected = enemies.filter(e => {
       const dx = e.position.x - center.x;
       const dy = e.position.y - center.y;
       return Math.sqrt(dx * dx + dy * dy) <= radius;
     });
-    affectedEnemies.forEach(e => this.applyDamage(proj, e));
+    affected.forEach(e => this.applyDamage(proj, e));
   }
 
   private applyDamage(proj: Projectile, enemy: Enemy) {
     const { addDamageNumber, towers, updateTower } = useGameStore.getState();
     const eff = getTypeEffectiveness(proj.type, enemy.types);
-    
-    const attacker = proj.attackerId ?
- towers.find(t => t.id === proj.attackerId) : undefined;
+
+    const attacker = proj.attackerId
+      ? towers.find(t => t.id === proj.attackerId)
+      : undefined;
     const critChance = getCriticalChance(attacker?.ability);
     const isCrit = Math.random() < critChance;
-    
     const stab = hasSTAB(proj.attackerTypes, proj.type);
-    
-    const defense = proj.damageClass === 'physical' ?
- enemy.defense : enemy.specialDefense;
+
+    const defense =
+      proj.damageClass === 'physical' ? enemy.defense : enemy.specialDefense;
     let dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit, stab);
-    
+
     if (proj.isAOE && attacker?.ability) {
       const aoeMultiplier = getAOEDamageMultiplier(attacker.ability);
       dmg = Math.floor(dmg * aoeMultiplier);
     }
-    
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    
+
+    const newHp = Math.max(0, enemy.hp - dmg);
+    useGameStore.getState().updateEnemy(enemy.id, { hp: newHp });
+
+    // 흡혈
     if (attacker && !attacker.isFainted && proj.effect.drainPercent) {
       const healAmount = Math.floor(dmg * proj.effect.drainPercent);
-      const newHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
-      updateTower(attacker.id, { currentHp: newHp });
+      const newTowerHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
+      updateTower(attacker.id, { currentHp: newTowerHp });
     }
-    
+
     addDamageNumber({
       id: `dmg-${Date.now()}-${Math.random()}`,
       value: dmg,
@@ -386,46 +423,61 @@ export class GameManager {
       isCrit,
       lifetime: 1.0,
     });
-    
+
+    // 상태이상 부여
     if (proj.effect.statusInflict && proj.effect.statusChance != null) {
       if (Math.random() * 100 < proj.effect.statusChance) {
-        
-        let duration = 5.0;
-        if (proj.effect.statusInflict === 'freeze' || proj.effect.statusInflict === 'sleep') {
-          duration = 2.0;
-        }
-        
-        enemy.statusEffect = {
-          type: proj.effect.statusInflict,
-          duration: duration,
-          tickDamage: (proj.effect.statusInflict === 'poison') ?
- 10 : undefined,
-        };
+        const duration =
+          proj.effect.statusInflict === 'freeze' ||
+          proj.effect.statusInflict === 'sleep'
+            ? 2.0
+            : 5.0;
+        useGameStore.getState().updateEnemy(enemy.id, {
+          statusEffect: {
+            type: proj.effect.statusInflict,
+            duration,
+            tickDamage:
+              proj.effect.statusInflict === 'poison' ? 10 : undefined,
+          },
+        });
       }
     }
-    
-    if (enemy.hp <= 0) this.killEnemy(enemy.id);
+
+    if (newHp <= 0) this.killEnemy(enemy.id);
   }
-  
+
+  // [수정] 중복 보상 방지: killedEnemyIds로 이미 처리된 적 추적
   private killEnemy(id: string) {
+    if (this.killedEnemyIds.has(id)) return;
+    this.killedEnemyIds.add(id);
+
     const { enemies, removeEnemy, addMoney, addXpToTower } = useGameStore.getState();
     const enemy = enemies.find(e => e.id === id);
-    if (enemy) {
-      const reward = 10;
-      addMoney(reward);
-      removeEnemy(id);
-      useGameStore.setState(state => ({ combo: state.combo + 1 }));
-      const xpAmount = enemy.isBoss ? 50 : 10;
-      useGameStore.getState().towers.forEach(t => {
-        addXpToTower(t.id, xpAmount);
-      });
-      saveService.updateStats({
-        enemiesKilled: saveService.load().stats.enemiesKilled + 1,
-        totalMoneyEarned: saveService.load().stats.totalMoneyEarned + reward,
-      });
-    }
+    if (!enemy) return;
+
+    const reward = enemy.reward ?? 10;
+    addMoney(reward);
+    removeEnemy(id);
+    useGameStore.setState(state => ({ combo: state.combo + 1 }));
+
+    const xpAmount = enemy.isBoss ? 50 : 10;
+    useGameStore.getState().towers.forEach(t => {
+      addXpToTower(t.id, xpAmount);
+    });
+
+    // [수정] 배치 업데이트로 변경 (매 호출마다 localStorage 파싱 안 함)
+    this.pendingStats.enemiesKilled++;
+    this.pendingStats.totalMoneyEarned += reward;
+    if (enemy.isBoss) this.pendingStats.bossesDefeated++;
+    this.flushStats();
+
+    // 업적 체크 (flushStats 이후 stats가 갱신되었으므로 여기서 체크)
+    achievementService.onKill(enemy.isBoss);
+
+    // 웨이브 종료 후 killedEnemyIds 정리
+    setTimeout(() => this.killedEnemyIds.delete(id), 5000);
   }
-  
+
   private updateDamageNumbers(dt: number) {
     const { damageNumbers, removeDamageNumber } = useGameStore.getState();
     for (let i = damageNumbers.length - 1; i >= 0; i--) {
@@ -438,24 +490,41 @@ export class GameManager {
       }
     }
   }
-  
-  // 3. checkWaveComplete 대폭 수정
+
+  // [수정] checkWaveComplete: isCompletingWave 플래그로 중복 실행 방지
+  // [수정] 멀티플레이에서 isPaused: true 설정 안 함 (BattlePhaseUI가 페이즈 전환 담당)
   private async checkWaveComplete() {
-    const { enemies, isWaveActive, healAllTowers, setWaveEndItemPick, towers, isSpawning, wave, gameTime, currentMap, lives } = useGameStore.getState();
-    
-    if (isWaveActive && !isSpawning && enemies.length === 0) {
-      useGameStore.setState({ isWaveActive: false, combo: 0, isPaused: true });
+    const { enemies, isWaveActive, isSpawning } = useGameStore.getState();
+
+    if (!isWaveActive || isSpawning || enemies.length !== 0) return;
+    if (this.isCompletingWave) return;
+
+    this.isCompletingWave = true;
+
+    try {
+      const { healAllTowers, setWaveEndItemPick, towers, wave, gameTime, currentMap, lives, difficulty } =
+        useGameStore.getState();
+
+      const multiRoomId = multiplayerService.getCurrentRoomId();
+      const isMultiplayer = !!multiRoomId;
+
+      // 웨이브 종료 처리
+      // 멀티플레이: isPaused 설정 안 함 (BattlePhaseUI가 카운트다운 관리)
+      // 싱글플레이: isPaused: true로 설정
+      useGameStore.setState({
+        isWaveActive: false,
+        combo: 0,
+        isPaused: !isMultiplayer,
+      });
+
       healAllTowers();
 
-      // 3a. 50 웨이브 클리어 시 DB 저장
-      if (wave === 50) {
+      // 50웨이브 클리어 (싱글플레이 전용)
+      if (!isMultiplayer && wave === 50) {
         useGameStore.setState({ wave50Clear: true });
-
         try {
           const map = getMapById(currentMap);
           const pokemonUsed = towers.map(t => t.displayName);
-
-          // 명예의 전당 기록
           await databaseService.addHallOfFameEntry(
             currentMap,
             map?.name || 'Unknown Map',
@@ -463,111 +532,118 @@ export class GameManager {
             pokemonUsed,
             gameTime
           );
-
-          // 랭킹 기록
           await databaseService.updateLeaderboard(currentMap, gameTime, wave);
-
-          // 사용한 포켓몬 도감에 등록
           for (const tower of towers) {
-            // (이미 게임 중 addToPokedex가 호출되지만, 확인 차원)
             await databaseService.addToPokedex(tower.pokemonId, tower.displayName);
           }
-
-          // 50웨이브 업적
           saveService.updateAchievement('wave50', 50);
-
         } catch (err) {
-          console.error("Failed to save Wave 50 clear data:", err);
+          console.error('Failed to save Wave 50 clear data:', err);
         }
-  
-        return; // 웨이브 50 클리어 시 일반 보상 모달 대신 특별 모달 표시
+        return;
       }
 
-      // 3b. 기타 업적 체크 (50웨이브가 아닐 때)
-      try {
-        // 'perfect' (Wave 10)
-        if (wave === 10 && lives === 50) {
-          saveService.updateAchievement('perfect', 1);
-        }
+      // 싱글플레이 업적 체크
+      if (!isMultiplayer) {
+        try {
+          // 도전 업적 (퍼펙트/스피드런/불패/난이도/속도) → AchievementService 위임
+          achievementService.onWaveComplete(wave, lives, 50, gameTime, difficulty, towers);
 
-        // 'speedrun' (Wave 20)
-        if (wave === 20 && gameTime <= 1800000) { // 30분 = 1800 * 1000 ms
-          saveService.updateAchievement('speedrun', 1);
-        }
-
-        // 'nolosses' (Wave 30)
-        if (wave === 30) {
-          // healAllTowers는 기절한 포켓몬을 부활시키지 않으므로, 이 시점에 fainted 여부 체크 가능
-          const noLosses = towers.every(t => !t.isFainted);
-          if (noLosses) {
-            saveService.updateAchievement('nolosses', 1);
-          }
-        }
-
-        // 'legendary' (any wave)
-        let hasLegend = false;
-        for (const tower of towers) {
-          if (!tower.isFainted) {
-            const rarity = await pokeAPI.getRarity(tower.pokemonId);
-            if (rarity === 'Legend') {
-              hasLegend = true;
-              break;
+          // 전설 포켓몬 수집 업적
+          for (const tower of towers) {
+            if (!tower.isFainted) {
+              const rarity = await pokeAPI.getRarity(tower.pokemonId);
+              if (rarity === 'Legend') {
+                saveService.updateAchievement('legendary', 1);
+                break;
+              }
             }
           }
-        }
-        if (hasLegend) {
-          saveService.updateAchievement('legendary', 1);
-        }
-      } catch (err) {
-         console.error("Failed to check achievements:", err);
-      }
 
+          // 누적 골드 업적
+          const totalMoney = saveService.load().stats.totalMoneyEarned;
+          achievementService.onMoneyEarned(totalMoney);
 
-      // 3c. 일반 보상
-      const itemChoices: Item[] = [
-       { id: 'rare_candy', name: 'waveEnd.candyName', type: 'candy', cost: 0, effect: 'waveEnd.candyDesc' },
-       { id: 'revive_shard', name: 'waveEnd.reviveName', type: 'revive', cost: 0, effect: 'waveEnd.reviveDesc' },
-      ];
-      
-      const megaEligiblePokemon = towers.filter(t => hasMegaEvolution(t.pokemonId));
-      if (megaEligiblePokemon.length > 0 && Math.random() < 0.1 * megaEligiblePokemon.length) {
-        
-        const randomPokemon = megaEligiblePokemon[Math.floor(Math.random() * megaEligiblePokemon.length)];
-        const megaData = MEGA_EVOLUTIONS.find(m => m.from === randomPokemon.pokemonId);
-        
-        if (megaData) {
-          itemChoices.push({
-            id: `mega_stone_${megaData.item}`,
-            name: `${randomPokemon.displayName}의 메가스톤`,
-            type: 'mega-stone',
-            cost: 0,
-            effect: `${randomPokemon.displayName}을 메가진화시킵니다`,
-            targetPokemonId: 
- randomPokemon.pokemonId,
-          });
+          // 시너지 업적 (현재 활성 시너지 기준)
+          const { activeSynergies } = useGameStore.getState();
+          achievementService.onSynergyUpdate(activeSynergies);
+
+        } catch (err) {
+          console.error('Failed to check achievements:', err);
+        }
+
+        // 웨이브 업적
+        saveService.updateAchievement(`wave${wave}`, wave);
+
+        // 웨이브 종료 아이템 보상 (싱글플레이)
+        const itemChoices = this.buildWaveEndItems(towers, wave);
+        setWaveEndItemPick(itemChoices);
+
+        // 랭킹 업데이트 (싱글플레이, 매 웨이브)
+        try {
+          await databaseService.updateLeaderboard(currentMap, undefined, wave);
+        } catch {
+          // 무시
         }
       }
-      
-      const gigantamaxEligiblePokemon = towers.filter(t => hasGigantamax(t.pokemonId));
-      if (gigantamaxEligiblePokemon.length > 0 && Math.random() < 0.1 * gigantamaxEligiblePokemon.length) {
-        
-        const randomPokemon = gigantamaxEligiblePokemon[Math.floor(Math.random() * gigantamaxEligiblePokemon.length)];
-        const gigantamaxData = GIGANTAMAX_FORMS.find(g => g.from === randomPokemon.pokemonId);
-        
-        if (gigantamaxData) {
-          itemChoices.push({
-            id: `max_mushroom_${randomPokemon.pokemonId}`,
-            name: `${randomPokemon.displayName}의 다이버섯`,
-            type: 'max-mushroom' as any,
-            cost: 0,
-            effect: `${randomPokemon.displayName}을 거다이맥스시킵니다`,
-           
-            targetPokemonId: randomPokemon.pokemonId,
-          });
-        }
-      }
-      
-      setWaveEndItemPick(itemChoices);
+    } finally {
+      this.isCompletingWave = false;
+      // 다음 웨이브를 위해 killedEnemyIds 초기화
+      this.killedEnemyIds.clear();
     }
+  }
+
+  private buildWaveEndItems(towers: GamePokemon[], _wave: number) {
+    const { hasMegaEvolution: _hasMega, hasGigantamax: _hasGiga } = { hasMegaEvolution, hasGigantamax };
+    const itemChoices = [
+      {
+        id: 'rare_candy',
+        name: 'waveEnd.candyName',
+        type: 'candy' as const,
+        cost: 0,
+        effect: 'waveEnd.candyDesc',
+      },
+      {
+        id: 'revive_shard',
+        name: 'waveEnd.reviveName',
+        type: 'revive' as const,
+        cost: 0,
+        effect: 'waveEnd.reviveDesc',
+      },
+    ];
+
+    const megaEligible = towers.filter(t => hasMegaEvolution(t.pokemonId));
+    if (megaEligible.length > 0 && Math.random() < 0.1 * megaEligible.length) {
+      const randomPokemon = megaEligible[Math.floor(Math.random() * megaEligible.length)];
+      const megaData = MEGA_EVOLUTIONS.find(m => m.from === randomPokemon.pokemonId);
+      if (megaData) {
+        itemChoices.push({
+          id: `mega_stone_${megaData.item}`,
+          name: `${randomPokemon.displayName}의 메가스톤`,
+          type: 'mega-stone' as any,
+          cost: 0,
+          effect: `${randomPokemon.displayName}을 메가진화시킵니다`,
+          targetPokemonId: randomPokemon.pokemonId,
+        } as any);
+      }
+    }
+
+    const gigaEligible = towers.filter(t => hasGigantamax(t.pokemonId));
+    if (gigaEligible.length > 0 && Math.random() < 0.1 * gigaEligible.length) {
+      const randomPokemon = gigaEligible[Math.floor(Math.random() * gigaEligible.length)];
+      const gigaData = GIGANTAMAX_FORMS.find(g => g.from === randomPokemon.pokemonId);
+      if (gigaData) {
+        itemChoices.push({
+          id: `max_mushroom_${randomPokemon.pokemonId}`,
+          name: `${randomPokemon.displayName}의 다이버섯`,
+          type: 'max-mushroom' as any,
+          cost: 0,
+          effect: `${randomPokemon.displayName}을 거다이맥스시킵니다`,
+          targetPokemonId: randomPokemon.pokemonId,
+        } as any);
+      }
+    }
+
+    return itemChoices;
   }
 }
