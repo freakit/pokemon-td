@@ -86,6 +86,26 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       return;
     }
 
+    // [수정 3-1] 배틀 시작 전 타워 데이터가 로딩될 때까지 최대 3초 대기
+    // Firebase 구독이 비동기이므로 battle 페이즈 진입 직후엔 데이터가 없을 수 있음
+    await new Promise<void>((resolve) => {
+      let attempts = 0;
+      const maxAttempts = 15; // 200ms × 15 = 3초
+
+      const check = setInterval(() => {
+        attempts++;
+        const allLoaded = state.roundMatchups!.matches.every(
+          (m) =>
+            towerDetailsRef.current.has(m.player1Id) &&
+            towerDetailsRef.current.has(m.player2Id)
+        );
+        if (allLoaded || attempts >= maxAttempts) {
+          clearInterval(check);
+          resolve();
+        }
+      }, 200);
+    });
+
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
       // 이미 결과가 처리된 매치는 스킵 (중복 실행 방지)
       const existingResult = (state.battleResults || []).find(
@@ -96,8 +116,15 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       );
       if (existingResult) return;
 
-      const team1 = towerDetailsRef.current.get(match.player1Id) || [];
-      const team2 = towerDetailsRef.current.get(match.player2Id) || [];
+      const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
+      const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
+
+      // [수정 3-2] 양 팀 모두 비어있으면 스킵 (데이터 미수신 케이스)
+      if (team1.length === 0 && team2.length === 0) {
+        console.warn('[BattlePhaseUI] Both teams empty, skipping match between',
+          match.player1Id, 'vs', match.player2Id);
+        return;
+      }
 
       const result = pvpBattleService.simulateBattle(
         team1,

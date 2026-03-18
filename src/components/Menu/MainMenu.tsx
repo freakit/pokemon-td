@@ -33,7 +33,14 @@ export const MainMenu = () => {
         <Container>
           <Header>
             <UserInfo>
-              <Avatar src={user?.photoURL} alt={user?.displayName} />
+              {/* [수정 1] photoURL이 없으면 kaist-ball.png를 기본 이미지로 사용 */}
+              <Avatar
+                src={user?.photoURL || '/images/kaist-ball.png'}
+                alt={user?.displayName}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/images/kaist-ball.png';
+                }}
+              />
               <UserName>{user?.displayName}</UserName>
               <Rating>⭐ Rating: {user?.rating}</Rating>
             </UserInfo>
@@ -134,6 +141,8 @@ const Avatar = styled.img`
   height: 50px;
   border-radius: 50%;
   border: 3px solid white;
+  object-fit: cover;
+  background: rgba(255,255,255,0.2);
 `;
 
 const UserName = styled.div`

@@ -302,7 +302,7 @@ class MultiplayerService {
         userId: p.userId,
         userName: p.userName,
         wave: 0,
-        lives: 100,
+        lives: 50,
         money: 500,
         towers: 0,
         isAlive: true,
