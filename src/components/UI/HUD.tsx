@@ -5,7 +5,6 @@ import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
 import { media } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
-import { authService } from '../../services/AuthService';
 import { GamePhase } from '../../types/multiplayer';
 
 interface Props {
@@ -37,6 +36,7 @@ const getPhaseText = (phase: GamePhase, round: number, countdown: number | null)
 
 export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
   const { t } = useTranslation();
+  // [수정 1] authService 제거 — money/lives는 항상 로컬 store에서 직접 읽어 즉시 UI 반영
   const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay, gameTime } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
 
@@ -46,41 +46,29 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
   const [multiPhase, setMultiPhase] = useState<GamePhase>('waiting_wave');
   const [multiRound, setMultiRound] = useState(0);
   const [multiCountdown, setMultiCountdown] = useState<number | null>(null);
-  const [multiMoney, setMultiMoney] = useState(500);
-  const [multiLives, setMultiLives] = useState(100);
   const [phaseEndTime, setPhaseEndTime] = useState<number | null>(null);
 
-  // 멀티플레이어 게임 상태 구독
+  // 멀티플레이어 페이즈/라운드만 구독
+  // money/lives는 로컬 store를 직접 사용하므로 Firebase에서 읽지 않음
   useEffect(() => {
     if (!multiRoomId) return;
 
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (!state) return;
-
       setMultiPhase(state.currentPhase);
       setMultiRound(state.currentRound);
       setPhaseEndTime(state.phaseEndTime ?? null);
-
-      const user = authService.getCurrentUser();
-      if (user) {
-        const myState = state.players.find(p => p.userId === user.uid);
-        if (myState) {
-          setMultiMoney(myState.money);
-          setMultiLives(myState.lives);
-        }
-      }
     });
 
     return unsubscribe;
   }, [multiRoomId]);
 
-  // [수정] 서버 시간 오프셋 보정으로 카운트다운 정확도 개선
+  // 서버 시간 오프셋 보정 카운트다운
   useEffect(() => {
     if (!isMultiplayer) return;
 
     const timer = setInterval(() => {
       if (phaseEndTime) {
-        // 서버 기준 현재 시간으로 남은 시간 계산
         const serverNow = Date.now() + multiplayerService.getServerTimeOffset();
         const remaining = Math.max(0, Math.floor((phaseEndTime - serverNow) / 1000));
         setMultiCountdown(remaining);
@@ -92,8 +80,10 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
     return () => clearInterval(timer);
   }, [isMultiplayer, phaseEndTime]);
 
-  const displayMoney = isMultiplayer ? multiMoney : money;
-  const displayLives = isMultiplayer ? multiLives : lives;
+  // 멀티/싱글 모두 로컬 store 값 사용 (즉시 반영)
+  // wave만 멀티플레이 시 서버 라운드 기준
+  const displayMoney = money;
+  const displayLives = lives;
   const displayWave = isMultiplayer ? multiRound : wave;
 
   return (

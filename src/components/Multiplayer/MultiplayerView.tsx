@@ -17,9 +17,16 @@ interface MultiplayerViewProps {
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
   const [allTowerDetails, setAllTowerDetails] = useState<Map<string, TowerDetail[]>>(new Map());
-  
+
   const user = authService.getCurrentUser();
 
+  // [수정 2] 내 money/lives/wave는 로컬 store에서 직접 읽어 즉시 반영
+  const localMoney = useGameStore(s => s.money);
+  const localLives = useGameStore(s => s.lives);
+  const localWave = useGameStore(s => s.wave);
+  const towers = useGameStore(s => s.towers);
+
+  // Firebase에서 다른 플레이어 목록 구독
   useEffect(() => {
     try {
       const unsubscribe = multiplayerService.onGameStateUpdate(roomId, (updatedPlayers) => {
@@ -31,26 +38,31 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
   }, [roomId]);
 
-  const towers = useGameStore((state) => state.towers);
-  
+  // 내 타워 정보 Firebase에 업데이트
   useEffect(() => {
     if (!user || !roomId) return;
 
-    const towerDetails: TowerDetail[] = towers
-      .map(t => ({
-        pokemonId: t.pokemonId,
-        name: t.displayName,
-        level: t.level,
-        sprite: t.sprite,
-        position: t.position,
-        currentHp: t.currentHp,
-        maxHp: t.maxHp,
-        isFainted: t.isFainted,
-      }));
+    const towerDetails: TowerDetail[] = towers.map(t => ({
+      pokemonId: t.pokemonId,
+      name: t.displayName,
+      level: t.level,
+      sprite: t.sprite,
+      position: t.position,
+      currentHp: t.currentHp,
+      maxHp: t.maxHp,
+      isFainted: t.isFainted,
+      attack: t.attack,
+      defense: t.defense,
+      specialAttack: t.specialAttack,
+      specialDefense: t.specialDefense,
+      speed: t.speed,
+      types: t.types,
+    }));
 
     multiplayerService.updatePlayerTowerDetails(roomId, user.uid, towerDetails);
   }, [towers, roomId, user]);
 
+  // 전체 타워 상세 구독
   useEffect(() => {
     if (!roomId) return;
 
@@ -62,16 +74,22 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   }, [roomId]);
 
   // 체력 기준 내림차순 정렬 (생존자 먼저, 탈락자 나중)
-  const sortedPlayers = [...players].sort((a, b) => {
-    if (a.isAlive !== b.isAlive) return b.isAlive ? 1 : -1;
-    return b.lives - a.lives;
-  });
+  // 내 플레이어는 로컬 값으로 오버라이드해서 정렬
+  const sortedPlayers = [...players]
+    .map(p => {
+      if (p.userId === user?.uid) {
+        return { ...p, money: localMoney, lives: localLives, wave: localWave };
+      }
+      return p;
+    })
+    .sort((a, b) => {
+      if (a.isAlive !== b.isAlive) return b.isAlive ? 1 : -1;
+      return b.lives - a.lives;
+    });
 
   return (
     <Overlay onClick={(e) => {
-      if (e.target === e.currentTarget) {
-        onClose();
-      }
+      if (e.target === e.currentTarget) onClose();
     }}>
       <Container>
         <Header>
@@ -81,12 +99,13 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
 
         <PlayerList>
           {sortedPlayers.map((player, index) => {
-            const playerTowers = player.userId === user?.uid 
-              ? towers.map(t => ({ ...t, name: t.displayName })) 
+            // 내 타워는 로컬 store, 상대방은 Firebase
+            const playerTowers = player.userId === user?.uid
+              ? towers.map(t => ({ ...t, name: t.displayName }))
               : allTowerDetails.get(player.userId) || [];
             const alivePokemon = playerTowers.filter(t => !t.isFainted).length;
             const totalPokemon = playerTowers.length;
-            
+
             return (
               <PlayerRow
                 key={player.userId}
@@ -94,7 +113,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                 $isDead={!player.isAlive}
               >
                 <RankBadge $rank={index + 1}>{index + 1}</RankBadge>
-                
+
                 <PlayerInfo>
                   <PlayerName>
                     {player.userName}
@@ -113,7 +132,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                   </PokemonCount>
                   <PokemonIcons>
                     {playerTowers.slice(0, 6).map((tower, idx) => (
-                      <PokemonIcon 
+                      <PokemonIcon
                         key={idx}
                         src={tower.sprite}
                         alt={tower.name}
@@ -134,7 +153,8 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   );
 };
 
-// Styled Components
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
   position: fixed;
   top: 0;
@@ -211,8 +231,8 @@ const PlayerRow = styled.div<{ $isMe: boolean; $isDead: boolean }>`
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: ${props => props.$isMe 
-    ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1))' 
+  background: ${props => props.$isMe
+    ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.2), rgba(52, 152, 219, 0.1))'
     : 'rgba(255, 255, 255, 0.05)'};
   border-radius: 12px;
   border: 2px solid ${props => props.$isMe ? 'rgba(52, 152, 219, 0.4)' : 'transparent'};
@@ -235,6 +255,7 @@ const RankBadge = styled.div<{ $rank: number }>`
   justify-content: center;
   font-weight: bold;
   font-size: 1rem;
+  flex-shrink: 0;
   background: ${props => {
     if (props.$rank === 1) return 'linear-gradient(135deg, #ffd700, #ff8c00)';
     if (props.$rank === 2) return 'linear-gradient(135deg, #c0c0c0, #a0a0a0)';
@@ -242,33 +263,32 @@ const RankBadge = styled.div<{ $rank: number }>`
     return 'rgba(255, 255, 255, 0.1)';
   }};
   color: ${props => props.$rank <= 3 ? '#000' : '#fff'};
-  flex-shrink: 0;
 `;
 
 const PlayerInfo = styled.div`
   flex: 1;
-  min-width: 120px;
+  min-width: 0;
 `;
 
 const PlayerName = styled.div`
-  color: #fff;
-  font-weight: bold;
   font-size: 1rem;
-  margin-bottom: 4px;
+  font-weight: bold;
+  color: white;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
 `;
 
 const MeTag = styled.span`
-  color: #3498db;
   font-size: 0.8rem;
+  color: #4cafff;
+  font-weight: normal;
 `;
 
 const PlayerStats = styled.div`
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 `;
 
 const StatIcon = styled.span`
@@ -280,17 +300,10 @@ const PokemonSection = styled.div`
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
-
-  ${media.mobile} {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
+  gap: 0.4rem;
 `;
 
-const PokemonCount = styled.span`
+const PokemonCount = styled.div`
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.6);
 `;
@@ -298,32 +311,28 @@ const PokemonCount = styled.span`
 const PokemonIcons = styled.div`
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 `;
 
 const PokemonIcon = styled.img<{ $isFainted: boolean }>`
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.3);
-  opacity: ${props => props.$isFainted ? 0.4 : 1};
-  filter: ${props => props.$isFainted ? 'grayscale(100%)' : 'none'};
-  border: 2px solid ${props => props.$isFainted ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
-
-  ${media.mobile} {
-    width: 28px;
-    height: 28px;
-  }
+  object-fit: contain;
+  filter: ${props => props.$isFainted ? 'grayscale(100%) opacity(0.4)' : 'none'};
+  image-rendering: pixelated;
 `;
 
 const DeadBadge = styled.div`
   position: absolute;
-  top: 50%;
-  right: 1rem;
-  transform: translateY(-50%);
-  background: rgba(255, 107, 107, 0.3);
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.75rem;
   color: #ff6b6b;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: bold;
+  background: rgba(255, 107, 107, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 107, 107, 0.3);
 `;

@@ -3,7 +3,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
-import { getGenerationById } from '../../utils/synergyManager';
+import { getGenerationById, SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
 import { GamePokemon } from '../../types/game';
 
 export const SynergyDetails: React.FC = () => {
@@ -13,23 +13,26 @@ export const SynergyDetails: React.FC = () => {
     towers: state.towers,
   }));
 
-  if (!hoveredSynergy) {
-    return null;
-  }
+  if (!hoveredSynergy) return null;
 
   const [type, value] = hoveredSynergy.id.split(':');
-  
-  const synergyName = type === 'type'
-    ? t(`types.${value}`)
-    : t('synergy.genName', { gen: value });
 
+  let synergyName = '';
   const activeTowers = towers.filter(t => !t.isFainted);
   let matchingPokemon: GamePokemon[] = [];
 
   if (type === 'type') {
+    synergyName = t(`types.${value}`);
     matchingPokemon = activeTowers.filter(t => t.types.includes(value));
   } else if (type === 'gen') {
+    synergyName = t('synergy.genName', { gen: value });
     matchingPokemon = activeTowers.filter(t => getGenerationById(t.pokemonId) === Number(value));
+  } else if (type === 'special') {
+    const def = SPECIAL_SYNERGY_DEFS.find(d => d.id === hoveredSynergy.id);
+    synergyName = def ? `${def.icon} ${def.name}` : hoveredSynergy.name;
+    // 특수 시너지: 해당 포켓몬 ID 목록과 교집합
+    const idSet = new Set(def?.pokemonIds ?? []);
+    matchingPokemon = activeTowers.filter(t => idSet.has(t.pokemonId));
   }
 
   return (
@@ -51,9 +54,11 @@ export const SynergyDetails: React.FC = () => {
   );
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Container = styled.div`
   position: fixed;
-  left: 304px; 
+  left: 304px;
   top: 16px;
   width: 240px;
   max-height: 45vh;

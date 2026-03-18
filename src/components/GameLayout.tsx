@@ -1,6 +1,6 @@
 // src/components/GameLayout.tsx
 import React, { useState, useEffect, useRef } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { useTranslation } from "../i18n";
 import { GameCanvas } from "./Game/GameCanvas";
 import { HUD } from "./UI/HUD";
@@ -51,29 +51,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const isMultiplayer = !!multiRoomId;
   const user = authService.getCurrentUser();
 
-  // ─── [수정] 멀티플레이어 초기화: 반드시 구독보다 먼저 완료되어야 함 ───
-  // isMultiplayerReady가 true가 될 때까지 Firebase로 상태를 전송하지 않음
-  const isMultiplayerReady = useRef(false);
+  // ─── 멀티플레이 게임 시작 로딩 상태 ──────────────────────────────
+  // gameState가 null → waiting_wave로 전환되기 전까지 조작 차단
+  const [multiLoading, setMultiLoading] = useState(isMultiplayer);
+
+  // ─── 멀티플레이어 초기화 ───────────────────────────────────────────
+  const syncReadyRef = useRef(false);
   const initializedRef = useRef(false);
 
   useEffect(() => {
     if (isMultiplayer && !initializedRef.current) {
-      console.log('[GameLayout] Initializing Multiplayer State (Once)');
       initializedRef.current = true;
-      // 동기적으로 상태 설정 후 ready 플래그 활성화
-      useGameStore.setState({
-        lives: 100,
-        money: 500,
-        gameSpeed: 3
-      });
-      // 다음 tick에 ready 설정 (setState가 반영된 후)
-      setTimeout(() => {
-        isMultiplayerReady.current = true;
-        console.log('[GameLayout] Multiplayer ready, Firebase sync enabled');
-      }, 0);
+      // 싱글과 동일하게 lives:50으로 통일
+      useGameStore.setState({ lives: 50, money: 500, gameSpeed: 3 });
+      syncReadyRef.current = true;
     } else if (!isMultiplayer) {
-      // 싱글플레이는 즉시 ready
-      isMultiplayerReady.current = true;
+      syncReadyRef.current = true;
     }
   }, [isMultiplayer]);
 
@@ -116,14 +109,15 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     onLeaveGame();
   };
 
-  // ─── [수정] 로컬 → Firebase 상태 동기화 ───────────────────────────
-  // isMultiplayerReady가 true일 때만 전송 (초기화 전 lives:50 유출 원천 차단)
+  // ─── 로컬 → Firebase 상태 동기화 ────────────────────────────────
+  // syncReadyRef가 true가 된 이후에만 subscribe가 실제로 전송
+  // (초기화 전 lives:50 유출 원천 차단)
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
-      // 초기화 완료 전에는 전송하지 않음
-      if (!isMultiplayerReady.current) return;
+      // 초기화 완료(초기값 Firebase 전송) 전에는 전송하지 않음
+      if (!syncReadyRef.current) return;
 
       const changed =
         state.wave !== prevState.wave ||
@@ -146,6 +140,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }, [multiRoomId, user]);
 
   // 타워 상세 정보 동기화
+  // [수정 2] PvP 배틀 시뮬레이션에 필요한 attack/defense/speed/types 스탯 추가
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
@@ -157,7 +152,14 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       position: t.position,
       currentHp: t.currentHp,
       maxHp: t.maxHp,
-      isFainted: t.isFainted
+      isFainted: t.isFainted,
+      // [수정] 배틀 시뮬레이션 및 멀티뷰 표시에 필요한 스탯 추가
+      attack: t.attack,
+      defense: t.defense,
+      specialAttack: t.specialAttack,
+      specialDefense: t.specialDefense,
+      speed: t.speed,
+      types: t.types,
     }));
 
     multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
@@ -211,12 +213,38 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     if (!multiRoomId) return;
 
     let lastPhase: string | null = null;
+    let aiStarted = false; // AI는 딱 한 번만 시작
 
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (!state) return;
 
       const currentPhase = state.currentPhase;
       const currentRound = state.currentRound;
+
+      // null → waiting_wave 첫 전환 시: 로딩 해제 + AI 시작
+      if (currentPhase === 'waiting_wave' && lastPhase === null) {
+        setMultiLoading(false);
+
+        // [수정] AI는 waiting_wave를 수신한 직후 시작
+        // → AI의 currentPhase 초기값('waiting_wave')과 실제 페이즈가 같아
+        //   onPhaseChange가 누락되던 문제 해결
+        if (!aiStarted) {
+          aiStarted = true;
+          const startAIs = async () => {
+            const room = await multiplayerService.getRoom(multiRoomId);
+            const currentUser = authService.getCurrentUser();
+            if (room && currentUser && room.hostId === currentUser.uid) {
+              for (const player of room.players) {
+                if (player.isAI && player.aiDifficulty) {
+                  // 초기 페이즈를 null로 강제해서 waiting_wave를 반드시 onPhaseChange로 처리
+                  aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
+                }
+              }
+            }
+          };
+          startAIs().catch(console.error);
+        }
+      }
 
       if (currentPhase === 'wave' && lastPhase !== 'wave') {
         console.log('[GameLayout] Phase changed to wave, starting wave:', currentRound);
@@ -268,23 +296,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return unsubscribe;
   }, [multiRoomId]);
 
-  // AI 플레이어 시작
+  // AI 플레이어 정리
   useEffect(() => {
-    if (multiRoomId) {
-      const startAIs = async () => {
-        const room = await multiplayerService.getRoom(multiRoomId);
-        const currentUser = authService.getCurrentUser();
-        if (room && currentUser && room.hostId === currentUser.uid) {
-          for (const player of room.players) {
-            if (player.isAI && player.aiDifficulty) {
-              aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
-            }
-          }
-        }
-      };
-      startAIs();
-    }
-
     return () => {
       aiPlayerManager.stopAll();
     };
@@ -292,6 +305,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
   return (
     <AppContainer>
+      {/* 멀티플레이 게임 시작 로딩 오버레이 — waiting_wave 진입 전까지 조작 차단 */}
+      {isMultiplayer && multiLoading && (
+        <MultiLoadingOverlay>
+          <MultiLoadingBox>
+            <LoadingSpinner />
+            <LoadingTitle>🎮 게임 준비 중...</LoadingTitle>
+            <LoadingDesc>모든 플레이어가 로딩될 때까지 기다려주세요</LoadingDesc>
+            <LoadingDots>
+              <span />
+              <span />
+              <span />
+            </LoadingDots>
+          </MultiLoadingBox>
+        </MultiLoadingOverlay>
+      )}
+
       <GameLayoutContainer>
         {isWaveActive && <GlobalLanguageSwitcher />}
 
@@ -552,5 +581,80 @@ const AchievementToastOverlay = styled.div`
   @keyframes slideUp {
     from { opacity: 0; transform: translateX(-50%) translateY(20px); }
     to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+`;
+
+// ─── 멀티플레이 게임 시작 로딩 오버레이 ──────────────────────────────────────
+
+const MultiLoadingOverlay = styled.div`
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+  backdrop-filter: blur(6px);
+`;
+
+const MultiLoadingBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  border: 2px solid rgba(76, 175, 255, 0.4);
+  border-radius: 24px;
+  padding: 48px 64px;
+  box-shadow: 0 0 40px rgba(76, 175, 255, 0.2);
+`;
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+`;
+
+const LoadingSpinner = styled.div`
+  width: 56px;
+  height: 56px;
+  border: 4px solid rgba(76, 175, 255, 0.2);
+  border-top-color: #4cafff;
+  border-radius: 50%;
+  animation: ${spin} 0.9s linear infinite;
+`;
+
+const LoadingTitle = styled.div`
+  font-size: 22px;
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(76, 175, 255, 0.6);
+`;
+
+const LoadingDesc = styled.div`
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+`;
+
+const dotBounce = keyframes`
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-8px); opacity: 1; }
+`;
+
+const LoadingDots = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4cafff;
+    animation: ${dotBounce} 1.2s ease-in-out infinite;
+
+    &:nth-child(1) { animation-delay: 0s; }
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
   }
 `;

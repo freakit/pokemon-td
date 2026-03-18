@@ -33,6 +33,7 @@ class AuthService {
   private async getUserData(firebaseUser: FirebaseUser): Promise<User> {
     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
     if (!userDoc.exists()) {
+      // [수정 1] 신규 유저: Firebase Auth의 displayName 우선 사용 (게스트 닉네임 보존)
       const newUser: User = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
@@ -48,10 +49,27 @@ class AuthService {
       return newUser;
     }
     
+    // [수정 2] 기존 유저: Firestore 데이터 기반으로 반환하되,
+    // displayName이 비어있거나 'Anonymous'이면 Firebase Auth 값으로 보완
+    const userData = userDoc.data() as User;
+    const resolvedDisplayName =
+      (userData.displayName && userData.displayName !== 'Anonymous')
+        ? userData.displayName
+        : (firebaseUser.displayName || userData.displayName || 'Anonymous');
+
+    if (resolvedDisplayName !== userData.displayName) {
+      // Firestore의 displayName을 최신화
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        displayName: resolvedDisplayName,
+        lastLogin: serverTimestamp()
+      }, { merge: true });
+      return { ...userData, displayName: resolvedDisplayName };
+    }
+
     await setDoc(doc(db, 'users', firebaseUser.uid), {
       lastLogin: serverTimestamp()
     }, { merge: true });
-    return userDoc.data() as User;
+    return userData;
   }
 
   async signInWithGoogle(): Promise<void> {
