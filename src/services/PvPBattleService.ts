@@ -105,13 +105,15 @@ class PvPBattleService {
     roundNumber: number
   ): PvPBattleResult {
     const battleLog: BattleLogEntry[] = [];
+    const safeTeam1 = Array.isArray(team1) ? team1 : [];
+    const safeTeam2 = Array.isArray(team2) ? team2 : [];
     
     // 살아있는 포켓몬만 복사하여 대전
     // ID 할당 (p1-0, p1-1... / p2-0, p2-1...)
-    const team1Battle = team1
+    const team1Battle = safeTeam1  // ✅ team1 → safeTeam1
       .filter(p => !p.isFainted && p.currentHp > 0)
       .map((p, idx) => ({ ...p, battleId: `p1-${idx}` }));
-    const team2Battle = team2
+    const team2Battle = safeTeam2  // ✅ team2 → safeTeam2
       .filter(p => !p.isFainted && p.currentHp > 0)
       .map((p, idx) => ({ ...p, battleId: `p2-${idx}` }));
     

@@ -92,7 +92,12 @@ export const WaveEndPicker: React.FC = () => {
           </Subtitle>
           <TowerGrid>
             {towers.map(tower => {
-              const isSelectable = selectedItem.type === 'revive' ? tower.isFainted : !tower.isFainted;
+              const isSelectable =
+                selectedItem.type === 'revive'
+                  ? tower.isFainted
+                  : selectedItem.type === 'candy'
+                    ? !tower.isFainted && tower.level < 100   // ✅ 레벨 100 미만만 선택 가능
+                    : !tower.isFainted;
               return (
                 <TowerCard
                   key={tower.id}

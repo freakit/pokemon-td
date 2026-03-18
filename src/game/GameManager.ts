@@ -518,6 +518,8 @@ export class GameManager {
       });
 
       healAllTowers();
+      const itemChoices = this.buildWaveEndItems(towers, wave);
+      setWaveEndItemPick(itemChoices);
 
       // 50웨이브 클리어 (싱글플레이 전용)
       if (!isMultiplayer && wave === 50) {
@@ -574,10 +576,6 @@ export class GameManager {
 
         // 웨이브 업적
         saveService.updateAchievement(`wave${wave}`, wave);
-
-        // 웨이브 종료 아이템 보상 (싱글플레이)
-        const itemChoices = this.buildWaveEndItems(towers, wave);
-        setWaveEndItemPick(itemChoices);
 
         // 랭킹 업데이트 (싱글플레이, 매 웨이브)
         try {
