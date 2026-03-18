@@ -1,6 +1,5 @@
 // src/components/Modals/Settings.tsx
-
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
@@ -8,7 +7,35 @@ import { soundService } from '../../services/SoundService';
 
 export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
-  const settings = saveService.load().settings;
+
+  // defaultValue 대신 useState로 관리 → 변경 즉시 저장
+  const saved = saveService.load().settings;
+  const [musicVolume, setMusicVolume]         = useState(saved.musicVolume);
+  const [sfxVolume, setSfxVolume]             = useState(saved.sfxVolume);
+  const [showDamage, setShowDamage]           = useState(saved.showDamageNumbers);
+  const [showGrid, setShowGrid]               = useState(saved.showGrid);
+
+  const handleMusicVolume = (v: number) => {
+    setMusicVolume(v);
+    soundService.setMusicVolume(v);
+    saveService.save({ settings: { ...saveService.load().settings, musicVolume: v } });
+  };
+
+  const handleSfxVolume = (v: number) => {
+    setSfxVolume(v);
+    soundService.setSFXVolume(v);
+    saveService.save({ settings: { ...saveService.load().settings, sfxVolume: v } });
+  };
+
+  const handleShowDamage = (v: boolean) => {
+    setShowDamage(v);
+    saveService.save({ settings: { ...saveService.load().settings, showDamageNumbers: v } });
+  };
+
+  const handleShowGrid = (v: boolean) => {
+    setShowGrid(v);
+    saveService.save({ settings: { ...saveService.load().settings, showGrid: v } });
+  };
 
   return (
     <Overlay>
@@ -16,34 +43,36 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <h2>⚙️ {t('settings.title')}</h2>
         <SettingsList>
           <SettingItem>
-            <label>{t('settings.musicVolume')}</label>
+            <label>{t('settings.musicVolume')} ({Math.round(musicVolume * 100)}%)</label>
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              defaultValue={settings.musicVolume}
-              onChange={(e) => soundService.setMusicVolume(parseFloat(e.target.value))}
+              type="range" min="0" max="1" step="0.1"
+              value={musicVolume}
+              onChange={(e) => handleMusicVolume(parseFloat(e.target.value))}
             />
           </SettingItem>
           <SettingItem>
-            <label>{t('settings.sfxVolume')}</label>
+            <label>{t('settings.sfxVolume')} ({Math.round(sfxVolume * 100)}%)</label>
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              defaultValue={settings.sfxVolume}
-              onChange={(e) => soundService.setSFXVolume(parseFloat(e.target.value))}
+              type="range" min="0" max="1" step="0.1"
+              value={sfxVolume}
+              onChange={(e) => handleSfxVolume(parseFloat(e.target.value))}
             />
           </SettingItem>
           <SettingItem>
             <label>{t('settings.showDamage')}</label>
-            <input type="checkbox" defaultChecked={settings.showDamageNumbers} />
+            <input
+              type="checkbox"
+              checked={showDamage}
+              onChange={(e) => handleShowDamage(e.target.checked)}
+            />
           </SettingItem>
           <SettingItem>
             <label>{t('settings.showGrid')}</label>
-            <input type="checkbox" defaultChecked={settings.showGrid} />
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={(e) => handleShowGrid(e.target.checked)}
+            />
           </SettingItem>
           <DangerZone>
             <DangerButton onClick={() => {

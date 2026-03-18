@@ -1,10 +1,10 @@
 // src/components/UI/Shop.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import styled, { css } from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
-import { canEvolveWithItem } from '../../data/evolution';
-import { EVOLUTION_ITEMS_BY_CATEGORY, EvolutionItem } from '../../data/evolutionItems';
+import { canEvolveWithItem, getEvolvableWithItem } from '../../data/evolution';
+import { EVOLUTION_ITEMS_BY_CATEGORY, EVOLUTION_ITEMS, EvolutionItem } from '../../data/evolutionItems';
 
 type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'exp_candy' | string;
 type ShopTab = 'general' | 'evolution';
@@ -19,8 +19,6 @@ export const Shop: React.FC = () => {
     isWaveActive: state.isWaveActive,
   }));
   const [itemMode, setItemMode] = useState<ItemMode>('none');
-  // [수정] selectedCost 상태 변수 제거
-  // const [selectedCost, setSelectedCost] = useState(0); 
   const [activeTab, setActiveTab] = useState<ShopTab>('general');
 
   useEffect(() => {
@@ -29,26 +27,39 @@ export const Shop: React.FC = () => {
     }
   }, [isWaveActive]);
 
-  // [수정] setSelectedCost 호출 제거
+  // ── 현재 필드 포켓몬에 바로 사용 가능한 아이템 ID 집합 ──────────────────
+  const usableItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    const aliveTowers = towers.filter(t => !t.isFainted);
+    if (aliveTowers.length === 0) return ids;
+
+    Object.values(EVOLUTION_ITEMS).forEach(item => {
+      const evolvableIds = getEvolvableWithItem(item.id);
+      const canUse = aliveTowers.some(t => evolvableIds.includes(t.pokemonId));
+      if (canUse) ids.add(item.id);
+    });
+
+    return ids;
+  }, [towers]);
+
+  // ── 아이템 목록 정렬 헬퍼: 사용 가능 아이템 → 앞으로 ────────────────────
+  const sortedItems = (items: EvolutionItem[]) =>
+    [...items].sort((a, b) => {
+      const aU = usableItemIds.has(a.id) ? 0 : 1;
+      const bU = usableItemIds.has(b.id) ? 0 : 1;
+      return aU - bU;
+    });
+
   const handleBuyPotion = () => {
-    if (money < 20) {
-      alert(t('alerts.notEnoughMoney'));
-      return;
-    }
+    if (money < 20) { alert(t('alerts.notEnoughMoney')); return; }
     setItemMode('potion');
   };
   const handleBuyPotionGood = () => {
-    if (money < 100) {
-      alert(t('alerts.notEnoughMoney'));
-      return;
-    }
+    if (money < 100) { alert(t('alerts.notEnoughMoney')); return; }
     setItemMode('potion_good');
   };
   const handleBuyPotionSuper = () => {
-    if (money < 500) {
-      alert(t('alerts.notEnoughMoney'));
-      return;
-    }
+    if (money < 500) { alert(t('alerts.notEnoughMoney')); return; }
     setItemMode('potion_super');
   };
   const handleBuyCandy = () => {
@@ -72,89 +83,88 @@ export const Shop: React.FC = () => {
   const handleTargetSelect = async (towerId: string) => {
     let success = false;
 
-    if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super' ||
-        itemMode === 'revive' || itemMode === 'candy' || itemMode === 'exp_candy') {
-      
+    if (
+      itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super' ||
+      itemMode === 'revive' || itemMode === 'candy' || itemMode === 'exp_candy'
+    ) {
       success = useItem(itemMode, towerId);
-      
       if (!success) {
         alert(t('alerts.cannotUseItem'));
       }
-      
     } else if (itemMode !== 'none') {
       success = await evolvePokemon(towerId, itemMode);
-      
       if (success) {
         alert(t('alerts.evolutionSuccess'));
       } else {
         alert(t('alerts.cannotEvolveWithItem'));
       }
     }
-    
+
     setItemMode('none');
-    // [수정] setSelectedCost 호출 제거
   };
 
   const handleCancel = () => {
     setItemMode('none');
-    // [수정] setSelectedCost 호출 제거
   };
 
   const currentItem = Object.values(EVOLUTION_ITEMS_BY_CATEGORY)
     .flat()
     .find((i: EvolutionItem) => i.id === itemMode);
 
+  // ── 타워 선택 모드 ───────────────────────────────────────────────────────
   if (itemMode !== 'none') {
     return (
       <TargetOverlay>
         <TargetModal>
           <TargetTitle>🎯 {t('shop.targetTitle')}</TargetTitle>
           <TargetSubtitle>
-            {itemMode === 'potion' && t('shop.targetPotion')}
+            {itemMode === 'potion'      && t('shop.targetPotion')}
             {itemMode === 'potion_good' && t('shop.targetPotionGood')}
-            {itemMode === 'potion_super' && t('shop.targetPotionSuper')}
-            {itemMode === 'candy' && t('shop.targetCandy')}
-            {itemMode === 'revive' && t('shop.targetRevive')}
-            {itemMode === 'exp_candy' && t('shop.targetExpCandy')}
-            {currentItem && t('shop.targetItem', { name: t(`items.${currentItem.id}.name`) })}
+            {itemMode === 'potion_super'&& t('shop.targetPotionSuper')}
+            {itemMode === 'candy'       && t('shop.targetCandy')}
+            {itemMode === 'revive'      && t('shop.targetRevive')}
+            {itemMode === 'exp_candy'   && t('shop.targetExpCandy')}
+            {itemMode !== 'none' &&
+              itemMode !== 'potion' && itemMode !== 'potion_good' && itemMode !== 'potion_super' &&
+              itemMode !== 'candy' && itemMode !== 'revive' && itemMode !== 'exp_candy' &&
+              t('shop.targetItem', { name: currentItem ? t(`items.${currentItem.id}.name`) : itemMode })
+            }
           </TargetSubtitle>
           <TowerGrid>
             {towers.map(tower => {
               let isSelectable = false;
-              
-              if (itemMode === 'revive') {
+              let isEvolveTarget = false;
+
+              if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super') {
+                isSelectable = !tower.isFainted && tower.currentHp < tower.maxHp;
+              } else if (itemMode === 'candy') {
+                isSelectable = !tower.isFainted && tower.level < 100;
+              } else if (itemMode === 'revive') {
                 isSelectable = tower.isFainted;
               } else if (itemMode === 'exp_candy') {
                 const aliveTowers = towers.filter(t => !t.isFainted);
-                if (aliveTowers.length < 2) {
-                  isSelectable = false;
-                } else {
+                if (aliveTowers.length >= 2) {
                   const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-                  const lowestLevelTowerId = sortedTowers[0].id;
-                  isSelectable = !tower.isFainted && tower.id === lowestLevelTowerId;
+                  isSelectable = !tower.isFainted && tower.id === sortedTowers[0].id;
                 }
               } else if (currentItem) {
-                isSelectable = !tower.isFainted && canEvolveWithItem(tower.pokemonId, itemMode) !== null;
-              } else {
-                if (itemMode === 'candy') {
-                  isSelectable = !tower.isFainted && tower.level < 100;
-                } else {
-                  isSelectable = !tower.isFainted;
-                }
+                const result = canEvolveWithItem(tower.pokemonId, itemMode);
+                isSelectable = !!result && !tower.isFainted;
+                isEvolveTarget = isSelectable;
               }
-              
+
               return (
-                <TowerCard 
-                  key={tower.id} 
+                <TowerCard
+                  key={tower.id}
                   $isSelectable={isSelectable}
-                  $isEvolveTarget={isSelectable && !!currentItem}
+                  $isEvolveTarget={isEvolveTarget}
                   onClick={() => isSelectable && handleTargetSelect(tower.id)}
                 >
                   <TowerImg src={tower.sprite} alt={tower.displayName} />
                   <TowerName>{tower.displayName}</TowerName>
                   <TowerInfo>Lv.{tower.level} | HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
                   {tower.isFainted && <FaintedLabel>{t('manager.fainted')}</FaintedLabel>}
-                  
+
                   {isSelectable && itemMode === 'candy' && (
                     <PriceLabel $type="candy">
                       {t('shop.cost', { cost: tower.level * 25 })}
@@ -168,14 +178,14 @@ export const Shop: React.FC = () => {
                   {isSelectable && itemMode === 'exp_candy' && (() => {
                     const aliveTowers = towers.filter(t => !t.isFainted);
                     const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-                    const secondLowestLevel = sortedTowers[1].level;
+                    const secondLowestLevel = sortedTowers[1]?.level ?? tower.level;
                     return (
                       <PriceLabel $type="exp">
                         {t('shop.costLevelChange', { cost: secondLowestLevel * 50, from: tower.level, to: secondLowestLevel })}
                       </PriceLabel>
                     );
                   })()}
-                  {isSelectable && currentItem && (
+                  {isEvolveTarget && (
                     <PriceLabel $type="evolve">
                       ✨ {t('manager.canEvolve')}
                     </PriceLabel>
@@ -190,28 +200,48 @@ export const Shop: React.FC = () => {
     );
   }
 
+  // ── 진화 아이템 렌더 헬퍼 ────────────────────────────────────────────────
+  const renderEvoItems = (items: EvolutionItem[]) =>
+    sortedItems(items).map(item => {
+      const isUsable = usableItemIds.has(item.id);
+      return (
+        <EvoItemBtn
+          key={item.id}
+          $isUsable={isUsable}
+          onClick={() => handleBuyEvolutionItem(item)}
+        >
+          {isUsable && <UsableBadge>✨ 지금 사용 가능!</UsableBadge>}
+          <EvoItemName $isUsable={isUsable}>{t(`items.${item.id}.name`)}</EvoItemName>
+          <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
+          <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
+        </EvoItemBtn>
+      );
+    });
+
+  // ── 메인 상점 UI ─────────────────────────────────────────────────────────
   return (
     <ShopOverlay>
       <ShopModal>
         <ShopHeader>
           <ShopTitle>🏪 {t('shop.title')}</ShopTitle>
         </ShopHeader>
-        
+
         <MoneyDisplay>{t('shop.currentMoney', { money: money })}</MoneyDisplay>
-        
+
         {!isWaveActive && (
           <TabContainer>
-            <TabButton 
+            <TabButton
               $isActive={activeTab === 'general'}
               onClick={() => setActiveTab('general')}
             >
               🛒 {t('shop.tabGeneral')}
             </TabButton>
-            <TabButton 
+            <TabButton
               $isActive={activeTab === 'evolution'}
               onClick={() => setActiveTab('evolution')}
             >
               ✨ {t('shop.tabEvolution')}
+              {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
             </TabButton>
           </TabContainer>
         )}
@@ -255,82 +285,27 @@ export const Shop: React.FC = () => {
           <EvolutionTab>
             <CategorySection>
               <CategoryTitle>🔥 {t('shop.categoryStone')}</CategoryTitle>
-              <ItemGrid>
-                {EVOLUTION_ITEMS_BY_CATEGORY.stone.map(item => (
-                  <EvoItemBtn
-                    key={item.id}
-                    onClick={() => handleBuyEvolutionItem(item)}
-                  >
-                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
-                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-                  </EvoItemBtn>
-                ))}
-              </ItemGrid>
+              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
             </CategorySection>
-            
+
             <CategorySection>
               <CategoryTitle>🔗 {t('shop.categoryTrade')}</CategoryTitle>
-              <ItemGrid>
-                {EVOLUTION_ITEMS_BY_CATEGORY.trade.map(item => (
-                  <EvoItemBtn
-                    key={item.id}
-                    onClick={() => handleBuyEvolutionItem(item)}
-                  >
-                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
-                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-                  </EvoItemBtn>
-                ))}
-              </ItemGrid>
+              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
             </CategorySection>
 
             <CategorySection>
               <CategoryTitle>💝 {t('shop.categoryFriendship')}</CategoryTitle>
-              <ItemGrid>
-                {EVOLUTION_ITEMS_BY_CATEGORY.friendship.map(item => (
-                  <EvoItemBtn
-                    key={item.id}
-                    onClick={() => handleBuyEvolutionItem(item)}
-                  >
-                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
-                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-                  </EvoItemBtn>
-                ))}
-              </ItemGrid>
+              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
             </CategorySection>
 
             <CategorySection>
               <CategoryTitle>⭐ {t('shop.categoryOthers')}</CategoryTitle>
-              <ItemGrid>
-                {EVOLUTION_ITEMS_BY_CATEGORY.others.map(item => (
-                  <EvoItemBtn
-                    key={item.id}
-                    onClick={() => handleBuyEvolutionItem(item)}
-                  >
-                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
-                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-                  </EvoItemBtn>
-                ))}
-              </ItemGrid>
+              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
             </CategorySection>
-            
+
             <CategorySection>
               <CategoryTitle>✨ {t('shop.categorySpecial')}</CategoryTitle>
-              <ItemGrid>
-                {EVOLUTION_ITEMS_BY_CATEGORY.special.map(item => (
-                  <EvoItemBtn
-                    key={item.id}
-                    onClick={() => handleBuyEvolutionItem(item)}
-                  >
-                    <EvoItemName>{t(`items.${item.id}.name`)}</EvoItemName>
-                    <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-                    <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-                  </EvoItemBtn>
-                ))}
-              </ItemGrid>
+              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
             </CategorySection>
           </EvolutionTab>
         )}
@@ -339,15 +314,12 @@ export const Shop: React.FC = () => {
   );
 };
 
-// --- Styled Components (변경 없음) ---
+// ─── Styled Components ────────────────────────────────────────────────────────
 
 const TargetOverlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.95));
   backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
@@ -365,8 +337,8 @@ const TargetModal = styled.div`
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6), 0 0 1px 1px rgba(76, 175, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(76, 175, 255, 0.2);
+  box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 1px 1px rgba(76,175,255,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+  border: 2px solid rgba(76,175,255,0.2);
   animation: slideInUp 0.4s ease-out;
 `;
 
@@ -392,17 +364,17 @@ const TowerGrid = styled.div`
   padding-bottom: 24px;
 `;
 
-const TowerCard = styled.div<{ $isSelectable: boolean, $isEvolveTarget: boolean }>`
-  background: linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95));
-  border: 2px solid ${props => props.$isEvolveTarget ? '#2ecc71' : 'rgba(52, 152, 219, 0.4)'};
+const TowerCard = styled.div<{ $isSelectable: boolean; $isEvolveTarget: boolean }>`
+  background: linear-gradient(145deg, rgba(30,40,60,0.9), rgba(15,20,35,0.95));
+  border: 2px solid ${props => props.$isEvolveTarget ? '#2ecc71' : 'rgba(52,152,219,0.4)'};
   border-radius: 16px;
   padding: 20px;
   text-align: center;
   transition: all 0.3s ease;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   opacity: ${props => props.$isSelectable ? 1 : 0.3};
   cursor: ${props => props.$isSelectable ? 'pointer' : 'not-allowed'};
-  
+
   ${props => props.$isSelectable && css`
     &:hover {
       transform: translateY(-2px);
@@ -416,7 +388,7 @@ const TowerImg = styled.img`
   height: 80px;
   image-rendering: pixelated;
   margin-bottom: 12px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
 `;
 
 const TowerName = styled.h4`
@@ -444,9 +416,9 @@ const PriceLabel = styled.p<{ $type: 'candy' | 'revive' | 'exp' | 'evolve' }>`
   font-size: 12px;
   margin-top: 8px;
   color: ${props => {
-    if (props.$type === 'candy') return '#f39c12';
+    if (props.$type === 'candy')  return '#f39c12';
     if (props.$type === 'revive') return '#e74c3c';
-    if (props.$type === 'exp') return '#9b59b6';
+    if (props.$type === 'exp')    return '#9b59b6';
     if (props.$type === 'evolve') return '#2ecc71';
     return '#fff';
   }};
@@ -459,16 +431,13 @@ const CancelBtn = styled.button`
   font-size: 18px;
   background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
   color: #fff;
-  border: 2px solid rgba(231, 76, 60, 0.4);
+  border: 2px solid rgba(231,76,60,0.4);
   border-radius: 14px;
   cursor: pointer;
   font-weight: bold;
-  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-
-  &:hover {
-    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
-  }
+  box-shadow: 0 6px 20px rgba(231,76,60,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  &:hover { background: linear-gradient(135deg, #c0392b 0%, #a93226 100%); }
 `;
 
 const ShopOverlay = styled.div`
@@ -480,23 +449,23 @@ const ShopOverlay = styled.div`
 `;
 
 const ShopModal = styled.div`
-  background: linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98));
+  background: linear-gradient(145deg, rgba(26,31,46,0.98), rgba(15,20,25,0.98));
   color: #e8edf3;
   border-radius: 16px;
   padding: 0;
   width: 280px;
   max-height: 70vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(243, 156, 18, 0.4), 0 0 2px 1px rgba(243, 156, 18, 0.3);
-  border: 3px solid rgba(243, 156, 18, 0.4);
+  box-shadow: 0 20px 60px rgba(243,156,18,0.4), 0 0 2px 1px rgba(243,156,18,0.3);
+  border: 3px solid rgba(243,156,18,0.4);
   backdrop-filter: blur(10px);
   animation: slideInRight 0.3s ease-out;
 `;
 
 const ShopHeader = styled.div`
   padding: 16px;
-  background: linear-gradient(90deg, rgba(243, 156, 18, 0.2), transparent);
-  border-bottom: 2px solid rgba(243, 156, 18, 0.3);
+  background: linear-gradient(90deg, rgba(243,156,18,0.2), transparent);
+  border-bottom: 2px solid rgba(243,156,18,0.3);
   text-align: center;
 `;
 
@@ -505,7 +474,7 @@ const ShopTitle = styled.h2`
   font-weight: bold;
   margin: 0;
   color: #f39c12;
-  text-shadow: 0 0 10px rgba(243, 156, 18, 0.6);
+  text-shadow: 0 0 10px rgba(243,156,18,0.6);
 `;
 
 const MoneyDisplay = styled.div`
@@ -514,9 +483,9 @@ const MoneyDisplay = styled.div`
   color: #ffd700;
   margin: 12px 16px;
   text-align: center;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+  text-shadow: 0 0 10px rgba(255,215,0,0.7);
   padding: 8px;
-  background: rgba(255, 215, 0, 0.1);
+  background: rgba(255,215,0,0.1);
   border-radius: 8px;
 `;
 
@@ -528,10 +497,11 @@ const TabContainer = styled.div`
 
 const TabButton = styled.button<{ $isActive: boolean }>`
   flex: 1;
+  position: relative;
   padding: 8px 12px;
-  background: linear-gradient(145deg, rgba(30, 40, 60, 0.6), rgba(15, 20, 35, 0.6));
+  background: linear-gradient(145deg, rgba(30,40,60,0.6), rgba(15,20,35,0.6));
   color: #a0aec0;
-  border: 2px solid rgba(243, 156, 18, 0.2);
+  border: 2px solid rgba(243,156,18,0.2);
   border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
@@ -541,9 +511,27 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   ${props => props.$isActive && css`
     background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
     color: #fff;
-    border: 2px solid rgba(243, 156, 18, 0.6);
-    box-shadow: 0 4px 12px rgba(243, 156, 18, 0.4);
+    border: 2px solid rgba(243,156,18,0.6);
+    box-shadow: 0 4px 12px rgba(243,156,18,0.4);
   `}
+`;
+
+// 진화 탭에 사용 가능 아이템 개수 뱃지
+const TabBadge = styled.span`
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #2ecc71;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(46,204,113,0.6);
 `;
 
 const ItemsContainer = styled.div`
@@ -554,14 +542,14 @@ const ItemsContainer = styled.div`
 `;
 
 const Item = styled.div`
-  background: linear-gradient(145deg, rgba(30, 40, 60, 0.9), rgba(15, 20, 35, 0.95));
-  border: 1px solid rgba(243, 156, 18, 0.3);
+  background: linear-gradient(145deg, rgba(30,40,60,0.9), rgba(15,20,35,0.95));
+  border: 1px solid rgba(243,156,18,0.3);
   border-radius: 10px;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 `;
 
 const ItemTitle = styled.h3`
@@ -581,16 +569,13 @@ const BuyBtn = styled.button`
   padding: 6px 10px;
   background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
   color: #fff;
-  border: 1px solid rgba(243, 156, 18, 0.4);
+  border: 1px solid rgba(243,156,18,0.4);
   border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
   font-size: 11px;
-  box-shadow: 0 2px 8px rgba(243, 156, 18, 0.3);
-
-  &:hover {
-    background: linear-gradient(135deg, #d68910 0%, #b8730e 100%);
-  }
+  box-shadow: 0 2px 8px rgba(243,156,18,0.3);
+  &:hover { background: linear-gradient(135deg, #d68910 0%, #b8730e 100%); }
 `;
 
 const EvolutionTab = styled.div`
@@ -610,7 +595,7 @@ const CategoryTitle = styled.h3`
   color: #f39c12;
   margin-bottom: 10px;
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(243, 156, 18, 0.3);
+  border-bottom: 1px solid rgba(243,156,18,0.3);
 `;
 
 const ItemGrid = styled.div`
@@ -619,10 +604,11 @@ const ItemGrid = styled.div`
   gap: 8px;
 `;
 
-const EvoItemBtn = styled.button`
+const EvoItemBtn = styled.button<{ $isUsable?: boolean }>`
+  position: relative;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.05);
+  border: 2px solid rgba(255,255,255,0.1);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -630,16 +616,45 @@ const EvoItemBtn = styled.button`
   text-align: left;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.1);
     border-color: #f39c12;
   }
+
+  ${props => props.$isUsable && css`
+    border-color: #2ecc71;
+    background: linear-gradient(145deg, rgba(46,204,113,0.12), rgba(30,40,60,0.9));
+    box-shadow: 0 0 14px rgba(46,204,113,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+
+    &:hover {
+      border-color: #34f58b;
+      background: linear-gradient(145deg, rgba(46,204,113,0.2), rgba(30,40,60,0.9));
+      box-shadow: 0 0 20px rgba(46,204,113,0.5);
+    }
+  `}
 `;
 
-const EvoItemName = styled.div`
+// 사용 가능 뱃지
+const UsableBadge = styled.div`
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(46,204,113,0.5);
+  pointer-events: none;
+`;
+
+const EvoItemName = styled.div<{ $isUsable?: boolean }>`
   font-size: 14px;
   font-weight: bold;
   margin-bottom: 5px;
-  color: #fff;
+  color: ${props => props.$isUsable ? '#4fffaa' : '#fff'};
 `;
 
 const EvoItemPrice = styled.div`
