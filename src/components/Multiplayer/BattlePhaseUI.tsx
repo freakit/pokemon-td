@@ -1,8 +1,8 @@
 // src/components/Multiplayer/BattlePhaseUI.tsx
 // 페이즈 전환 및 대전 시뮬레이션 담당
 
-import React, { useState, useEffect, useRef } from 'react';
-import styled from 'styled-components';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import styled, { keyframes } from 'styled-components';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { MultiplayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
@@ -16,6 +16,432 @@ interface BattlePhaseUIProps {
 // 배틀 페이즈가 이 시간(ms) 이상 지속되면 강제 전환
 const BATTLE_STUCK_TIMEOUT_MS = 15_000;
 
+// ─── 스타일드 컴포넌트 ───────────────────────────────────────────
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const pulse = keyframes`
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+`;
+
+
+const BattleOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+`;
+
+const BattleContainer = styled.div`
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 32px;
+  min-width: 480px;
+  text-align: center;
+  animation: ${fadeIn} 0.4s ease;
+  box-shadow: 0 0 60px rgba(0,100,255,0.3);
+`;
+
+const VSHeader = styled.div`margin-bottom: 24px;`;
+const RoundText = styled.div`
+  color: rgba(255,255,255,0.5); font-size: 12px;
+  letter-spacing: 3px; text-transform: uppercase; margin-bottom: 4px;
+`;
+const BattleTitle = styled.div`
+  color: #fff; font-size: 28px; font-weight: 900;
+  letter-spacing: 4px; text-shadow: 0 0 20px rgba(0,150,255,0.8);
+`;
+const MatchupContainer = styled.div`
+  display: flex; align-items: center; justify-content: center; gap: 24px;
+  margin: 24px 0;
+`;
+const PlayerCard = styled.div<{ $isMe?: boolean }>`
+  flex: 1; padding: 16px;
+  background: ${p => p.$isMe
+    ? 'linear-gradient(135deg, rgba(0,100,255,0.2), rgba(0,50,150,0.1))'
+    : 'linear-gradient(135deg, rgba(255,50,50,0.2), rgba(150,0,0,0.1))'};
+  border: 1px solid ${p => p.$isMe ? 'rgba(0,150,255,0.4)' : 'rgba(255,50,50,0.4)'};
+  border-radius: 12px;
+`;
+const PlayerAvatar = styled.div`
+  width: 48px; height: 48px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: bold; color: #fff;
+  margin: 0 auto 8px;
+`;
+const PlayerName = styled.div`color: rgba(255,255,255,0.9); font-size: 14px; font-weight: 600;`;
+const ResultText = styled.div<{ $win: boolean }>`
+  font-size: 18px; font-weight: 900; margin-top: 8px;
+  color: ${p => p.$win ? '#4ade80' : '#f87171'};
+`;
+const VSBadge = styled.div`
+  font-size: 24px; font-weight: 900; color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251,191,36,0.5);
+`;
+const StatusMessage = styled.div`
+  color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 16px;
+`;
+
+const TFTArenaOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.95);
+  display: flex; flex-direction: column;
+`;
+const ArenaFooter = styled.div`
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 24px;
+  background: rgba(0,0,0,0.8);
+  border-top: 1px solid rgba(255,255,255,0.1);
+`;
+const RoundInfo = styled.div`
+  color: #fff; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; gap: 12px;
+`;
+const ResultBadge = styled.div<{ $win: boolean }>`
+  padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;
+  background: ${p => p.$win ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'};
+  color: ${p => p.$win ? '#4ade80' : '#f87171'};
+  border: 1px solid ${p => p.$win ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'};
+`;
+const SkipBtn = styled.button`
+  padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.15); color: #fff; font-size: 14px;
+  &:hover { background: rgba(255,255,255,0.25); }
+`;
+
+// ─── 홀수 휴식 턴 모달 ───────────────────────────────────────────
+const ByeOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+`;
+
+const ByeContainer = styled.div`
+  background: linear-gradient(135deg, #1a2a1a 0%, #0f2e0f 50%, #1a3a1a 100%);
+  border: 2px solid rgba(74,222,128,0.3);
+  border-radius: 20px;
+  padding: 48px 56px;
+  text-align: center;
+  animation: ${fadeIn} 0.4s ease;
+  box-shadow: 0 0 60px rgba(74,222,128,0.2);
+  max-width: 460px;
+`;
+
+const ByeIcon = styled.div`
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: ${pulse} 2s ease-in-out infinite;
+`;
+
+const ByeTitle = styled.div`
+  color: #4ade80; font-size: 28px; font-weight: 900;
+  letter-spacing: 3px; margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(74,222,128,0.6);
+`;
+
+const ByeSubtitle = styled.div`
+  color: rgba(255,255,255,0.8); font-size: 16px;
+  line-height: 1.6; margin-bottom: 20px;
+`;
+
+const ByeBonusBox = styled.div`
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.3);
+  border-radius: 12px;
+  padding: 12px 20px;
+  color: #4ade80; font-size: 14px; font-weight: 600;
+`;
+
+const ByeCountdown = styled.div`
+  color: rgba(255,255,255,0.4); font-size: 12px; margin-top: 16px;
+`;
+
+// ─── 라운드 결과 요약 모달 ───────────────────────────────────────
+const SummaryOverlay = styled.div`
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  animation: ${fadeIn} 0.4s ease;
+`;
+
+const SummaryContainer = styled.div`
+  background: linear-gradient(145deg, #0d0d1a 0%, #111827 100%);
+  border: 2px solid rgba(255,255,255,0.12);
+  border-radius: 24px;
+  padding: 32px;
+  width: 600px;
+  max-width: 95vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 0 80px rgba(100,50,255,0.3);
+`;
+
+const SummaryHeader = styled.div`
+  text-align: center;
+  margin-bottom: 28px;
+`;
+
+const SummaryRound = styled.div`
+  color: rgba(255,255,255,0.4); font-size: 11px;
+  letter-spacing: 4px; text-transform: uppercase; margin-bottom: 4px;
+`;
+
+const SummaryTitle = styled.div`
+  color: #fff; font-size: 26px; font-weight: 900;
+  background: linear-gradient(135deg, #a78bfa, #60a5fa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+`;
+
+const SummaryMatchList = styled.div`
+  display: flex; flex-direction: column; gap: 12px;
+  margin-bottom: 24px;
+`;
+
+const SummaryMatchCard = styled.div<{ $isMyMatch?: boolean }>`
+  background: ${p => p.$isMyMatch ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.04)'};
+  border: 1px solid ${p => p.$isMyMatch ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'};
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 12px;
+`;
+
+const MatchPlayerName = styled.div<{ $winner?: boolean }>`
+  flex: 1; font-size: 14px; font-weight: 600;
+  color: ${p => p.$winner ? '#fbbf24' : 'rgba(255,255,255,0.7)'};
+  text-align: center;
+`;
+
+const MatchVS = styled.div`
+  color: rgba(255,255,255,0.3); font-size: 12px; font-weight: 700;
+  min-width: 28px; text-align: center;
+`;
+
+const MatchResult = styled.div<{ $winner?: boolean }>`
+  font-size: 18px; min-width: 28px; text-align: center;
+`;
+
+const MatchStats = styled.div`
+  flex: 1; text-align: center;
+  color: rgba(255,255,255,0.4); font-size: 11px;
+  line-height: 1.5;
+`;
+
+const ByeCard = styled.div`
+  background: rgba(74,222,128,0.06);
+  border: 1px solid rgba(74,222,128,0.2);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: #4ade80; font-size: 14px; font-weight: 600;
+`;
+
+const SummaryStandings = styled.div`
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+`;
+
+const StandingsTitle = styled.div`
+  color: rgba(255,255,255,0.4); font-size: 11px;
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;
+`;
+
+const StandingRow = styled.div<{ $isMe?: boolean }>`
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: 8px;
+  background: ${p => p.$isMe ? 'rgba(99,102,241,0.15)' : 'transparent'};
+  margin-bottom: 4px;
+`;
+
+const StandingRank = styled.div`
+  color: rgba(255,255,255,0.3); font-size: 13px; font-weight: 700;
+  min-width: 24px;
+`;
+
+const StandingName = styled.div<{ $isMe?: boolean }>`
+  flex: 1; font-size: 13px; font-weight: 600;
+  color: ${p => p.$isMe ? '#a78bfa' : 'rgba(255,255,255,0.8)'};
+`;
+
+const StandingLives = styled.div`
+  color: #f87171; font-size: 13px; font-weight: 600;
+`;
+
+const StandingGold = styled.div`
+  color: #fbbf24; font-size: 13px; font-weight: 600;
+`;
+
+const SummaryCloseBtn = styled.button`
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px; font-weight: 700;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  transition: all 0.2s;
+  &:hover {
+    background: linear-gradient(135deg, #5a52f0, #8b47f8);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(79,70,229,0.4);
+  }
+`;
+
+const MyResultBanner = styled.div<{ $win: boolean }>`
+  text-align: center;
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 12px;
+  background: ${p => p.$win
+    ? 'linear-gradient(135deg, rgba(74,222,128,0.15), rgba(16,185,129,0.08))'
+    : 'linear-gradient(135deg, rgba(248,113,113,0.15), rgba(239,68,68,0.08))'};
+  border: 1px solid ${p => p.$win ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};
+`;
+
+const MyResultIcon = styled.div`font-size: 36px; margin-bottom: 4px;`;
+const MyResultText = styled.div<{ $win: boolean }>`
+  font-size: 20px; font-weight: 900;
+  color: ${p => p.$win ? '#4ade80' : '#f87171'};
+`;
+const MyResultSub = styled.div`
+  color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 4px;
+`;
+
+// ─── RoundSummaryModal 컴포넌트 ──────────────────────────────────
+interface RoundSummaryModalProps {
+  gameState: MultiplayerGameState;
+  myUserId: string;
+  roundNumber: number;
+  onClose: () => void;
+}
+
+const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({
+  gameState,
+  myUserId,
+  roundNumber,
+  onClose,
+}) => {
+  const roundResults = (gameState.battleResults || []).filter(
+    r => r.roundNumber === roundNumber
+  );
+
+  const myResult = roundResults.find(
+    r => r.player1Id === myUserId || r.player2Id === myUserId
+  );
+
+  const skipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
+  const iAmSkipped = skipPlayerId === myUserId;
+
+  // 순위표: 라이프 기준 정렬 (생존자 우선)
+  const sortedPlayers = [...gameState.players].sort((a, b) => {
+    if (a.isAlive !== b.isAlive) return a.isAlive ? -1 : 1;
+    return b.lives - a.lives;
+  });
+
+  const getPlayerName = (id: string) =>
+    gameState.players.find(p => p.userId === id)?.userName ?? id;
+
+  return (
+    <SummaryOverlay onClick={onClose}>
+      <SummaryContainer onClick={e => e.stopPropagation()}>
+        <SummaryHeader>
+          <SummaryRound>Round {roundNumber} · 전투 결과</SummaryRound>
+          <SummaryTitle>⚔️ 배틀 요약</SummaryTitle>
+        </SummaryHeader>
+
+        {/* 내 결과 배너 */}
+        {iAmSkipped ? (
+          <MyResultBanner $win={true}>
+            <MyResultIcon>😴</MyResultIcon>
+            <MyResultText $win={true}>휴식 턴</MyResultText>
+            <MyResultSub>이번 라운드 전투 없이 패스</MyResultSub>
+          </MyResultBanner>
+        ) : myResult ? (
+          <MyResultBanner $win={myResult.winnerId === myUserId}>
+            <MyResultIcon>
+              {myResult.winnerId === myUserId ? '🏆' : '💀'}
+            </MyResultIcon>
+            <MyResultText $win={myResult.winnerId === myUserId}>
+              {myResult.winnerId === myUserId ? '승리!' : '패배'}
+            </MyResultText>
+            <MyResultSub>
+              {myResult.winnerId === myUserId
+                ? `생존 포켓몬: ${myResult.winnerId === myResult.player1Id
+                    ? myResult.player1RemainingPokemon
+                    : myResult.player2RemainingPokemon}마리`
+                : `라이프 ${myResult.lifeLost} 감소`}
+            </MyResultSub>
+          </MyResultBanner>
+        ) : null}
+
+        {/* 모든 매치 결과 */}
+        <SummaryMatchList>
+          {roundResults.map(result => {
+            const isMyMatch = result.player1Id === myUserId || result.player2Id === myUserId;
+            const p1Won = result.winnerId === result.player1Id;
+            const p1Name = getPlayerName(result.player1Id);
+            const p2Name = getPlayerName(result.player2Id);
+            return (
+              <SummaryMatchCard key={result.matchId} $isMyMatch={isMyMatch}>
+                <MatchPlayerName $winner={p1Won}>{p1Name}</MatchPlayerName>
+                <MatchResult>{p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchVS>VS</MatchVS>
+                <MatchResult>{!p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchPlayerName $winner={!p1Won}>{p2Name}</MatchPlayerName>
+                <MatchStats>
+                  {result.player1RemainingPokemon} vs {result.player2RemainingPokemon}
+                  {'\n'}생존
+                </MatchStats>
+              </SummaryMatchCard>
+            );
+          })}
+
+          {/* 휴식 턴 플레이어 표시 */}
+          {skipPlayerId && (
+            <ByeCard>
+              <span>😴</span>
+              <span>{getPlayerName(skipPlayerId)}의 휴식 턴 (전투 없음)</span>
+            </ByeCard>
+          )}
+        </SummaryMatchList>
+
+        {/* 현재 순위표 */}
+        <SummaryStandings>
+          <StandingsTitle>📊 현재 순위</StandingsTitle>
+          {sortedPlayers.map((player, idx) => (
+            <StandingRow key={player.userId} $isMe={player.userId === myUserId}>
+              <StandingRank>
+                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+              </StandingRank>
+              <StandingName $isMe={player.userId === myUserId}>
+                {player.userName}
+                {player.userId === myUserId ? ' (나)' : ''}
+                {!player.isAlive ? ' 💀' : ''}
+              </StandingName>
+              <StandingLives>❤️ {player.lives}</StandingLives>
+              <StandingGold>💰 {player.money}G</StandingGold>
+            </StandingRow>
+          ))}
+        </SummaryStandings>
+
+        <SummaryCloseBtn onClick={onClose}>
+          다음 라운드로 →
+        </SummaryCloseBtn>
+      </SummaryContainer>
+    </SummaryOverlay>
+  );
+};
+
+// ─── 메인 BattlePhaseUI 컴포넌트 ────────────────────────────────
 export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const [gameState, setGameState] = useState<MultiplayerGameState | null>(null);
   const gameStateRef = useRef<MultiplayerGameState | null>(null);
@@ -25,7 +451,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const lastPhaseEndTimeRef = useRef<number | null>(null);
   const lastPhaseRef = useRef<string | null>(null);
 
-  // 배틀 Stuck 감지용: 배틀 페이즈 진입 시각 기록
+  // 배틀 Stuck 감지용
   const battlePhaseEnteredAtRef = useRef<number | null>(null);
 
   const user = authService.getCurrentUser();
@@ -33,7 +459,12 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   // 타워 정보(AI 포함) 저장
   const towerDetailsRef = useRef<Map<string, TowerDetail[]>>(new Map());
 
-  // ─── 게임 상태 구독 ──────────────────────────────────────────────
+  // ─── 라운드 결과 모달 상태 ────────────────────────────────────
+  const [showRoundSummary, setShowRoundSummary] = useState(false);
+  const [summaryRoundNumber, setSummaryRoundNumber] = useState<number>(0);
+  const summaryShownForRoundRef = useRef<number>(-1);
+
+  // ─── 게임 상태 구독 ──────────────────────────────────────────
   useEffect(() => {
     if (!roomId) return;
 
@@ -49,15 +480,32 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         lastPhaseRef.current = state.currentPhase;
         transitionTriggeredRef.current = false;
 
-        // 배틀 페이즈 진입 시각 기록 (stuck 감지용)
         if (state.currentPhase === 'battle') {
           battlePhaseEnteredAtRef.current = Date.now();
         } else {
           battlePhaseEnteredAtRef.current = null;
         }
+
+        // ── 배틀 → waiting_wave 전환 시 라운드 결과 모달 표시 ──
+        // 이전 페이즈가 'battle'이었고 지금 'waiting_wave'로 바뀌면 결과를 보여준다
+        if (
+          lastPhaseRef.current === 'waiting_wave' &&
+          (state.currentPhase === 'waiting_wave' || state.currentPhase === 'waiting_battle') &&
+          state.currentRound > 0 &&
+          state.currentRound !== summaryShownForRoundRef.current
+        ) {
+          // 결과가 존재하는 경우에만
+          const hasResults = (state.battleResults || []).some(
+            r => r.roundNumber === state.currentRound
+          );
+          if (hasResults) {
+            summaryShownForRoundRef.current = state.currentRound;
+            setSummaryRoundNumber(state.currentRound);
+            setShowRoundSummary(true);
+          }
+        }
       }
 
-      // 같은 페이즈 내 phaseEndTime이 갱신되면 전환 플래그 리셋
       if (state.phaseEndTime && state.phaseEndTime !== lastPhaseEndTimeRef.current) {
         lastPhaseEndTimeRef.current = state.phaseEndTime;
         transitionTriggeredRef.current = false;
@@ -67,38 +515,112 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     return unsubscribe;
   }, [roomId]);
 
+  // battle 페이즈 → waiting_wave 페이즈 전환을 별도로 감지하여 모달 표시
+  // (위의 로직이 lastPhaseRef를 동시에 갱신하므로, 별도 effect로 처리)
+  const prevPhaseRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gameState) return;
+    const phase = gameState.currentPhase;
+    const prevPhase = prevPhaseRef.current;
+
+    if (
+      prevPhase === 'battle' &&
+      (phase === 'waiting_wave' || phase === 'waiting_battle') &&
+      gameState.currentRound > 0 &&
+      gameState.currentRound !== summaryShownForRoundRef.current
+    ) {
+      const hasResults = (gameState.battleResults || []).some(
+        r => r.roundNumber === gameState.currentRound
+      );
+      if (hasResults) {
+        summaryShownForRoundRef.current = gameState.currentRound;
+        setSummaryRoundNumber(gameState.currentRound);
+        setShowRoundSummary(true);
+      }
+    }
+    prevPhaseRef.current = phase;
+  }, [gameState?.currentPhase]);
+
   // 모든 플레이어(AI 포함)의 타워 정보 구독
   useEffect(() => {
     if (!roomId) return;
 
     const unsubscribe = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
-      towerDetailsRef.current = allTowers;
+      // 새로운 데이터를 기존 Map에 병합 (기존 데이터 보존)
+      allTowers.forEach((towers, userId) => {
+        if (towers.length > 0) {
+          towerDetailsRef.current.set(userId, towers);
+        }
+      });
     });
 
     return unsubscribe;
   }, [roomId]);
 
-  // ─── 대전 실행 로직 ──────────────────────────────────────────────
-  const executeBattles = async (state: MultiplayerGameState) => {
+  // ─── 타워 데이터 강제 동기화 ────────────────────────────────────
+  // get()은 Firebase Rules Permission 이슈 → onValue 단건 구독으로 처리
+  const forceFetchTowerDetails = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      // let으로 선언해야 콜백 내부에서 TDZ 없이 참조 가능
+      let unsub: (() => void) | null = null;
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        unsub?.();
+        resolve();
+      };
+      unsub = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
+        allTowers.forEach((towers, userId) => {
+          if (towers.length > 0) {
+            towerDetailsRef.current.set(userId, towers);
+          }
+        });
+        console.log(`[BattlePhaseUI] Synced towers for ${towerDetailsRef.current.size} players`);
+        done();
+      });
+      // 3초 타임아웃
+      setTimeout(done, 3000);
+    });
+  }, [roomId]);
+
+  // ─── 대전 실행 로직 ──────────────────────────────────────────
+  const executeBattles = useCallback(async (state: MultiplayerGameState) => {
     if (!state.roundMatchups) {
       await multiplayerService.startWaitingWavePhase(roomId);
       return;
     }
 
-    // 배틀 시작 전 타워 데이터가 로딩될 때까지 최대 3초 대기
+    // 1차: Firebase에서 직접 강제 fetch (스로틀링 우회)
+    await forceFetchTowerDetails();
+
+    // 2차: 아직 빈 팀이 있으면 최대 6초 폴링 재시도
     await new Promise<void>((resolve) => {
       let attempts = 0;
-      const maxAttempts = 15; // 200ms × 15 = 3초
+      const maxAttempts = 30; // 200ms × 30 = 6초
 
-      const check = setInterval(() => {
+      const check = setInterval(async () => {
         attempts++;
-        const allLoaded = state.roundMatchups!.matches.every(
-          (m) =>
-            towerDetailsRef.current.has(m.player1Id) &&
-            towerDetailsRef.current.has(m.player2Id)
-        );
-        if (allLoaded || attempts >= maxAttempts) {
+        const allLoaded = state.roundMatchups!.matches.every((m) => {
+          const t1 = towerDetailsRef.current.get(m.player1Id);
+          const t2 = towerDetailsRef.current.get(m.player2Id);
+          return (t1 && t1.length > 0) && (t2 && t2.length > 0);
+        });
+
+        if (allLoaded) {
           clearInterval(check);
+          resolve();
+          return;
+        }
+
+        // 매 1초마다 Firebase 재fetch
+        if (attempts % 5 === 0) {
+          await forceFetchTowerDetails();
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(check);
+          console.warn('[BattlePhaseUI] Some teams still empty after timeout. Proceeding with available data.');
           resolve();
         }
       }, 200);
@@ -123,6 +645,8 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
 
+      console.log(`[BattlePhaseUI] Simulating: ${match.player1Id}(${team1.length}) vs ${match.player2Id}(${team2.length})`);
+
       const result = pvpBattleService.simulateBattle(
         team1,
         team2,
@@ -140,8 +664,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       console.error('[BattlePhaseUI] executeBattles failed:', err);
     }
 
-    // TFT 배틀 애니메이션을 위한 딜레이 (아레나 표시 시간) 후 다음 페이즈로
-    // TFTBattleArena가 onBattleComplete 콜백으로 알려주지만,
     // 안전장치로 12초 후 강제 전환
     setTimeout(async () => {
       try {
@@ -150,10 +672,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         console.error('[BattlePhaseUI] startWaitingWavePhase failed:', err);
       }
     }, 12000);
-  };
+  }, [roomId, forceFetchTowerDetails]);
 
-  // ─── 페이즈 전환 처리 (호스트만) ────────────────────────────────
-  const handlePhaseTransition = async (currentState: MultiplayerGameState) => {
+  // ─── 페이즈 전환 처리 (호스트만) ────────────────────────────
+  const handlePhaseTransition = useCallback(async (currentState: MultiplayerGameState) => {
     console.log('[BattlePhaseUI] Phase transition:', currentState.currentPhase);
 
     try {
@@ -169,9 +691,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       console.error('[BattlePhaseUI] handlePhaseTransition failed:', err);
       transitionTriggeredRef.current = false;
     }
-  };
+  }, [roomId]);
 
-  // ─── 서버 시간 기반 페이즈 전환 체크 (200ms마다) ────────────────
+  // ─── 서버 시간 기반 페이즈 전환 체크 (200ms마다) ────────────
   useEffect(() => {
     if (!roomId) return;
 
@@ -210,7 +732,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
 
-      // 3. 배틀 Stuck 안전장치: 15초 이상 배틀 페이즈이면 강제 전환
+      // 3. 배틀 Stuck 안전장치
       if (
         currentGameState.currentPhase === 'battle' &&
         battlePhaseEnteredAtRef.current !== null &&
@@ -224,9 +746,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     }, 200);
 
     return () => clearInterval(checkTimer);
-  }, [roomId, user]);
+  }, [roomId, user, handlePhaseTransition, executeBattles]);
 
-  // ─── TFT Battle Arena UI ─────────────────────────────────────────
+  // ─── TFT Battle Arena UI ─────────────────────────────────────
   const [showArena, setShowArena] = useState(false);
   const [arenaCompleted, setArenaCompleted] = useState(false);
 
@@ -234,18 +756,21 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     m => m.player1Id === user?.uid || m.player2Id === user?.uid
   );
 
+  const skipPlayerId = gameState?.roundMatchups?.skipPlayerId ?? null;
+  const iAmSkipped = skipPlayerId === user?.uid;
+
   const battleResult = gameState?.battleResults?.find(
     r =>
       r.roundNumber === gameState?.currentRound &&
       (r.player1Id === user?.uid || r.player2Id === user?.uid)
   );
 
-  // 배틀 페이즈 진입 즉시 아레나 표시
+  // 배틀 페이즈 진입 즉시 아레나 표시 (스킵된 플레이어 제외)
   useEffect(() => {
-    if (gameState?.currentPhase === 'battle' && !arenaCompleted) {
+    if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped) {
       setShowArena(true);
     }
-  }, [gameState?.currentPhase, arenaCompleted]);
+  }, [gameState?.currentPhase, arenaCompleted, iAmSkipped]);
 
   // 라운드가 바뀌면 아레나 상태 리셋
   useEffect(() => {
@@ -253,259 +778,163 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     setShowArena(false);
   }, [gameState?.currentRound]);
 
-  const handleArenaComplete = () => {
+  const handleArenaComplete = useCallback(() => {
     setArenaCompleted(true);
     setShowArena(false);
-  };
+  }, []);
 
-  if (gameState?.currentPhase !== 'battle' || !myMatch) return null;
+  // 배틀 페이즈도 아니고 렌더링할 것 없으면 null
+  if (gameState?.currentPhase !== 'battle') {
+    // 결과 모달은 어떤 페이즈에서도 표시 가능
+    return showRoundSummary && gameState ? (
+      <RoundSummaryModal
+        gameState={gameState}
+        myUserId={user?.uid ?? ''}
+        roundNumber={summaryRoundNumber}
+        onClose={() => setShowRoundSummary(false)}
+      />
+    ) : null;
+  }
+
+  // ─── 스킵 플레이어 (홀수 휴식 턴) ───────────────────────────
+  if (iAmSkipped) {
+    return (
+      <>
+        <ByeOverlay>
+          <ByeContainer>
+            <ByeIcon>😴</ByeIcon>
+            <ByeTitle>휴식 턴!</ByeTitle>
+            <ByeSubtitle>
+              이번 라운드는 홀수 플레이어로 인해<br />
+              전투 없이 패스됩니다.<br />
+              다음 라운드를 준비하세요!
+            </ByeSubtitle>
+            <ByeBonusBox>
+              💰 휴식 보너스 +50G 지급
+            </ByeBonusBox>
+            <ByeCountdown>
+              배틀이 끝나면 자동으로 다음 페이즈로 넘어갑니다
+            </ByeCountdown>
+          </ByeContainer>
+        </ByeOverlay>
+
+        {/* 라운드 요약 모달 */}
+        {showRoundSummary && gameState && (
+          <RoundSummaryModal
+            gameState={gameState}
+            myUserId={user?.uid ?? ''}
+            roundNumber={summaryRoundNumber}
+            onClose={() => setShowRoundSummary(false)}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (!myMatch) return null;
 
   const opponentId = myMatch.player1Id === user?.uid
     ? myMatch.player2Id
     : myMatch.player1Id;
   const opponent = gameState.players.find(p => p.userId === opponentId);
 
-  // ─── TFT 아레나 표시 ─────────────────────────────────────────────
+  // ─── TFT 아레나 표시 ─────────────────────────────────────────
   if (showArena) {
-    const myTeam = towerDetailsRef.current.get(user?.uid || '') || [];
-    const opponentTeam = towerDetailsRef.current.get(opponentId || '') || [];
-    // 배틀 결과가 있으면 battle 페이즈, 아직 시뮬레이션 중이면 prep(준비) 표시
+    // 타워 데이터 가져오기: Map에서 찾고, 없으면 빈 배열
+    const myTeam = towerDetailsRef.current.get(user?.uid || '') ?? [];
+    const opponentTeam = towerDetailsRef.current.get(opponentId || '') ?? [];
+
+    // phase 결정: 결과가 있으면 battle, 없으면 prep
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'battle' : 'prep';
 
     return (
-      <TFTArenaOverlay>
-        <TFTBattleArena
-          myTeam={myTeam}
-          opponentTeam={opponentTeam}
-          opponentName={opponent?.userName || 'Opponent'}
-          phase={arenaPhase}
-          battleResult={battleResult ?? null}
-          onBattleComplete={(_winnerId) => {
-            // 배틀 완료 후 3초 대기 후 아레나 닫기
-            setTimeout(() => handleArenaComplete(), 3000);
-          }}
-        />
-        <ArenaFooter>
-          <RoundInfo>
-            ⚔️ ROUND {gameState?.currentRound}
-            {battleResult && (
-              <ResultBadge $win={battleResult.winnerId === user?.uid}>
-                {battleResult.winnerId === user?.uid ? '🏆 승리!' : '💀 패배'}
-              </ResultBadge>
-            )}
-          </RoundInfo>
-          <SkipBtn onClick={handleArenaComplete}>건너뛰기 ⏩</SkipBtn>
-        </ArenaFooter>
-      </TFTArenaOverlay>
+      <>
+        <TFTArenaOverlay>
+          <TFTBattleArena
+            myTeam={myTeam}
+            opponentTeam={opponentTeam}
+            opponentName={opponent?.userName || 'Opponent'}
+            phase={arenaPhase}
+            battleResult={battleResult ?? null}
+            onBattleComplete={(_winnerId) => {
+              setTimeout(() => handleArenaComplete(), 3000);
+            }}
+          />
+          <ArenaFooter>
+            <RoundInfo>
+              ⚔️ ROUND {gameState?.currentRound}
+              {battleResult && (
+                <ResultBadge $win={battleResult.winnerId === user?.uid}>
+                  {battleResult.winnerId === user?.uid ? '🏆 승리!' : '💀 패배'}
+                </ResultBadge>
+              )}
+            </RoundInfo>
+            <SkipBtn onClick={handleArenaComplete}>건너뛰기 ⏩</SkipBtn>
+          </ArenaFooter>
+        </TFTArenaOverlay>
+
+        {showRoundSummary && gameState && (
+          <RoundSummaryModal
+            gameState={gameState}
+            myUserId={user?.uid ?? ''}
+            roundNumber={summaryRoundNumber}
+            onClose={() => setShowRoundSummary(false)}
+          />
+        )}
+      </>
     );
   }
 
-  // ─── 아레나 완료 후 대기 화면 ────────────────────────────────────
+  // ─── 아레나 완료 후 대기 화면 ────────────────────────────────
   return (
-    <BattleOverlay>
-      <BattleContainer>
-        <VSHeader>
-          <RoundText>ROUND {gameState.currentRound}</RoundText>
-          <BattleTitle>PvP BATTLE</BattleTitle>
-        </VSHeader>
+    <>
+      <BattleOverlay>
+        <BattleContainer>
+          <VSHeader>
+            <RoundText>ROUND {gameState.currentRound}</RoundText>
+            <BattleTitle>PvP BATTLE</BattleTitle>
+          </VSHeader>
 
-        <MatchupContainer>
-          <PlayerCard $isMe>
-            <PlayerAvatar>{user?.displayName?.slice(0, 1) || 'Me'}</PlayerAvatar>
-            <PlayerName>{user?.displayName} (나)</PlayerName>
-            {battleResult && (
-              <ResultText $win={battleResult.winnerId === user?.uid}>
-                {battleResult.winnerId === user?.uid ? 'WIN' : 'LOSE'}
-              </ResultText>
-            )}
-          </PlayerCard>
+          <MatchupContainer>
+            <PlayerCard $isMe>
+              <PlayerAvatar>{user?.displayName?.slice(0, 1) || 'Me'}</PlayerAvatar>
+              <PlayerName>{user?.displayName} (나)</PlayerName>
+              {battleResult && (
+                <ResultText $win={battleResult.winnerId === user?.uid}>
+                  {battleResult.winnerId === user?.uid ? 'WIN' : 'LOSE'}
+                </ResultText>
+              )}
+            </PlayerCard>
 
-          <VSBadge>VS</VSBadge>
+            <VSBadge>VS</VSBadge>
 
-          <PlayerCard $isMe={false}>
-            <PlayerAvatar>{opponent?.userName?.slice(0, 1) || '?'}</PlayerAvatar>
-            <PlayerName>{opponent?.userName}</PlayerName>
-            {battleResult && (
-              <ResultText $win={battleResult.winnerId === opponentId}>
-                {battleResult.winnerId === opponentId ? 'WIN' : 'LOSE'}
-              </ResultText>
-            )}
-          </PlayerCard>
-        </MatchupContainer>
+            <PlayerCard $isMe={false}>
+              <PlayerAvatar>{opponent?.userName?.slice(0, 1) || '?'}</PlayerAvatar>
+              <PlayerName>{opponent?.userName}</PlayerName>
+              {battleResult && (
+                <ResultText $win={battleResult.winnerId === opponentId}>
+                  {battleResult.winnerId === opponentId ? 'WIN' : 'LOSE'}
+                </ResultText>
+              )}
+            </PlayerCard>
+          </MatchupContainer>
 
-        {battleResult ? (
-          <StatusMessage>전투 종료! 결과 처리 중...</StatusMessage>
-        ) : (
-          <StatusMessage>⚔️ 전투 시뮬레이션 중...</StatusMessage>
-        )}
+          {battleResult ? (
+            <StatusMessage>전투 종료! 다음 라운드 준비 중...</StatusMessage>
+          ) : (
+            <StatusMessage>⚔️ 전투 중...</StatusMessage>
+          )}
+        </BattleContainer>
+      </BattleOverlay>
 
-        {/* 아레나 다시 보기 버튼 */}
-        {!showArena && (
-          <ReplayBtn onClick={() => { setArenaCompleted(false); setShowArena(true); }}>
-            🎬 배틀 다시 보기
-          </ReplayBtn>
-        )}
-      </BattleContainer>
-    </BattleOverlay>
+      {showRoundSummary && gameState && (
+        <RoundSummaryModal
+          gameState={gameState}
+          myUserId={user?.uid ?? ''}
+          roundNumber={summaryRoundNumber}
+          onClose={() => setShowRoundSummary(false)}
+        />
+      )}
+    </>
   );
 };
-
-// ─── Styled Components ────────────────────────────────────────────────────────
-
-const TFTArenaOverlay = styled.div`
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.92);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  overflow-y: auto;
-`;
-
-const ArenaFooter = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
-`;
-
-const RoundInfo = styled.div`
-  color: #fff;
-  font-size: 16px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-const ResultBadge = styled.span<{ $win: boolean }>`
-  color: ${p => p.$win ? '#ffd700' : '#e74c3c'};
-  font-size: 18px;
-  font-weight: bold;
-  text-shadow: 0 0 8px ${p => p.$win ? 'rgba(255,215,0,0.6)' : 'rgba(231,76,60,0.6)'};
-`;
-
-const SkipBtn = styled.button`
-  padding: 8px 20px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.2); }
-`;
-
-const BattleOverlay = styled.div`
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 500;
-`;
-
-const BattleContainer = styled.div`
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
-  border: 2px solid rgba(231, 76, 60, 0.6);
-  border-radius: 20px;
-  padding: 40px;
-  text-align: center;
-  min-width: 400px;
-  box-shadow: 0 0 40px rgba(231, 76, 60, 0.3);
-`;
-
-const VSHeader = styled.div`
-  margin-bottom: 24px;
-`;
-
-const RoundText = styled.div`
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-`;
-
-const BattleTitle = styled.h2`
-  font-size: 28px;
-  color: #e74c3c;
-  font-weight: bold;
-  text-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
-`;
-
-const MatchupContainer = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 24px;
-`;
-
-const PlayerCard = styled.div<{ $isMe: boolean }>`
-  background: ${p => p.$isMe ? 'rgba(52, 152, 219, 0.2)' : 'rgba(231, 76, 60, 0.2)'};
-  border: 1px solid ${p => p.$isMe ? 'rgba(52, 152, 219, 0.4)' : 'rgba(231, 76, 60, 0.4)'};
-  border-radius: 12px;
-  padding: 16px 20px;
-  min-width: 120px;
-`;
-
-const PlayerAvatar = styled.div`
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: white;
-  margin: 0 auto 8px;
-`;
-
-const PlayerName = styled.div`
-  color: white;
-  font-size: 14px;
-  font-weight: bold;
-`;
-
-const ResultText = styled.div<{ $win: boolean }>`
-  margin-top: 8px;
-  font-size: 18px;
-  font-weight: bold;
-  color: ${p => p.$win ? '#2ecc71' : '#e74c3c'};
-  text-shadow: 0 0 10px ${p => p.$win ? 'rgba(46, 204, 113, 0.8)' : 'rgba(231, 76, 60, 0.8)'};
-`;
-
-const VSBadge = styled.div`
-  font-size: 32px;
-  font-weight: bold;
-  color: #f39c12;
-  text-shadow: 0 0 20px rgba(243, 156, 18, 0.8);
-`;
-
-const StatusMessage = styled.div`
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  margin-bottom: 16px;
-`;
-
-const ReplayBtn = styled.button`
-  margin-top: 8px;
-  padding: 8px 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  background: rgba(255, 215, 0, 0.1);
-  color: #ffd700;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s;
-  &:hover { background: rgba(255, 215, 0, 0.2); }
-`;
