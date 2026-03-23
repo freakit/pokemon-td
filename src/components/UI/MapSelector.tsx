@@ -188,8 +188,8 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
                     {getDifficultyText(map.difficulty as DifficultyFilter)}
                   </DifficultyBadge>
                 </CardHeader>
-                <MapName>{map.name}</MapName>
-                <MapDescription>{map.description}</MapDescription>
+                <MapName>{t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}</MapName>
+                <MapDescription>{t(`mapData.${map.id}.description`) !== `mapData.${map.id}.description` ? t(`mapData.${map.id}.description`) : map.description}</MapDescription>
               </Card>
             );
           })}

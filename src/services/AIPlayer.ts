@@ -743,10 +743,19 @@ export class AIPlayer {
         (b.level * RARITY_SCORE[b.rarity || 'Bronze']) -
         (a.level * RARITY_SCORE[a.rarity || 'Bronze'])
       );
-
-    const count = this.difficulty === 'hard' ? Math.min(2, fainted.length) : 1;
+ 
+    if (fainted.length === 0) return; // [수정] 빈 배열 조기 탈출
+ 
+    // [수정] count를 실제 fainted 수로 재한
+    const count = Math.min(
+      this.difficulty === 'hard' ? 2 : 1,
+      fainted.length
+    );
+ 
     for (let i = 0; i < count; i++) {
-      const idx = this.towers.findIndex(t => t.id === fainted[i].id);
+      const target = fainted[i];
+      if (!target) continue; // [수정] undefined 방어
+      const idx = this.towers.findIndex(t => t.id === target.id);
       if (idx !== -1) {
         this.towers[idx] = {
           ...this.towers[idx],

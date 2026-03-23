@@ -299,9 +299,29 @@
       "name": "Castle Loop",
       "description": "Loops around the map's outer wall. Limited space for towers."
     },
+    "extreme_aggro_shortcut": {
+      "name": "Dangerous Shortcut",
+      "description": "The base path is very long. Place towers in the center to divert enemies."
+    },
+    "medium_multi_s": {
+      "name": "Winding Cave",
+      "description": "A long, winding path giving towers plenty of time to attack."
+    },
     "medium_merge": {
       "name": "Merge Point",
       "description": "Two paths merge in the center. Early defense is critical."
+    },
+    "hard_straight_wide": {
+      "name": "Wide Meadow",
+      "description": "Enemies travel through a thick, 4-tile wide center path."
+    },
+    "hard_dual_path": {
+      "name": "Divided Snowfield",
+      "description": "Two completely separate paths requiring defense on both sides."
+    },
+    "extreme_central": {
+      "name": "Central Altar",
+      "description": "Enemies spawn from all four directions and rush to the center."
     }
   },
   "multiplayer": {

@@ -4,12 +4,14 @@ import styled from 'styled-components';
 import { databaseService } from '../../services/DatabaseService';
 import { LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
+import { useTranslation } from '../../i18n';
 
 interface RankingsProps {
   onClose: () => void;
 }
 
 export const Rankings = ({ onClose }: RankingsProps) => {
+  const { t } = useTranslation();
   const [selectedMap, setSelectedMap] = useState(MAPS[0].id);
   const [sortBy, setSortBy] = useState<'clearTime' | 'highestWave'>('clearTime');
   const [rankings, setRankings] = useState<LeaderboardEntry[]>([]);
@@ -57,7 +59,9 @@ export const Rankings = ({ onClose }: RankingsProps) => {
             <Label>맵 선택:</Label>
             <Select value={selectedMap} onChange={(e) => setSelectedMap(e.target.value)}>
               {MAPS.map(map => (
-                <option key={map.id} value={map.id}>{map.name}</option>
+                <option key={map.id} value={map.id}>
+                  {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}
+                </option>
               ))}
             </Select>
           </MapSelector>

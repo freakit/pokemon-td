@@ -5,6 +5,7 @@ import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
+import { useTranslation } from '../../i18n';
 
 import { Pokedex } from '../Modals/Pokedex';
 import { AchievementsPanel } from '../Modals/Achievements';
@@ -17,6 +18,7 @@ interface MultiplayerLobbyProps {
 }
 
 export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps) => {
+  const { t } = useTranslation();
   const [view, setView] = useState<'list' | 'create' | 'room'>('list');
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedMap, setSelectedMap] = useState(MAPS[0].id);
@@ -213,7 +215,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                     <RoomInfo>
                       <RoomName>{room.name}</RoomName>
                       <RoomDetails>
-                        맵: {room.mapName} | 호스트: {room.hostName}
+                        맵: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name` ? t(`mapData.${room.mapId}.name`) : room.mapName} | 호스트: {room.hostName}
                       </RoomDetails>
                     </RoomInfo>
                     <RoomPlayers>
@@ -258,7 +260,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                     selected={selectedMap === map.id}
                     onClick={() => setSelectedMap(map.id)}
                   >
-                    <MapName>{map.name}</MapName>
+                    <MapName>{t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}</MapName>
                     <MapDifficulty>난이도: {map.difficulty}</MapDifficulty>
                   </MapCard>
                 ))}
@@ -294,7 +296,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </Header>
 
             <Section>
-              <SectionTitle>맵: {currentRoom.mapName}</SectionTitle>
+              <SectionTitle>맵: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name` ? t(`mapData.${currentRoom.mapId}.name`) : currentRoom.mapName}</SectionTitle>
             </Section>
 
             <Section>

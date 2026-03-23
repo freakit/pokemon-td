@@ -574,9 +574,6 @@ export class GameManager {
           console.error('Failed to check achievements:', err);
         }
 
-        // 웨이브 업적
-        saveService.updateAchievement(`wave${wave}`, wave);
-
         // 랭킹 업데이트 (싱글플레이, 매 웨이브)
         try {
           await databaseService.updateLeaderboard(currentMap, undefined, wave);
