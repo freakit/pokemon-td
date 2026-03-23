@@ -129,8 +129,15 @@ class AchievementService {
   // ─── 도전 업적 ────────────────────────────────────────────────────────
 
   onWaveComplete(wave: number, lives: number, initialLives: number, gameTime: number, difficulty: string, towers: Array<{ isFainted: boolean }>) {
+    // [수정] wave 업적: 항상 현재 진행도를 업데이트 (프로그레스 바 표시)
+    const waveThresholds = [5, 10, 20, 30, 50];
+    for (const threshold of waveThresholds) {
+      saveService.updateAchievement(`wave${threshold}`, wave);
+    }
+
     // 퍼펙트 방어 (라이프 손실 없이 웨이브 10)
-    if (wave === 10 && lives === initialLives) {
+    // [수정] === 대신 >= 사용 (초기 라이프보다 많을 수 없지만 방어적 코딩)
+    if (wave === 10 && lives >= initialLives) {
       saveService.updateAchievement('perfect', 1);
     }
 

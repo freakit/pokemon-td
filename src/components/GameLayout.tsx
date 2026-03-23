@@ -50,6 +50,13 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const multiRoomId = multiplayerService.getCurrentRoomId();
   const isMultiplayer = !!multiRoomId;
   const user = authService.getCurrentUser();
+  const lastAppliedRoundRef = useRef<number>(-1);
+  const [battleResultToast, setBattleResultToast] = useState<{
+    won: boolean;
+    goldDelta: number;
+    livesDelta: number;
+    round: number;
+  } | null>(null);
 
   // ─── 멀티플레이 게임 시작 로딩 상태 ──────────────────────────────
   // gameState가 null → waiting_wave로 전환되기 전까지 조작 차단
@@ -296,6 +303,55 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return unsubscribe;
   }, [multiRoomId]);
 
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+ 
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
+      if (!state) return;
+ 
+      // 내 결과 찾기 (현재 라운드, 아직 로컬에 반영 안 한 것)
+      const myResult = (state.battleResults || []).find(
+        r =>
+          r.roundNumber === state.currentRound &&
+          r.roundNumber > lastAppliedRoundRef.current &&
+          (r.player1Id === user.uid || r.player2Id === user.uid)
+      );
+ 
+      if (!myResult) return;
+      lastAppliedRoundRef.current = myResult.roundNumber;
+ 
+      const isWinner = myResult.winnerId === user.uid;
+ 
+      // Firebase PlayerGameState에서 내 최신 상태 가져오기
+      const myFirebaseState = state.players.find(p => p.userId === user.uid);
+      if (!myFirebaseState) return;
+ 
+      // 로컬 store와 Firebase 값의 차이 계산 (실제 변경분)
+      const localState = useGameStore.getState();
+      const livesDelta = myFirebaseState.lives - localState.lives;
+      const goldDelta  = myFirebaseState.money  - localState.money;
+ 
+      // 로컬 Zustand store에 반영
+      if (livesDelta !== 0 || goldDelta !== 0) {
+        useGameStore.setState({
+          lives: Math.max(0, myFirebaseState.lives),
+          money: Math.max(0, myFirebaseState.money),
+        });
+      }
+ 
+      // 결과 토스트 표시
+      setBattleResultToast({
+        won: isWinner,
+        goldDelta,
+        livesDelta,
+        round: myResult.roundNumber,
+      });
+      setTimeout(() => setBattleResultToast(null), 5000);
+    });
+ 
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
   // AI 플레이어 정리
   useEffect(() => {
     return () => {
@@ -420,6 +476,30 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {/* 업적 달성 토스트 (alert 대체) */}
       <AchievementToastDisplay />
+
+      {/* 배틀 결과 토스트 */}
+      {battleResultToast && isMultiplayer && (
+        <BattleResultToast $won={battleResultToast.won}>
+          <ToastIcon>{battleResultToast.won ? '🏆' : '💔'}</ToastIcon>
+          <ToastBody>
+            <ToastTitle>{battleResultToast.won ? '배틀 승리!' : '배틀 패배'}</ToastTitle>
+            <ToastDetails>
+              {battleResultToast.won ? (
+                <ToastLine $positive>+{battleResultToast.goldDelta}G 획득</ToastLine>
+              ) : (
+                <>
+                  <ToastLine $positive={false}>
+                    ❤️ {battleResultToast.livesDelta} 라이프
+                  </ToastLine>
+                  {battleResultToast.goldDelta > 0 && (
+                    <ToastLine $positive>+{battleResultToast.goldDelta}G 위로금</ToastLine>
+                  )}
+                </>
+              )}
+            </ToastDetails>
+          </ToastBody>
+        </BattleResultToast>
+      )}
     </AppContainer>
   );
 };
@@ -657,4 +737,47 @@ const LoadingDots = styled.div`
     &:nth-child(2) { animation-delay: 0.2s; }
     &:nth-child(3) { animation-delay: 0.4s; }
   }
+`;
+
+const toastSlide = keyframes`
+  0%   { opacity: 0; transform: translateX(60px); }
+  15%  { opacity: 1; transform: translateX(0); }
+  80%  { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(60px); }
+`;
+ 
+const BattleResultToast = styled.div<{ $won: boolean }>`
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 9997;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  min-width: 220px;
+  background: ${p => p.$won
+    ? 'linear-gradient(135deg, rgba(46,204,113,0.95), rgba(39,174,96,0.95))'
+    : 'linear-gradient(135deg, rgba(231,76,60,0.95), rgba(192,57,43,0.95))'};
+  border: 1px solid ${p => p.$won ? 'rgba(46,204,113,0.5)' : 'rgba(231,76,60,0.5)'};
+  box-shadow: 0 8px 32px ${p => p.$won ? 'rgba(46,204,113,0.4)' : 'rgba(231,76,60,0.4)'};
+  animation: ${toastSlide} 5s ease forwards;
+  pointer-events: none;
+`;
+ 
+const ToastIcon = styled.div`font-size: 28px; line-height: 1; flex-shrink: 0;`;
+ 
+const ToastBody = styled.div`display: flex; flex-direction: column; gap: 3px;`;
+ 
+const ToastTitle = styled.div`
+  font-size: 15px; font-weight: 800; color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+`;
+ 
+const ToastDetails = styled.div`display: flex; flex-direction: column; gap: 2px;`;
+ 
+const ToastLine = styled.div<{ $positive: boolean }>`
+  font-size: 13px; font-weight: 600;
+  color: ${p => p.$positive ? '#fff' : 'rgba(255,255,255,0.9)'};
 `;

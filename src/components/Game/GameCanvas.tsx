@@ -200,17 +200,48 @@ export const GameCanvas: React.FC = () => {
     };
   }, []);
 
-  // 게임 루프
+  // 게임 루프 (백그라운드 탭에서도 타워가 공격하도록 visibilitychange 대응)
   useEffect(() => {
-    const gameLoop = () => {
+    let rafId: number | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const BG_FPS = 30;
+
+    const tick = () => {
       const now = Date.now();
-      const dt = (now - lastTimeRef.current) / 1000;
+      // 탭 전환 직후 급격한 dt 스파이크 방지 (최대 0.1초 = 100ms)
+      const dt = Math.min((now - lastTimeRef.current) / 1000, 0.1);
       lastTimeRef.current = now;
       GameManager.getInstance().update(dt);
-      requestAnimationFrame(gameLoop);
     };
-    const id = requestAnimationFrame(gameLoop);
-    return () => cancelAnimationFrame(id);
+
+    const startRaf = () => {
+      if (rafId !== null) return;
+      if (intervalId !== null) { clearInterval(intervalId); intervalId = null; }
+      lastTimeRef.current = Date.now();
+      const loop = () => { tick(); rafId = requestAnimationFrame(loop); };
+      rafId = requestAnimationFrame(loop);
+    };
+
+    const startInterval = () => {
+      if (intervalId !== null) return;
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+      lastTimeRef.current = Date.now();
+      intervalId = setInterval(tick, 1000 / BG_FPS);
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) { startInterval(); } else { startRaf(); }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    // 초기 시작
+    document.hidden ? startInterval() : startRaf();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (intervalId !== null) clearInterval(intervalId);
+    };
   }, []);
 
   // 배치할 포켓몬 이미지 미리 로드

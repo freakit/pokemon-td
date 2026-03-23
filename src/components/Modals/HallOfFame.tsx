@@ -5,6 +5,7 @@ import { databaseService } from '../../services/DatabaseService';
 import { HallOfFameEntry, LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
+import { useTranslation } from '../../i18n';
 
 type ViewTab = 'global_clear' | 'global_wave' | 'mine';
 type MapFilter = 'all' | string;
@@ -30,6 +31,7 @@ const formatDate = (ts: number) =>
   });
 
 export const HallOfFame = ({ onClose }: HallOfFameProps) => {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<ViewTab>('global_clear');
   const [mapFilter, setMapFilter] = useState<MapFilter>('all');
   const [globalClearEntries, setGlobalClearEntries] = useState<HallOfFameEntry[]>([]);
@@ -100,7 +102,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
                   $active={mapFilter === m.id}
                   onClick={() => setMapFilter(m.id)}
                 >
-                  {m.name}
+                  {t(`mapData.${m.id}.name`) !== `mapData.${m.id}.name` ? t(`mapData.${m.id}.name`) : m.name}
                 </FilterChip>
               ))}
             </MapFilterRow>
@@ -130,6 +132,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
 const GlobalClearList = ({
   entries, myUid,
 }: { entries: HallOfFameEntry[]; myUid?: string }) => {
+  const { t } = useTranslation();
   if (entries.length === 0) return <EmptyMsg>🏜️ 아직 클리어 기록이 없습니다.</EmptyMsg>;
 
   return (
@@ -149,7 +152,7 @@ const GlobalClearList = ({
           <Tr key={e.id} $isMe={e.userId === myUid} $rank={i}>
             <Td center>{MEDAL[i] ?? `${i + 1}위`}</Td>
             <Td bold>{e.userName}</Td>
-            <Td>{e.mapName}</Td>
+            <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapName}</Td>
             <Td bold accent>{formatTime(e.clearTime)}</Td>
             <PokemonCell>
               {e.pokemonUsed.slice(0, 6).map((name, j) => (
@@ -169,6 +172,7 @@ const GlobalClearList = ({
 const GlobalWaveList = ({
   entries, myUid,
 }: { entries: LeaderboardEntry[]; myUid?: string }) => {
+  const { t } = useTranslation();
   if (entries.length === 0) return <EmptyMsg>🏜️ 아직 기록이 없습니다.</EmptyMsg>;
 
   return (
@@ -188,7 +192,7 @@ const GlobalWaveList = ({
           <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={i}>
             <Td center>{MEDAL[i] ?? `${i + 1}위`}</Td>
             <Td bold>{e.userName}</Td>
-            <Td>{e.mapId}</Td>
+            <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapId}</Td>
             <WaveCell>{e.highestWave}</WaveCell>
             <Td>{formatTime(e.clearTime)}</Td>
             <Td>{e.rating}</Td>
@@ -202,6 +206,7 @@ const GlobalWaveList = ({
 // ─── 내 기록 ─────────────────────────────────────────────────────────────────
 
 const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
+  const { t } = useTranslation();
   if (entries.length === 0)
     return (
       <EmptyMsg>
@@ -215,7 +220,7 @@ const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
       {entries.map(e => (
         <RecordCard key={e.id}>
           <CardTop>
-            <MapBadge>{e.mapName}</MapBadge>
+            <MapBadge>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapName}</MapBadge>
             <WaveBadge>Wave {e.wave}</WaveBadge>
           </CardTop>
           <TimeRow>⏱️ {formatTime(e.clearTime)}</TimeRow>

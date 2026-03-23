@@ -292,16 +292,36 @@
   },
   "mapData": {
     "easiest_straight": {
-      "name": "초보자의 길",
+      "name": "초보자의 좁은 길",
       "description": "직선 경로의 기본 맵. 화력 집중이 가능합니다."
     },
     "easy_loop": {
-      "name": "성곽 순환로",
+      "name": "성벽 순환로",
       "description": "맵 외벽을 따라 도는 경로. 배치 공간이 제한됩니다."
+    },
+    "extreme_aggro_shortcut": {
+      "name": "위험한 지름길",
+      "description": "기본 경로는 매우 깁니다. 중앙에 타워를 배치해 적의 경로를 바꾸세요."
+    },
+    "medium_multi_s": {
+      "name": "구불구불 동굴",
+      "description": "경로가 길게 굽이쳐, 타워가 공격할 수 있는 시간이 깁니다."
     },
     "medium_merge": {
       "name": "합류 지점",
       "description": "두 경로가 중앙에서 합류합니다. 초반 방어가 중요합니다."
+    },
+    "hard_straight_wide": {
+      "name": "넓은 초원",
+      "description": "중앙의 '뚱뚱한' 통로(폭 4칸)로 적이 지나갑니다. 딜로스에 주의하세요."
+    },
+    "hard_dual_path": {
+      "name": "분리된 설원",
+      "description": "두 경로가 완전히 분리되어, 양쪽을 따로 방어해야 합니다."
+    },
+    "extreme_central": {
+      "name": "중앙 제단",
+      "description": "네 방향에서 적들이 생성되어 중앙으로 돌격합니다."
     }
   },
   "multiplayer": {

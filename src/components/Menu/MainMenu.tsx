@@ -8,15 +8,25 @@ import { Pokedex } from '../Modals/Pokedex';
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
 import { Rankings } from '../Modals/Rankings';
+import {
+  TutorialModal,
+  hasTowerTutorialSeen,
+  hasMultiTutorialSeen,
+} from '../Modals/TutorialModal';
 
 export const MainMenu = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
 
-  const [showPokedex, setShowPokedex] = useState(false);
+  const [showPokedex,      setShowPokedex]      = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
-  const [showHallOfFame, setShowHallOfFame] = useState(false);
-  const [showRankings, setShowRankings] = useState(false);
+  const [showHallOfFame,   setShowHallOfFame]   = useState(false);
+  const [showRankings,     setShowRankings]     = useState(false);
+
+  // 튜토리얼: 'tower' | 'multi' | null
+  const [tutorial, setTutorial] = useState<'tower' | 'multi' | null>(null);
+  // 튜토리얼 닫은 후 이동할 경로
+  const [pendingNav, setPendingNav] = useState<string | null>(null);
 
   const handleSignOut = async () => {
     if (confirm('로그아웃 하시겠습니까?')) {
@@ -24,8 +34,37 @@ export const MainMenu = () => {
     }
   };
 
-  const handleSinglePlay = () => navigate('/map-select');
-  const handleMultiPlay = () => navigate('/lobby');
+  const handleSinglePlay = () => {
+    if (!hasTowerTutorialSeen()) {
+      setPendingNav('/map-select');
+      setTutorial('tower');
+    } else {
+      navigate('/map-select');
+    }
+  };
+
+  const handleMultiPlay = () => {
+    if (!hasMultiTutorialSeen()) {
+      setPendingNav('/lobby');
+      setTutorial('multi');
+    } else {
+      navigate('/lobby');
+    }
+  };
+
+  // "시작하기" 버튼 → pendingNav 경로로 이동
+  const handleProceed = () => {
+    const dest = pendingNav;
+    setTutorial(null);
+    setPendingNav(null);
+    if (dest) navigate(dest);
+  };
+
+  // X버튼 / 오버레이 클릭 → 그냥 닫기 (이동 안 함)
+  const handleClose = () => {
+    setTutorial(null);
+    setPendingNav(null);
+  };
 
   return (
     <>
@@ -33,7 +72,6 @@ export const MainMenu = () => {
         <Container>
           <Header>
             <UserInfo>
-              {/* [수정 1] photoURL이 없으면 kaist-ball.png를 기본 이미지로 사용 */}
               <Avatar
                 src={user?.photoURL || '/images/kaist-ball.png'}
                 alt={user?.displayName}
@@ -48,10 +86,14 @@ export const MainMenu = () => {
           </Header>
 
           <Title>
-            <img src="/images/kaist-ball.png" alt="Pokemon Aegis Logo" style={{ width: '80px', objectFit: 'contain', marginRight: '16px' }} />
+            <img
+              src="/images/kaist-ball.png"
+              alt="Pokemon Aegis Logo"
+              style={{ width: '80px', objectFit: 'contain', marginRight: '16px' }}
+            />
             포켓몬 아이기스
           </Title>
-          
+
           <MenuSection>
             <SectionTitle>게임 모드</SectionTitle>
             <GameModeButtons>
@@ -60,11 +102,11 @@ export const MainMenu = () => {
                 <ModeTitle>싱글 플레이</ModeTitle>
                 <ModeDesc>혼자서 즐기는 타워 디펜스</ModeDesc>
               </ModeButton>
-              
+
               <ModeButton onClick={handleMultiPlay}>
                 <ModeIcon>👥</ModeIcon>
                 <ModeTitle>멀티 플레이</ModeTitle>
-                <ModeDesc>최대 8인 대전 모드</ModeDesc>
+                <ModeDesc>최대 4인 PvP 배틀</ModeDesc>
               </ModeButton>
             </GameModeButtons>
           </MenuSection>
@@ -72,87 +114,88 @@ export const MainMenu = () => {
           <MenuSection>
             <SectionTitle>내 정보</SectionTitle>
             <BottomButtons>
-              <BottomButton onClick={() => setShowPokedex(true)}>
-                📖 도감
-              </BottomButton>
-              <BottomButton onClick={() => setShowAchievements(true)}>
-                🏆 업적
-              </BottomButton>
-              <BottomButton onClick={() => setShowHallOfFame(true)}>
-                👑 전당등록
-              </BottomButton>
-              <BottomButton onClick={() => setShowRankings(true)}>
-                📊 랭킹
-              </BottomButton>
+              <BottomButton onClick={() => setShowPokedex(true)}>📖 도감</BottomButton>
+              <BottomButton onClick={() => setShowAchievements(true)}>🏆 업적</BottomButton>
+              <BottomButton onClick={() => setShowHallOfFame(true)}>🎖️ 전당</BottomButton>
+              <BottomButton onClick={() => setShowRankings(true)}>📊 랭킹</BottomButton>
             </BottomButtons>
           </MenuSection>
+
+          {/* 도움말 버튼 — 언제든 다시 볼 수 있음 */}
+          <HelpRow>
+            <HelpButton onClick={() => { setPendingNav(null); setTutorial('tower'); }}>
+              ❓ 싱글 플레이 가이드
+            </HelpButton>
+            <HelpButton onClick={() => { setPendingNav(null); setTutorial('multi'); }}>
+              ❓ 멀티 플레이 가이드
+            </HelpButton>
+          </HelpRow>
         </Container>
       </Overlay>
 
-      {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
-      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
-      {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
-      {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+      {/* 일반 모달 */}
+      {showPokedex      && <Pokedex           onClose={() => setShowPokedex(false)} />}
+      {showAchievements && <AchievementsPanel  onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame   && <HallOfFame         onClose={() => setShowHallOfFame(false)} />}
+      {showRankings     && <Rankings           onClose={() => setShowRankings(false)} />}
+
+      {/* 튜토리얼 모달 */}
+      {tutorial && (
+        <TutorialModal
+          mode={tutorial}
+          onClose={handleClose}
+          onProceed={pendingNav ? handleProceed : undefined}
+        />
+      )}
     </>
   );
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 1000;
+  align-items: flex-start;
+  padding: 2rem 1rem;
 `;
 
 const Container = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
   border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  max-width: 800px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
+  padding: 2rem;
+  width: 100%;
+  max-width: 600px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid rgba(255,255,255,0.2);
+  margin-bottom: 1.5rem;
 `;
 
 const UserInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 `;
 
 const Avatar = styled.img`
-  width: 50px;
-  height: 50px;
+  width: 40px; height: 40px;
   border-radius: 50%;
-  border: 3px solid white;
+  border: 2px solid rgba(255, 255, 255, 0.5);
   object-fit: cover;
-  background: rgba(255,255,255,0.2);
 `;
 
-const UserName = styled.div`
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: white;
-`;
+const UserName = styled.span`color: white; font-weight: bold; font-size: 1rem;`;
 
-const Rating = styled.div`
-  background: rgba(255,255,255,0.2);
+const Rating = styled.span`
+  background: rgba(255, 255, 255, 0.2);
   padding: 0.25rem 0.75rem;
   border-radius: 20px;
   color: white;
@@ -161,16 +204,13 @@ const Rating = styled.div`
 
 const SignOutButton = styled.button`
   padding: 0.5rem 1rem;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   color: white;
   border: 1px solid white;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    background: rgba(255,255,255,0.3);
-  }
+  &:hover { background: rgba(255, 255, 255, 0.3); }
 `;
 
 const Title = styled.h1`
@@ -182,18 +222,16 @@ const Title = styled.h1`
   color: white;
   text-align: center;
   margin-bottom: 0.5rem;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 `;
 
-const MenuSection = styled.div`
-  margin-bottom: 2rem;
-`;
+const MenuSection = styled.div`margin-bottom: 2rem;`;
 
 const SectionTitle = styled.h2`
   font-size: 1.3rem;
   color: white;
   margin-bottom: 1rem;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 `;
 
 const GameModeButtons = styled.div`
@@ -210,28 +248,12 @@ const ModeButton = styled.button`
   cursor: pointer;
   transition: all 0.3s;
   text-align: center;
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-  }
+  &:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); }
 `;
 
-const ModeIcon = styled.div`
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
-`;
-
-const ModeTitle = styled.div`
-  font-size: 1.3rem;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 0.5rem;
-`;
-
-const ModeDesc = styled.div`
-  font-size: 0.9rem;
-  color: #666;
-`;
+const ModeIcon  = styled.div`font-size: 3rem; margin-bottom: 0.5rem;`;
+const ModeTitle = styled.div`font-size: 1.3rem; font-weight: bold; color: #333; margin-bottom: 0.5rem;`;
+const ModeDesc  = styled.div`font-size: 0.9rem; color: #666;`;
 
 const BottomButtons = styled.div`
   display: grid;
@@ -248,9 +270,25 @@ const BottomButton = styled.button`
   font-weight: 600;
   color: #333;
   transition: all 0.3s;
+  &:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+`;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  }
+const HelpRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-top: -0.5rem;
+`;
+
+const HelpButton = styled.button`
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.25); color: white; transform: translateY(-1px); }
 `;
