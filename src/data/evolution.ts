@@ -390,8 +390,8 @@ export const EVOLUTION_CHAINS: EvolutionData[] = [
   { from: 872, to: 873, level: 34 },
   { from: 878, to: 879, level: 34 },
   { from: 885, to: 886, level: 50 }, { from: 886, to: 887, level: 60 }, // 드라꼰 -> 드래런치 -> 드래펄트
-  { from: 891, to: 892, item: 'water-scroll' }, // 치고마 -> 우라오스 연격의 태세 (물의 족자)
-  { from: 891, to: 10191, item: 'dark-scroll' }, // 치고마 -> 우라오스 일격의 태세 (악의 족자)
+  { from: 891, to: 10191, item: 'water-scroll' }, // 치고마 -> 우라오스 연격의 태세 (물의 족자)
+  { from: 891, to: 892, item: 'dark-scroll' }, // 치고마 -> 우라오스 일격의 태세 (악의 족자)
   
   // 가라르폼 진화
   { from: 52, to: 863, level: 28 }, // 나옹(G) -> 나이킹

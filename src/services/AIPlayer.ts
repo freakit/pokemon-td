@@ -1,20 +1,6 @@
 // src/services/AIPlayer.ts
 /**
  * AI 플레이어 - 실제 유저와 동일한 TFT 흐름으로 동작
- *
- * 버그 수정 목록:
- * 1. getRandomPokemon → getRandomPokemonIdWithRarity + getPokemon 으로 교체
- * 2. mapId 파라미터 미사용 → 제거 (mapData 직접 사용)
- * 3. mapDifficulty 하드코딩 → Room에서 읽어옴
- * 4. markWaveCompleted 미보장 → finally 블록으로 보장
- * 5. Firebase 콜백 중복 실행 → waveProcessing 플래그 + round 체크
- * 6. simulateWave 수치 버그 → 실제 GameManager 공식 적용
- * 7. 초기 money/wave 동기화 지연 → Firebase 갱신 전까지 로컬값 사용
- * 8. AI 타워 정보 배틀 전 미동기화 → waiting_battle 페이즈에서 즉시 재전송
- * 9. [수정] currentPhase 초기값 'waiting_wave' → null: 첫 페이즈 수신 시 onPhaseChange 누락 버그 수정
- * 10. [수정] handleWave markWaveCompleted 누락 방지: try/finally 보장
- * 11. [수정] buyPokemon 실패 시 차감된 돈 환불
- * 12. [수정] updatePlayerState에서 waveCompleted:true 제거 (markWaveCompleted와 중복)
  */
 
 import { multiplayerService } from './MultiplayerService';
@@ -290,8 +276,15 @@ export class AIPlayer {
         break;
 
       case 'waiting_battle':
-        this.pushTowerDetails();
-        // 안전장치: 웨이브 완료 신호 재전송
+        // 즉시 1회 전송 (스로틀링 타이머 초기화 후 강제 전송)
+        this.forcePushTowerDetails();
+        // 2초 후 한 번 더 재전송 (Firebase 반영 보장)
+        setTimeout(() => {
+          if (this.isRunning && this.isAlive) {
+            this.forcePushTowerDetails();
+          }
+        }, 2000);
+        // 웨이브 완료 신호 재전송
         if (round === this.lastProcessedRound) {
           multiplayerService.markWaveCompleted(this.roomId, this.playerId).catch(() => {});
         }
@@ -816,6 +809,34 @@ export class AIPlayer {
       speed: t.speed,
     }));
     multiplayerService.updatePlayerTowerDetails(this.roomId, this.playerId, details);
+  }
+
+  /** 스로틀링 없이 즉시 Firebase에 타워 정보 강제 전송 */
+  private forcePushTowerDetails() {
+    const details: TowerDetail[] = this.towers.map(t => ({
+      pokemonId: t.pokemonId,
+      name: t.displayName,
+      level: t.level,
+      sprite: t.sprite,
+      position: t.position,
+      currentHp: t.currentHp,
+      maxHp: t.maxHp,
+      isFainted: t.isFainted,
+      attack: t.attack,
+      defense: t.defense,
+      specialAttack: t.specialAttack ?? t.attack,
+      specialDefense: t.specialDefense ?? t.defense,
+      types: t.types,
+      speed: t.speed,
+    }));
+    // MultiplayerService의 스로틀 타이머를 초기화하기 위해 직접 Firebase에 씀
+    // (updatePlayerTowerDetails 우회)
+    import('firebase/database').then(({ ref: fbRef, set: fbSet }) => {
+      import('../config/firebase').then(({ rtdb }) => {
+        const towerDetailsRef = fbRef(rtdb, `towerDetails/${this.roomId}/${this.playerId}`);
+        fbSet(towerDetailsRef, { towers: details, updatedAt: Date.now() }).catch(console.error);
+      });
+    });
   }
 }
 

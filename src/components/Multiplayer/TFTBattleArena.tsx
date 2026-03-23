@@ -1,45 +1,45 @@
 // src/components/Multiplayer/TFTBattleArena.tsx
-// 실제 TFT 스타일 배틀: 포켓몬들이 보드 위에서 실시간으로 이동하며 싸움
-// - 준비 페이즈: 내 포켓몬 배치 (하단 2행), 클릭으로 자리 바꾸기
-// - 배틀 페이즈: 포켓몬들이 자율적으로 이동 → 가장 가까운 적 향해 이동 → 범위 내 공격
-// - AI 지원: opponentTeam이 AI 팀이어도 동일하게 동작
+// 6x6 TFT 스타일 배틀
+// - 보드: 6열 × 6행
+// - 상단 2행(row 0-1): 상대 배치
+// - 하단 2행(row 4-5): 내 배치
+// - 중간 2행(row 2-3): 교전 구역
+// - 배틀: 가장 가까운 적을 향해 이동 → 사정거리 내 공격 → 한 팀 전멸까지
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { TowerDetail } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
 
-// ─── 보드 설정 ───────────────────────────────────────────────────────────────
-const BOARD_COLS = 7;
-const BOARD_ROWS = 4;
-const CELL_SIZE = 90;
-const POKEMON_SIZE = 60;
-const ATTACK_RANGE = 1.5;
-const MOVE_SPEED = 1.2;
-const ATTACK_COOLDOWN = 1.2;
-const BATTLE_FPS = 30;
+const COLS = 6;
+const ROWS = 6;
+const CELL = 88;
+const POKE_SIZE = 60;
+const ATTACK_RANGE = 1.4;
+const MOVE_SPEED = 1.0;
+const ATK_COOLDOWN = 1.3;
+const FPS = 30;
+const DT = 1 / FPS;
 
-interface BoardUnit {
+interface Unit {
   id: string;
   detail: TowerDetail;
-  col: number;
-  row: number;
-  hp: number;
-  maxHp: number;
-  attackCooldown: number;
-  isFainted: boolean;
-  isAttacking: boolean;
-  isHit: boolean;
-  team: 'my' | 'opponent';
+  team: 'my' | 'opp';
   x: number;
   y: number;
+  hp: number;
+  maxHp: number;
+  atkCd: number;
+  fainted: boolean;
+  isAtk: boolean;
+  isHit: boolean;
 }
 
-interface FloatText {
+interface FloatTxt {
   id: number;
   text: string;
-  col: number;
-  row: number;
+  x: number;
+  y: number;
   color: string;
 }
 
@@ -48,442 +48,390 @@ export interface TFTBattleArenaProps {
   opponentTeam: TowerDetail[];
   opponentName: string;
   phase: 'prep' | 'battle' | 'result';
-  // battleResult prop: 현재 직접 사용하지 않음 — phase prop으로 배틀 시작 제어
-  // 외부에서 전달받지만 내부 배틀 로직은 독립적으로 동작 (미래 확장을 위해 유지)
   battleResult?: unknown;
-  onBattleComplete?: (winnerId: string) => void;
+  onBattleComplete?: (winner: string) => void;
 }
 
-const getDefaultMyPositions = (count: number) => {
-  const positions = [
-    { col: 1, row: 3 }, { col: 3, row: 3 }, { col: 5, row: 3 },
-    { col: 0, row: 2 }, { col: 2, row: 2 }, { col: 4, row: 2 }, { col: 6, row: 2 },
-  ];
-  return positions.slice(0, count);
-};
+const MY_POS  = [
+  {x:0,y:5},{x:2,y:5},{x:4,y:5},
+  {x:1,y:4},{x:3,y:4},{x:5,y:4},
+  {x:0,y:4},{x:2,y:4},{x:4,y:4},
+];
+const OPP_POS = [
+  {x:1,y:0},{x:3,y:0},{x:5,y:0},
+  {x:0,y:1},{x:2,y:1},{x:4,y:1},
+  {x:1,y:1},{x:3,y:1},{x:5,y:1},
+];
 
-const getDefaultOpponentPositions = (count: number) => {
-  const positions = [
-    { col: 1, row: 0 }, { col: 3, row: 0 }, { col: 5, row: 0 },
-    { col: 0, row: 1 }, { col: 2, row: 1 }, { col: 4, row: 1 }, { col: 6, row: 1 },
-  ];
-  return positions.slice(0, count);
-};
+function calcDmg(a: Unit, d: Unit): number {
+  const atk = a.detail.attack ?? a.detail.level * 10;
+  const def = d.detail.defense ?? d.detail.level * 5;
+  const types = a.detail.types ?? [];
+  const dTypes = d.detail.types ?? [];
+  const power = 50 + a.detail.level;
+  const lvl = a.detail.level;
+  const eff = getTypeEffectiveness(types[0] ?? 'normal', dTypes);
+  const base = ((2 * lvl / 5 + 2) * power * atk / Math.max(def, 1)) / 50 + 2;
+  return Math.max(1, Math.floor(base * eff * (0.85 + Math.random() * 0.15)));
+}
 
-const calcDamage = (attacker: BoardUnit, defender: BoardUnit): number => {
-  const atkStat = attacker.detail.attack ?? attacker.detail.level * 10;
-  const defStat = defender.detail.defense ?? defender.detail.level * 5;
-  const attackerTypes = attacker.detail.types ?? [];
-  const defenderTypes = defender.detail.types ?? [];
-  const basePower = 50 + attacker.detail.level;
-  const lvl = attacker.detail.level;
-  const attackType = attackerTypes[0] ?? 'normal';
-  const typeEff = getTypeEffectiveness(attackType, defenderTypes);
-  const base = ((2 * lvl / 5 + 2) * basePower * atkStat / Math.max(defStat, 1) / 50 + 2);
-  const rng = 0.85 + Math.random() * 0.15;
-  return Math.max(1, Math.floor(base * typeEff * rng));
-};
+function dst(a: Unit, b: Unit) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
 
-const distBetween = (a: BoardUnit, b: BoardUnit) =>
-  Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+function buildUnits(myTeam: TowerDetail[], oppTeam: TowerDetail[]): Unit[] {
+  const units: Unit[] = [];
+  myTeam.forEach((d, i) => {
+    const pos = MY_POS[i] ?? { x: i % COLS, y: 5 };
+    units.push({
+      id: `my-${i}`, detail: d, team: 'my',
+      x: pos.x, y: pos.y,
+      hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
+      maxHp: d.maxHp > 0 ? d.maxHp : 100,
+      atkCd: Math.random() * 0.5,
+      fainted: !!d.isFainted, isAtk: false, isHit: false,
+    });
+  });
+  oppTeam.forEach((d, i) => {
+    const pos = OPP_POS[i] ?? { x: i % COLS, y: 0 };
+    units.push({
+      id: `op-${i}`, detail: d, team: 'opp',
+      x: pos.x, y: pos.y,
+      hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
+      maxHp: d.maxHp > 0 ? d.maxHp : 100,
+      atkCd: Math.random() * 0.5,
+      fainted: !!d.isFainted, isAtk: false, isHit: false,
+    });
+  });
+  return units;
+}
 
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  myTeam,
-  opponentTeam,
-  opponentName,
-  phase,
-  onBattleComplete,
+  myTeam, opponentTeam, opponentName, phase, onBattleComplete,
 }) => {
-  const [units, setUnits] = useState<BoardUnit[]>([]);
-  const [floatTexts, setFloatTexts] = useState<FloatText[]>([]);
-  const [battlePhase, setBattlePhase] = useState<'idle' | 'fighting' | 'done'>('idle');
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [floats, setFloats] = useState<FloatTxt[]>([]);
+  const [battleState, setBattleState] = useState<'idle' | 'fighting' | 'done'>('idle');
   const [winnerText, setWinnerText] = useState<string | null>(null);
-  const [dragUnit, setDragUnit] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const loopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const floatIdRef = useRef(0);
+  const initRef = useRef({ my: -1, op: -1 });
 
-  // ─── 초기화 ───────────────────────────────────────────────────────
   useEffect(() => {
-    const myPositions = getDefaultMyPositions(myTeam.length);
-    const opPositions = getDefaultOpponentPositions(opponentTeam.length);
-
-    const initialUnits: BoardUnit[] = [
-      ...myTeam.map((d, i) => ({
-        id: `my-${i}`,
-        detail: d,
-        col: myPositions[i]?.col ?? i % BOARD_COLS,
-        row: myPositions[i]?.row ?? 3,
-        hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
-        maxHp: d.maxHp,
-        attackCooldown: 0,
-        isFainted: d.isFainted,
-        isAttacking: false,
-        isHit: false,
-        team: 'my' as const,
-        x: myPositions[i]?.col ?? i % BOARD_COLS,
-        y: myPositions[i]?.row ?? 3,
-      })),
-      ...opponentTeam.map((d, i) => ({
-        id: `op-${i}`,
-        detail: d,
-        col: opPositions[i]?.col ?? i % BOARD_COLS,
-        row: opPositions[i]?.row ?? 0,
-        hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
-        maxHp: d.maxHp,
-        attackCooldown: 0,
-        isFainted: d.isFainted,
-        isAttacking: false,
-        isHit: false,
-        team: 'opponent' as const,
-        x: opPositions[i]?.col ?? i % BOARD_COLS,
-        y: opPositions[i]?.row ?? 0,
-      })),
-    ];
-
-    setUnits(initialUnits);
-    setBattlePhase('idle');
+    if (myTeam.length === 0 && opponentTeam.length === 0) return;
+    if (
+      initRef.current.my === myTeam.length &&
+      initRef.current.op === opponentTeam.length &&
+      units.length > 0
+    ) return;
+    initRef.current = { my: myTeam.length, op: opponentTeam.length };
+    setUnits(buildUnits(myTeam, opponentTeam));
+    setBattleState('idle');
     setWinnerText(null);
-    setFloatTexts([]);
-    setDragUnit(null);
+    setFloats([]);
+    setDragId(null);
   }, [myTeam, opponentTeam]);
 
-  // ─── 배틀 시작 ────────────────────────────────────────────────────
   const startBattle = useCallback(() => {
-    setBattlePhase(prev => (prev === 'idle' ? 'fighting' : prev));
+    setBattleState(prev => prev === 'idle' ? 'fighting' : prev);
   }, []);
 
-  // ─── 배틀 루프 ────────────────────────────────────────────────────
   useEffect(() => {
-    if (battlePhase !== 'fighting') return;
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (phase === 'battle' && battleState === 'idle') {
+      let waited = 0;
+      const t = setInterval(() => {
+        waited += 200;
+        if (units.length > 0 || waited >= 5000) {
+          clearInterval(t);
+          setTimeout(startBattle, 600);
+        }
+      }, 200);
+      return () => clearInterval(t);
+    }
+  }, [phase, battleState, units.length, startBattle]);
 
-    const dt = 1 / BATTLE_FPS;
+  useEffect(() => {
+    if (battleState !== 'fighting') return;
+    if (loopRef.current) clearInterval(loopRef.current);
 
-    intervalRef.current = setInterval(() => {
+    loopRef.current = setInterval(() => {
       setUnits(prev => {
         const next = prev.map(u => ({ ...u }));
+        const alive = (u: Unit) => !u.fainted && u.hp > 0;
+        const myAlive  = next.filter(u => u.team === 'my'  && alive(u));
+        const oppAlive = next.filter(u => u.team === 'opp' && alive(u));
 
-        const alive = (u: BoardUnit) => !u.isFainted && u.hp > 0;
-        const myAlive = next.filter(u => u.team === 'my' && alive(u));
-        const opAlive = next.filter(u => u.team === 'opponent' && alive(u));
-
-        if (myAlive.length === 0 || opAlive.length === 0) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          const winnerSide = myAlive.length > 0 ? 'my' : 'opponent';
-          const text = myAlive.length > 0 ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`;
-          setBattlePhase('done');
-          setWinnerText(text);
-          onBattleComplete?.(winnerSide);
+        if (myAlive.length === 0 || oppAlive.length === 0) {
+          if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
+          const win = myAlive.length > 0 ? 'my' : 'opp';
+          setBattleState('done');
+          setWinnerText(win === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
+          onBattleComplete?.(win);
           return prev;
         }
 
-        const newFloats: FloatText[] = [];
+        const newFloats: FloatTxt[] = [];
 
         for (const unit of next) {
           if (!alive(unit)) continue;
+          const enemies = unit.team === 'my' ? oppAlive : myAlive;
+          if (!enemies.length) continue;
 
-          const enemies = unit.team === 'my' ? opAlive : myAlive;
-          if (enemies.length === 0) continue;
-
-          let closest = enemies[0];
-          let minDist = Infinity;
+          let target = enemies[0];
+          let minD = Infinity;
           for (const e of enemies) {
-            const d = distBetween(unit, e);
-            if (d < minDist) { minDist = d; closest = e; }
+            const d = dst(unit, e);
+            if (d < minD) { minD = d; target = e; }
           }
 
-          unit.attackCooldown = Math.max(0, unit.attackCooldown - dt);
+          unit.atkCd = Math.max(0, unit.atkCd - DT);
 
-          if (minDist <= ATTACK_RANGE) {
-            if (unit.attackCooldown <= 0) {
-              unit.isAttacking = true;
-              unit.attackCooldown = ATTACK_COOLDOWN;
-
-              const targetUnit = next.find(u => u.id === closest.id);
-              if (targetUnit && alive(targetUnit)) {
-                const dmg = calcDamage(unit, targetUnit);
-                targetUnit.hp = Math.max(0, targetUnit.hp - dmg);
-                targetUnit.isHit = true;
-                if (targetUnit.hp <= 0) targetUnit.isFainted = true;
-
+          if (minD <= ATTACK_RANGE) {
+            if (unit.atkCd <= 0) {
+              unit.isAtk = true;
+              unit.atkCd = ATK_COOLDOWN;
+              const t2 = next.find(u => u.id === target.id);
+              if (t2 && alive(t2)) {
+                const dmg = calcDmg(unit, t2);
+                t2.hp = Math.max(0, t2.hp - dmg);
+                t2.isHit = true;
+                if (t2.hp <= 0) t2.fainted = true;
                 newFloats.push({
                   id: ++floatIdRef.current,
                   text: `-${dmg}`,
-                  col: targetUnit.x,
-                  row: targetUnit.y,
-                  color: '#ff4444',
+                  x: t2.x * CELL + CELL / 2,
+                  y: t2.y * CELL,
+                  color: t2.team === 'my' ? '#ff6b6b' : '#ffd93d',
                 });
               }
             }
           } else {
-            unit.isAttacking = false;
-            const dx = closest.x - unit.x;
-            const dy = closest.y - unit.y;
+            unit.isAtk = false;
+            const dx = target.x - unit.x;
+            const dy = target.y - unit.y;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len > 0.01) {
-              unit.x = Math.max(0, Math.min(BOARD_COLS - 1, unit.x + (dx / len) * MOVE_SPEED * dt));
-              unit.y = Math.max(0, Math.min(BOARD_ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * dt));
+              unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * DT));
+              unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * DT));
             }
           }
         }
 
-        // 공격/피격 애니메이션 플래그 자동 리셋
-        setTimeout(() => {
-          setUnits(u => u.map(x => ({ ...x, isAttacking: false, isHit: false })));
-        }, 300);
-
+        setTimeout(() => setUnits(u => u.map(x => ({ ...x, isAtk: false, isHit: false }))), 280);
         if (newFloats.length > 0) {
-          setFloatTexts(p => [...p, ...newFloats]);
-          setTimeout(() => setFloatTexts(p => p.slice(newFloats.length)), 900);
+          setFloats(f => [...f, ...newFloats]);
+          setTimeout(() => setFloats(f => f.slice(newFloats.length)), 850);
         }
-
         return next;
       });
-    }, 1000 / BATTLE_FPS);
+    }, 1000 / FPS);
 
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [battlePhase, opponentName, onBattleComplete]);
+    return () => { if (loopRef.current) clearInterval(loopRef.current); };
+  }, [battleState, opponentName, onBattleComplete]);
 
-  // ─── phase prop 변화 → 배틀 자동 시작 ───────────────────────────
-  useEffect(() => {
-    if (phase === 'battle' && battlePhase === 'idle') {
-      const timer = setTimeout(() => startBattle(), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, battlePhase, startBattle]);
+  useEffect(() => () => { if (loopRef.current) clearInterval(loopRef.current); }, []);
 
-  // ─── 클린업 ───────────────────────────────────────────────────────
-  useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, []);
-
-  // ─── 준비 페이즈 클릭 핸들러 ─────────────────────────────────────
   const handleCellClick = (col: number, row: number) => {
-    if (phase !== 'prep' || battlePhase !== 'idle') return;
-    if (row < 2) return;
-
-    if (dragUnit) {
-      const targetOccupied = units.find(
-        u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row
-      );
+    if (phase !== 'prep' || battleState !== 'idle' || row < 4) return;
+    if (dragId) {
+      const occ = units.find(u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row);
       setUnits(prev => prev.map(u => {
-        if (u.id === dragUnit) return { ...u, x: col, y: row, col, row };
-        if (targetOccupied && u.id === targetOccupied.id) {
-          const src = prev.find(x => x.id === dragUnit);
-          if (src) return { ...u, x: src.x, y: src.y, col: src.col, row: src.row };
+        if (u.id === dragId) return { ...u, x: col, y: row };
+        if (occ && u.id === occ.id) {
+          const src = prev.find(p => p.id === dragId)!;
+          return { ...u, x: src.x, y: src.y };
         }
         return u;
       }));
-      setDragUnit(null);
+      setDragId(null);
     } else {
-      const clicked = units.find(
-        u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row
-      );
-      if (clicked && !clicked.isFainted) setDragUnit(prev => prev === clicked.id ? null : clicked.id);
+      const clicked = units.find(u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row);
+      if (clicked && !clicked.fainted) setDragId(p => p === clicked.id ? null : clicked.id);
     }
   };
 
-  // ─── 렌더 ─────────────────────────────────────────────────────────
-  const boardWidth = BOARD_COLS * CELL_SIZE;
-  const boardHeight = BOARD_ROWS * CELL_SIZE;
-  const isPrepPhase = phase === 'prep' && battlePhase === 'idle';
+  const boardW = COLS * CELL;
+  const boardH = ROWS * CELL;
+  const isPrep = phase === 'prep' && battleState === 'idle';
+
+  if (myTeam.length === 0 && opponentTeam.length === 0) {
+    return (
+      <Wrap>
+        <TopBar>
+          <ArenaTitle>⚔️ TFT 배틀 아레나</ArenaTitle>
+          <PhaseTag $color="#fbbf24">⏳ 로딩 중...</PhaseTag>
+        </TopBar>
+        <LoadBox style={{ width: boardW, height: boardH }}>
+          <LoadMsg>포켓몬 정보를 불러오는 중입니다 🎮</LoadMsg>
+        </LoadBox>
+      </Wrap>
+    );
+  }
 
   return (
-    <ArenaWrapper>
-      <ArenaHeader>
+    <Wrap>
+      <TopBar>
         <ArenaTitle>⚔️ TFT 배틀 아레나</ArenaTitle>
-        {isPrepPhase && <PhaseLabel $color="#4fc3f7">🛡️ 준비 — 포켓몬 클릭해서 재배치</PhaseLabel>}
-        {battlePhase === 'fighting' && <PhaseLabel $color="#ff6b6b">🔥 배틀 중!</PhaseLabel>}
-        {winnerText && <WinnerLabel>{winnerText}</WinnerLabel>}
-      </ArenaHeader>
+        {isPrep && <PhaseTag $color="#4fc3f7">🛡️ 준비 — 하단 2행에서 포켓몬 재배치 가능</PhaseTag>}
+        {battleState === 'fighting' && <PhaseTag $color="#ff6b6b">🔥 배틀 중!</PhaseTag>}
+        {winnerText && <WinTag>{winnerText}</WinTag>}
+      </TopBar>
 
-      <BoardContainer style={{ width: boardWidth, height: boardHeight }}>
-        {Array.from({ length: BOARD_ROWS }, (_, row) =>
-          Array.from({ length: BOARD_COLS }, (_, col) => {
-            const isMyZone = row >= 2;
-            const hasMyUnit = units.some(
-              u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row
-            );
+      <Board style={{ width: boardW, height: boardH }}>
+        {Array.from({ length: ROWS }, (_, row) =>
+          Array.from({ length: COLS }, (_, col) => {
+            const zone: 'my'|'opp'|'mid' = row >= 4 ? 'my' : row <= 1 ? 'opp' : 'mid';
+            const hasMyUnit = units.some(u => u.team==='my' && Math.round(u.x)===col && Math.round(u.y)===row);
             return (
-              <GridCell
+              <Cell
                 key={`${col}-${row}`}
-                style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
-                $isMyZone={isMyZone}
-                $isDropTarget={dragUnit !== null && isMyZone && !hasMyUnit}
+                style={{ left: col*CELL, top: row*CELL, width: CELL, height: CELL }}
+                $zone={zone}
+                $isTarget={dragId !== null && zone === 'my' && !hasMyUnit}
                 onClick={() => handleCellClick(col, row)}
               />
             );
           })
         )}
 
-        <TeamDivider style={{ top: 2 * CELL_SIZE }} />
-
-        <ZoneLabel style={{ top: 4, left: 6, color: 'rgba(255,128,128,0.75)' }}>
-          👤 {opponentName}
-        </ZoneLabel>
-        <ZoneLabel style={{ bottom: 4, left: 6, color: 'rgba(128,255,128,0.75)' }}>
-          👤 나
-        </ZoneLabel>
+        <Divider style={{ top: 2 * CELL }} />
+        <Divider style={{ top: 4 * CELL }} />
+        <ZoneLbl style={{ top: 4, left: 8, color: 'rgba(255,110,110,0.85)' }}>👤 {opponentName}</ZoneLbl>
+        <ZoneLbl style={{ bottom: 4, left: 8, color: 'rgba(100,255,160,0.85)' }}>👤 나</ZoneLbl>
 
         {units.map(unit => {
-          const px = unit.x * CELL_SIZE + CELL_SIZE / 2 - POKEMON_SIZE / 2;
-          const py = unit.y * CELL_SIZE + CELL_SIZE / 2 - POKEMON_SIZE / 2;
+          const px = unit.x * CELL + CELL/2 - POKE_SIZE/2;
+          const py = unit.y * CELL + CELL/2 - POKE_SIZE/2;
           const hpPct = Math.max(0, unit.hp / unit.maxHp);
-
           return (
-            <UnitWrapper
+            <UnitWrap
               key={unit.id}
               style={{
-                left: px,
-                top: py,
-                width: POKEMON_SIZE,
-                height: POKEMON_SIZE + 28,
-                transition: battlePhase === 'fighting'
-                  ? 'left 0.05s linear, top 0.05s linear'
+                left: px, top: py, width: POKE_SIZE,
+                transition: battleState === 'fighting'
+                  ? 'left 0.033s linear, top 0.033s linear'
                   : 'left 0.15s ease, top 0.15s ease',
               }}
-              $team={unit.team}
-              $fainted={unit.isFainted}
-              $isHit={unit.isHit}
-              $isAttacking={unit.isAttacking}
-              $selected={dragUnit === unit.id}
+              $team={unit.team} $fainted={unit.fainted}
+              $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId===unit.id}
               onClick={() => {
-                if (isPrepPhase && unit.team === 'my' && !unit.isFainted) {
-                  setDragUnit(prev => prev === unit.id ? null : unit.id);
-                }
+                if (isPrep && unit.team==='my' && !unit.fainted)
+                  setDragId(p => p===unit.id ? null : unit.id);
               }}
             >
-              <HpBarBg>
-                <HpBarFill
-                  style={{
-                    width: `${hpPct * 100}%`,
-                    background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f39c12' : '#e74c3c',
-                  }}
-                />
-              </HpBarBg>
-              <UnitSprite
-                src={unit.detail.sprite}
-                alt={unit.detail.name}
-                $flip={unit.team === 'opponent'}
-                $fainted={unit.isFainted}
-              />
-              <UnitName $team={unit.team}>
-                {unit.detail.name} Lv.{unit.detail.level}
-              </UnitName>
-            </UnitWrapper>
+              <HpBg>
+                <HpFill style={{
+                  width:`${hpPct*100}%`,
+                  background: hpPct>0.5?'#2ecc71':hpPct>0.25?'#f1c40f':'#e74c3c',
+                }}/>
+              </HpBg>
+              {unit.detail.sprite ? (
+                <Sprite src={unit.detail.sprite} alt={unit.detail.name}
+                  $fainted={unit.fainted} $flip={unit.team==='opp'} />
+              ) : (
+                <Fallback $team={unit.team}>
+                  {unit.detail.name?.slice(0,2).toUpperCase()??'?'}
+                </Fallback>
+              )}
+              <UnitName>{unit.detail.name}</UnitName>
+            </UnitWrap>
           );
         })}
 
-        {floatTexts.map(ft => (
-          <FloatDmg
-            key={ft.id}
-            style={{
-              left: ft.col * CELL_SIZE + CELL_SIZE / 2,
-              top: ft.row * CELL_SIZE + 8,
-              color: ft.color,
-            }}
-          >
-            {ft.text}
-          </FloatDmg>
+        {floats.map(f => (
+          <FloatEl key={f.id} style={{ left:f.x, top:f.y, color:f.color }}>{f.text}</FloatEl>
         ))}
-      </BoardContainer>
-    </ArenaWrapper>
+      </Board>
+
+      {isPrep && <Hint>포켓몬 클릭 → 원하는 칸 클릭으로 이동 | 하단 2행에만 배치 가능</Hint>}
+    </Wrap>
   );
 };
 
-// ─── 스타일 ───────────────────────────────────────────────────────────────────
-const hitAnim = keyframes`
-  0%, 100% { transform: scale(1); filter: brightness(1); }
-  50%       { transform: scale(0.88); filter: brightness(2.5) saturate(3); }
-`;
-const attackAnim = keyframes`
-  0%, 100% { transform: scale(1) translateY(0); }
-  40%       { transform: scale(1.18) translateY(-7px); }
-`;
 const floatUp = keyframes`
-  0%   { opacity: 1; transform: translateY(0) translateX(-50%); }
-  100% { opacity: 0; transform: translateY(-38px) translateX(-50%); }
+  0%  { opacity:1; transform:translateX(-50%) translateY(0); }
+  100%{ opacity:0; transform:translateX(-50%) translateY(-42px); }
 `;
-const pulse = keyframes`
-  from { opacity: 0.7; } to { opacity: 1; }
+const hitFlash = keyframes`
+  0%,100%{ filter:brightness(1); }
+  40%    { filter:brightness(2.2) saturate(0); }
+`;
+const atkBounce = keyframes`
+  0%,100%{ transform:scale(1); }
+  50%    { transform:scale(1.18); }
+`;
+const fadeIn = keyframes`
+  from{ opacity:0; transform:translateY(-10px); }
+  to  { opacity:1; transform:translateY(0); }
 `;
 
-const ArenaWrapper = styled.div`
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  padding: 14px; background: rgba(0,0,0,0.85); border-radius: 16px;
-  border: 2px solid rgba(255,215,0,0.3); max-width: 100%; overflow: hidden;
+const Wrap = styled.div`
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  background:radial-gradient(ellipse at center,#1a1a2e 0%,#0d0d1a 100%);
+  padding:14px; overflow:hidden; animation:${fadeIn} 0.35s ease;
 `;
-const ArenaHeader = styled.div`
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+const TopBar = styled.div`display:flex;align-items:center;gap:14px;margin-bottom:10px;`;
+const ArenaTitle = styled.div`color:#fff;font-size:17px;font-weight:800;letter-spacing:2px;`;
+const PhaseTag = styled.div<{$color:string}>`
+  color:${p=>p.$color};font-size:12px;font-weight:600;
+  padding:3px 11px;border-radius:20px;
+  border:1px solid ${p=>p.$color}44;background:${p=>p.$color}11;
 `;
-const ArenaTitle = styled.span`font-size: 15px; font-weight: bold; color: #fff;`;
-const PhaseLabel = styled.span<{ $color: string }>`
-  color: ${p => p.$color}; font-size: 13px;
-  animation: ${pulse} 1s ease infinite alternate;
+const WinTag = styled.div`
+  color:#fbbf24;font-size:17px;font-weight:900;
+  text-shadow:0 0 18px rgba(251,191,36,0.6);
+  animation:${atkBounce} 1s ease infinite;
 `;
-const WinnerLabel = styled.span`
-  color: #ffd700; font-size: 18px; font-weight: bold;
-  text-shadow: 0 0 12px rgba(255,215,0,0.8);
+const Board = styled.div`
+  position:relative;border:2px solid rgba(255,255,255,0.1);
+  border-radius:8px;overflow:hidden;background:rgba(0,0,0,0.45);
 `;
-const BoardContainer = styled.div`
-  position: relative; border: 2px solid rgba(255,255,255,0.12);
-  border-radius: 8px; overflow: hidden;
-  background: linear-gradient(180deg,
-    rgba(40,40,100,0.92) 0%, rgba(40,40,100,0.92) 50%,
-    rgba(30,80,30,0.92) 50%, rgba(30,80,30,0.92) 100%);
+const LoadBox = styled.div`
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(0,0,0,0.4);
 `;
-const GridCell = styled.div<{ $isMyZone: boolean; $isDropTarget: boolean }>`
-  position: absolute;
-  border: 1px solid ${p => p.$isMyZone ? 'rgba(100,200,100,0.18)' : 'rgba(100,100,200,0.18)'};
-  background: ${p => p.$isDropTarget ? 'rgba(100,255,100,0.18)' : 'transparent'};
-  cursor: ${p => p.$isMyZone ? 'pointer' : 'default'};
-  transition: background 0.15s;
-  &:hover { background: ${p => p.$isMyZone ? 'rgba(100,255,100,0.1)' : 'transparent'}; }
+const LoadMsg = styled.div`color:rgba(255,255,255,0.45);font-size:14px;text-align:center;line-height:1.7;`;
+const Cell = styled.div<{$zone:'my'|'opp'|'mid';$isTarget:boolean}>`
+  position:absolute;box-sizing:border-box;
+  border:1px solid ${p=>p.$zone==='my'?'rgba(0,255,128,0.07)':p.$zone==='opp'?'rgba(255,80,80,0.07)':'rgba(255,255,255,0.04)'};
+  background:${p=>p.$isTarget?'rgba(0,255,128,0.14)':p.$zone==='my'?'rgba(0,80,40,0.08)':p.$zone==='opp'?'rgba(80,0,0,0.08)':'rgba(255,255,255,0.02)'};
+  cursor:${p=>p.$isTarget?'pointer':'default'};transition:background 0.12s;
+  &:hover{background:${p=>p.$isTarget?'rgba(0,255,128,0.22)':undefined};}
 `;
-const TeamDivider = styled.div`
-  position: absolute; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  pointer-events: none; z-index: 5;
+const Divider = styled.div`
+  position:absolute;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+  pointer-events:none;z-index:2;
 `;
-const ZoneLabel = styled.div`
-  position: absolute; font-size: 11px; font-weight: bold;
-  pointer-events: none; z-index: 5;
+const ZoneLbl = styled.div`position:absolute;font-size:10px;font-weight:600;pointer-events:none;z-index:3;`;
+const UnitWrap = styled.div<{$team:'my'|'opp';$fainted:boolean;$hit:boolean;$atk:boolean;$sel:boolean}>`
+  position:absolute;display:flex;flex-direction:column;align-items:center;
+  cursor:pointer;z-index:10;height:${POKE_SIZE+22}px;
+  opacity:${p=>p.$fainted?0.25:1};filter:${p=>p.$fainted?'grayscale(1)':'none'};
+  outline:${p=>p.$sel?'2px solid #4fc3f7':'none'};border-radius:6px;
+  ${p=>p.$hit&&css`animation:${hitFlash} 0.28s ease;`}
+  ${p=>p.$atk&&css`animation:${atkBounce} 0.28s ease;`}
 `;
-const UnitWrapper = styled.div<{
-  $team: 'my' | 'opponent'; $fainted: boolean;
-  $isHit: boolean; $isAttacking: boolean; $selected: boolean;
-}>`
-  position: absolute; display: flex; flex-direction: column; align-items: center;
-  cursor: ${p => p.$team === 'my' ? 'pointer' : 'default'};
-  filter: ${p => p.$fainted ? 'grayscale(100%) opacity(0.35)' : 'none'};
-  outline: ${p => p.$selected ? '3px solid #ffd700' : 'none'};
-  border-radius: 8px; z-index: 10;
-  ${p => p.$isHit && css`animation: ${hitAnim} 0.28s ease;`}
-  ${p => p.$isAttacking && !p.$fainted && css`animation: ${attackAnim} 0.28s ease;`}
+const HpBg = styled.div`width:${POKE_SIZE}px;height:4px;background:rgba(0,0,0,0.55);border-radius:2px;overflow:hidden;margin-bottom:1px;`;
+const HpFill = styled.div`height:100%;border-radius:2px;transition:width 0.18s ease;`;
+const Sprite = styled.img<{$fainted:boolean;$flip:boolean}>`
+  width:${POKE_SIZE}px;height:${POKE_SIZE}px;object-fit:contain;image-rendering:pixelated;
+  transform:${p=>p.$flip?'scaleX(-1)':'none'};
+  filter:${p=>p.$fainted?'grayscale(1) opacity(0.35)':'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'};
 `;
-const HpBarBg = styled.div`
-  width: 100%; height: 5px; background: rgba(0,0,0,0.55);
-  border-radius: 3px; overflow: hidden; margin-bottom: 2px;
+const Fallback = styled.div<{$team:'my'|'opp'}>`
+  width:${POKE_SIZE}px;height:${POKE_SIZE}px;display:flex;align-items:center;justify-content:center;
+  background:${p=>p.$team==='my'?'rgba(0,80,255,0.3)':'rgba(255,50,50,0.3)'};
+  border-radius:50%;font-size:13px;font-weight:700;color:#fff;
 `;
-const HpBarFill = styled.div`
-  height: 100%; border-radius: 3px; transition: width 0.18s ease;
+const UnitName = styled.div`
+  font-size:9px;color:rgba(255,255,255,0.8);text-align:center;white-space:nowrap;
+  max-width:${POKE_SIZE+8}px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.9);
 `;
-const UnitSprite = styled.img<{ $flip: boolean; $fainted: boolean }>`
-  width: 100%; height: auto; image-rendering: pixelated;
-  transform: ${p => p.$flip ? 'scaleX(-1)' : 'scaleX(1)'};
+const FloatEl = styled.div`
+  position:absolute;font-size:13px;font-weight:800;
+  text-shadow:0 1px 4px rgba(0,0,0,0.8);pointer-events:none;z-index:20;
+  animation:${floatUp} 0.85s ease forwards;
 `;
-const UnitName = styled.div<{ $team: 'my' | 'opponent' }>`
-  font-size: 9px; color: ${p => p.$team === 'my' ? '#80ff80' : '#ff8080'};
-  white-space: nowrap; font-weight: bold; text-shadow: 0 1px 3px black;
-  max-width: 80px; overflow: hidden; text-overflow: ellipsis; text-align: center;
-`;
-const FloatDmg = styled.div`
-  position: absolute; font-size: 15px; font-weight: bold;
-  text-shadow: 0 1px 4px black; pointer-events: none;
-  animation: ${floatUp} 0.9s ease-out forwards; z-index: 20;
-`;
+const Hint = styled.div`margin-top:7px;color:rgba(255,255,255,0.3);font-size:11px;`;

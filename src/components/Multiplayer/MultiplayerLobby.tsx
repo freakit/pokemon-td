@@ -26,7 +26,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
   const [rejoinableRoom, setRejoinableRoom] = useState<Room | null>(null);
   const user = authService.getCurrentUser();
-  
+
   const [showPokedex, setShowPokedex] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
@@ -50,7 +50,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       }
       setIsCheckingRejoin(false);
     };
-
     checkRejoin();
   }, []);
 
@@ -71,7 +70,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           return;
         }
         setCurrentRoom(room);
-        
         if (room.status === 'starting' || room.status === 'playing') {
           onStartGame(room.id, room.mapId);
         }
@@ -84,7 +82,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     try {
       const selectedMapData = MAPS.find(m => m.id === selectedMap);
       if (!selectedMapData) throw new Error('Invalid map');
-      
       const roomId = await multiplayerService.createRoom(selectedMap, selectedMapData.name);
       const room = await multiplayerService.rejoinRoom(roomId);
       setCurrentRoom(room.room);
@@ -112,11 +109,11 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       setCurrentRoom(null);
     }
   };
-  
+
   const handleBackToCreate = () => {
     if (currentRoom) {
-        multiplayerService.leaveRoom(currentRoom.id);
-        setCurrentRoom(null);
+      multiplayerService.leaveRoom(currentRoom.id);
+      setCurrentRoom(null);
     }
     setView('create');
   };
@@ -163,7 +160,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     try {
       await multiplayerService.leaveRoom(rejoinableRoom.id);
     } catch (err) {
-      console.error("Failed to leave room:", err);
+      console.error('Failed to leave room:', err);
       multiplayerService.clearCurrentRoom();
     }
     setRejoinableRoom(null);
@@ -215,7 +212,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                     <RoomInfo>
                       <RoomName>{room.name}</RoomName>
                       <RoomDetails>
-                        맵: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name` ? t(`mapData.${room.mapId}.name`) : room.mapName} | 호스트: {room.hostName}
+                        맵: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name`
+                          ? t(`mapData.${room.mapId}.name`)
+                          : room.mapName} | 호스트: {room.hostName}
                       </RoomDetails>
                     </RoomInfo>
                     <RoomPlayers>
@@ -257,10 +256,14 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                 {MAPS.map(map => (
                   <MapCard
                     key={map.id}
-                    selected={selectedMap === map.id}
+                    $selected={selectedMap === map.id}
                     onClick={() => setSelectedMap(map.id)}
                   >
-                    <MapName>{t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}</MapName>
+                    <MapName>
+                      {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
+                        ? t(`mapData.${map.id}.name`)
+                        : map.name}
+                    </MapName>
                     <MapDifficulty>난이도: {map.difficulty}</MapDifficulty>
                   </MapCard>
                 ))}
@@ -296,11 +299,17 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </Header>
 
             <Section>
-              <SectionTitle>맵: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name` ? t(`mapData.${currentRoom.mapId}.name`) : currentRoom.mapName}</SectionTitle>
+              <SectionTitle>
+                맵: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name`
+                  ? t(`mapData.${currentRoom.mapId}.name`)
+                  : currentRoom.mapName}
+              </SectionTitle>
             </Section>
 
             <Section>
-              <SectionTitle>플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})</SectionTitle>
+              <SectionTitle>
+                플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})
+              </SectionTitle>
               <PlayerList>
                 {currentRoom.players.map(player => (
                   <PlayerCard key={player.userId}>
@@ -310,7 +319,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       {player.isAI && ' 🤖'}
                     </PlayerName>
                     <PlayerRating>Rating: {player.rating}</PlayerRating>
-                    <PlayerStatus ready={player.isReady}>
+                    {/* $ready transient prop — DOM에 전달 안 됨 */}
+                    <PlayerStatus $ready={player.isReady}>
                       {player.isReady ? '✓ 준비완료' : '대기중'}
                     </PlayerStatus>
                   </PlayerCard>
@@ -331,11 +341,15 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
             <ButtonRow>
               {!isHost && (
-                <ReadyButton onClick={handleToggleReady} ready={currentPlayer?.isReady || false}>
+                /* $ready transient prop — DOM에 전달 안 됨 */
+                <ReadyButton
+                  onClick={handleToggleReady}
+                  $ready={currentPlayer?.isReady || false}
+                >
                   {currentPlayer?.isReady ? '준비 취소' : '준비'}
                 </ReadyButton>
               )}
-              
+
               {isHost && (
                 <StartButton
                   onClick={handleStartGame}
@@ -358,16 +372,14 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   return null;
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   z-index: 1000;
 `;
 
@@ -402,10 +414,7 @@ const BackButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    background: rgba(255,255,255,0.3);
-  }
+  &:hover { background: rgba(255,255,255,0.3); }
 `;
 
 const ButtonRow = styled.div`
@@ -424,7 +433,6 @@ const CreateRoomButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -454,9 +462,7 @@ const RoomCard = styled.div`
   border-radius: 10px;
 `;
 
-const RoomInfo = styled.div`
-  flex: 1;
-`;
+const RoomInfo = styled.div`flex: 1;`;
 
 const RoomName = styled.div`
   font-size: 1.2rem;
@@ -484,20 +490,11 @@ const JoinButton = styled.button`
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover:not(:disabled) {
-    background: #5568d3;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: #5568d3; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
-const Section = styled.div`
-  margin-bottom: 2rem;
-`;
+const Section = styled.div`margin-bottom: 2rem;`;
 
 const SectionTitle = styled.h3`
   font-size: 1.3rem;
@@ -511,17 +508,15 @@ const MapGrid = styled.div`
   gap: 1rem;
 `;
 
-const MapCard = styled.div<{ selected: boolean }>`
+// ✅ selected → $selected (transient prop, DOM에 전달 안 됨)
+const MapCard = styled.div<{ $selected: boolean }>`
   padding: 1.5rem;
-  background: ${props => props.selected ? 'white' : 'rgba(255,255,255,0.8)'};
-  border: 3px solid ${props => props.selected ? '#667eea' : 'transparent'};
+  background: ${p => p.$selected ? 'white' : 'rgba(255,255,255,0.8)'};
+  border: 3px solid ${p => p.$selected ? '#667eea' : 'transparent'};
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
+  &:hover { transform: translateY(-2px); }
 `;
 
 const MapName = styled.div`
@@ -546,7 +541,6 @@ const CreateButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
@@ -577,9 +571,10 @@ const PlayerRating = styled.div`
   margin-bottom: 0.5rem;
 `;
 
-const PlayerStatus = styled.div<{ ready: boolean }>`
+// ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
+const PlayerStatus = styled.div<{ $ready: boolean }>`
   font-weight: bold;
-  color: ${props => props.ready ? '#4caf50' : '#ff9800'};
+  color: ${p => p.$ready ? '#4caf50' : '#ff9800'};
 `;
 
 const AIButtons = styled.div`
@@ -597,16 +592,14 @@ const AIButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    background: #f0f0f0;
-  }
+  &:hover { background: #f0f0f0; }
 `;
 
-const ReadyButton = styled.button<{ ready: boolean }>`
+// ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
+const ReadyButton = styled.button<{ $ready: boolean }>`
   flex: 1;
   padding: 1rem;
-  background: ${props => props.ready ? '#ff9800' : '#4caf50'};
+  background: ${p => p.$ready ? '#ff9800' : '#4caf50'};
   color: white;
   font-size: 1.1rem;
   font-weight: bold;
@@ -614,10 +607,7 @@ const ReadyButton = styled.button<{ ready: boolean }>`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover {
-    opacity: 0.9;
-  }
+  &:hover { opacity: 0.9; }
 `;
 
 const StartButton = styled.button`
@@ -631,15 +621,8 @@ const StartButton = styled.button`
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
-
-  &:hover:not(:disabled) {
-    background: #45a049;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: #45a049; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 const LoadingText = styled.div`
@@ -649,7 +632,7 @@ const LoadingText = styled.div`
   padding: 2rem;
 `;
 
-// --- Rejoin Prompt Components ---
+// ─── Rejoin Prompt ────────────────────────────────────────────────────────────
 
 const PromptOverlay = styled(Overlay)`
   z-index: 2000;
@@ -684,17 +667,13 @@ const PromptButtonRow = styled.div`
 const RejoinButton = styled(CreateRoomButton)`
   background: #4caf50;
   color: white;
-  &:hover {
-    background: #45a049;
-  }
+  &:hover { background: #45a049; }
 `;
 
 const AbandonButton = styled(CreateRoomButton)`
   background: #f44336;
   color: white;
-  &:hover {
-    background: #d32f2f;
-  }
+  &:hover { background: #d32f2f; }
 `;
 
 interface RejoinPromptProps {

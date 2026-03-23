@@ -503,29 +503,45 @@ class MultiplayerService {
 
   /**
    * PvP 대전 페이즈 시작
+   * 수정: encounterRecord를 매칭 생성 전에 Firebase에서 최신 값으로 읽어오도록 수정
+   *       홀수 플레이어(bye) 보너스 골드 지급
    */
   async startBattlePhase(roomId: string): Promise<RoundMatchup | null> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
     if (!snapshot.exists()) return null;
-
+ 
     const gameState = snapshot.val() as MultiplayerGameState;
     const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
-
+ 
     if (alivePlayers.length <= 1) return null;
-
+ 
+    // ── 최신 encounterRecord 사용 (Firebase에서 직접 읽기) ──
     const matchups = pvpBattleService.generateMatchups(
       alivePlayers,
       gameState.encounterRecord || {},
       gameState.currentRound
     );
-
+ 
+    // ── 홀수 플레이어(bye) 보너스 처리 ──
+    let updatedPlayers = gameState.players;
+    if (matchups.skipPlayerId) {
+      const BYE_BONUS_GOLD = 50;
+      updatedPlayers = gameState.players.map((p: PlayerGameState) =>
+        p.userId === matchups.skipPlayerId
+          ? { ...p, money: p.money + BYE_BONUS_GOLD }
+          : p
+      );
+      console.log(`[MultiplayerService] Bye bonus +${BYE_BONUS_GOLD}G → ${matchups.skipPlayerId}`);
+    }
+ 
     await update(gameStateRef, {
       currentPhase: 'battle',
       roundMatchups: matchups,
-      phaseEndTime: null
+      players: updatedPlayers,
+      phaseEndTime: null,
     });
-
+ 
     return matchups;
   }
 
@@ -672,8 +688,28 @@ class MultiplayerService {
     return currentRoundResults.length >= gameState.roundMatchups.matches.length;
   }
 
+  /**
+   * 다음 웨이브 대기 페이즈 시작
+   * 수정: battleResults를 라운드별로 보존하되 너무 오래된 것(3라운드 이전)은 정리
+   */
   async startWaitingWavePhase(roomId: string): Promise<void> {
-    await this.setGamePhase(roomId, 'waiting_wave');
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    const snapshot = await get(gameStateRef);
+    if (!snapshot.exists()) return;
+ 
+    const gameState = snapshot.val() as MultiplayerGameState;
+    const currentRound = gameState.currentRound;
+ 
+    // 최근 3라운드 결과만 보존 (Firebase 크기 제한 방지)
+    const recentResults = (gameState.battleResults || []).filter(
+      (r: PvPBattleResult) => r.roundNumber >= currentRound - 2
+    );
+ 
+    await update(gameStateRef, {
+      currentPhase: 'waiting_wave',
+      phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000,
+      battleResults: recentResults,
+    });
   }
 
   /**
@@ -822,6 +858,28 @@ class MultiplayerService {
     });
  
     return () => off(allTowersRef, 'value', listener);
+  }
+
+  /**
+   * 타워 상세 정보를 Firebase에서 1회 직접 읽기 (get)
+   * onValue 구독/스로틀링 타이밍에 의존하지 않고 즉시 최신 데이터를 반환
+   * BattlePhaseUI의 배틀 시뮬레이션 직전에 호출해 AI 포함 모든 팀 데이터를 보장
+   */
+  async getAllTowerDetailsOnce(roomId: string): Promise<Map<string, TowerDetail[]>> {
+    const allTowersRef = ref(rtdb, `towerDetails/${roomId}`);
+    const snapshot = await get(allTowersRef);
+    const combined = new Map<string, TowerDetail[]>();
+    if (snapshot.exists()) {
+      snapshot.forEach((child) => {
+        const userId = child.key!;
+        const data = child.val();
+        if (data.towers && Array.isArray(data.towers) && data.towers.length > 0) {
+          combined.set(userId, data.towers);
+        }
+      });
+    }
+    console.log(`[MultiplayerService] getAllTowerDetailsOnce: ${combined.size} players loaded`);
+    return combined;
   }
 
   // ─── 유틸 ─────────────────────────────────────────────────────
