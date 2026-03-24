@@ -1,61 +1,91 @@
 // src/services/PvPBattleService.ts
 // TFT 스타일 PvP 대전 시스템
+// [수정] 풀리그 방식 매칭: 모든 생존자와 동일 횟수를 만나기 전까지 아직 안 만난 상대 우선
 
 import { TowerDetail, PvPBattleResult, RoundMatchup, EncounterRecord, PlayerGameState, BattleLogEntry } from '../types/multiplayer';
 import { getTypeEffectiveness } from '../utils/typeEffectiveness';
 
 class PvPBattleService {
   /**
-   * 만남 횟수가 가장 적은 플레이어들 중 랜덤 매칭
-   * 홀수 플레이어일 경우 꼴지(라이프 최저)는 스킵
+   * [수정] 풀리그 방식 매칭
+   * 
+   * 규칙:
+   * 1. 모든 생존자와 동일한 횟수를 만나기 전까지, 아직 만나지 않은 상대와 우선 매칭
+   * 2. 모든 상대를 만났으면 가장 적게 만난 상대부터 다시 매칭
+   * 3. 홀수 플레이어일 경우:
+   *    - 직전 라운드에 쉰 플레이어는 연속 스킵 방지를 위해 제외
+   *    - 나머지 중 총 대전 횟수가 가장 많은(= 가장 덜 쉰) 플레이어가 쉼
+   *    - 동점이면 라이프가 가장 낮은 플레이어가 쉼
    */
   generateMatchups(
     players: PlayerGameState[],
     encounterRecord: EncounterRecord,
-    roundNumber: number
+    roundNumber: number,
+    lastSkipPlayerId?: string | null
   ): RoundMatchup {
     // 생존 플레이어만 필터링
     const alivePlayers = players.filter(p => p.isAlive);
     
-    // 홀수인 경우 꼴지(라이프 최저) 스킵
+    // 홀수인 경우 스킵 플레이어 결정
     let skipPlayerId: string | undefined;
     let playersToMatch = [...alivePlayers];
     
     if (alivePlayers.length % 2 !== 0) {
-      // 라이프가 가장 낮은 플레이어 찾기 (동점이면 랜덤)
-      const minLives = Math.min(...alivePlayers.map(p => p.lives));
-      const lastPlacePlayers = alivePlayers.filter(p => p.lives === minLives);
-      const skipPlayer = lastPlacePlayers[Math.floor(Math.random() * lastPlacePlayers.length)];
-      skipPlayerId = skipPlayer.userId;
+      // 직전 라운드에 쉰 플레이어는 후보에서 제외 (연속 스킵 방지)
+      const candidates = lastSkipPlayerId
+        ? alivePlayers.filter(p => p.userId !== lastSkipPlayerId)
+        : alivePlayers;
+      
+      // 후보가 없으면 (2인 중 1인이 전에 쉬었을 때) 전체에서 선택
+      const pool = candidates.length > 0 ? candidates : alivePlayers;
+
+      // 각 플레이어의 총 대전 횟수 계산
+      const totalEncounters = pool.map(p => {
+        let total = 0;
+        for (const other of alivePlayers) {
+          if (other.userId === p.userId) continue;
+          total += this.getEncounterCount(encounterRecord, p.userId, other.userId);
+        }
+        return { player: p, total };
+      });
+
+      // 총 대전 횟수가 가장 많은 플레이어 (동점이면 라이프 최저)
+      totalEncounters.sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return a.player.lives - b.player.lives;
+      });
+
+      skipPlayerId = totalEncounters[0]?.player.userId;
       playersToMatch = alivePlayers.filter(p => p.userId !== skipPlayerId);
     }
     
-    // 만남 횟수 기반 매칭
+    // ── 풀리그 기반 매칭 ──
+    // 모든 가능한 페어의 만남 횟수를 계산하고, 만남이 적은 페어부터 매칭
     const matches: Array<{ player1Id: string; player2Id: string }> = [];
     const matched = new Set<string>();
-    
-    while (playersToMatch.filter(p => !matched.has(p.userId)).length >= 2) {
-      const unmatched = playersToMatch.filter(p => !matched.has(p.userId));
-      
-      // 첫 번째 플레이어 랜덤 선택
-      const player1 = unmatched[Math.floor(Math.random() * unmatched.length)];
-      matched.add(player1.userId);
-      
-      // 나머지 플레이어 중 만남 횟수가 가장 적은 플레이어들 찾기
-      const remainingPlayers = unmatched.filter(p => p.userId !== player1.userId);
-      const encounterCounts = remainingPlayers.map(p => ({
-        player: p,
-        count: this.getEncounterCount(encounterRecord, player1.userId, p.userId)
-      }));
-      
-      const minEncounters = Math.min(...encounterCounts.map(e => e.count));
-      const leastEncountered = encounterCounts.filter(e => e.count === minEncounters);
-      
-      // 최소 만남 횟수인 플레이어들 중 랜덤 선택
-      const player2 = leastEncountered[Math.floor(Math.random() * leastEncountered.length)].player;
-      matched.add(player2.userId);
-      
-      matches.push({ player1Id: player1.userId, player2Id: player2.userId });
+
+    type Pair = { p1: string; p2: string; encounters: number };
+    const pairs: Pair[] = [];
+
+    for (let i = 0; i < playersToMatch.length; i++) {
+      for (let j = i + 1; j < playersToMatch.length; j++) {
+        const p1 = playersToMatch[i].userId;
+        const p2 = playersToMatch[j].userId;
+        pairs.push({
+          p1, p2,
+          encounters: this.getEncounterCount(encounterRecord, p1, p2)
+        });
+      }
+    }
+
+    // 만남 횟수가 적은 페어부터 매칭 (풀리그 보장)
+    pairs.sort((a, b) => a.encounters - b.encounters);
+
+    for (const pair of pairs) {
+      if (matched.has(pair.p1) || matched.has(pair.p2)) continue;
+      matches.push({ player1Id: pair.p1, player2Id: pair.p2 });
+      matched.add(pair.p1);
+      matched.add(pair.p2);
     }
     
     return {
@@ -124,9 +154,6 @@ class PvPBattleService {
     // Guard: If any team is empty (e.g. data load failure), return immediate result to avoid freeze
     if (team1Battle.length === 0 || team2Battle.length === 0) {
       console.warn(`[PvPBattleService] Empty team detected! P1: ${team1Battle.length}, P2: ${team2Battle.length}`);
-      // return immediate result handled by following logic naturally? 
-      // Nope, loop won't run, result logic below handles it (0 remaining).
-      // But verify if result logic handles 0 vs 0 correctly.
     }
     
     while (
