@@ -517,10 +517,13 @@ class MultiplayerService {
     if (alivePlayers.length <= 1) return null;
  
     // ── 최신 encounterRecord 사용 (Firebase에서 직접 읽기) ──
+    // [수정] lastSkipPlayerId 전달 → 연속 스킵 방지
+    const lastSkipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
     const matchups = pvpBattleService.generateMatchups(
       alivePlayers,
       gameState.encounterRecord || {},
-      gameState.currentRound
+      gameState.currentRound,
+      lastSkipPlayerId
     );
  
     // ── 홀수 플레이어(bye) 보너스 처리 ──

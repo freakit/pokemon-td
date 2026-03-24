@@ -14,7 +14,8 @@ interface BattlePhaseUIProps {
 }
 
 // 배틀 페이즈가 이 시간(ms) 이상 지속되면 강제 전환
-const BATTLE_STUCK_TIMEOUT_MS = 15_000;
+// [수정] 30초 준비 + 5초 공개 + 배틀 시간을 수용하도록 증가
+const BATTLE_STUCK_TIMEOUT_MS = 90_000;
 
 // ─── 스타일드 컴포넌트 ───────────────────────────────────────────
 const fadeIn = keyframes`
@@ -847,6 +848,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     // phase 결정: 결과가 있으면 battle, 없으면 prep
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'battle' : 'prep';
 
+    // [추가] L/R 포지션 결정: player1Id → L, player2Id → R
+    const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
+
     return (
       <>
         <TFTArenaOverlay>
@@ -854,6 +858,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             myTeam={myTeam}
             opponentTeam={opponentTeam}
             opponentName={opponent?.userName || 'Opponent'}
+            myPosition={myArenaPosition}
             phase={arenaPhase}
             battleResult={battleResult ?? null}
             onBattleComplete={(_winnerId) => {
