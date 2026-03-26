@@ -24,7 +24,76 @@ const MAP_WIDTH = 15;
 const MAP_HEIGHT = 10;
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
-// 포켓몬 이미지 렌더링 헬퍼
+// ─── 맵 배경 타입별 타일 테마 ─────────────────────────────────────────────────
+type BackgroundType = 'grass' | 'desert' | 'snow' | 'cave' | 'water';
+
+interface TileTheme {
+  tileA: string;
+  tileB: string;
+  pathFill: string;
+  stroke: string;
+  pathStroke: string;
+  pathLineStroke: string;
+  pathLineOpacity: number;
+}
+
+const TILE_THEMES: Record<BackgroundType, TileTheme> = {
+  grass: {
+    // 초록 잔디밭 + 흙 경로
+    tileA: '#4a7c3f',
+    tileB: '#3d6b34',
+    pathFill: '#7a5c3a',
+    stroke: '#2d4f28',
+    pathStroke: '#5c3f20',
+    pathLineStroke: '#4a2e10',
+    pathLineOpacity: 0.6,
+  },
+  desert: {
+    // 황토 모래 + 바위 경로
+    tileA: '#c4a256',
+    tileB: '#b8924a',
+    pathFill: '#8a6a30',
+    stroke: '#9a7830',
+    pathStroke: '#6b4f22',
+    pathLineStroke: '#5a3e18',
+    pathLineOpacity: 0.6,
+  },
+  snow: {
+    // 눈밭 + 얼음 경로
+    tileA: '#d0e8f5',
+    tileB: '#b8d4e8',
+    pathFill: '#7fb3d3',
+    stroke: '#8ab4cc',
+    pathStroke: '#5a90b8',
+    pathLineStroke: '#3a70a0',
+    pathLineOpacity: 0.55,
+  },
+  cave: {
+    // 어두운 바위 + 굴 경로
+    tileA: '#3a3240',
+    tileB: '#2e2734',
+    pathFill: '#1a1520',
+    stroke: '#1e1824',
+    pathStroke: '#0f0c14',
+    pathLineStroke: '#080610',
+    pathLineOpacity: 0.7,
+  },
+  water: {
+    // 파란 물 + 짙은 해로
+    tileA: '#2a6fa8',
+    tileB: '#235e90',
+    pathFill: '#1a4a72',
+    stroke: '#184060',
+    pathStroke: '#102d4a',
+    pathLineStroke: '#081e30',
+    pathLineOpacity: 0.65,
+  },
+};
+
+const getTileTheme = (bgType?: string): TileTheme =>
+  TILE_THEMES[(bgType as BackgroundType) ?? 'grass'] ?? TILE_THEMES.grass;
+
+// ─── 포켓몬 이미지 렌더링 헬퍼 ───────────────────────────────────────────────
 const PokemonImage: React.FC<{
   src: string;
   x: number;
@@ -71,6 +140,34 @@ const PokemonImage: React.FC<{
     />
   );
 };
+
+// ─── 투사체 타입 아이콘 오버레이 (HTML img — Canvas 위에 absolute 배치) ────────
+// Konva Canvas는 GIF/CORS를 처리할 수 없으므로 DOM img 태그를 Canvas 위에 얹음
+interface ProjectileOverlayProps {
+  projectiles: Array<{ id: string; current: { x: number; y: number }; type: string; isAOE: boolean }>;
+  canvasScale: number;
+}
+
+const ProjectileOverlay: React.FC<ProjectileOverlayProps> = ({ projectiles, canvasScale }) => (
+  <ProjectileOverlayContainer style={{ transform: `scale(${canvasScale})` }}>
+    {projectiles.map((proj) => {
+      const size = proj.isAOE ? 28 : 22;
+      return (
+        <ProjectileIcon
+          key={proj.id}
+          src={`${TYPE_ICON_API_BASE}${proj.type}.gif`}
+          alt={proj.type}
+          style={{
+            left: proj.current.x - size / 2,
+            top: proj.current.y - size / 2,
+            width: size,
+            height: size,
+          }}
+        />
+      );
+    })}
+  </ProjectileOverlayContainer>
+);
 
 // HP 바 컴포넌트
 const HPBar: React.FC<{
@@ -523,6 +620,9 @@ export const GameCanvas: React.FC = () => {
     setSelectedTowerForReposition(null);
   };
 
+  // 현재 맵 타일 테마
+  const theme = getTileTheme(map?.backgroundType);
+
   return (
     <CanvasContainer ref={containerRef}>
       {evolutionToast && (
@@ -594,13 +694,27 @@ export const GameCanvas: React.FC = () => {
           onTouchEnd={handleTouchEnd}
         >
           <Layer>
-            {/* 격자 */}
+            {/* 격자 — 맵 테마 적용 */}
             {Array.from({ length: MAP_HEIGHT }).map((_, y) =>
               Array.from({ length: MAP_WIDTH }).map((_, x) => {
                 const centerX = x * TILE_SIZE + TILE_SIZE / 2;
                 const centerY = y * TILE_SIZE + TILE_SIZE / 2;
                 const isPath = isPathTile(centerX, centerY);
                 const isValid = !isPath && isValidPlacement(centerX, centerY, selectedTowerForReposition?.id);
+
+                let fill: string;
+                if (isPath) {
+                  fill = theme.pathFill;
+                } else if ((pokemonToPlace || selectedTowerForReposition) && !isValid) {
+                  fill = 'rgba(231, 76, 60, 0.45)';
+                } else if (pokemonToPlace || selectedTowerForReposition) {
+                  // 배치 가능 타일: 테마 색에 초록 오버레이
+                  fill = (x + y) % 2 === 0
+                    ? theme.tileA
+                    : theme.tileB;
+                } else {
+                  fill = (x + y) % 2 === 0 ? theme.tileA : theme.tileB;
+                }
 
                 return (
                   <Rect
@@ -609,36 +723,47 @@ export const GameCanvas: React.FC = () => {
                     y={y * TILE_SIZE}
                     width={TILE_SIZE}
                     height={TILE_SIZE}
-                    fill={
-                      isPath
-                        ? "#2c3e50"
-                        : (pokemonToPlace || selectedTowerForReposition) &&
-                          !isValid
-                          ? "rgba(231, 76, 60, 0.3)"
-                          : pokemonToPlace || selectedTowerForReposition
-                            ? "rgba(46, 204, 113, 0.2)"
-                            : (x + y) % 2 === 0
-                              ? "#3A5369"
-                              : "#3E5A71"
-                    }
-                    stroke="#2c3e50"
-                    strokeWidth={0.5}
+                    fill={fill}
+                    stroke={isPath ? theme.pathStroke : theme.stroke}
+                    strokeWidth={isPath ? 1 : 0.8}
                   />
                 );
               })
             )}
 
-            {/* 경로 */}
+            {/* 배치 모드 — 가능 타일 오버레이 */}
+            {(pokemonToPlace || selectedTowerForReposition) &&
+              Array.from({ length: MAP_HEIGHT }).map((_, y) =>
+                Array.from({ length: MAP_WIDTH }).map((_, x) => {
+                  const centerX = x * TILE_SIZE + TILE_SIZE / 2;
+                  const centerY = y * TILE_SIZE + TILE_SIZE / 2;
+                  const isPath = isPathTile(centerX, centerY);
+                  const isValid = !isPath && isValidPlacement(centerX, centerY, selectedTowerForReposition?.id);
+                  if (isPath) return null;
+                  return (
+                    <Rect
+                      key={`overlay-${x}-${y}`}
+                      x={x * TILE_SIZE}
+                      y={y * TILE_SIZE}
+                      width={TILE_SIZE}
+                      height={TILE_SIZE}
+                      fill={isValid ? 'rgba(46, 204, 113, 0.25)' : 'rgba(231, 76, 60, 0.25)'}
+                    />
+                  );
+                })
+              )}
+
+            {/* 경로 — 테마 색상 적용 */}
             {map &&
               map.paths.map((path, index) => (
                 <Line
                   key={`path-${index}`}
                   points={path.flatMap((p) => [p.x, p.y])}
-                  stroke="#2c3e50"
-                  strokeWidth={40}
+                  stroke={theme.pathLineStroke}
+                  strokeWidth={42}
                   lineJoin="round"
                   lineCap="round"
-                  opacity={0.3}
+                  opacity={theme.pathLineOpacity}
                 />
               ))}
 
@@ -702,18 +827,7 @@ export const GameCanvas: React.FC = () => {
               </React.Fragment>
             ))}
 
-            {/* 투사체 */}
-            {projectiles.map((proj) => (
-              <Circle
-                key={proj.id}
-                x={proj.current.x}
-                y={proj.current.y}
-                radius={8}
-                fill={proj.isAOE ? "#f39c12" : "#3498db"}
-                stroke="#fff"
-                strokeWidth={2}
-              />
-            ))}
+            {/* 투사체는 Canvas 위 HTML overlay로 렌더링 (GIF/CORS 문제 회피) */}
 
             {/* 데미지 숫자 */}
             {damageNumbers.map((dmg) => (
@@ -784,6 +898,9 @@ export const GameCanvas: React.FC = () => {
           </Layer>
         </Stage>
       </StageWrapper>
+
+      {/* 투사체 타입 아이콘 — Canvas 위에 HTML img 오버레이 */}
+      <ProjectileOverlay projectiles={projectiles} canvasScale={canvasScale} />
     </CanvasContainer>
   );
 };
@@ -940,4 +1057,25 @@ const StageWrapper = styled.div`
     border: 1px solid #1a242f;
     border-radius: 4px;
   }
+`;
+
+// 투사체 아이콘 오버레이 — Konva Stage와 동일한 좌표계로 Canvas 위에 absolute 배치
+const ProjectileOverlayContainer = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center;
+  /* canvasScale은 inline style로 주입 */
+  pointer-events: none;
+  /* Stage와 동일한 크기 */
+  width: ${MAP_WIDTH * TILE_SIZE}px;
+  height: ${MAP_HEIGHT * TILE_SIZE}px;
+  margin-left: -${(MAP_WIDTH * TILE_SIZE) / 2}px;
+  margin-top: -${(MAP_HEIGHT * TILE_SIZE) / 2}px;
+`;
+
+const ProjectileIcon = styled.img`
+  position: absolute;
+  pointer-events: none;
+  image-rendering: pixelated;
 `;

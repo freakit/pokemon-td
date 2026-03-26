@@ -17,6 +17,71 @@ const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
 const MAP_HEIGHT = 10;
 
+// ─── 맵 배경 타입별 타일 테마 ─────────────────────────────────────────────────
+type BackgroundType = 'grass' | 'desert' | 'snow' | 'cave' | 'water';
+
+interface TileTheme {
+  tileA: string;
+  tileB: string;
+  pathFill: string;
+  stroke: string;
+  pathStroke: string;
+  pathLineStroke: string;
+  pathLineOpacity: number;
+}
+
+const TILE_THEMES: Record<BackgroundType, TileTheme> = {
+  grass: {
+    tileA: '#4a7c3f',
+    tileB: '#3d6b34',
+    pathFill: '#7a5c3a',
+    stroke: '#2d4f28',
+    pathStroke: '#5c3f20',
+    pathLineStroke: '#4a2e10',
+    pathLineOpacity: 0.6,
+  },
+  desert: {
+    tileA: '#c4a256',
+    tileB: '#b8924a',
+    pathFill: '#8a6a30',
+    stroke: '#9a7830',
+    pathStroke: '#6b4f22',
+    pathLineStroke: '#5a3e18',
+    pathLineOpacity: 0.6,
+  },
+  snow: {
+    tileA: '#d0e8f5',
+    tileB: '#b8d4e8',
+    pathFill: '#7fb3d3',
+    stroke: '#8ab4cc',
+    pathStroke: '#5a90b8',
+    pathLineStroke: '#3a70a0',
+    pathLineOpacity: 0.55,
+  },
+  cave: {
+    tileA: '#3a3240',
+    tileB: '#2e2734',
+    pathFill: '#1a1520',
+    stroke: '#1e1824',
+    pathStroke: '#0f0c14',
+    pathLineStroke: '#080610',
+    pathLineOpacity: 0.7,
+  },
+  water: {
+    tileA: '#2a6fa8',
+    tileB: '#235e90',
+    pathFill: '#1a4a72',
+    stroke: '#184060',
+    pathStroke: '#102d4a',
+    pathLineStroke: '#081e30',
+    pathLineOpacity: 0.65,
+  },
+};
+
+const getTileTheme = (bgType?: string): TileTheme =>
+  TILE_THEMES[(bgType as BackgroundType) ?? 'grass'] ?? TILE_THEMES.grass;
+
+// ─── 포켓몬 이미지 ────────────────────────────────────────────────────────────
 const PokemonImage: React.FC<{
   src: string;
   x: number;
@@ -167,6 +232,8 @@ export const OpponentCanvas: React.FC<OpponentCanvasProps> = React.memo(({ tower
     return false;
   };
 
+  const theme = getTileTheme(map?.backgroundType);
+
   return (
     <CanvasContainer ref={containerRef}>
       <StageWrapper
@@ -180,6 +247,7 @@ export const OpponentCanvas: React.FC<OpponentCanvasProps> = React.memo(({ tower
           listening={false}
         >
           <Layer>
+            {/* 격자 — 맵 테마 적용 */}
             {Array.from({ length: MAP_WIDTH }).map((_, x) =>
               Array.from({ length: MAP_HEIGHT }).map((_, y) => {
                 const tileX = x * TILE_SIZE + TILE_SIZE / 2;
@@ -194,28 +262,29 @@ export const OpponentCanvas: React.FC<OpponentCanvasProps> = React.memo(({ tower
                     height={TILE_SIZE}
                     fill={
                       isPath
-                        ? "#2c3e50"
+                        ? theme.pathFill
                         : (x + y) % 2 === 0
-                        ? "#3A5369"
-                        : "#3E5A71"
+                        ? theme.tileA
+                        : theme.tileB
                     }
-                    stroke="#2c3e50"
-                    strokeWidth={0.5}
+                    stroke={isPath ? theme.pathStroke : theme.stroke}
+                    strokeWidth={0.8}
                   />
                 );
               })
             )}
 
+            {/* 경로 — 테마 색상 적용 */}
             {map &&
               map.paths.map((path, index) => (
                 <Line
                   key={`path-${index}`}
                   points={path.flatMap((p) => [p.x, p.y])}
-                  stroke="#2c3e50"
-                  strokeWidth={40}
+                  stroke={theme.pathLineStroke}
+                  strokeWidth={42}
                   lineJoin="round"
                   lineCap="round"
-                  opacity={0.3}
+                  opacity={theme.pathLineOpacity}
                 />
               ))}
 

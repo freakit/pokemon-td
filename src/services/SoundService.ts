@@ -10,18 +10,15 @@ class SoundService {
   
   private currentBGM: Howl | null = null;
   
-  // (예시 경로입니다. 실제 파일이 /public/sounds/.. 에 있어야 합니다)
+  // 공격 사운드는 제거됨 — 투사체가 타입 아이콘으로 대체
   private sfxMap: Record<string, string> = {
-    'attack_fire': '/sounds/sfx/attack_fire.wav',
-    'attack_water': '/sounds/sfx/attack_water.wav',
     'evolution': '/sounds/sfx/evolution.wav',
     'victory': '/sounds/sfx/victory.wav',
     'defeat': '/sounds/sfx/defeat.wav',
   };
 
   private constructor() {
-    Howler.volume(0.7); // 경고 해결: 글로벌 볼륨 설정
-    // 게임 시작 시 BGM 자동 재생
+    Howler.volume(0.7);
     this.playBGM();
   }
   
@@ -41,32 +38,27 @@ class SoundService {
   
   setSFXVolume(volume: number) {
     this.sfxVolume = Math.max(0, Math.min(1, volume));
-    // Howler는 개별 sfx 볼륨을 지원하지 않으므로, 글로벌 볼륨을 조절하거나
-    // 재생 시점에 개별 볼륨을 설정해야 합니다. (현재: 개별 설정)
   }
   
   playBGM() {
-    // 이미 BGM이 재생 중이면 중단하지 않음 (끊김 없이 계속 재생)
     if (this.currentBGM && this.currentBGM.playing()) {
       return;
     }
     
-    // 기존 Howl 인스턴스가 있으면 재사용
     if (this.currentBGM) {
       this.currentBGM.play();
       console.log('BGM 재생 재개');
       return;
     }
     
-    const track = '/sounds/dj-pikachu.m4a'; // 모든 맵에서 동일한 BGM
+    const track = '/sounds/dj-pikachu.m4a';
     const bgm = new Howl({
       src: [track],
       volume: this.musicVolume,
       loop: true,
-      html5: false, // html5를 false로 설정하여 Web Audio API 사용
+      html5: false,
     });
 
-    // currentBGM을 먼저 설정하여 중복 재생 방지
     this.currentBGM = bgm;
     const playId = bgm.play();
     console.log('BGM 재생 시도:', track, 'Play ID:', playId);
@@ -85,14 +77,15 @@ class SoundService {
     if (track) {
       const sfx = new Howl({
         src: [track],
-        volume: this.sfxVolume, // 개별 볼륨 적용
+        volume: this.sfxVolume,
       });
       sfx.play();
     }
   }
-  
-  playAttackSound(type: string) {
-    this.playSFX(`attack_${type}`);
+
+  // 공격 사운드는 타입 아이콘 투사체로 대체되어 no-op 처리
+  playAttackSound(_type: string) {
+    // 사운드 없음 — 투사체가 타입 아이콘 GIF로 시각적 피드백 제공
   }
   
   playEvolutionSound() {
