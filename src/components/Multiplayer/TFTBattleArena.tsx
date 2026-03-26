@@ -1,14 +1,15 @@
 // src/components/Multiplayer/TFTBattleArena.tsx
-// 6x6 TFT 스타일 배틀 (수정 버전)
+// 6x6 TFT 스타일 배틀 (수정 버전 v2)
 // - 보드: 6열 × 6행
 // - L-position: 좌측 2열(col 0-1) 배치
 // - R-position: 우측 2열(col 4-5) 배치
 // - 중간 2열(col 2-3): 교전 구역
-// - 준비 페이즈(30초): 상대 타워 정보 확인 + 내 포켓몬 배치
+// - 준비 페이즈(30초): 상대 타워 정보 확인 + 내 포켓몬을 벤치에서 보드로 직접 배치
 // - 공개 페이즈(5초): 양쪽 배치 동시 공개, 카운트다운 후 배틀 시작
-// - 배틀: 가장 가까운 적을 향해 이동 → 사정거리 내 공격 → 한 팀 전멸까지
+// - 배틀: 결정론적 시드 랜덤으로 양측 동일한 전투 재현
+// - 결과: 아레나 전투 결과 기반으로 승패 결정
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { TowerDetail } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
@@ -26,11 +27,21 @@ const DT = 1 / FPS;
 const PREP_TIME = 30; // 준비 시간 (초)
 const REVEAL_TIME = 5; // 공개 → 배틀 시작까지 (초)
 
+// ── 시드 기반 결정론적 랜덤 (mulberry32) ──
+function mulberry32(seed: number) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 interface Unit {
   id: string;
   detail: TowerDetail;
   team: 'my' | 'opp';
-  x: number;
+  x: number; // -1 = 벤치(미배치)
   y: number;
   hp: number;
   maxHp: number;
@@ -48,28 +59,34 @@ interface FloatTxt {
   color: string;
 }
 
+export interface TFTBattleResult {
+  winner: 'player1' | 'player2';
+  player1Remaining: number;
+  player2Remaining: number;
+}
+
 export interface TFTBattleArenaProps {
   myTeam: TowerDetail[];
   opponentTeam: TowerDetail[];
   opponentName: string;
-  myPosition: 'L' | 'R'; // [추가] 서버에서 할당받은 포지션
+  myPosition: 'L' | 'R';
   phase: 'prep' | 'battle' | 'result';
   battleResult?: unknown;
-  onBattleComplete?: (winner: string) => void;
+  battleSeed?: number; // 결정론적 전투를 위한 시드
+  onBattleComplete?: (result: TFTBattleResult) => void;
 }
 
-// [수정] L-position 기본 배치 (좌측 2열: col 0-1)
+// 상대 기본 배치 위치 (상대는 자동 배치)
 const L_POS = [
-  {x:0,y:0},{x:1,y:1},{x:0,y:2},
-  {x:1,y:3},{x:0,y:4},{x:1,y:5},
+  { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 },
+  { x: 1, y: 3 }, { x: 0, y: 4 }, { x: 1, y: 5 },
 ];
-// [수정] R-position 기본 배치 (우측 2열: col 4-5)
 const R_POS = [
-  {x:5,y:0},{x:4,y:1},{x:5,y:2},
-  {x:4,y:3},{x:5,y:4},{x:4,y:5},
+  { x: 5, y: 0 }, { x: 4, y: 1 }, { x: 5, y: 2 },
+  { x: 4, y: 3 }, { x: 5, y: 4 }, { x: 4, y: 5 },
 ];
 
-function calcDmg(a: Unit, d: Unit): number {
+function calcDmg(a: Unit, d: Unit, rng: () => number): number {
   const atk = a.detail.attack ?? a.detail.level * 10;
   const def = d.detail.defense ?? d.detail.level * 5;
   const types = a.detail.types ?? [];
@@ -78,60 +95,91 @@ function calcDmg(a: Unit, d: Unit): number {
   const lvl = a.detail.level;
   const eff = getTypeEffectiveness(types[0] ?? 'normal', dTypes);
   const base = ((2 * lvl / 5 + 2) * power * atk / Math.max(def, 1)) / 50 + 2;
-  return Math.max(1, Math.floor(base * eff * (0.85 + Math.random() * 0.15)));
+  return Math.max(1, Math.floor(base * eff * (0.85 + rng() * 0.15)));
 }
 
 function dst(a: Unit, b: Unit) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-// [수정] 포지션 기반 유닛 빌드
-function buildUnits(myTeam: TowerDetail[], oppTeam: TowerDetail[], myPos: 'L' | 'R'): Unit[] {
+// 유닛 빌드: 내 유닛은 벤치(x=-1), 상대 유닛은 기본 위치에 배치
+function buildUnits(
+  myTeam: TowerDetail[],
+  oppTeam: TowerDetail[],
+  myPos: 'L' | 'R',
+  rng: () => number
+): Unit[] {
   const units: Unit[] = [];
-  const myDefaults = myPos === 'L' ? L_POS : R_POS;
   const oppDefaults = myPos === 'L' ? R_POS : L_POS;
 
+  // 내 유닛: 벤치에 대기 (x = -1)
   myTeam.slice(0, 6).forEach((d, i) => {
-    const pos = myDefaults[i] ?? { x: myPos === 'L' ? i % 2 : 4 + (i % 2), y: i };
     units.push({
-      id: `my-${i}`, detail: d, team: 'my',
-      x: pos.x, y: pos.y,
+      id: `my-${i}`,
+      detail: d,
+      team: 'my',
+      x: -1, // 벤치 상태
+      y: i,
       hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
-      atkCd: Math.random() * 0.5,
-      fainted: !!d.isFainted, isAtk: false, isHit: false,
+      atkCd: rng() * 0.5,
+      fainted: !!d.isFainted,
+      isAtk: false,
+      isHit: false,
     });
   });
+
+  // 상대 유닛: 기본 위치에 배치 (준비 중에는 숨김)
   oppTeam.slice(0, 6).forEach((d, i) => {
     const pos = oppDefaults[i] ?? { x: myPos === 'L' ? 4 + (i % 2) : i % 2, y: i };
     units.push({
-      id: `op-${i}`, detail: d, team: 'opp',
-      x: pos.x, y: pos.y,
+      id: `op-${i}`,
+      detail: d,
+      team: 'opp',
+      x: pos.x,
+      y: pos.y,
       hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
-      atkCd: Math.random() * 0.5,
-      fainted: !!d.isFainted, isAtk: false, isHit: false,
+      atkCd: rng() * 0.5,
+      fainted: !!d.isFainted,
+      isAtk: false,
+      isHit: false,
     });
   });
   return units;
 }
 
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  myTeam, opponentTeam, opponentName, myPosition, phase, onBattleComplete,
+  myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, onBattleComplete,
 }) => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [floats, setFloats] = useState<FloatTxt[]>([]);
   const [battleState, setBattleState] = useState<'idle' | 'reveal' | 'fighting' | 'done'>('idle');
   const [winnerText, setWinnerText] = useState<string | null>(null);
+  const [selectedBenchId, setSelectedBenchId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(PREP_TIME);
   const loopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const floatIdRef = useRef(0);
   const initRef = useRef({ my: -1, op: -1 });
+  const rngRef = useRef<() => number>(() => Math.random());
+  const resultReportedRef = useRef(false);
 
   // 내 배치 가능 열
   const myCols = myPosition === 'L' ? [0, 1] : [4, 5];
+  const oppCols = myPosition === 'L' ? [4, 5] : [0, 1];
+
+  // 벤치 유닛 (아직 보드에 배치되지 않은 내 유닛)
+  const benchUnits = units.filter(u => u.team === 'my' && u.x === -1 && !u.fainted);
+  // 보드에 배치된 내 유닛
+  const placedMyUnits = units.filter(u => u.team === 'my' && u.x >= 0 && !u.fainted);
+
+  // ── 시드 기반 RNG 초기화 ──
+  useEffect(() => {
+    const seed = battleSeed ?? Date.now();
+    rngRef.current = mulberry32(seed);
+  }, [battleSeed]);
 
   // ── 유닛 초기화 ──
   useEffect(() => {
@@ -142,13 +190,18 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       units.length > 0
     ) return;
     initRef.current = { my: myTeam.length, op: opponentTeam.length };
-    setUnits(buildUnits(myTeam, opponentTeam, myPosition));
+    resultReportedRef.current = false;
+    const seed = battleSeed ?? Date.now();
+    const rng = mulberry32(seed);
+    rngRef.current = rng;
+    setUnits(buildUnits(myTeam, opponentTeam, myPosition, rng));
     setBattleState('idle');
     setWinnerText(null);
     setFloats([]);
     setDragId(null);
+    setSelectedBenchId(null);
     setCountdown(PREP_TIME);
-  }, [myTeam, opponentTeam, myPosition]);
+  }, [myTeam, opponentTeam, myPosition, battleSeed]);
 
   // ── 준비 페이즈 카운트다운 (30초) ──
   useEffect(() => {
@@ -161,7 +214,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         if (prev <= 1) {
           clearInterval(countdownRef.current!);
           countdownRef.current = null;
-          // 준비 시간 종료 → 공개 페이즈
+          // 미배치 유닛 자동 배치
+          autoPlaceRemainingUnits();
           setBattleState('reveal');
           return 0;
         }
@@ -174,6 +228,57 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     };
   }, [phase, battleState]);
 
+  // ── 미배치 유닛 자동 배치 ──
+  const autoPlaceRemainingUnits = useCallback(() => {
+    setUnits(prev => {
+      const next = [...prev];
+      const defaults = myPosition === 'L' ? L_POS : R_POS;
+      const unplaced = next.filter(u => u.team === 'my' && u.x === -1 && !u.fainted);
+
+      if (unplaced.length === 0) return prev;
+
+      // 이미 사용 중인 위치 확인
+      const usedPositions = new Set(
+        next.filter(u => u.team === 'my' && u.x >= 0).map(u => `${Math.round(u.x)},${Math.round(u.y)}`)
+      );
+
+      let defaultIdx = 0;
+      for (const unit of unplaced) {
+        // 빈 기본 위치 찾기
+        while (defaultIdx < defaults.length) {
+          const pos = defaults[defaultIdx];
+          const key = `${pos.x},${pos.y}`;
+          if (!usedPositions.has(key)) {
+            unit.x = pos.x;
+            unit.y = pos.y;
+            usedPositions.add(key);
+            defaultIdx++;
+            break;
+          }
+          defaultIdx++;
+        }
+
+        // 기본 위치가 다 찼으면 빈 셀 찾기
+        if (unit.x === -1) {
+          for (let col of myCols) {
+            for (let row = 0; row < ROWS; row++) {
+              const key = `${col},${row}`;
+              if (!usedPositions.has(key)) {
+                unit.x = col;
+                unit.y = row;
+                usedPositions.add(key);
+                break;
+              }
+            }
+            if (unit.x >= 0) break;
+          }
+        }
+      }
+
+      return next;
+    });
+  }, [myPosition, myCols]);
+
   // ── 공개 페이즈 (5초) → 배틀 시작 ──
   useEffect(() => {
     if (battleState !== 'reveal') return;
@@ -184,6 +289,9 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         if (prev <= 1) {
           clearInterval(countdownRef.current!);
           countdownRef.current = null;
+          // 전투 시작 전 RNG 리셋 (동일 시드로 결정론적 전투)
+          const seed = battleSeed ?? Date.now();
+          rngRef.current = mulberry32(seed + 99999); // 배치와 전투에 다른 시드 오프셋
           setBattleState('fighting');
           return 0;
         }
@@ -194,35 +302,62 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [battleState]);
+  }, [battleState, battleSeed]);
 
   // ── 외부 phase='battle'에 의한 강제 전환 ──
   useEffect(() => {
     if (phase === 'battle' && battleState === 'idle') {
-      // 서버에서 배틀 시작 신호 → reveal로 전환
       if (countdownRef.current) clearInterval(countdownRef.current);
+      autoPlaceRemainingUnits();
       setBattleState('reveal');
     }
-  }, [phase, battleState]);
+  }, [phase, battleState, autoPlaceRemainingUnits]);
 
-  // ── 배틀 루프 ──
+  // ── 배틀 루프 (결정론적 시드 사용) ──
   useEffect(() => {
     if (battleState !== 'fighting') return;
     if (loopRef.current) clearInterval(loopRef.current);
 
+    const rng = rngRef.current;
+
     loopRef.current = setInterval(() => {
       setUnits(prev => {
         const next = prev.map(u => ({ ...u }));
-        const alive = (u: Unit) => !u.fainted && u.hp > 0;
-        const myAlive  = next.filter(u => u.team === 'my'  && alive(u));
+        const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
+        const myAlive = next.filter(u => u.team === 'my' && alive(u));
         const oppAlive = next.filter(u => u.team === 'opp' && alive(u));
 
         if (myAlive.length === 0 || oppAlive.length === 0) {
           if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
-          const win = myAlive.length > 0 ? 'my' : 'opp';
+
+          const myWon = myAlive.length > 0;
+          const winTeam = myWon ? 'my' : 'opp';
           setBattleState('done');
-          setWinnerText(win === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
-          onBattleComplete?.(win);
+          setWinnerText(winTeam === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
+
+          // 결과 보고 (한 번만)
+          if (!resultReportedRef.current) {
+            resultReportedRef.current = true;
+
+            // player1 = L, player2 = R
+            const p1Alive = next.filter(u => {
+              const isP1 = (myPosition === 'L' && u.team === 'my') || (myPosition === 'R' && u.team === 'opp');
+              return isP1 && !u.fainted && u.hp > 0 && u.x >= 0;
+            }).length;
+            const p2Alive = next.filter(u => {
+              const isP2 = (myPosition === 'R' && u.team === 'my') || (myPosition === 'L' && u.team === 'opp');
+              return isP2 && !u.fainted && u.hp > 0 && u.x >= 0;
+            }).length;
+
+            const winner: 'player1' | 'player2' = p1Alive > 0 ? 'player1' : 'player2';
+
+            onBattleComplete?.({
+              winner,
+              player1Remaining: p1Alive,
+              player2Remaining: p2Alive,
+            });
+          }
+
           return prev;
         }
 
@@ -233,7 +368,6 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           const enemies = unit.team === 'my' ? oppAlive : myAlive;
           if (!enemies.length) continue;
 
-          // [유지] 가장 가까운 적을 찾아 공격
           let target = enemies[0];
           let minD = Infinity;
           for (const e of enemies) {
@@ -249,7 +383,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
               unit.atkCd = ATK_COOLDOWN;
               const t2 = next.find(u => u.id === target.id);
               if (t2 && alive(t2)) {
-                const dmg = calcDmg(unit, t2);
+                const dmg = calcDmg(unit, t2, rng);
                 t2.hp = Math.max(0, t2.hp - dmg);
                 t2.isHit = true;
                 if (t2.hp <= 0) t2.fainted = true;
@@ -284,17 +418,39 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }, 1000 / FPS);
 
     return () => { if (loopRef.current) clearInterval(loopRef.current); };
-  }, [battleState, opponentName, onBattleComplete]);
+  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed]);
 
   useEffect(() => () => { if (loopRef.current) clearInterval(loopRef.current); }, []);
 
-  // [수정] 셀 클릭: 내 배치 영역(myCols)에만 배치 가능
+  // ── 벤치 유닛 클릭 → 선택 ──
+  const handleBenchClick = (unitId: string) => {
+    if (battleState !== 'idle' || phase !== 'prep') return;
+    setSelectedBenchId(prev => prev === unitId ? null : unitId);
+    setDragId(null); // 보드 드래그 해제
+  };
+
+  // ── 셀 클릭: 배치 또는 이동 ──
   const handleCellClick = (col: number, row: number) => {
     if (phase !== 'prep' || battleState !== 'idle' || !myCols.includes(col)) return;
+
+    // 벤치에서 선택된 유닛 → 보드에 배치
+    if (selectedBenchId) {
+      const occ = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
+      if (occ) return; // 이미 유닛이 있는 칸
+      setUnits(prev => prev.map(u => {
+        if (u.id === selectedBenchId) return { ...u, x: col, y: row };
+        return u;
+      }));
+      setSelectedBenchId(null);
+      return;
+    }
+
+    // 보드에서 드래그 중인 유닛 → 이동
     if (dragId) {
-      const occ = units.find(u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row);
+      const occ = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
       setUnits(prev => prev.map(u => {
         if (u.id === dragId) return { ...u, x: col, y: row };
+        // 스왑
         if (occ && u.id === occ.id) {
           const src = prev.find(p => p.id === dragId)!;
           return { ...u, x: src.x, y: src.y };
@@ -303,16 +459,29 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       }));
       setDragId(null);
     } else {
-      const clicked = units.find(u => u.team === 'my' && Math.round(u.x) === col && Math.round(u.y) === row);
-      if (clicked && !clicked.fainted) setDragId(p => p === clicked.id ? null : clicked.id);
+      // 보드의 유닛 클릭 → 드래그 시작
+      const clicked = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
+      if (clicked && !clicked.fainted) {
+        setDragId(p => p === clicked.id ? null : clicked.id);
+        setSelectedBenchId(null);
+      }
     }
+  };
+
+  // ── 보드에서 유닛을 벤치로 되돌리기 ──
+  const handleReturnToBench = (unitId: string) => {
+    if (phase !== 'prep' || battleState !== 'idle') return;
+    setUnits(prev => prev.map(u => {
+      if (u.id === unitId) return { ...u, x: -1, y: units.filter(u2 => u2.team === 'my' && u2.x === -1).length };
+      return u;
+    }));
+    setDragId(null);
   };
 
   const boardW = COLS * CELL;
   const boardH = ROWS * CELL;
   const isPrep = phase === 'prep' && battleState === 'idle';
   const isReveal = battleState === 'reveal';
-  const oppCols = myPosition === 'L' ? [4, 5] : [0, 1];
 
   if (myTeam.length === 0 && opponentTeam.length === 0) {
     return (
@@ -346,7 +515,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         {winnerText && <WinTag>{winnerText}</WinTag>}
       </TopBar>
 
-      {/* [추가] 포지션 안내 바 */}
+      {/* 포지션 안내 바 */}
       <PositionBar>
         <PosLabel $isMe={myPosition === 'L'}>
           {myPosition === 'L' ? '👤 나 (L)' : `👤 ${opponentName} (L)`}
@@ -357,7 +526,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         </PosLabel>
       </PositionBar>
 
-      {/* [추가] 준비 페이즈: 상대 타워 정보 패널 */}
+      {/* 준비 페이즈: 상대 타워 정보 패널 */}
       {isPrep && (
         <OpponentInfoPanel>
           <InfoTitle>🔍 상대 타워 ({opponentName}) — 최대 6마리</InfoTitle>
@@ -387,24 +556,24 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       <Board style={{ width: boardW, height: boardH }}>
         {Array.from({ length: ROWS }, (_, row) =>
           Array.from({ length: COLS }, (_, col) => {
-            // [수정] zone 판별: 좌우 2열 기준
             const isMyZone = myCols.includes(col);
             const isOppZone = oppCols.includes(col);
-            const zone: 'my'|'opp'|'mid' = isMyZone ? 'my' : isOppZone ? 'opp' : 'mid';
-            const hasMyUnit = units.some(u => u.team==='my' && Math.round(u.x)===col && Math.round(u.y)===row);
+            const zone: 'my' | 'opp' | 'mid' = isMyZone ? 'my' : isOppZone ? 'opp' : 'mid';
+            const hasMyUnit = units.some(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
+            const isPlaceable = isPrep && isMyZone && !hasMyUnit && (selectedBenchId !== null || dragId !== null);
             return (
               <Cell
                 key={`${col}-${row}`}
-                style={{ left: col*CELL, top: row*CELL, width: CELL, height: CELL }}
+                style={{ left: col * CELL, top: row * CELL, width: CELL, height: CELL }}
                 $zone={zone}
-                $isTarget={dragId !== null && isMyZone && !hasMyUnit}
+                $isTarget={isPlaceable}
                 onClick={() => handleCellClick(col, row)}
               />
             );
           })
         )}
 
-        {/* [수정] 세로 구분선 (col 2 왼쪽, col 4 왼쪽) */}
+        {/* 세로 구분선 */}
         <VertDivider style={{ left: 2 * CELL }} />
         <VertDivider style={{ left: 4 * CELL }} />
 
@@ -416,13 +585,15 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           {myPosition === 'R' ? '👤 나' : `👤 ${opponentName}`}
         </ZoneLbl>
 
-        {/* 유닛 렌더링 */}
+        {/* 보드 위 유닛 렌더링 */}
         {units.map(unit => {
-          // [추가] 준비 페이즈에서는 상대 유닛 위치를 보드에서 숨김 (정보는 패널에서 확인)
+          // 벤치 유닛은 보드에 표시하지 않음
+          if (unit.x < 0) return null;
+          // 준비 페이즈에서는 상대 유닛 숨김
           if (isPrep && unit.team === 'opp') return null;
 
-          const px = unit.x * CELL + CELL/2 - POKE_SIZE/2;
-          const py = unit.y * CELL + CELL/2 - POKE_SIZE/2;
+          const px = unit.x * CELL + CELL / 2 - POKE_SIZE / 2;
+          const py = unit.y * CELL + CELL / 2 - POKE_SIZE / 2;
           const hpPct = Math.max(0, unit.hp / unit.maxHp);
           return (
             <UnitWrap
@@ -434,24 +605,30 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                   : 'left 0.15s ease, top 0.15s ease',
               }}
               $team={unit.team} $fainted={unit.fainted}
-              $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId===unit.id}
+              $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId === unit.id}
               onClick={() => {
-                if (isPrep && unit.team==='my' && !unit.fainted)
-                  setDragId(p => p===unit.id ? null : unit.id);
+                if (isPrep && unit.team === 'my' && !unit.fainted) {
+                  setDragId(p => p === unit.id ? null : unit.id);
+                  setSelectedBenchId(null);
+                }
+              }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (isPrep && unit.team === 'my') handleReturnToBench(unit.id);
               }}
             >
               <HpBg>
                 <HpFill style={{
-                  width:`${hpPct*100}%`,
-                  background: hpPct>0.5?'#2ecc71':hpPct>0.25?'#f1c40f':'#e74c3c',
-                }}/>
+                  width: `${hpPct * 100}%`,
+                  background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c',
+                }} />
               </HpBg>
               {unit.detail.sprite ? (
                 <Sprite src={unit.detail.sprite} alt={unit.detail.name}
-                  $fainted={unit.fainted} $flip={unit.team==='opp'} />
+                  $fainted={unit.fainted} $flip={unit.team === 'opp'} />
               ) : (
                 <Fallback $team={unit.team}>
-                  {unit.detail.name?.slice(0,2).toUpperCase()??'?'}
+                  {unit.detail.name?.slice(0, 2).toUpperCase() ?? '?'}
                 </Fallback>
               )}
               <UnitName>{unit.detail.name}</UnitName>
@@ -460,10 +637,10 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         })}
 
         {floats.map(f => (
-          <FloatEl key={f.id} style={{ left:f.x, top:f.y, color:f.color }}>{f.text}</FloatEl>
+          <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>
         ))}
 
-        {/* [추가] 공개 페이즈 오버레이 */}
+        {/* 공개 페이즈 오버레이 */}
         {isReveal && (
           <RevealOverlay>
             <RevealText>⚔️ 배틀 시작까지 {countdown}초</RevealText>
@@ -471,12 +648,45 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         )}
       </Board>
 
-      {isPrep && <Hint>포켓몬 클릭 → 원하는 칸 클릭으로 이동 | {myPosition === 'L' ? '좌측' : '우측'} 2열에만 배치 가능</Hint>}
+      {/* 준비 페이즈: 벤치 (미배치 유닛) */}
+      {isPrep && (
+        <BenchArea>
+          <BenchTitle>
+            📦 대기 포켓몬 ({benchUnits.length}마리) — 클릭하여 선택 후 보드에 배치
+            {placedMyUnits.length > 0 && ` | 🟢 배치됨: ${placedMyUnits.length}마리`}
+          </BenchTitle>
+          <BenchGrid>
+            {benchUnits.map(unit => (
+              <BenchCard
+                key={unit.id}
+                $selected={selectedBenchId === unit.id}
+                onClick={() => handleBenchClick(unit.id)}
+              >
+                {unit.detail.sprite ? (
+                  <BenchSprite src={unit.detail.sprite} alt={unit.detail.name} />
+                ) : (
+                  <BenchFallback>{unit.detail.name?.slice(0, 2) ?? '?'}</BenchFallback>
+                )}
+                <BenchName>{unit.detail.name}</BenchName>
+                <BenchStats>Lv.{unit.detail.level}</BenchStats>
+              </BenchCard>
+            ))}
+            {benchUnits.length === 0 && (
+              <BenchEmptyMsg>✅ 모든 포켓몬이 배치되었습니다!</BenchEmptyMsg>
+            )}
+          </BenchGrid>
+          <Hint>
+            대기 포켓몬 클릭 → 보드의 {myPosition === 'L' ? '좌측' : '우측'} 2열 클릭으로 배치
+            {placedMyUnits.length > 0 && ' | 배치된 포켓몬 클릭 → 다른 칸 클릭으로 이동 | 우클릭으로 벤치에 되돌리기'}
+            {' '}| 시간 종료 시 미배치 포켓몬은 자동 배치됩니다
+          </Hint>
+        </BenchArea>
+      )}
     </Wrap>
   );
 };
 
-// ── 스타일 (원본 유지 + 추가) ──────────────────────────────────
+// ── 스타일 ──────────────────────────────────────────────────────
 
 const floatUp = keyframes`
   0%  { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -498,18 +708,22 @@ const revealPulse = keyframes`
   0%,100% { opacity: 0.9; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.05); }
 `;
+const benchPulse = keyframes`
+  0%,100% { box-shadow: 0 0 0 0 rgba(79,195,247,0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(79,195,247,0); }
+`;
 
 const Wrap = styled.div`
   flex:1; display:flex; flex-direction:column; align-items:center;
   background:radial-gradient(ellipse at center,#1a1a2e 0%,#0d0d1a 100%);
   padding:14px; overflow:hidden; animation:${fadeIn} 0.35s ease;
 `;
-const TopBar = styled.div`display:flex;align-items:center;gap:14px;margin-bottom:10px;`;
+const TopBar = styled.div`display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap;justify-content:center;`;
 const ArenaTitle = styled.div`color:#fff;font-size:17px;font-weight:800;letter-spacing:2px;`;
-const PhaseTag = styled.div<{$color:string}>`
-  color:${p=>p.$color};font-size:12px;font-weight:600;
+const PhaseTag = styled.div<{ $color: string }>`
+  color:${p => p.$color};font-size:12px;font-weight:600;
   padding:3px 11px;border-radius:20px;
-  border:1px solid ${p=>p.$color}44;background:${p=>p.$color}11;
+  border:1px solid ${p => p.$color}44;background:${p => p.$color}11;
 `;
 const WinTag = styled.div`
   color:#fbbf24;font-size:17px;font-weight:900;
@@ -525,81 +739,86 @@ const LoadBox = styled.div`
   border:2px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(0,0,0,0.4);
 `;
 const LoadMsg = styled.div`color:rgba(255,255,255,0.45);font-size:14px;text-align:center;line-height:1.7;`;
-const Cell = styled.div<{$zone:'my'|'opp'|'mid';$isTarget:boolean}>`
+const Cell = styled.div<{ $zone: 'my' | 'opp' | 'mid'; $isTarget: boolean }>`
   position:absolute;box-sizing:border-box;
-  border:1px solid ${p=>p.$zone==='my'?'rgba(0,255,128,0.07)':p.$zone==='opp'?'rgba(255,80,80,0.07)':'rgba(255,255,255,0.04)'};
-  background:${p=>p.$isTarget?'rgba(0,255,128,0.14)':p.$zone==='my'?'rgba(0,80,40,0.08)':p.$zone==='opp'?'rgba(80,0,0,0.08)':'rgba(255,255,255,0.02)'};
-  cursor:${p=>p.$isTarget?'pointer':'default'};transition:background 0.12s;
-  &:hover{background:${p=>p.$isTarget?'rgba(0,255,128,0.22)':undefined};}
+  border:1px solid ${p => p.$zone === 'my' ? 'rgba(0,255,128,0.07)' : p.$zone === 'opp' ? 'rgba(255,80,80,0.07)' : 'rgba(255,255,255,0.04)'};
+  background:${p => p.$isTarget ? 'rgba(0,255,128,0.22)' : p.$zone === 'my' ? 'rgba(0,80,40,0.08)' : p.$zone === 'opp' ? 'rgba(80,0,0,0.08)' : 'rgba(255,255,255,0.02)'};
+  cursor:${p => p.$isTarget ? 'pointer' : 'default'};
+  transition: background 0.15s ease;
+  &:hover {
+    ${p => p.$isTarget && css`background: rgba(0,255,128,0.32);`}
+  }
 `;
-// [수정] 가로 구분선 → 세로 구분선
 const VertDivider = styled.div`
-  position:absolute;top:0;width:2px;height:100%;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.22),transparent);
-  pointer-events:none;z-index:2;
+  position:absolute;top:0;bottom:0;width:2px;
+  background:rgba(255,255,255,0.08);pointer-events:none;z-index:2;
 `;
-const ZoneLbl = styled.div`position:absolute;font-size:10px;font-weight:600;pointer-events:none;z-index:3;`;
-const UnitWrap = styled.div<{$team:'my'|'opp';$fainted:boolean;$hit:boolean;$atk:boolean;$sel:boolean}>`
+const ZoneLbl = styled.div`
+  position:absolute;font-size:10px;font-weight:700;letter-spacing:1px;
+  pointer-events:none;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,0.7);
+`;
+
+const UnitWrap = styled.div<{
+  $team: 'my' | 'opp'; $fainted: boolean;
+  $hit: boolean; $atk: boolean; $sel: boolean;
+}>`
   position:absolute;display:flex;flex-direction:column;align-items:center;
-  cursor:pointer;z-index:10;height:${POKE_SIZE+22}px;
-  opacity:${p=>p.$fainted?0.25:1};filter:${p=>p.$fainted?'grayscale(1)':'none'};
-  outline:${p=>p.$sel?'2px solid #4fc3f7':'none'};border-radius:6px;
-  ${p=>p.$hit&&css`animation:${hitFlash} 0.28s ease;`}
-  ${p=>p.$atk&&css`animation:${atkBounce} 0.28s ease;`}
+  z-index:${p => p.$sel ? 20 : 10};
+  opacity:${p => p.$fainted ? 0.25 : 1};
+  cursor:${p => p.$fainted ? 'default' : 'pointer'};
+  ${p => p.$hit && css`animation:${hitFlash} 0.35s ease;`}
+  ${p => p.$atk && css`animation:${atkBounce} 0.3s ease;`}
+  ${p => p.$sel && css`filter:drop-shadow(0 0 8px rgba(0,255,128,0.7));`}
 `;
-const HpBg = styled.div`width:${POKE_SIZE}px;height:4px;background:rgba(0,0,0,0.55);border-radius:2px;overflow:hidden;margin-bottom:1px;`;
-const HpFill = styled.div`height:100%;border-radius:2px;transition:width 0.18s ease;`;
-const Sprite = styled.img<{$fainted:boolean;$flip:boolean}>`
-  width:${POKE_SIZE}px;height:${POKE_SIZE}px;object-fit:contain;image-rendering:pixelated;
-  transform:${p=>p.$flip?'scaleX(-1)':'none'};
-  filter:${p=>p.$fainted?'grayscale(1) opacity(0.35)':'drop-shadow(0 2px 4px rgba(0,0,0,0.6))'};
+const HpBg = styled.div`width:90%;height:5px;border-radius:3px;background:rgba(0,0,0,0.5);overflow:hidden;margin-bottom:1px;`;
+const HpFill = styled.div`height:100%;border-radius:3px;transition:width 0.15s;`;
+const Sprite = styled.img<{ $fainted: boolean; $flip: boolean }>`
+  width:44px;height:44px;image-rendering:pixelated;
+  ${p => p.$fainted && 'filter:grayscale(1) brightness(0.5);'}
+  ${p => p.$flip && 'transform:scaleX(-1);'}
 `;
-const Fallback = styled.div<{$team:'my'|'opp'}>`
-  width:${POKE_SIZE}px;height:${POKE_SIZE}px;display:flex;align-items:center;justify-content:center;
-  background:${p=>p.$team==='my'?'rgba(0,80,255,0.3)':'rgba(255,50,50,0.3)'};
-  border-radius:50%;font-size:13px;font-weight:700;color:#fff;
+const Fallback = styled.div<{ $team: 'my' | 'opp' }>`
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;font-size:12px;font-weight:800;
+  background:${p => p.$team === 'my' ? 'rgba(0,200,100,0.2)' : 'rgba(200,50,50,0.2)'};
+  color:${p => p.$team === 'my' ? '#4ade80' : '#f87171'};
 `;
 const UnitName = styled.div`
-  font-size:9px;color:rgba(255,255,255,0.8);text-align:center;white-space:nowrap;
-  max-width:${POKE_SIZE+8}px;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.9);
+  font-size:8px;color:rgba(255,255,255,0.7);font-weight:600;
+  max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;
 `;
 const FloatEl = styled.div`
-  position:absolute;font-size:13px;font-weight:800;
-  text-shadow:0 1px 4px rgba(0,0,0,0.8);pointer-events:none;z-index:20;
-  animation:${floatUp} 0.85s ease forwards;
+  position:absolute;z-index:50;font-size:16px;font-weight:900;
+  pointer-events:none;animation:${floatUp} 0.8s ease forwards;
+  transform:translateX(-50%);text-shadow:0 1px 4px rgba(0,0,0,0.8);
 `;
-const Hint = styled.div`margin-top:7px;color:rgba(255,255,255,0.3);font-size:11px;`;
-
-// ── 추가 스타일 ──────────────────────────────────────────────
 
 const PositionBar = styled.div`
-  display:flex; align-items:center; gap:16px; margin-bottom:8px;
-  padding:6px 20px; border-radius:12px;
-  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+  display:flex;align-items:center;gap:14px;margin-bottom:8px;
 `;
 const PosLabel = styled.div<{ $isMe: boolean }>`
-  font-size:13px; font-weight:700; min-width:120px;
-  color: ${p => p.$isMe ? '#4ade80' : '#f87171'};
+  font-size:13px;font-weight:700;letter-spacing:1px;
+  color:${p => p.$isMe ? '#4ade80' : '#f87171'};
 `;
 const PosVS = styled.div`
-  color:rgba(255,255,255,0.5); font-size:16px; font-weight:900; letter-spacing:3px;
+  color:rgba(255,255,255,0.5);font-size:16px;font-weight:900;letter-spacing:3px;
 `;
 
 const OpponentInfoPanel = styled.div`
-  width:100%; max-width:${COLS * CELL}px;
+  width:100%;max-width:${COLS * CELL}px;
   background:rgba(255,255,255,0.03);
   border:1px solid rgba(255,255,255,0.08);
-  border-radius:12px; padding:12px; margin-bottom:8px;
+  border-radius:12px;padding:12px;margin-bottom:8px;
 `;
 const InfoTitle = styled.div`
-  color:rgba(255,255,255,0.6); font-size:12px; font-weight:600;
-  margin-bottom:8px; letter-spacing:1px;
+  color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;
+  margin-bottom:8px;letter-spacing:1px;
 `;
-const InfoGrid = styled.div`display:grid; grid-template-columns:repeat(6,1fr); gap:6px;`;
+const InfoGrid = styled.div`display:grid;grid-template-columns:repeat(6,1fr);gap:6px;`;
 const InfoCard = styled.div`
-  display:flex; flex-direction:column; align-items:center;
-  padding:6px 4px; border-radius:8px;
-  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06);
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 4px;border-radius:8px;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
 `;
 const InfoSprite = styled.img`width:36px;height:36px;image-rendering:pixelated;`;
 const InfoFallback = styled.div`
@@ -615,12 +834,58 @@ const TypeBadge = styled.span`
 `;
 
 const RevealOverlay = styled.div`
-  position:absolute; inset:0; z-index:100;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(0,0,0,0.3); pointer-events:none;
+  position:absolute;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.3);pointer-events:none;
 `;
 const RevealText = styled.div`
-  color:#fbbf24; font-size:28px; font-weight:900;
+  color:#fbbf24;font-size:28px;font-weight:900;
   text-shadow:0 0 24px rgba(251,191,36,0.6);
   animation:${revealPulse} 1s ease infinite;
+`;
+
+const Hint = styled.div`
+  color:rgba(255,255,255,0.4);font-size:11px;margin-top:6px;text-align:center;
+  max-width:${COLS * CELL}px;line-height:1.5;
+`;
+
+// ── 벤치 영역 스타일 ──
+const BenchArea = styled.div`
+  width:100%;max-width:${COLS * CELL}px;
+  margin-top:10px;padding:12px;
+  background:rgba(79,195,247,0.05);
+  border:1px solid rgba(79,195,247,0.15);
+  border-radius:12px;
+`;
+const BenchTitle = styled.div`
+  color:rgba(255,255,255,0.7);font-size:12px;font-weight:600;
+  margin-bottom:8px;letter-spacing:0.5px;
+`;
+const BenchGrid = styled.div`
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  min-height:60px;align-items:center;
+`;
+const BenchCard = styled.div<{ $selected: boolean }>`
+  display:flex;flex-direction:column;align-items:center;
+  padding:8px 10px;border-radius:10px;cursor:pointer;
+  background:${p => p.$selected ? 'rgba(79,195,247,0.2)' : 'rgba(255,255,255,0.04)'};
+  border:2px solid ${p => p.$selected ? 'rgba(79,195,247,0.6)' : 'rgba(255,255,255,0.08)'};
+  transition:all 0.2s;
+  ${p => p.$selected && css`animation:${benchPulse} 1.5s ease infinite;`}
+  &:hover {
+    background:rgba(79,195,247,0.15);
+    border-color:rgba(79,195,247,0.4);
+    transform:translateY(-2px);
+  }
+`;
+const BenchSprite = styled.img`width:40px;height:40px;image-rendering:pixelated;`;
+const BenchFallback = styled.div`
+  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,200,100,0.15);border-radius:8px;color:#4ade80;font-size:12px;font-weight:700;
+`;
+const BenchName = styled.div`color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;margin-top:3px;`;
+const BenchStats = styled.div`color:rgba(255,255,255,0.4);font-size:9px;margin-top:1px;`;
+const BenchEmptyMsg = styled.div`
+  color:rgba(79,195,247,0.7);font-size:13px;font-weight:600;
+  padding:12px;text-align:center;
 `;

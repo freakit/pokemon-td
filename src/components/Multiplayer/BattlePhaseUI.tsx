@@ -7,7 +7,7 @@ import { multiplayerService } from '../../services/MultiplayerService';
 import { MultiplayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { pvpBattleService } from '../../services/PvPBattleService';
-import { TFTBattleArena } from './TFTBattleArena';
+import { TFTBattleArena, TFTBattleResult } from './TFTBattleArena';
 
 interface BattlePhaseUIProps {
   roomId: string;
@@ -591,15 +591,14 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       await multiplayerService.startWaitingWavePhase(roomId);
       return;
     }
-
-    // 1차: Firebase에서 직접 강제 fetch (스로틀링 우회)
+ 
+    // 1차: Firebase에서 직접 강제 fetch
     await forceFetchTowerDetails();
-
-    // 2차: 아직 빈 팀이 있으면 최대 6초 폴링 재시도
+ 
+    // 2차: 빈 팀 폴링 재시도
     await new Promise<void>((resolve) => {
       let attempts = 0;
-      const maxAttempts = 30; // 200ms × 30 = 6초
-
+      const maxAttempts = 30;
       const check = setInterval(async () => {
         attempts++;
         const allLoaded = state.roundMatchups!.matches.every((m) => {
@@ -607,28 +606,24 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
           const t2 = towerDetailsRef.current.get(m.player2Id);
           return (t1 && t1.length > 0) && (t2 && t2.length > 0);
         });
-
-        if (allLoaded) {
-          clearInterval(check);
-          resolve();
-          return;
-        }
-
-        // 매 1초마다 Firebase 재fetch
-        if (attempts % 5 === 0) {
-          await forceFetchTowerDetails();
-        }
-
+        if (allLoaded) { clearInterval(check); resolve(); return; }
+        if (attempts % 5 === 0) await forceFetchTowerDetails();
         if (attempts >= maxAttempts) {
           clearInterval(check);
-          console.warn('[BattlePhaseUI] Some teams still empty after timeout. Proceeding with available data.');
+          console.warn('[BattlePhaseUI] Some teams still empty after timeout.');
           resolve();
         }
       }, 200);
     });
-
+ 
+    // 내 매치를 찾기
+    const myUserId = user?.uid;
+    const myMatchInfo = state.roundMatchups.matches.find(
+      m => m.player1Id === myUserId || m.player2Id === myUserId
+    );
+ 
+    // AI vs AI 매치만 즉시 시뮬레이션 (내 매치는 아레나에서 처리)
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
-      // 이미 결과가 처리된 매치는 스킵 (중복 실행 방지)
       const existingResult = (state.battleResults || []).find(
         r =>
           r.roundNumber === state.currentRound &&
@@ -636,44 +631,46 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             (r.player1Id === match.player2Id && r.player2Id === match.player1Id))
       );
       if (existingResult) return;
-
-      const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
-      const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
-
-      if (team1.length === 0 && team2.length === 0) {
-        console.warn('[BattlePhaseUI] Both teams empty, skipping match between',
-          match.player1Id, 'vs', match.player2Id);
+ 
+      // 내 매치는 아레나에서 전투 후 결과 제출 → 여기서 스킵
+      if (myMatchInfo && 
+          match.player1Id === myMatchInfo.player1Id && 
+          match.player2Id === myMatchInfo.player2Id) {
+        console.log('[BattlePhaseUI] Skipping my match simulation - will be handled by arena');
         return;
       }
-
-      console.log(`[BattlePhaseUI] Simulating: ${match.player1Id}(${team1.length}) vs ${match.player2Id}(${team2.length})`);
-
+ 
+      // 그 외 매치 (AI vs AI 등) → 즉시 시뮬레이션
+      const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
+      const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
+ 
+      if (team1.length === 0 && team2.length === 0) {
+        console.warn('[BattlePhaseUI] Both teams empty, skipping match');
+        return;
+      }
+ 
+      console.log(`[BattlePhaseUI] AI Simulating: ${match.player1Id} vs ${match.player2Id}`);
       const result = pvpBattleService.simulateBattle(
-        team1,
-        team2,
-        match.player1Id,
-        match.player2Id,
-        state.currentRound
+        team1, team2, match.player1Id, match.player2Id, state.currentRound
       );
-
       await multiplayerService.submitBattleResult(roomId, result);
     });
-
+ 
     try {
       await Promise.all(matchPromises);
     } catch (err) {
       console.error('[BattlePhaseUI] executeBattles failed:', err);
     }
-
-    // 안전장치로 12초 후 강제 전환
+ 
+    // 안전장치: 90초 후 강제 전환 (아레나 전투 시간 포함)
     setTimeout(async () => {
       try {
         await multiplayerService.startWaitingWavePhase(roomId);
       } catch (err) {
         console.error('[BattlePhaseUI] startWaitingWavePhase failed:', err);
       }
-    }, 12000);
-  }, [roomId, forceFetchTowerDetails]);
+    }, 80000);
+  }, [roomId, forceFetchTowerDetails, user]);
 
   // ─── 페이즈 전환 처리 (호스트만) ────────────────────────────
   const handlePhaseTransition = useCallback(async (currentState: MultiplayerGameState) => {
@@ -784,9 +781,70 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     setShowArena(false);
   }, []);
 
+  // ─── 배틀 시드 계산 (양측 동일한 전투 재현용) ──────────────────
+  // Hook은 조건부 return 이전에 반드시 선언되어야 함 (Rules of Hooks)
+  const battleSeed = React.useMemo(() => {
+    if (!myMatch || !gameState) return Date.now();
+    return gameState.currentRound * 100000 + 
+           myMatch.player1Id.charCodeAt(0) * 1000 + 
+           myMatch.player2Id.charCodeAt(0);
+  }, [myMatch, gameState?.currentRound]);
+
+  // ─── 아레나 전투 완료 시 결과 제출 ────────────────────────────
+  const handleArenaBattleComplete = useCallback(async (arenaResult: TFTBattleResult) => {
+    if (!myMatch || !gameState || !user) return;
+
+    // 호스트만 결과를 Firebase에 제출
+    const alivePlayers = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? gameState.players[0];
+    const isHost = hostPlayer?.userId === user.uid;
+
+    if (!isHost) {
+      console.log('[BattlePhaseUI] Non-host: arena battle complete, waiting for host result');
+      setTimeout(() => handleArenaComplete(), 3000);
+      return;
+    }
+
+    // 이미 결과가 있으면 중복 제출 방지
+    const existingResult = (gameState.battleResults || []).find(
+      r =>
+        r.roundNumber === gameState.currentRound &&
+        ((r.player1Id === myMatch.player1Id && r.player2Id === myMatch.player2Id) ||
+          (r.player1Id === myMatch.player2Id && r.player2Id === myMatch.player1Id))
+    );
+    if (existingResult) {
+      setTimeout(() => handleArenaComplete(), 3000);
+      return;
+    }
+
+    const winnerId = arenaResult.winner === 'player1' ? myMatch.player1Id : myMatch.player2Id;
+    // lifeLost = 승자 측 생존 포켓몬 수 (패배자가 잃는 라이프)
+    const lifeLost = arenaResult.winner === 'player1' 
+      ? arenaResult.player1Remaining 
+      : arenaResult.player2Remaining;
+
+    const result = {
+      matchId: `${gameState.currentRound}-${myMatch.player1Id}-${myMatch.player2Id}-${Date.now()}`,
+      roundNumber: gameState.currentRound,
+      player1Id: myMatch.player1Id,
+      player2Id: myMatch.player2Id,
+      winnerId,
+      player1RemainingPokemon: arenaResult.player1Remaining,
+      player2RemainingPokemon: arenaResult.player2Remaining,
+      lifeLost,
+      battleLog: [],
+      timestamp: Date.now(),
+    };
+
+    console.log('[BattlePhaseUI] Arena battle result:', result);
+    await multiplayerService.submitBattleResult(roomId, result);
+    setTimeout(() => handleArenaComplete(), 3000);
+  }, [myMatch, gameState, user, roomId, handleArenaComplete]);
+
+  // ─── 조건부 렌더링 (모든 Hook 선언 이후) ─────────────────────
+
   // 배틀 페이즈도 아니고 렌더링할 것 없으면 null
   if (gameState?.currentPhase !== 'battle') {
-    // 결과 모달은 어떤 페이즈에서도 표시 가능
     return showRoundSummary && gameState ? (
       <RoundSummaryModal
         gameState={gameState}
@@ -819,7 +877,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
           </ByeContainer>
         </ByeOverlay>
 
-        {/* 라운드 요약 모달 */}
         {showRoundSummary && gameState && (
           <RoundSummaryModal
             gameState={gameState}
@@ -841,16 +898,13 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
   // ─── TFT 아레나 표시 ─────────────────────────────────────────
   if (showArena) {
-    // 타워 데이터 가져오기: Map에서 찾고, 없으면 빈 배열
     const myTeam = towerDetailsRef.current.get(user?.uid || '') ?? [];
     const opponentTeam = towerDetailsRef.current.get(opponentId || '') ?? [];
-
-    // phase 결정: 결과가 있으면 battle, 없으면 prep
-    const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'battle' : 'prep';
-
-    // [추가] L/R 포지션 결정: player1Id → L, player2Id → R
+ 
+    // 결과가 아직 없으면 prep부터 시작 (아레나가 전투를 결정)
+    const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'result' : 'prep';
     const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
-
+ 
     return (
       <>
         <TFTArenaOverlay>
@@ -860,10 +914,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             opponentName={opponent?.userName || 'Opponent'}
             myPosition={myArenaPosition}
             phase={arenaPhase}
+            battleSeed={battleSeed}
             battleResult={battleResult ?? null}
-            onBattleComplete={(_winnerId) => {
-              setTimeout(() => handleArenaComplete(), 3000);
-            }}
+            onBattleComplete={handleArenaBattleComplete}
           />
           <ArenaFooter>
             <RoundInfo>
@@ -877,7 +930,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             <SkipBtn onClick={handleArenaComplete}>건너뛰기 ⏩</SkipBtn>
           </ArenaFooter>
         </TFTArenaOverlay>
-
+ 
         {showRoundSummary && gameState && (
           <RoundSummaryModal
             gameState={gameState}
