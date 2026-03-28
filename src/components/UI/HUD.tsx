@@ -137,7 +137,7 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
         {!isMultiplayer && (
           <Btn
             $variant="speed"
-            onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed === 1 ? 2 : gameSpeed === 2 ? 3 : gameSpeed === 3 ? 5 : 1)}
+            onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed === 1 ? 3 : gameSpeed === 3 ? 5 : 1)}
           >
             ⚡ {gameSpeed}x
           </Btn>

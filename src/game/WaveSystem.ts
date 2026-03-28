@@ -11,8 +11,8 @@ const DIFFICULTY_MULTIPLIERS: Record<
   easiest: { hp: 0.1, attack: 0.1, reward: 1.0 },
   easy:    { hp: 0.7, attack: 0.7, reward: 1.0 },
   normal:  { hp: 0.9, attack: 0.9, reward: 1.0 },
-  hard:    { hp: 1.1, attack: 1.1, reward: 1.0 },
-  expert:  { hp: 1.3, attack: 1.3, reward: 1.0 },
+  hard:    { hp: 1.05, attack: 1.05, reward: 1.0 },
+  expert:  { hp: 1.2, attack: 1.2, reward: 1.0 },
 };
 
 // 웨이브별 종족값 범위 (스폰 포켓몬 강도 조절)
