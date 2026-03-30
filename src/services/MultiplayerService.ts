@@ -455,7 +455,7 @@ class MultiplayerService {
 
     const doUpdate = async () => {
       const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
-      await set(towerDetailsRef, { towers: towerDetails, updatedAt: this.now() });
+      await update(towerDetailsRef, { towers: towerDetails, updatedAt: this.now() });
       this.lastTowerUpdate.set(userId, Date.now());
     };
 
@@ -472,20 +472,22 @@ class MultiplayerService {
   
   /**
    * TFT 배치 6x6 보드 동기화 (전투 시작 전 저장)
+   * 권한 에러(PERMISSION_DENIED) 방지를 위해 기존 인가된 towerDetails 하위 경로에 저장합니다.
    */
   async submitTFTPlacements(roomId: string, userId: string, placements: { id: string, x: number, y: number }[]): Promise<void> {
-    const tftPlacementsRef = ref(rtdb, `tftPlacements/${roomId}/${userId}`);
-    await set(tftPlacementsRef, placements);
+    const tftPlacementsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+    await update(tftPlacementsRef, { tftPlacements: placements });
   }
 
   /**
    * 방의 모든 유저 TFT 배치 목록 수신
+   * towerDetails에 함께 저장된 tftPlacements를 순회해서 파싱합니다.
    */
   onAllTFTPlacementsUpdate(
     roomId: string,
     callback: (placements: Map<string, { id: string, x: number, y: number }[]>) => void
   ): () => void {
-    const tftPlacementsRef = ref(rtdb, `tftPlacements/${roomId}`);
+    const tftPlacementsRef = ref(rtdb, `towerDetails/${roomId}`);
     const listener = onValue(tftPlacementsRef, (snapshot) => {
       const combined = new Map<string, { id: string, x: number, y: number }[]>();
       if (!snapshot.exists()) {
@@ -495,7 +497,11 @@ class MultiplayerService {
       
       const data = snapshot.val();
       Object.keys(data).forEach((userId) => {
-        combined.set(userId, data[userId] || []);
+        if (data[userId] && data[userId].tftPlacements) {
+          combined.set(userId, data[userId].tftPlacements);
+        } else {
+          combined.set(userId, []);
+        }
       });
       callback(combined);
     });
