@@ -15,7 +15,7 @@ interface BattlePhaseUIProps {
 
 // 배틀 페이즈가 이 시간(ms) 이상 지속되면 강제 전환
 // [수정] 30초 준비 + 5초 공개 + 배틀 시간을 수용하도록 증가
-const BATTLE_STUCK_TIMEOUT_MS = 90_000;
+const BATTLE_STUCK_TIMEOUT_MS = 180_000;
 
 // ─── 스타일드 컴포넌트 ───────────────────────────────────────────
 const fadeIn = keyframes`
@@ -449,6 +449,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
   // 페이즈/타이밍 추적 ref
   const transitionTriggeredRef = useRef<boolean>(false);
+  const executeTriggeredRef = useRef<boolean>(false);
   const lastPhaseEndTimeRef = useRef<number | null>(null);
   const lastPhaseRef = useRef<string | null>(null);
 
@@ -480,6 +481,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         console.log(`[BattlePhaseUI] Phase: ${lastPhaseRef.current} → ${state.currentPhase}`);
         lastPhaseRef.current = state.currentPhase;
         transitionTriggeredRef.current = false;
+        executeTriggeredRef.current = false;
 
         if (state.currentPhase === 'battle') {
           battlePhaseEnteredAtRef.current = Date.now();
@@ -661,15 +663,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     } catch (err) {
       console.error('[BattlePhaseUI] executeBattles failed:', err);
     }
- 
-    // 안전장치: 90초 후 강제 전환 (아레나 전투 시간 포함)
-    setTimeout(async () => {
-      try {
-        await multiplayerService.startWaitingWavePhase(roomId);
-      } catch (err) {
-        console.error('[BattlePhaseUI] startWaitingWavePhase failed:', err);
-      }
-    }, 80000);
   }, [roomId, forceFetchTowerDetails, user]);
 
   // ─── 페이즈 전환 처리 (호스트만) ────────────────────────────
@@ -717,17 +710,28 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
 
-      // 2. 배틀 페이즈: 즉시 시뮬레이션 실행
-      if (currentGameState.currentPhase === 'battle' && !transitionTriggeredRef.current) {
-        transitionTriggeredRef.current = true;
+      // 2. 배틀 페이즈: 즉시 시뮬레이션 실행 (최초 1회만)
+      if (currentGameState.currentPhase === 'battle' && !executeTriggeredRef.current) {
+        executeTriggeredRef.current = true;
         console.log('[BattlePhaseUI] Starting battle simulation...');
         executeBattles(currentGameState).catch(err => {
           console.error('[BattlePhaseUI] Battle simulation error:', err);
-          setTimeout(() => {
-            multiplayerService.startWaitingWavePhase(roomId);
-          }, 5000);
         });
-        return;
+        // 결과 체킹 로직으로 바로 넘어감
+      }
+
+      // 3. 배틀 완료 대기 로직: 모든 매치의 결과가 제출되면 자동 전환
+      if (currentGameState.currentPhase === 'battle' && !transitionTriggeredRef.current) {
+        const matches = currentGameState.roundMatchups?.matches || [];
+        const results = currentGameState.battleResults || [];
+        const currentRoundResults = results.filter(r => r.roundNumber === currentGameState.currentRound);
+
+        if (matches.length > 0 && currentRoundResults.length >= matches.length) {
+          console.log('[BattlePhaseUI] All battles finished, transitioning to waiting_wave...');
+          transitionTriggeredRef.current = true;
+          multiplayerService.startWaitingWavePhase(roomId).catch(console.error);
+          return;
+        }
       }
 
       // 3. 배틀 Stuck 안전장치
@@ -909,6 +913,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       <>
         <TFTArenaOverlay>
           <TFTBattleArena
+            roomId={roomId}
+            myUserId={user?.uid}
+            opponentId={opponentId}
             myTeam={myTeam}
             opponentTeam={opponentTeam}
             opponentName={opponent?.userName || 'Opponent'}

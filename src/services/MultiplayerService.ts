@@ -469,6 +469,38 @@ class MultiplayerService {
       this.towerUpdateTimeouts.set(userId, timeout);
     }
   }
+  
+  /**
+   * TFT 배치 6x6 보드 동기화 (전투 시작 전 저장)
+   */
+  async submitTFTPlacements(roomId: string, userId: string, placements: { id: string, x: number, y: number }[]): Promise<void> {
+    const tftPlacementsRef = ref(rtdb, `tftPlacements/${roomId}/${userId}`);
+    await set(tftPlacementsRef, placements);
+  }
+
+  /**
+   * 방의 모든 유저 TFT 배치 목록 수신
+   */
+  onAllTFTPlacementsUpdate(
+    roomId: string,
+    callback: (placements: Map<string, { id: string, x: number, y: number }[]>) => void
+  ): () => void {
+    const tftPlacementsRef = ref(rtdb, `tftPlacements/${roomId}`);
+    const listener = onValue(tftPlacementsRef, (snapshot) => {
+      const combined = new Map<string, { id: string, x: number, y: number }[]>();
+      if (!snapshot.exists()) {
+        callback(combined);
+        return;
+      }
+      
+      const data = snapshot.val();
+      Object.keys(data).forEach((userId) => {
+        combined.set(userId, data[userId] || []);
+      });
+      callback(combined);
+    });
+    return () => off(tftPlacementsRef, 'value', listener);
+  }
 
   /**
    * 플레이어 탈락 처리 - 트랜잭션으로 중복 처리 방지
