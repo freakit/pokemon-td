@@ -9,10 +9,14 @@
 // - 배틀: 결정론적 시드 랜덤으로 양측 동일한 전투 재현
 // - 결과: 아레나 전투 결과 기반으로 승패 결정
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { multiplayerService } from '../../services/MultiplayerService';
 import { TowerDetail } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
+import { calculateActiveSynergies, getBuffedStats } from '../../utils/synergyManager';
+import { GamePokemon, Synergy } from '../../types/game';
+import { useGameStore } from '../../store/gameStore';
 
 const COLS = 6;
 const ROWS = 6;
@@ -66,6 +70,9 @@ export interface TFTBattleResult {
 }
 
 export interface TFTBattleArenaProps {
+  roomId?: string;
+  myUserId?: string;
+  opponentId?: string;
   myTeam: TowerDetail[];
   opponentTeam: TowerDetail[];
   opponentName: string;
@@ -91,7 +98,21 @@ function calcDmg(a: Unit, d: Unit, rng: () => number): number {
   const def = d.detail.defense ?? d.detail.level * 5;
   const types = a.detail.types ?? [];
   const dTypes = d.detail.types ?? [];
-  const power = 50 + a.detail.level;
+  
+  let power = 50 + a.detail.level;
+  const moves = a.detail.equippedMoves;
+  if (moves && moves.length > 0) {
+    if (rng() < 0.3) {
+      // 30% chance to use highest power move
+      power = Math.max(...moves.map(m => m.power || 0));
+    } else {
+      // 70% chance to use a random move
+      const idx = Math.floor(rng() * moves.length);
+      power = moves[idx].power || power;
+    }
+    power = Math.max(30, power);
+  }
+
   const lvl = a.detail.level;
   const eff = getTypeEffectiveness(types[0] ?? 'normal', dTypes);
   const base = ((2 * lvl / 5 + 2) * power * atk / Math.max(def, 1)) / 50 + 2;
@@ -107,16 +128,23 @@ function buildUnits(
   myTeam: TowerDetail[],
   oppTeam: TowerDetail[],
   myPos: 'L' | 'R',
-  rng: () => number
+  rng: () => number,
+  mySynergies: Synergy[],
+  oppSynergies: Synergy[]
 ): Unit[] {
   const units: Unit[] = [];
   const oppDefaults = myPos === 'L' ? R_POS : L_POS;
 
   // 내 유닛: 벤치에 대기 (x = -1)
   myTeam.slice(0, 6).forEach((d, i) => {
+    const p = d as unknown as GamePokemon;
+    // TFT 특성 상 전투 시 모든 유닛이 싸우므로 벤치 여부 무관하게 시너지 버프 스탯 산출
+    const buffed = getBuffedStats(p, mySynergies);
+    const detailWithSynergy = { ...d, ...buffed };
+
     units.push({
       id: `my-${i}`,
-      detail: d,
+      detail: detailWithSynergy,
       team: 'my',
       x: -1, // 벤치 상태
       y: i,
@@ -131,10 +159,14 @@ function buildUnits(
 
   // 상대 유닛: 기본 위치에 배치 (준비 중에는 숨김)
   oppTeam.slice(0, 6).forEach((d, i) => {
+    const p = d as unknown as GamePokemon;
+    const buffed = getBuffedStats(p, oppSynergies);
+    const detailWithSynergy = { ...d, ...buffed };
     const pos = oppDefaults[i] ?? { x: myPos === 'L' ? 4 + (i % 2) : i % 2, y: i };
+    
     units.push({
       id: `op-${i}`,
-      detail: d,
+      detail: detailWithSynergy,
       team: 'opp',
       x: pos.x,
       y: pos.y,
@@ -150,7 +182,7 @@ function buildUnits(
 }
 
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, onBattleComplete,
+  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, onBattleComplete,
 }) => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [floats, setFloats] = useState<FloatTxt[]>([]);
@@ -165,6 +197,18 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const initRef = useRef({ my: -1, op: -1 });
   const rngRef = useRef<() => number>(() => Math.random());
   const resultReportedRef = useRef(false);
+  const hasSubmittedRef = useRef(false);
+  
+  const [remotePlacements, setRemotePlacements] = useState<Map<string, { id: string, x: number, y: number }[]>>(new Map());
+
+  // ── 방 전체 유저의 TFT 배치 상황 동기화 ──
+  useEffect(() => {
+    if (!roomId) return;
+    const unsub = multiplayerService.onAllTFTPlacementsUpdate(roomId, (placementsMap) => {
+      setRemotePlacements(placementsMap);
+    });
+    return unsub;
+  }, [roomId]);
 
   // 내 배치 가능 열
   const myCols = myPosition === 'L' ? [0, 1] : [4, 5];
@@ -181,6 +225,20 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     rngRef.current = mulberry32(seed);
   }, [battleSeed]);
 
+  // ── 시너지 계산 및 Store 반영 ──
+  const mySynergies = useMemo(() => {
+    return calculateActiveSynergies(myTeam as unknown as GamePokemon[]);
+  }, [myTeam]);
+  const oppSynergies = useMemo(() => {
+    return calculateActiveSynergies(opponentTeam as unknown as GamePokemon[]);
+  }, [opponentTeam]);
+
+  useEffect(() => {
+    if (phase !== 'result') {
+      useGameStore.setState({ activeSynergies: mySynergies });
+    }
+  }, [mySynergies, phase]);
+
   // ── 유닛 초기화 ──
   useEffect(() => {
     if (myTeam.length === 0 && opponentTeam.length === 0) return;
@@ -191,17 +249,18 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     ) return;
     initRef.current = { my: myTeam.length, op: opponentTeam.length };
     resultReportedRef.current = false;
+    hasSubmittedRef.current = false;
     const seed = battleSeed ?? Date.now();
     const rng = mulberry32(seed);
     rngRef.current = rng;
-    setUnits(buildUnits(myTeam, opponentTeam, myPosition, rng));
+    setUnits(buildUnits(myTeam, opponentTeam, myPosition, rng, mySynergies, oppSynergies));
     setBattleState('idle');
     setWinnerText(null);
     setFloats([]);
     setDragId(null);
     setSelectedBenchId(null);
     setCountdown(PREP_TIME);
-  }, [myTeam, opponentTeam, myPosition, battleSeed]);
+  }, [myTeam, opponentTeam, myPosition, battleSeed, mySynergies, oppSynergies]);
 
   // ── 준비 페이즈 카운트다운 (30초) ──
   useEffect(() => {
@@ -279,9 +338,57 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     });
   }, [myPosition, myCols]);
 
+  // ── 내 배치를 Firebase에 업로드 (공개 페이즈 진입 시 1번) ──
+  useEffect(() => {
+    if (battleState === 'reveal' && roomId && myUserId && !hasSubmittedRef.current) {
+      const myPlacements = units
+        .filter(u => u.team === 'my' && u.x >= 0)
+        .map(u => ({ id: u.id, x: u.x, y: u.y }));
+      
+      if (myPlacements.length > 0) {
+        hasSubmittedRef.current = true;
+        multiplayerService.submitTFTPlacements(roomId, myUserId, myPlacements).catch(console.error);
+      }
+    }
+  }, [battleState, units, roomId, myUserId]);
+
   // ── 공개 페이즈 (5초) → 배틀 시작 ──
   useEffect(() => {
     if (battleState !== 'reveal') return;
+    
+    // Check if opponent placements are ready
+    const isOpponentAI = opponentId?.startsWith('ai_');
+    const oppPlacements = opponentId ? remotePlacements.get(opponentId) : null;
+    const isOpponentReady = isOpponentAI || (oppPlacements && oppPlacements.length > 0);
+    
+    if (!isOpponentReady) {
+      // Waiting for opponent. Freeze countdown at 5.
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      setCountdown(REVEAL_TIME);
+      return;
+    }
+
+    // Opponent is ready! Apply opponent placements IF we haven't already!
+    if (!isOpponentAI && oppPlacements && oppPlacements.length > 0) {
+      setUnits(prev => {
+        let changed = false;
+        const next = prev.map(u => {
+          if (u.team === 'opp') {
+            const matchIndex = parseInt(u.id.split('-')[1]);
+            const placement = oppPlacements[matchIndex];
+            if (placement && (u.x !== placement.x || u.y !== placement.y)) {
+              changed = true;
+              return { ...u, x: placement.x, y: placement.y };
+            }
+          }
+          return u;
+        });
+        return changed ? next : prev;
+      });
+    }
+
+    if (countdownRef.current) clearInterval(countdownRef.current);
+
     setCountdown(REVEAL_TIME);
 
     countdownRef.current = setInterval(() => {
@@ -302,7 +409,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [battleState, battleSeed]);
+  }, [battleState, battleSeed, opponentId, remotePlacements]);
 
   // ── 외부 phase='battle'에 의한 강제 전환 ──
   useEffect(() => {
@@ -384,6 +491,33 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
               const t2 = next.find(u => u.id === target.id);
               if (t2 && alive(t2)) {
                 const dmg = calcDmg(unit, t2, rng);
+                
+                // 1. AoE Damage (광역 방사 피해)
+                const aoeRatio = unit.detail.aoeBonus || 0;
+                if (aoeRatio > 0 && enemies.length > 1) {
+                  const splashRange = 1.6;
+                  const splashDmg = Math.floor(dmg * aoeRatio);
+                  for (const e of enemies) {
+                    if (e.id === t2.id) continue;
+                    if (dst(t2, e) <= splashRange) {
+                      const spTarget = next.find(u => u.id === e.id);
+                      if (spTarget && alive(spTarget)) {
+                        spTarget.hp = Math.max(0, spTarget.hp - splashDmg);
+                        spTarget.isHit = true;
+                        if (spTarget.hp <= 0) spTarget.fainted = true;
+                        newFloats.push({
+                          id: ++floatIdRef.current,
+                          text: `-${splashDmg}`,
+                          x: spTarget.x * CELL + CELL / 2 + 10,
+                          y: spTarget.y * CELL - 10,
+                          color: '#e67e22',
+                        });
+                      }
+                    }
+                  }
+                }
+
+                // 2. Main Target Damage
                 t2.hp = Math.max(0, t2.hp - dmg);
                 t2.isHit = true;
                 if (t2.hp <= 0) t2.fainted = true;
@@ -394,6 +528,22 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                   y: t2.y * CELL,
                   color: t2.team === 'my' ? '#ff6b6b' : '#ffd93d',
                 });
+
+                // 3. Life Steal (피흡)
+                const lsRatio = unit.detail.lifesteal || 0;
+                if (lsRatio > 0) {
+                  const healAmount = Math.floor(dmg * lsRatio);
+                  if (healAmount > 0 && unit.hp < unit.maxHp) {
+                    unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
+                    newFloats.push({
+                      id: ++floatIdRef.current,
+                      text: `+${healAmount}`,
+                      x: unit.x * CELL + CELL / 2,
+                      y: unit.y * CELL - 15,
+                      color: '#2ecc71',
+                    });
+                  }
+                }
               }
             }
           } else {
@@ -526,162 +676,221 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         </PosLabel>
       </PositionBar>
 
-      {/* 준비 페이즈: 상대 타워 정보 패널 */}
-      {isPrep && (
-        <OpponentInfoPanel>
-          <InfoTitle>🔍 상대 타워 ({opponentName}) — 최대 6마리</InfoTitle>
-          <InfoGrid>
-            {opponentTeam.slice(0, 6).map((t, i) => (
-              <InfoCard key={i}>
-                {t.sprite ? (
-                  <InfoSprite src={t.sprite} alt={t.name} />
-                ) : (
-                  <InfoFallback>{t.name?.slice(0, 2) ?? '?'}</InfoFallback>
-                )}
-                <InfoName>{t.name}</InfoName>
-                <InfoStats>Lv.{t.level} | HP {t.maxHp}</InfoStats>
-                {t.types && t.types.length > 0 && (
-                  <InfoTypes>
-                    {t.types.map(type => (
-                      <TypeBadge key={type}>{type}</TypeBadge>
-                    ))}
-                  </InfoTypes>
-                )}
-              </InfoCard>
-            ))}
-          </InfoGrid>
-        </OpponentInfoPanel>
-      )}
-
-      <Board style={{ width: boardW, height: boardH }}>
-        {Array.from({ length: ROWS }, (_, row) =>
-          Array.from({ length: COLS }, (_, col) => {
-            const isMyZone = myCols.includes(col);
-            const isOppZone = oppCols.includes(col);
-            const zone: 'my' | 'opp' | 'mid' = isMyZone ? 'my' : isOppZone ? 'opp' : 'mid';
-            const hasMyUnit = units.some(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
-            const isPlaceable = isPrep && isMyZone && !hasMyUnit && (selectedBenchId !== null || dragId !== null);
-            return (
-              <Cell
-                key={`${col}-${row}`}
-                style={{ left: col * CELL, top: row * CELL, width: CELL, height: CELL }}
-                $zone={zone}
-                $isTarget={isPlaceable}
-                onClick={() => handleCellClick(col, row)}
-              />
-            );
-          })
-        )}
-
-        {/* 세로 구분선 */}
-        <VertDivider style={{ left: 2 * CELL }} />
-        <VertDivider style={{ left: 4 * CELL }} />
-
-        {/* 존 라벨 */}
-        <ZoneLbl style={{ top: 4, left: 8, color: myPosition === 'L' ? 'rgba(100,255,160,0.85)' : 'rgba(255,110,110,0.85)' }}>
-          {myPosition === 'L' ? '👤 나' : `👤 ${opponentName}`}
-        </ZoneLbl>
-        <ZoneLbl style={{ top: 4, right: 8, color: myPosition === 'R' ? 'rgba(100,255,160,0.85)' : 'rgba(255,110,110,0.85)' }}>
-          {myPosition === 'R' ? '👤 나' : `👤 ${opponentName}`}
-        </ZoneLbl>
-
-        {/* 보드 위 유닛 렌더링 */}
-        {units.map(unit => {
-          // 벤치 유닛은 보드에 표시하지 않음
-          if (unit.x < 0) return null;
-          // 준비 페이즈에서는 상대 유닛 숨김
-          if (isPrep && unit.team === 'opp') return null;
-
-          const px = unit.x * CELL + CELL / 2 - POKE_SIZE / 2;
-          const py = unit.y * CELL + CELL / 2 - POKE_SIZE / 2;
-          const hpPct = Math.max(0, unit.hp / unit.maxHp);
-          return (
-            <UnitWrap
-              key={unit.id}
-              style={{
-                left: px, top: py, width: POKE_SIZE,
-                transition: battleState === 'fighting'
-                  ? 'left 0.033s linear, top 0.033s linear'
-                  : 'left 0.15s ease, top 0.15s ease',
-              }}
-              $team={unit.team} $fainted={unit.fainted}
-              $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId === unit.id}
-              onClick={() => {
-                if (isPrep && unit.team === 'my' && !unit.fainted) {
-                  setDragId(p => p === unit.id ? null : unit.id);
-                  setSelectedBenchId(null);
-                }
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (isPrep && unit.team === 'my') handleReturnToBench(unit.id);
-              }}
-            >
-              <HpBg>
-                <HpFill style={{
-                  width: `${hpPct * 100}%`,
-                  background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c',
-                }} />
-              </HpBg>
-              {unit.detail.sprite ? (
-                <Sprite src={unit.detail.sprite} alt={unit.detail.name}
-                  $fainted={unit.fainted} $flip={unit.team === 'opp'} />
-              ) : (
-                <Fallback $team={unit.team}>
-                  {unit.detail.name?.slice(0, 2).toUpperCase() ?? '?'}
-                </Fallback>
+      <ContentRow>
+        {/* L Side Panel: Either My Bench (if myPosition='L') or Opponent Info (if myPosition='R') */}
+        {isPrep && myPosition === 'L' && (
+          <BenchArea>
+            <BenchTitle>
+              📦 내 타워 벤치 ({benchUnits.length})
+              {placedMyUnits.length > 0 && <span style={{display: 'block', fontSize: '11px', color: '#ffea00'}}>🟢 배치됨: {placedMyUnits.length}</span>}
+            </BenchTitle>
+            <BenchGrid>
+              {benchUnits.map(unit => (
+                <BenchCard
+                  key={unit.id}
+                  $selected={selectedBenchId === unit.id}
+                  onClick={() => handleBenchClick(unit.id)}
+                >
+                  {unit.detail.sprite ? (
+                    <BenchSprite src={unit.detail.sprite} alt={unit.detail.name} />
+                  ) : (
+                    <BenchFallback>{unit.detail.name?.slice(0, 2) ?? '?'}</BenchFallback>
+                  )}
+                  <BenchName>{unit.detail.name}</BenchName>
+                  <BenchStats>Lv.{unit.detail.level}</BenchStats>
+                </BenchCard>
+              ))}
+              {benchUnits.length === 0 && (
+                <BenchEmptyMsg>✅ 모두 배치 완료</BenchEmptyMsg>
               )}
-              <UnitName>{unit.detail.name}</UnitName>
-            </UnitWrap>
-          );
-        })}
-
-        {floats.map(f => (
-          <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>
-        ))}
-
-        {/* 공개 페이즈 오버레이 */}
-        {isReveal && (
-          <RevealOverlay>
-            <RevealText>⚔️ 배틀 시작까지 {countdown}초</RevealText>
-          </RevealOverlay>
+            </BenchGrid>
+            <Hint>
+              클릭 → 게임판 빈칸 배치<br/>
+              게임판 타워 우클릭 → 회수
+            </Hint>
+          </BenchArea>
         )}
-      </Board>
+        {isPrep && myPosition === 'R' && (
+          <OpponentInfoPanel>
+            <InfoTitle>🔍 상대 타워 ({opponentName})</InfoTitle>
+            <InfoGrid>
+              {opponentTeam.slice(0, 6).map((t, i) => (
+                <InfoCard key={i}>
+                  {t.sprite ? (
+                    <InfoSprite src={t.sprite} alt={t.name} />
+                  ) : (
+                    <InfoFallback>{t.name?.slice(0, 2) ?? '?'}</InfoFallback>
+                  )}
+                  <InfoName>{t.name}</InfoName>
+                  <InfoStats>Lv.{t.level} | HP {t.maxHp}</InfoStats>
+                  {t.types && t.types.length > 0 && (
+                    <InfoTypes>
+                      {t.types.map(type => (
+                        <TypeBadge key={type}>{type}</TypeBadge>
+                      ))}
+                    </InfoTypes>
+                  )}
+                </InfoCard>
+              ))}
+            </InfoGrid>
+          </OpponentInfoPanel>
+        )}
 
-      {/* 준비 페이즈: 벤치 (미배치 유닛) */}
-      {isPrep && (
-        <BenchArea>
-          <BenchTitle>
-            📦 대기 포켓몬 ({benchUnits.length}마리) — 클릭하여 선택 후 보드에 배치
-            {placedMyUnits.length > 0 && ` | 🟢 배치됨: ${placedMyUnits.length}마리`}
-          </BenchTitle>
-          <BenchGrid>
-            {benchUnits.map(unit => (
-              <BenchCard
+        <Board style={{ width: boardW, height: boardH }}>
+          {Array.from({ length: ROWS }, (_, row) =>
+            Array.from({ length: COLS }, (_, col) => {
+              const isMyZone = myCols.includes(col);
+              const isOppZone = oppCols.includes(col);
+              const zone: 'my' | 'opp' | 'mid' = isMyZone ? 'my' : isOppZone ? 'opp' : 'mid';
+              const hasMyUnit = units.some(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
+              const isPlaceable = isPrep && isMyZone && !hasMyUnit && (selectedBenchId !== null || dragId !== null);
+              return (
+                <Cell
+                  key={`${col}-${row}`}
+                  style={{ left: col * CELL, top: row * CELL, width: CELL, height: CELL }}
+                  $zone={zone}
+                  $isTarget={isPlaceable}
+                  $disabled={!isMyZone && isPrep}
+                  onClick={() => handleCellClick(col, row)}
+                />
+              );
+            })
+          )}
+
+          {/* 세로 구분선 */}
+          <VertDivider style={{ left: 2 * CELL }} />
+          <VertDivider style={{ left: 4 * CELL }} />
+
+          {/* 존 라벨 */}
+          <ZoneLbl style={{ top: 4, left: 8, color: myPosition === 'L' ? 'rgba(100,255,160,0.85)' : 'rgba(255,110,110,0.85)' }}>
+            {myPosition === 'L' ? '👤 나' : `👤 ${opponentName}`}
+          </ZoneLbl>
+          <ZoneLbl style={{ top: 4, right: 8, color: myPosition === 'R' ? 'rgba(100,255,160,0.85)' : 'rgba(255,110,110,0.85)' }}>
+            {myPosition === 'R' ? '👤 나' : `👤 ${opponentName}`}
+          </ZoneLbl>
+
+          {/* 보드 위 유닛 렌더링 */}
+          {units.map(unit => {
+            // 벤치 유닛은 보드에 표시하지 않음
+            if (unit.x < 0) return null;
+            // 준비 페이즈에서는 상대 유닛 숨김
+            if (isPrep && unit.team === 'opp') return null;
+
+            const px = unit.x * CELL + CELL / 2 - POKE_SIZE / 2;
+            const py = unit.y * CELL + CELL / 2 - POKE_SIZE / 2;
+            const hpPct = Math.max(0, unit.hp / unit.maxHp);
+            return (
+              <UnitWrap
                 key={unit.id}
-                $selected={selectedBenchId === unit.id}
-                onClick={() => handleBenchClick(unit.id)}
+                style={{
+                  left: px, top: py, width: POKE_SIZE,
+                  transition: battleState === 'fighting'
+                    ? 'left 0.033s linear, top 0.033s linear'
+                    : 'left 0.15s ease, top 0.15s ease',
+                }}
+                $team={unit.team} $fainted={unit.fainted}
+                $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId === unit.id}
+                onClick={() => {
+                  if (isPrep && unit.team === 'my' && !unit.fainted) {
+                    setDragId(p => p === unit.id ? null : unit.id);
+                    setSelectedBenchId(null);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (isPrep && unit.team === 'my') handleReturnToBench(unit.id);
+                }}
               >
+                <HpBg>
+                  <HpFill style={{
+                    width: `${hpPct * 100}%`,
+                    background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c',
+                  }} />
+                </HpBg>
                 {unit.detail.sprite ? (
-                  <BenchSprite src={unit.detail.sprite} alt={unit.detail.name} />
+                  <Sprite src={unit.detail.sprite} alt={unit.detail.name}
+                    $fainted={unit.fainted} $flip={unit.team === 'opp'} />
                 ) : (
-                  <BenchFallback>{unit.detail.name?.slice(0, 2) ?? '?'}</BenchFallback>
+                  <Fallback $team={unit.team}>
+                    {unit.detail.name?.slice(0, 2).toUpperCase() ?? '?'}
+                  </Fallback>
                 )}
-                <BenchName>{unit.detail.name}</BenchName>
-                <BenchStats>Lv.{unit.detail.level}</BenchStats>
-              </BenchCard>
-            ))}
-            {benchUnits.length === 0 && (
-              <BenchEmptyMsg>✅ 모든 포켓몬이 배치되었습니다!</BenchEmptyMsg>
-            )}
-          </BenchGrid>
-          <Hint>
-            대기 포켓몬 클릭 → 보드의 {myPosition === 'L' ? '좌측' : '우측'} 2열 클릭으로 배치
-            {placedMyUnits.length > 0 && ' | 배치된 포켓몬 클릭 → 다른 칸 클릭으로 이동 | 우클릭으로 벤치에 되돌리기'}
-            {' '}| 시간 종료 시 미배치 포켓몬은 자동 배치됩니다
-          </Hint>
-        </BenchArea>
-      )}
+                <UnitName>{unit.detail.name}</UnitName>
+              </UnitWrap>
+            );
+          })}
+
+          {floats.map(f => (
+            <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>
+          ))}
+
+          {/* 공개 페이즈 오버레이 */}
+          {isReveal && (
+            <RevealOverlay>
+              <RevealText>⚔️ 배틀 시작까지 {countdown}초</RevealText>
+            </RevealOverlay>
+          )}
+        </Board>
+
+        {/* R Side Panel: Either Opponent Info (if myPosition='L') or My Bench (if myPosition='R') */}
+        {isPrep && myPosition === 'L' && (
+          <OpponentInfoPanel>
+            <InfoTitle>🔍 상대 타워 ({opponentName})</InfoTitle>
+            <InfoGrid>
+              {opponentTeam.slice(0, 6).map((t, i) => (
+                <InfoCard key={i}>
+                  {t.sprite ? (
+                    <InfoSprite src={t.sprite} alt={t.name} />
+                  ) : (
+                    <InfoFallback>{t.name?.slice(0, 2) ?? '?'}</InfoFallback>
+                  )}
+                  <InfoName>{t.name}</InfoName>
+                  <InfoStats>Lv.{t.level} | HP {t.maxHp}</InfoStats>
+                  {t.types && t.types.length > 0 && (
+                    <InfoTypes>
+                      {t.types.map(type => (
+                        <TypeBadge key={type}>{type}</TypeBadge>
+                      ))}
+                    </InfoTypes>
+                  )}
+                </InfoCard>
+              ))}
+            </InfoGrid>
+          </OpponentInfoPanel>
+        )}
+        {isPrep && myPosition === 'R' && (
+          <BenchArea>
+            <BenchTitle>
+              📦 내 타워 벤치 ({benchUnits.length})
+              {placedMyUnits.length > 0 && <span style={{display: 'block', fontSize: '11px', color: '#ffea00'}}>🟢 배치됨: {placedMyUnits.length}</span>}
+            </BenchTitle>
+            <BenchGrid>
+              {benchUnits.map(unit => (
+                <BenchCard
+                  key={unit.id}
+                  $selected={selectedBenchId === unit.id}
+                  onClick={() => handleBenchClick(unit.id)}
+                >
+                  {unit.detail.sprite ? (
+                    <BenchSprite src={unit.detail.sprite} alt={unit.detail.name} />
+                  ) : (
+                    <BenchFallback>{unit.detail.name?.slice(0, 2) ?? '?'}</BenchFallback>
+                  )}
+                  <BenchName>{unit.detail.name}</BenchName>
+                  <BenchStats>Lv.{unit.detail.level}</BenchStats>
+                </BenchCard>
+              ))}
+              {benchUnits.length === 0 && (
+                <BenchEmptyMsg>✅ 모두 배치 완료</BenchEmptyMsg>
+              )}
+            </BenchGrid>
+            <Hint>
+              클릭 → 게임판 빈칸 배치<br/>
+              게임판 타워 우클릭 → 회수
+            </Hint>
+          </BenchArea>
+        )}
+      </ContentRow>
     </Wrap>
   );
 };
@@ -716,7 +925,17 @@ const benchPulse = keyframes`
 const Wrap = styled.div`
   flex:1; display:flex; flex-direction:column; align-items:center;
   background:radial-gradient(ellipse at center,#1a1a2e 0%,#0d0d1a 100%);
-  padding:14px; overflow:hidden; animation:${fadeIn} 0.35s ease;
+  padding:14px; padding-bottom: 80px; overflow:auto; animation:${fadeIn} 0.35s ease;
+  width: 100%;
+`;
+const ContentRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  min-width: max-content;
 `;
 const TopBar = styled.div`display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap;justify-content:center;`;
 const ArenaTitle = styled.div`color:#fff;font-size:17px;font-weight:800;letter-spacing:2px;`;
@@ -733,17 +952,20 @@ const WinTag = styled.div`
 const Board = styled.div`
   position:relative;border:2px solid rgba(255,255,255,0.1);
   border-radius:8px;overflow:hidden;background:rgba(0,0,0,0.45);
+  flex-shrink: 0;
+  min-width: ${COLS * CELL}px;
+  min-height: ${ROWS * CELL}px;
 `;
 const LoadBox = styled.div`
   display:flex;align-items:center;justify-content:center;
   border:2px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(0,0,0,0.4);
 `;
 const LoadMsg = styled.div`color:rgba(255,255,255,0.45);font-size:14px;text-align:center;line-height:1.7;`;
-const Cell = styled.div<{ $zone: 'my' | 'opp' | 'mid'; $isTarget: boolean }>`
+const Cell = styled.div<{ $zone: 'my' | 'opp' | 'mid'; $isTarget: boolean; $disabled: boolean }>`
   position:absolute;box-sizing:border-box;
   border:1px solid ${p => p.$zone === 'my' ? 'rgba(0,255,128,0.07)' : p.$zone === 'opp' ? 'rgba(255,80,80,0.07)' : 'rgba(255,255,255,0.04)'};
   background:${p => p.$isTarget ? 'rgba(0,255,128,0.22)' : p.$zone === 'my' ? 'rgba(0,80,40,0.08)' : p.$zone === 'opp' ? 'rgba(80,0,0,0.08)' : 'rgba(255,255,255,0.02)'};
-  cursor:${p => p.$isTarget ? 'pointer' : 'default'};
+  cursor:${p => p.$isTarget ? 'crosshair' : p.$disabled ? 'not-allowed' : 'pointer'};
   transition: background 0.15s ease;
   &:hover {
     ${p => p.$isTarget && css`background: rgba(0,255,128,0.32);`}

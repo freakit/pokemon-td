@@ -1,4 +1,6 @@
 // src/types/multiplayer.ts
+import { GameMove } from './game';
+
 export interface User {
   uid: string;
   email: string;
@@ -155,4 +157,7 @@ export interface TowerDetail {
   specialDefense?: number;
   speed?: number;
   types?: string[];
+  equippedMoves?: GameMove[];
+  lifesteal?: number;
+  aoeBonus?: number;
 }

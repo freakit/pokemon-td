@@ -147,11 +147,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }, [multiRoomId, user]);
 
   // 타워 상세 정보 동기화
-  // [수정 2] PvP 배틀 시뮬레이션에 필요한 attack/defense/speed/types 스탯 추가
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
-    const towerDetails: TowerDetail[] = towers.map(t => ({
+    const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
+
+    const towerDetails: TowerDetail[] = towers.map(t => scrub({
       pokemonId: t.pokemonId,
       name: t.displayName,
       level: t.level,
@@ -160,13 +161,15 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       currentHp: t.currentHp,
       maxHp: t.maxHp,
       isFainted: t.isFainted,
-      // [수정] 배틀 시뮬레이션 및 멀티뷰 표시에 필요한 스탯 추가
       attack: t.attack,
       defense: t.defense,
       specialAttack: t.specialAttack,
       specialDefense: t.specialDefense,
       speed: t.speed,
       types: t.types,
+      equippedMoves: t.equippedMoves,
+      lifesteal: t.lifesteal,
+      aoeBonus: t.aoeBonus,
     }));
 
     multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
@@ -204,7 +207,33 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       // isWaveActive가 true → false 로 바뀔 때만 (웨이브 종료)
       if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
-        console.log('[GameLayout] Wave completed, notifying Firebase');
+        console.log('[GameLayout] Wave completed, notifying Firebase and force syncing towers');
+        
+        // 웨이브 도중 타워의 현재 체력, 경험치 등이 배열 참조 변경 없이 가변(mutate)되므로, 
+        // 여기서 마지막 상태를 강제로 JSON 직렬화 후 한 번 더 동기화하여 TFT 전에 최신판으로 맞춤
+        const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
+        const currentTowers = useGameStore.getState().towers;
+        const towerDetails: TowerDetail[] = currentTowers.map(t => scrub({
+          pokemonId: t.pokemonId,
+          name: t.displayName,
+          level: t.level,
+          sprite: t.sprite,
+          position: t.position,
+          currentHp: t.currentHp,
+          maxHp: t.maxHp,
+          isFainted: t.isFainted,
+          attack: t.attack,
+          defense: t.defense,
+          specialAttack: t.specialAttack,
+          specialDefense: t.specialDefense,
+          speed: t.speed,
+          types: t.types,
+          equippedMoves: t.equippedMoves,
+          lifesteal: t.lifesteal,
+          aoeBonus: t.aoeBonus,
+        }));
+        multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
+
         multiplayerService.markWaveCompleted(multiRoomId, user.uid);
       }
 
@@ -462,7 +491,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         />
       )}
 
-      {gameOver && (
+      {gameOver && !isMultiplayer && (
         <GameOverOverlay>
           <GameOverModal>
             <GameOverTitle>{t('game.gameOver')}</GameOverTitle>
