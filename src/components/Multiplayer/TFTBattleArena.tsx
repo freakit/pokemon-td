@@ -26,7 +26,6 @@ const ATTACK_RANGE = 1.4;
 const MOVE_SPEED = 1.0;
 const ATK_COOLDOWN = 1.3;
 const FPS = 30;
-const DT = 1 / FPS;
 
 const PREP_TIME = 30; // 준비 시간 (초)
 const REVEAL_TIME = 5; // 공개 → 배틀 시작까지 (초)
@@ -80,6 +79,7 @@ export interface TFTBattleArenaProps {
   phase: 'prep' | 'battle' | 'result';
   battleResult?: unknown;
   battleSeed?: number; // 결정론적 전투를 위한 시드
+  isHost?: boolean;   // 호스트만 결과를 Firebase에 제출
   onBattleComplete?: (result: TFTBattleResult) => void;
 }
 
@@ -182,7 +182,7 @@ function buildUnits(
 }
 
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, onBattleComplete,
+  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, battleResult: battleResultProp, isHost = true, onBattleComplete,
 }) => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [floats, setFloats] = useState<FloatTxt[]>([]);
@@ -198,6 +198,10 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const rngRef = useRef<() => number>(() => Math.random());
   const resultReportedRef = useRef(false);
   const hasSubmittedRef = useRef(false);
+  // 백그라운드 DT 계산용 wallclock 타임스탬프
+  const lastTickRef = useRef<number>(Date.now());
+  // 비호스트: Firebase battleResult 수신 시 자동 완료 처리 여부
+  const nonHostCompletedRef = useRef(false);
   
   const [remotePlacements, setRemotePlacements] = useState<Map<string, { id: string, x: number, y: number }[]>>(new Map());
 
@@ -396,9 +400,62 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         if (prev <= 1) {
           clearInterval(countdownRef.current!);
           countdownRef.current = null;
-          // 전투 시작 전 RNG 리셋 (동일 시드로 결정론적 전투)
+
+          // ★ 캐노니컬 전투 초기화
+          // 양측 클라이언트가 완전히 동일한 초기 상태로 전투를 시작해야 함.
+          //
+          // 문제: buildUnits()는 myTeam → opponentTeam 순서로 RNG를 소비해 atkCd를 설정.
+          //   클라이언트 A (내가 L): [A팀유닛, B팀유닛] 순 RNG → A[0].atkCd = rng#1
+          //   클라이언트 B (내가 R): [B팀유닛, A팀유닛] 순 RNG → A[0].atkCd = rng#(B.length+1)
+          //   → 같은 포켓몬이 다른 atkCd → 첫 공격 타이밍 달라짐 → 완전히 다른 결과
+          //
+          // 해결: 전투 RNG(seed+99999)를 리셋 후,
+          //   "L팀(col 0-1) → R팀(col 4-5)" 고정 순서로 atkCd 재배정.
+          //   양측 모두 동일한 순서로 RNG를 소비 → 동일한 atkCd → 동일한 전투 진행.
           const seed = battleSeed ?? Date.now();
-          rngRef.current = mulberry32(seed + 99999); // 배치와 전투에 다른 시드 오프셋
+          const battleRng = mulberry32(seed + 99999);
+          rngRef.current = battleRng;
+
+          setUnits(currentUnits => {
+            // 1. 상대 배치를 Firebase에서 재확인하여 적용 (타이밍 차이 완전 제거)
+            const withOppPos = currentUnits.map(u => {
+              if (u.team === 'opp' && !isOpponentAI && oppPlacements && oppPlacements.length > 0) {
+                const idx = parseInt(u.id.split('-')[1]);
+                const pl = oppPlacements[idx];
+                if (pl) return { ...u, x: pl.x, y: pl.y };
+              }
+              return u;
+            });
+
+            // 2. 보드에 배치된 유닛만 전투 참여 (벤치 유닛 제외)
+            //    L팀: col 0-1에 있는 유닛들 (myPosition=L이면 'my', R이면 'opp')
+            //    R팀: col 4-5에 있는 유닛들 (myPosition=R이면 'my', L이면 'opp')
+            const lTeam = withOppPos.filter(u =>
+              (myPosition === 'L' ? u.team === 'my' : u.team === 'opp')
+              && u.x >= 0 && !u.fainted
+            );
+            const rTeam = withOppPos.filter(u =>
+              (myPosition === 'R' ? u.team === 'my' : u.team === 'opp')
+              && u.x >= 0 && !u.fainted
+            );
+
+            // 3. L팀→R팀 순서로 battleRng를 소비하여 atkCd 할당
+            //    두 클라이언트 모두 이 순서를 따르므로 RNG 소비 순서가 동일
+            const atkCdMap = new Map<string, number>();
+            for (const u of [...lTeam, ...rTeam]) {
+              atkCdMap.set(u.id, battleRng() * 0.5);
+            }
+
+            // 4. 최종 유닛 상태 반환
+            return withOppPos.map(u => {
+              if (atkCdMap.has(u.id)) {
+                return { ...u, atkCd: atkCdMap.get(u.id)! };
+              }
+              // 보드에 없는 유닛(벤치)은 fainted 처리
+              return { ...u, fainted: true };
+            });
+          });
+
           setBattleState('fighting');
           return 0;
         }
@@ -420,14 +477,42 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [phase, battleState, autoPlaceRemainingUnits]);
 
-  // ── 배틀 루프 (결정론적 시드 사용) ──
+  // ── 비호스트: Firebase battleResult 수신 → 자동 완료 처리 ──
+  useEffect(() => {
+    if (isHost) return;
+    if (!battleResultProp) return;
+    if (nonHostCompletedRef.current) return;
+    // Firebase 결과가 도달하면: 비호스트 전투 루프 중단 + 결과 표시
+    nonHostCompletedRef.current = true;
+    if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
+    setBattleState('done');
+    // 승패 텍스트는 battleResult prop에서 결정 (BattlePhaseUI가 winnerId를 알고 있음)
+    // onBattleComplete는 비호스트이므로 호출하지 않음 (호스트만 Firebase에 제출)
+    console.log('[TFTBattleArena] Non-host: Firebase battle result received, stopping local loop');
+  }, [isHost, battleResultProp]);
+
+  // ── 배틀 루프 (결정론적 시드 사용 + 실제 경과 시간 기반 DT) ──
   useEffect(() => {
     if (battleState !== 'fighting') return;
     if (loopRef.current) clearInterval(loopRef.current);
 
     const rng = rngRef.current;
+    lastTickRef.current = Date.now();
+
+    // visibilitychange: 포커스 복귀 시 lastTick 갱신 (급격한 DT 스파이크 방지)
+    const onVisibility = () => {
+      if (!document.hidden) {
+        lastTickRef.current = Date.now();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     loopRef.current = setInterval(() => {
+      // 실제 경과 시간 계산 (백그라운드 throttle 대응)
+      const now = Date.now();
+      const realDt = Math.min((now - lastTickRef.current) / 1000, 0.2); // 최대 200ms 캡
+      lastTickRef.current = now;
+
       setUnits(prev => {
         const next = prev.map(u => ({ ...u }));
         const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
@@ -442,8 +527,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           setBattleState('done');
           setWinnerText(winTeam === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
 
-          // 결과 보고 (한 번만)
-          if (!resultReportedRef.current) {
+          // 결과 보고: 호스트만 Firebase에 제출
+          if (!resultReportedRef.current && isHost) {
             resultReportedRef.current = true;
 
             // player1 = L, player2 = R
@@ -482,7 +567,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
             if (d < minD) { minD = d; target = e; }
           }
 
-          unit.atkCd = Math.max(0, unit.atkCd - DT);
+          // 실제 경과 시간(realDt) 사용
+          unit.atkCd = Math.max(0, unit.atkCd - realDt);
 
           if (minD <= ATTACK_RANGE) {
             if (unit.atkCd <= 0) {
@@ -552,8 +638,9 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
             const dy = target.y - unit.y;
             const len = Math.sqrt(dx * dx + dy * dy);
             if (len > 0.01) {
-              unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * DT));
-              unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * DT));
+              // 실제 경과 시간(realDt) 사용
+              unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * realDt));
+              unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * realDt));
             }
           }
         }
@@ -567,8 +654,11 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       });
     }, 1000 / FPS);
 
-    return () => { if (loopRef.current) clearInterval(loopRef.current); };
-  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed]);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (loopRef.current) clearInterval(loopRef.current);
+    };
+  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed, isHost]);
 
   useEffect(() => () => { if (loopRef.current) clearInterval(loopRef.current); }, []);
 
@@ -1036,7 +1126,7 @@ const InfoTitle = styled.div`
   color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;
   margin-bottom:8px;letter-spacing:1px;
 `;
-const InfoGrid = styled.div`display:grid;grid-template-columns:repeat(6,1fr);gap:6px;`;
+const InfoGrid = styled.div`display:grid;grid-template-columns:repeat(3,1fr);gap:6px;`;
 const InfoCard = styled.div`
   display:flex;flex-direction:column;align-items:center;
   padding:6px 4px;border-radius:8px;
@@ -1084,8 +1174,8 @@ const BenchTitle = styled.div`
   margin-bottom:8px;letter-spacing:0.5px;
 `;
 const BenchGrid = styled.div`
-  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
-  min-height:60px;align-items:center;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  min-height:60px;align-items:start;
 `;
 const BenchCard = styled.div<{ $selected: boolean }>`
   display:flex;flex-direction:column;align-items:center;

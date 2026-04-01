@@ -109,11 +109,7 @@ const ResultBadge = styled.div<{ $win: boolean }>`
   color: ${p => p.$win ? '#4ade80' : '#f87171'};
   border: 1px solid ${p => p.$win ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'};
 `;
-const SkipBtn = styled.button`
-  padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer;
-  background: rgba(255,255,255,0.15); color: #fff; font-size: 14px;
-  &:hover { background: rgba(255,255,255,0.25); }
-`;
+
 
 // ─── 홀수 휴식 턴 모달 ───────────────────────────────────────────
 const ByeOverlay = styled.div`
@@ -800,6 +796,31 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     setShowArena(false);
   }, []);
 
+  // ── 비호스트: Firebase battleResult 도착 시 자동으로 아레나 닫기 ──
+  // 비호스트는 자체 루프 결과 대신 Firebase 결과를 source of truth로 사용하므로
+  // TFTBattleArena 내부에서 onBattleComplete를 호출하지 않음.
+  // 대신 battleResult가 Firebase에서 수신되면 여기서 아레나를 닫는다.
+  const nonHostArenaClosedRef = useRef(false);
+  useEffect(() => {
+    if (!gameState || !user) return;
+    const alivePlayers = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? gameState.players[0];
+    const isHostNow = hostPlayer?.userId === user.uid;
+    if (isHostNow) return; // 호스트는 자체 처리
+    if (nonHostArenaClosedRef.current) return;
+    if (!battleResult) return; // 아직 결과 없음
+    if (!showArena) return; // 아레나가 이미 닫혀 있음
+    // 비호스트: Firebase 결과 수신됨 → 3초 후 자동 닫기
+    nonHostArenaClosedRef.current = true;
+    console.log('[BattlePhaseUI] Non-host: Firebase result received, closing arena in 3s');
+    setTimeout(() => handleArenaComplete(), 3000);
+  }, [battleResult, gameState, user, showArena, handleArenaComplete]);
+
+  // 라운드가 바뀌면 nonHostArenaClosedRef 리셋
+  useEffect(() => {
+    nonHostArenaClosedRef.current = false;
+  }, [gameState?.currentRound]);
+
   // ─── 배틀 시드 계산 (양측 동일한 전투 재현용) ──────────────────
   // Hook은 조건부 return 이전에 반드시 선언되어야 함 (Rules of Hooks)
   const battleSeed = React.useMemo(() => {
@@ -923,6 +944,11 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     // 결과가 아직 없으면 prep부터 시작 (아레나가 전투를 결정)
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'result' : 'prep';
     const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
+
+    // 호스트 판별 (TFTBattleArena에 전달)
+    const alivePlayers2 = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer2 = alivePlayers2[0] ?? gameState.players[0];
+    const isHostForArena = hostPlayer2?.userId === user?.uid;
  
     return (
       <>
@@ -938,6 +964,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             phase={arenaPhase}
             battleSeed={battleSeed}
             battleResult={battleResult ?? null}
+            isHost={isHostForArena}
             onBattleComplete={handleArenaBattleComplete}
           />
           <ArenaFooter>
@@ -949,7 +976,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
                 </ResultBadge>
               )}
             </RoundInfo>
-            <SkipBtn onClick={handleArenaComplete}>건너뛰기 ⏩</SkipBtn>
           </ArenaFooter>
         </TFTArenaOverlay>
  
