@@ -469,7 +469,7 @@ class MultiplayerService {
       this.towerUpdateTimeouts.set(userId, timeout);
     }
   }
-  
+
   /**
    * TFT 배치 6x6 보드 동기화 (전투 시작 전 저장)
    * 권한 에러(PERMISSION_DENIED) 방지를 위해 기존 인가된 towerDetails 하위 경로에 저장합니다.
@@ -494,7 +494,7 @@ class MultiplayerService {
         callback(combined);
         return;
       }
-      
+
       const data = snapshot.val();
       Object.keys(data).forEach((userId) => {
         if (data[userId] && data[userId].tftPlacements) {
@@ -548,12 +548,12 @@ class MultiplayerService {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
     if (!snapshot.exists()) return null;
- 
+
     const gameState = snapshot.val() as MultiplayerGameState;
     const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
- 
+
     if (alivePlayers.length <= 1) return null;
- 
+
     // ── 최신 encounterRecord 사용 (Firebase에서 직접 읽기) ──
     // [수정] lastSkipPlayerId 전달 → 연속 스킵 방지
     const lastSkipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
@@ -563,7 +563,7 @@ class MultiplayerService {
       gameState.currentRound,
       lastSkipPlayerId
     );
- 
+
     // ── 홀수 플레이어(bye) 보너스 처리 ──
     let updatedPlayers = gameState.players;
     if (matchups.skipPlayerId) {
@@ -575,14 +575,14 @@ class MultiplayerService {
       );
       console.log(`[MultiplayerService] Bye bonus +${BYE_BONUS_GOLD}G → ${matchups.skipPlayerId}`);
     }
- 
+
     await update(gameStateRef, {
       currentPhase: 'battle',
       roundMatchups: matchups,
       players: updatedPlayers,
       phaseEndTime: null,
     });
- 
+
     return matchups;
   }
 
@@ -606,41 +606,42 @@ class MultiplayerService {
     myRemaining: number,
     oppRemaining: number,
   ): { goldDelta: number; livesDelta: number } {
- 
+
     if (isWinner) {
       let gold = 80;
       const winStreak = (player.battleRecord?.wins ?? 0) + 1; // 이번 승리 포함
-      if (winStreak >= 4)      gold += 80;
+      if (winStreak >= 4) gold += 80;
       else if (winStreak >= 3) gold += 50;
       else if (winStreak >= 2) gold += 30;
-      if (myRemaining >= 3)    gold += 50; // 압승 보너스
+      if (myRemaining >= 3) gold += 50; // 압승 보너스
       return { goldDelta: gold, livesDelta: 0 };
     } else {
       const livesLost = 2 + oppRemaining; // 패배 라이프 차감
       let consolation = 0;
       const loseStreak = (player.battleRecord?.losses ?? 0) + 1;
-      if (loseStreak >= 4)      consolation = 80;
+      if (loseStreak >= 4) consolation = 80;
       else if (loseStreak >= 3) consolation = 50;
       else if (loseStreak >= 2) consolation = 30;
       // 빈사 보너스 (현재 라이프 기준)
-      if (player.lives <= 10)      consolation += 40;
+      if (player.lives <= 10) consolation += 40;
       else if (player.lives <= 20) consolation += 20;
       return { goldDelta: consolation, livesDelta: -livesLost };
     }
   }
- 
+
   /**
    * 대전 결과 저장 - 트랜잭션으로 중복 저장 방지
    */
   async submitBattleResult(roomId: string, result: PvPBattleResult): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
- 
-    let needsElimination = false;
+
+    // [수정] 트랜잭션 재시도로 인한 클로저 오염을 막기 위해
+    // 탈락 여부를 트랜잭션 반환값에 포함시키고 트랜잭션 밖에서 확인
     let eliminatedId = '';
- 
-    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+
+    const { committed } = await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
       if (!gameState) return gameState;
- 
+
       // 중복 저장 방지
       const existingResult = (gameState.battleResults || []).find(
         (r: PvPBattleResult) =>
@@ -648,16 +649,16 @@ class MultiplayerService {
           ((r.player1Id === result.player1Id && r.player2Id === result.player2Id) ||
             (r.player1Id === result.player2Id && r.player2Id === result.player1Id))
       );
-      if (existingResult) return;
- 
+      if (existingResult) return gameState; // undefined 대신 gameState 반환(no-op)
+
       const loserId = result.winnerId === result.player1Id ? result.player2Id : result.player1Id;
- 
+
       const encounterRecord = pvpBattleService.updateEncounterRecord(
         gameState.encounterRecord || {},
         result.player1Id,
         result.player2Id
       );
- 
+
       // 승자/패자 시점의 생존 포켓몬 수
       const winnerRemaining = result.winnerId === result.player1Id
         ? result.player1RemainingPokemon
@@ -665,48 +666,70 @@ class MultiplayerService {
       const loserRemaining = result.winnerId === result.player1Id
         ? result.player2RemainingPokemon
         : result.player1RemainingPokemon;
- 
+
+      let loserWillBeEliminated = false;
+
       const updatedPlayers = gameState.players.map((p: PlayerGameState) => {
         const isWinner = p.userId === result.winnerId;
-        const isLoser  = p.userId === loserId;
+        const isLoser = p.userId === loserId;
         if (!isWinner && !isLoser) return p;
- 
+
         const { goldDelta, livesDelta } = this.calcBattleRewards(
           p,
           isWinner,
           isWinner ? winnerRemaining : loserRemaining,
-          isWinner ? loserRemaining  : winnerRemaining,
+          isWinner ? loserRemaining : winnerRemaining,
         );
- 
+
         const newMoney = Math.max(0, p.money + goldDelta);
         const newLives = Math.max(0, p.lives + livesDelta);
- 
+
         if (isLoser && newLives <= 0) {
-          needsElimination = true;
-          eliminatedId = loserId;
+          // [수정] 외부 클로저 변수 대신 로컬 플래그 사용
+          loserWillBeEliminated = true;
         }
- 
+
         return {
           ...p,
           money: newMoney,
           lives: newLives,
           isAlive: newLives > 0,
           battleRecord: {
-            wins:   isWinner ? (p.battleRecord?.wins   ?? 0) + 1 : (p.battleRecord?.wins   ?? 0),
-            losses: isLoser  ? (p.battleRecord?.losses ?? 0) + 1 : (p.battleRecord?.losses ?? 0),
+            wins: isWinner ? (p.battleRecord?.wins ?? 0) + 1 : (p.battleRecord?.wins ?? 0),
+            losses: isLoser ? (p.battleRecord?.losses ?? 0) + 1 : (p.battleRecord?.losses ?? 0),
           },
         };
       });
- 
+
       const battleResults = [...(gameState.battleResults || []), result];
-      return { ...gameState, players: updatedPlayers, encounterRecord, battleResults };
+      // [수정] 탈락 여부를 반환 객체에 포함해 트랜잭션 완료 후 단 1회만 처리
+      return {
+        ...gameState,
+        players: updatedPlayers,
+        encounterRecord,
+        battleResults,
+        _pendingElimination: loserWillBeEliminated ? loserId : null,
+      } as any;
     });
- 
-    // 탈락자 처리 (트랜잭션 밖에서 별도 호출)
-    if (needsElimination && eliminatedId) {
+
+    // [수정] 트랜잭션이 최종 커밋된 후 Firebase에서 탈락 대상 확인 (재시도 무관)
+    if (committed) {
+      const snap = await get(gameStateRef);
+      if (snap.exists()) {
+        const gs = snap.val() as any;
+        if (gs._pendingElimination) {
+          eliminatedId = gs._pendingElimination;
+          // _pendingElimination 필드 정리
+          await update(gameStateRef, { _pendingElimination: null });
+        }
+      }
+    }
+
+    // 탈락자 처리 (트랜잭션 완료 후 단 1회)
+    if (eliminatedId) {
       await this.playerDefeated(roomId, eliminatedId);
     }
- 
+
     // 승리 업적 체크
     const currentUser = authService.getCurrentUser();
     if (currentUser && result.winnerId === currentUser.uid) {
@@ -737,15 +760,15 @@ class MultiplayerService {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
     const snapshot = await get(gameStateRef);
     if (!snapshot.exists()) return;
- 
+
     const gameState = snapshot.val() as MultiplayerGameState;
     const currentRound = gameState.currentRound;
- 
+
     // 최근 3라운드 결과만 보존 (Firebase 크기 제한 방지)
     const recentResults = (gameState.battleResults || []).filter(
       (r: PvPBattleResult) => r.roundNumber >= currentRound - 2
     );
- 
+
     await update(gameStateRef, {
       currentPhase: 'waiting_wave',
       phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000,
@@ -883,7 +906,7 @@ class MultiplayerService {
     // 기존의 aiTowers 별도 경로 구독은 잘못된 경로였으므로 제거하고
     // towerDetails/{roomId}/ 단일 경로에서 모든 플레이어(AI 포함)를 읽습니다.
     const allTowersRef = ref(rtdb, `towerDetails/${roomId}`);
- 
+
     const listener = onValue(allTowersRef, (snapshot) => {
       const combined = new Map<string, TowerDetail[]>();
       if (snapshot.exists()) {
@@ -897,7 +920,7 @@ class MultiplayerService {
       }
       callback(combined);
     });
- 
+
     return () => off(allTowersRef, 'value', listener);
   }
 

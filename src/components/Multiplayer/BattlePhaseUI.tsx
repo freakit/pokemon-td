@@ -593,6 +593,13 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       await multiplayerService.startWaitingWavePhase(roomId);
       return;
     }
+
+    // [수정] 호스트 여부 판별 - 호스트만 AI 매치를 시뮬레이션해야 함
+    // 여러 클라이언트가 동시에 같은 AI 매치를 시뮬레이션하는 중복 실행 방지
+    const myUserId = user?.uid;
+    const alivePlayers = state.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? state.players[0];
+    const isHost = hostPlayer?.userId === myUserId;
  
     // 1차: Firebase에서 직접 강제 fetch
     await forceFetchTowerDetails();
@@ -618,13 +625,18 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       }, 200);
     });
  
-    // 내 매치를 찾기
-    const myUserId = user?.uid;
     const myMatchInfo = state.roundMatchups.matches.find(
       m => m.player1Id === myUserId || m.player2Id === myUserId
     );
  
-    // AI vs AI 매치만 즉시 시뮬레이션 (내 매치는 아레나에서 처리)
+    // [수정] 호스트만 "내 매치 제외 나머지(AI vs AI 포함)"를 시뮬레이션
+    // 비호스트 유저는 자신의 매치(아레나)만 처리하고 나머지는 호스트에 위임
+    if (!isHost) {
+      console.log('[BattlePhaseUI] Non-host: only handling own arena match, skipping AI simulations');
+      return;
+    }
+
+    // 호스트: 내 매치를 제외한 모든 매치 시뮬레이션 (AI vs AI, 다른 유저 pair 등)
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
       const existingResult = (state.battleResults || []).find(
         r =>
@@ -642,7 +654,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
  
-      // 그 외 매치 (AI vs AI 등) → 즉시 시뮬레이션
+      // 그 외 매치 (AI vs AI, 다른 유저 pair 등) → 호스트가 즉시 시뮬레이션
       const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
       const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
  
@@ -651,7 +663,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
  
-      console.log(`[BattlePhaseUI] AI Simulating: ${match.player1Id} vs ${match.player2Id}`);
+      console.log(`[BattlePhaseUI] Host simulating: ${match.player1Id} vs ${match.player2Id}`);
       const result = pvpBattleService.simulateBattle(
         team1, team2, match.player1Id, match.player2Id, state.currentRound
       );
@@ -720,7 +732,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         // 결과 체킹 로직으로 바로 넘어감
       }
 
-      // 3. 배틀 완료 대기 로직: 모든 매치의 결과가 제출되면 자동 전환
+      // 3. 배틀 완료 대기: 모든 매치 결과가 Firebase에 제출되면 자동 전환
+      // [수정] 호스트 아레나 포함 모든 결과가 Firebase에 올라올 때까지 기다림
+      // executeBattles 완료와 무관하게 여기서 결과 수를 감시하므로
+      // 아레나 결과(handleArenaBattleComplete → submitBattleResult)도 포함됨
       if (currentGameState.currentPhase === 'battle' && !transitionTriggeredRef.current) {
         const matches = currentGameState.roundMatchups?.matches || [];
         const results = currentGameState.battleResults || [];
