@@ -109,11 +109,7 @@ const ResultBadge = styled.div<{ $win: boolean }>`
   color: ${p => p.$win ? '#4ade80' : '#f87171'};
   border: 1px solid ${p => p.$win ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'};
 `;
-const SkipBtn = styled.button`
-  padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer;
-  background: rgba(255,255,255,0.15); color: #fff; font-size: 14px;
-  &:hover { background: rgba(255,255,255,0.25); }
-`;
+
 
 // ─── 홀수 휴식 턴 모달 ───────────────────────────────────────────
 const ByeOverlay = styled.div`
@@ -593,6 +589,13 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       await multiplayerService.startWaitingWavePhase(roomId);
       return;
     }
+
+    // [수정] 호스트 여부 판별 - 호스트만 AI 매치를 시뮬레이션해야 함
+    // 여러 클라이언트가 동시에 같은 AI 매치를 시뮬레이션하는 중복 실행 방지
+    const myUserId = user?.uid;
+    const alivePlayers = state.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? state.players[0];
+    const isHost = hostPlayer?.userId === myUserId;
  
     // 1차: Firebase에서 직접 강제 fetch
     await forceFetchTowerDetails();
@@ -618,13 +621,18 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       }, 200);
     });
  
-    // 내 매치를 찾기
-    const myUserId = user?.uid;
     const myMatchInfo = state.roundMatchups.matches.find(
       m => m.player1Id === myUserId || m.player2Id === myUserId
     );
  
-    // AI vs AI 매치만 즉시 시뮬레이션 (내 매치는 아레나에서 처리)
+    // [수정] 호스트만 "내 매치 제외 나머지(AI vs AI 포함)"를 시뮬레이션
+    // 비호스트 유저는 자신의 매치(아레나)만 처리하고 나머지는 호스트에 위임
+    if (!isHost) {
+      console.log('[BattlePhaseUI] Non-host: only handling own arena match, skipping AI simulations');
+      return;
+    }
+
+    // 호스트: 내 매치를 제외한 모든 매치 시뮬레이션 (AI vs AI, 다른 유저 pair 등)
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
       const existingResult = (state.battleResults || []).find(
         r =>
@@ -642,7 +650,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
  
-      // 그 외 매치 (AI vs AI 등) → 즉시 시뮬레이션
+      // 그 외 매치 (AI vs AI, 다른 유저 pair 등) → 호스트가 즉시 시뮬레이션
       const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
       const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
  
@@ -651,7 +659,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
  
-      console.log(`[BattlePhaseUI] AI Simulating: ${match.player1Id} vs ${match.player2Id}`);
+      console.log(`[BattlePhaseUI] Host simulating: ${match.player1Id} vs ${match.player2Id}`);
       const result = pvpBattleService.simulateBattle(
         team1, team2, match.player1Id, match.player2Id, state.currentRound
       );
@@ -720,7 +728,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         // 결과 체킹 로직으로 바로 넘어감
       }
 
-      // 3. 배틀 완료 대기 로직: 모든 매치의 결과가 제출되면 자동 전환
+      // 3. 배틀 완료 대기: 모든 매치 결과가 Firebase에 제출되면 자동 전환
+      // [수정] 호스트 아레나 포함 모든 결과가 Firebase에 올라올 때까지 기다림
+      // executeBattles 완료와 무관하게 여기서 결과 수를 감시하므로
+      // 아레나 결과(handleArenaBattleComplete → submitBattleResult)도 포함됨
       if (currentGameState.currentPhase === 'battle' && !transitionTriggeredRef.current) {
         const matches = currentGameState.roundMatchups?.matches || [];
         const results = currentGameState.battleResults || [];
@@ -784,6 +795,31 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     setArenaCompleted(true);
     setShowArena(false);
   }, []);
+
+  // ── 비호스트: Firebase battleResult 도착 시 자동으로 아레나 닫기 ──
+  // 비호스트는 자체 루프 결과 대신 Firebase 결과를 source of truth로 사용하므로
+  // TFTBattleArena 내부에서 onBattleComplete를 호출하지 않음.
+  // 대신 battleResult가 Firebase에서 수신되면 여기서 아레나를 닫는다.
+  const nonHostArenaClosedRef = useRef(false);
+  useEffect(() => {
+    if (!gameState || !user) return;
+    const alivePlayers = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? gameState.players[0];
+    const isHostNow = hostPlayer?.userId === user.uid;
+    if (isHostNow) return; // 호스트는 자체 처리
+    if (nonHostArenaClosedRef.current) return;
+    if (!battleResult) return; // 아직 결과 없음
+    if (!showArena) return; // 아레나가 이미 닫혀 있음
+    // 비호스트: Firebase 결과 수신됨 → 3초 후 자동 닫기
+    nonHostArenaClosedRef.current = true;
+    console.log('[BattlePhaseUI] Non-host: Firebase result received, closing arena in 3s');
+    setTimeout(() => handleArenaComplete(), 3000);
+  }, [battleResult, gameState, user, showArena, handleArenaComplete]);
+
+  // 라운드가 바뀌면 nonHostArenaClosedRef 리셋
+  useEffect(() => {
+    nonHostArenaClosedRef.current = false;
+  }, [gameState?.currentRound]);
 
   // ─── 배틀 시드 계산 (양측 동일한 전투 재현용) ──────────────────
   // Hook은 조건부 return 이전에 반드시 선언되어야 함 (Rules of Hooks)
@@ -908,6 +944,11 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     // 결과가 아직 없으면 prep부터 시작 (아레나가 전투를 결정)
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'result' : 'prep';
     const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
+
+    // 호스트 판별 (TFTBattleArena에 전달)
+    const alivePlayers2 = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer2 = alivePlayers2[0] ?? gameState.players[0];
+    const isHostForArena = hostPlayer2?.userId === user?.uid;
  
     return (
       <>
@@ -923,6 +964,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             phase={arenaPhase}
             battleSeed={battleSeed}
             battleResult={battleResult ?? null}
+            isHost={isHostForArena}
             onBattleComplete={handleArenaBattleComplete}
           />
           <ArenaFooter>
@@ -934,7 +976,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
                 </ResultBadge>
               )}
             </RoundInfo>
-            <SkipBtn onClick={handleArenaComplete}>건너뛰기 ⏩</SkipBtn>
           </ArenaFooter>
         </TFTArenaOverlay>
  
