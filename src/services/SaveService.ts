@@ -52,7 +52,7 @@ class SaveService {
       pokedex: [],
       unlockedMaps: ['beginner'],
       settings: {
-        musicVolume: 0.5,
+        musicVolume: 0.2,
         sfxVolume: 0.7,
         gameSpeed: 1,
         showDamageNumbers: true,
