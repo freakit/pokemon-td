@@ -232,6 +232,12 @@ export const GameCanvas: React.FC = () => {
     spendMoney,
     addMoney,
     isWaveActive,
+    towers,
+    enemies,
+    projectiles,
+    damageNumbers,
+    currentMap,
+    evolutionToast,
   } = useGameStore((state) => ({
     pokemonToPlace: state.pokemonToPlace,
     setPokemonToPlace: state.setPokemonToPlace,
@@ -239,15 +245,13 @@ export const GameCanvas: React.FC = () => {
     spendMoney: state.spendMoney,
     addMoney: state.addMoney,
     isWaveActive: state.isWaveActive,
+    towers: state.towers,
+    enemies: state.enemies,
+    projectiles: state.projectiles,
+    damageNumbers: state.damageNumbers,
+    currentMap: state.currentMap,
+    evolutionToast: state.evolutionToast,
   }));
-  const {
-    towers,
-    enemies,
-    projectiles,
-    damageNumbers,
-    currentMap,
-    evolutionToast,
-  } = useGameStore.getState();
 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [rawMousePos, setRawMousePos] = useState({ x: 0, y: 0 }); // 실제 마우스 위치 (Ghost Tower용)
@@ -264,7 +268,8 @@ export const GameCanvas: React.FC = () => {
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
-  const map = getMapById(currentMap);
+  // currentMap이 바뀔 때만 재계산
+  const map = React.useMemo(() => getMapById(currentMap), [currentMap]);
 
   // 캔버스 크기 자동 조정 (모바일 대응)
   useEffect(() => {
@@ -357,7 +362,7 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => {
     if (!isWaveActive && towers.length > 0) {
       setRepositionMode(true);
-    } else {
+    } else if (isWaveActive) {
       setRepositionMode(false);
       setSelectedTowerForReposition(null);
     }
@@ -458,28 +463,14 @@ export const GameCanvas: React.FC = () => {
     }
   };
 
-  // 경로 타일 확인 함수
+  // 경로 타일 확인 함수 — 캐시 기반
   const isPathTile = (x: number, y: number): boolean => {
-    if (!map) return false;
-    for (const path of map.paths) {
-      for (let i = 0; i < path.length - 1; i++) {
-        const start = path[i];
-        const end = path[i + 1];
-
-        const minX = Math.min(start.x, end.x) - TILE_SIZE / 2;
-        const maxX = Math.max(start.x, end.x) + TILE_SIZE / 2;
-        const minY = Math.min(start.y, end.y) - TILE_SIZE / 2;
-        const maxY = Math.max(start.y, end.y) + TILE_SIZE / 2;
-
-        if (x >= minX && x <= maxX && y >= minY && y <= maxY) {
-          return true;
-        }
-      }
-    }
-    return false;
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+    return pathTileSet.has(`${tx}-${ty}`);
   };
 
-  // 격자 위치 유효성 검사
+  // 격자 위치 유효성 검사 — 캐시 기반
   const isValidPlacement = (
     x: number,
     y: number,
@@ -620,8 +611,103 @@ export const GameCanvas: React.FC = () => {
     setSelectedTowerForReposition(null);
   };
 
-  // 현재 맵 타일 테마
-  const theme = getTileTheme(map?.backgroundType);
+  // 현재 맵 타일 테마 — map이 바뀔 때만 재계산
+  const theme = React.useMemo(() => getTileTheme(map?.backgroundType), [map?.backgroundType]);
+
+  // 경로 타일 캐시 — map이 바뀔 때만 재계산 (150칸 × 경로 체크를 매 렌더마다 반복 방지)
+  const pathTileSet = React.useMemo(() => {
+    const set = new Set<string>();
+    if (!map) return set;
+    for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+      for (let tx = 0; tx < MAP_WIDTH; tx++) {
+        const cx = tx * TILE_SIZE + TILE_SIZE / 2;
+        const cy = ty * TILE_SIZE + TILE_SIZE / 2;
+        for (const path of map.paths) {
+          for (let i = 0; i < path.length - 1; i++) {
+            const start = path[i];
+            const end = path[i + 1];
+            const minX = Math.min(start.x, end.x) - TILE_SIZE / 2;
+            const maxX = Math.max(start.x, end.x) + TILE_SIZE / 2;
+            const minY = Math.min(start.y, end.y) - TILE_SIZE / 2;
+            const maxY = Math.max(start.y, end.y) + TILE_SIZE / 2;
+            if (cx >= minX && cx <= maxX && cy >= minY && cy <= maxY) {
+              set.add(`${tx}-${ty}`);
+              break;
+            }
+          }
+        }
+      }
+    }
+    return set;
+  }, [map]);
+
+  // 배치 불가 타일 캐시 (경로 타일 제외 유효 배치 가능 여부) — towers 변경 시 재계산
+  const validPlacementSet = React.useMemo(() => {
+    const set = new Set<string>();
+    for (let ty = 0; ty < MAP_HEIGHT; ty++) {
+      for (let tx = 0; tx < MAP_WIDTH; tx++) {
+        const cx = tx * TILE_SIZE + TILE_SIZE / 2;
+        const cy = ty * TILE_SIZE + TILE_SIZE / 2;
+        const key = `${tx}-${ty}`;
+        if (pathTileSet.has(key)) continue;
+        const occupied = towers.some((t) => {
+          const dx = Math.abs(t.position.x - cx);
+          const dy = Math.abs(t.position.y - cy);
+          return dx < TILE_SIZE && dy < TILE_SIZE;
+        });
+        if (!occupied) set.add(key);
+      }
+    }
+    return set;
+  }, [pathTileSet, towers]);
+
+  // 정적 타일 그리드 — map/theme이 바뀔 때만 재계산 (배치 모드 오버레이는 별도)
+  const staticTiles = React.useMemo(() => {
+    const tiles: React.ReactNode[] = [];
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const isPath = pathTileSet.has(`${x}-${y}`);
+        const fill = isPath ? theme.pathFill : (x + y) % 2 === 0 ? theme.tileA : theme.tileB;
+        tiles.push(
+          <Rect
+            key={`${x}-${y}`}
+            x={x * TILE_SIZE}
+            y={y * TILE_SIZE}
+            width={TILE_SIZE}
+            height={TILE_SIZE}
+            fill={fill}
+            stroke={isPath ? theme.pathStroke : theme.stroke}
+            strokeWidth={isPath ? 1 : 0.8}
+          />
+        );
+      }
+    }
+    return tiles;
+  }, [pathTileSet, theme]);
+
+  // 배치 모드 오버레이 — 배치 모드 진입/towers 변경 시만 재계산
+  const placementOverlay = React.useMemo(() => {
+    if (!pokemonToPlace && !selectedTowerForReposition) return null;
+    const overlays: React.ReactNode[] = [];
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        const key = `${x}-${y}`;
+        if (pathTileSet.has(key)) continue;
+        const isValid = validPlacementSet.has(key);
+        overlays.push(
+          <Rect
+            key={`overlay-${key}`}
+            x={x * TILE_SIZE}
+            y={y * TILE_SIZE}
+            width={TILE_SIZE}
+            height={TILE_SIZE}
+            fill={isValid ? 'rgba(46, 204, 113, 0.25)' : 'rgba(231, 76, 60, 0.25)'}
+          />
+        );
+      }
+    }
+    return overlays;
+  }, [pokemonToPlace, selectedTowerForReposition, pathTileSet, validPlacementSet]);
 
   return (
     <CanvasContainer ref={containerRef}>
@@ -694,64 +780,11 @@ export const GameCanvas: React.FC = () => {
           onTouchEnd={handleTouchEnd}
         >
           <Layer>
-            {/* 격자 — 맵 테마 적용 */}
-            {Array.from({ length: MAP_HEIGHT }).map((_, y) =>
-              Array.from({ length: MAP_WIDTH }).map((_, x) => {
-                const centerX = x * TILE_SIZE + TILE_SIZE / 2;
-                const centerY = y * TILE_SIZE + TILE_SIZE / 2;
-                const isPath = isPathTile(centerX, centerY);
-                const isValid = !isPath && isValidPlacement(centerX, centerY, selectedTowerForReposition?.id);
+            {/* 격자 — 정적 캐시 사용 (map/theme 변경 시만 재계산) */}
+            {staticTiles}
 
-                let fill: string;
-                if (isPath) {
-                  fill = theme.pathFill;
-                } else if ((pokemonToPlace || selectedTowerForReposition) && !isValid) {
-                  fill = 'rgba(231, 76, 60, 0.45)';
-                } else if (pokemonToPlace || selectedTowerForReposition) {
-                  // 배치 가능 타일: 테마 색에 초록 오버레이
-                  fill = (x + y) % 2 === 0
-                    ? theme.tileA
-                    : theme.tileB;
-                } else {
-                  fill = (x + y) % 2 === 0 ? theme.tileA : theme.tileB;
-                }
-
-                return (
-                  <Rect
-                    key={`${x}-${y}`}
-                    x={x * TILE_SIZE}
-                    y={y * TILE_SIZE}
-                    width={TILE_SIZE}
-                    height={TILE_SIZE}
-                    fill={fill}
-                    stroke={isPath ? theme.pathStroke : theme.stroke}
-                    strokeWidth={isPath ? 1 : 0.8}
-                  />
-                );
-              })
-            )}
-
-            {/* 배치 모드 — 가능 타일 오버레이 */}
-            {(pokemonToPlace || selectedTowerForReposition) &&
-              Array.from({ length: MAP_HEIGHT }).map((_, y) =>
-                Array.from({ length: MAP_WIDTH }).map((_, x) => {
-                  const centerX = x * TILE_SIZE + TILE_SIZE / 2;
-                  const centerY = y * TILE_SIZE + TILE_SIZE / 2;
-                  const isPath = isPathTile(centerX, centerY);
-                  const isValid = !isPath && isValidPlacement(centerX, centerY, selectedTowerForReposition?.id);
-                  if (isPath) return null;
-                  return (
-                    <Rect
-                      key={`overlay-${x}-${y}`}
-                      x={x * TILE_SIZE}
-                      y={y * TILE_SIZE}
-                      width={TILE_SIZE}
-                      height={TILE_SIZE}
-                      fill={isValid ? 'rgba(46, 204, 113, 0.25)' : 'rgba(231, 76, 60, 0.25)'}
-                    />
-                  );
-                })
-              )}
+            {/* 배치 모드 — 가능/불가 타일 오버레이 (useMemo 캐시) */}
+            {placementOverlay}
 
             {/* 경로 — 테마 색상 적용 */}
             {map &&
@@ -766,6 +799,82 @@ export const GameCanvas: React.FC = () => {
                   opacity={theme.pathLineOpacity}
                 />
               ))}
+
+            {/* ── 입구 마커 (SPAWN) ── 세련된 글로우 화살표 */}
+            {map && map.spawns.map((spawn, idx) => {
+              const cx = Math.max(TILE_SIZE / 2, Math.min(MAP_WIDTH * TILE_SIZE - TILE_SIZE / 2, spawn.x));
+              const cy = Math.max(TILE_SIZE / 2, Math.min(MAP_HEIGHT * TILE_SIZE - TILE_SIZE / 2, spawn.y));
+              
+              // 화살표 방향
+              const firstPath = map.paths.find(p => Math.abs(p[0].x - spawn.x) < TILE_SIZE * 2 && Math.abs(p[0].y - spawn.y) < TILE_SIZE * 2);
+              const arrowDir = firstPath && firstPath.length > 1
+                ? { dx: firstPath[1].x - firstPath[0].x, dy: firstPath[1].y - firstPath[0].y }
+                : { dx: 1, dy: 0 };
+              const angle = (Math.atan2(arrowDir.dy, arrowDir.dx) * 180) / Math.PI;
+
+              return (
+                <React.Fragment key={`spawn-${idx}`}>
+                  <Circle
+                    x={cx}
+                    y={cy}
+                    radius={16}
+                    fillRadialGradientStartPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientStartRadius={0}
+                    fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientEndRadius={16}
+                    fillRadialGradientColorStops={[0, '#ff6b6b', 1, '#c0392b']}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    shadowColor="#e74c3c"
+                    shadowBlur={10}
+                  />
+                  <Line
+                    x={cx} y={cy}
+                    points={[-2, -6, 4, 0, -2, 6]}
+                    stroke="#fff"
+                    strokeWidth={3}
+                    lineCap="round"
+                    lineJoin="round"
+                    rotation={angle}
+                  />
+                </React.Fragment>
+              );
+            })}
+
+            {/* ── 출구 마커 (OBJECTIVE) ── 세련된 다이아몬드 방패 */}
+            {map && map.objectives.map((obj, idx) => {
+              const cx = Math.max(TILE_SIZE / 2, Math.min(MAP_WIDTH * TILE_SIZE - TILE_SIZE / 2, obj.x));
+              const cy = Math.max(TILE_SIZE / 2, Math.min(MAP_HEIGHT * TILE_SIZE - TILE_SIZE / 2, obj.y));
+              return (
+                <React.Fragment key={`obj-${idx}`}>
+                  <Circle
+                    x={cx}
+                    y={cy}
+                    radius={16}
+                    fillRadialGradientStartPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientStartRadius={0}
+                    fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                    fillRadialGradientEndRadius={16}
+                    fillRadialGradientColorStops={[0, '#4facfe', 1, '#1b8de8']}
+                    stroke="#fff"
+                    strokeWidth={2}
+                    shadowColor="#00f2fe"
+                    shadowBlur={10}
+                  />
+                  <Rect
+                    x={cx}
+                    y={cy}
+                    width={10}
+                    height={10}
+                    offsetX={5}
+                    offsetY={5}
+                    fill="#fff"
+                    rotation={45}
+                    cornerRadius={2}
+                  />
+                </React.Fragment>
+              );
+            })}
 
             {/* 타워 (이미지) */}
             {towers.map((tower) => (

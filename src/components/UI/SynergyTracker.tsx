@@ -92,15 +92,15 @@ export const SynergyTracker: React.FC = () => {
 
 const Container = styled.div`
   position: fixed;
-  left: 16px;
-  top: 16px;
-  width: 280px;
+  left: 10px;
+  top: 10px;
+  width: 240px;
   max-height: 45vh;
   overflow-y: auto;
   background: linear-gradient(145deg, rgba(26, 31, 46, 0.95), rgba(15, 20, 25, 0.95));
   border: 3px solid rgba(76, 175, 255, 0.4);
-  border-radius: 20px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 12px;
   box-shadow: 0 15px 40px rgba(0,0,0,0.5);
   backdrop-filter: blur(10px);
   z-index: 999;
@@ -108,19 +108,19 @@ const Container = styled.div`
 `;
 
 const Title = styled.h3`
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   color: #4cafff;
   text-align: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
   border-bottom: 2px solid rgba(76, 175, 255, 0.2);
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 `;
 
 const getLevelStyles = (level: number, isSpecial: boolean) => {
@@ -179,19 +179,19 @@ const getLevelStyles = (level: number, isSpecial: boolean) => {
 const SynergyItem = styled.div<{ $level: number; $isSpecial: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px;
+  gap: 8px;
+  padding: 6px;
   border-radius: 8px;
   transition: all 0.3s ease;
   ${props => getLevelStyles(props.$level, props.$isSpecial)}
 `;
 
 const SynergyIcon = styled.div<{ $isSpecial?: boolean }>`
-  font-size: ${props => props.$isSpecial ? '22px' : '20px'};
+  font-size: ${props => props.$isSpecial ? '18px' : '16px'};
   font-weight: bold;
   color: #4cafff;
   flex-shrink: 0;
-  width: 64px;
+  width: 50px;
   height: 14px;
   display: flex;
   align-items: center;
@@ -200,7 +200,7 @@ const SynergyIcon = styled.div<{ $isSpecial?: boolean }>`
 `;
 
 const SynergyImage = styled.img`
-  width: 64px;
+  width: 50px;
   height: 14px;
   flex-shrink: 0;
   object-fit: contain;
@@ -214,13 +214,13 @@ const SynergyInfo = styled.div`
 `;
 
 const SynergyName = styled.div`
-  font-size: 14px;
+  font-size: 12px;
   font-weight: bold;
   color: #e8edf3;
 `;
 
 const SynergyDesc = styled.div`
-  font-size: 11px;
+  font-size: 10px;
   color: #a8b8c8;
   line-height: 1.3;
 `;

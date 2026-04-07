@@ -87,6 +87,28 @@ export const Shop: React.FC = () => {
       itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super' ||
       itemMode === 'revive' || itemMode === 'candy' || itemMode === 'exp_candy'
     ) {
+      const tower = towers.find(t => t.id === towerId);
+      if (tower) {
+        let cost = 0;
+        if (itemMode === 'potion') cost = 20;
+        else if (itemMode === 'potion_good') cost = 100;
+        else if (itemMode === 'potion_super') cost = 500;
+        else if (itemMode === 'candy') cost = tower.level * 25;
+        else if (itemMode === 'revive') cost = tower.level * 10;
+        else if (itemMode === 'exp_candy') {
+          const aliveTowers = towers.filter(t => !t.isFainted);
+          const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
+          const secondLowestLevel = sortedTowers[1]?.level ?? tower.level;
+          cost = secondLowestLevel * 50;
+        }
+
+        if (money < cost) {
+          alert(t('alerts.notEnoughMoney'));
+          setItemMode('none');
+          return;
+        }
+      }
+
       success = useItem(itemMode, towerId);
       if (!success) {
         alert(t('alerts.cannotUseItem'));
@@ -442,8 +464,8 @@ const CancelBtn = styled.button`
 
 const ShopOverlay = styled.div`
   position: fixed;
-  right: 16px;
-  top: 16px;
+  right: 10px;
+  top: 10px;
   z-index: 999;
   pointer-events: auto;
 `;
@@ -451,9 +473,9 @@ const ShopOverlay = styled.div`
 const ShopModal = styled.div`
   background: linear-gradient(145deg, rgba(26,31,46,0.98), rgba(15,20,25,0.98));
   color: #e8edf3;
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 0;
-  width: 280px;
+  width: 240px;
   max-height: 70vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(243,156,18,0.4), 0 0 2px 1px rgba(243,156,18,0.3);
@@ -463,14 +485,14 @@ const ShopModal = styled.div`
 `;
 
 const ShopHeader = styled.div`
-  padding: 16px;
+  padding: 12px;
   background: linear-gradient(90deg, rgba(243,156,18,0.2), transparent);
   border-bottom: 2px solid rgba(243,156,18,0.3);
   text-align: center;
 `;
 
 const ShopTitle = styled.h2`
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   margin: 0;
   color: #f39c12;
@@ -478,34 +500,34 @@ const ShopTitle = styled.h2`
 `;
 
 const MoneyDisplay = styled.div`
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
   color: #ffd700;
-  margin: 12px 16px;
+  margin: 8px 12px;
   text-align: center;
   text-shadow: 0 0 10px rgba(255,215,0,0.7);
-  padding: 8px;
+  padding: 6px;
   background: rgba(255,215,0,0.1);
   border-radius: 8px;
 `;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 8px;
-  padding: 0 16px 12px;
+  gap: 6px;
+  padding: 0 12px 10px;
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
   flex: 1;
   position: relative;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: linear-gradient(145deg, rgba(30,40,60,0.6), rgba(15,20,35,0.6));
   color: #a0aec0;
   border: 2px solid rgba(243,156,18,0.2);
   border-radius: 8px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 11px;
   transition: all 0.2s ease;
 
   ${props => props.$isActive && css`
@@ -537,43 +559,43 @@ const TabBadge = styled.span`
 const ItemsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 16px 16px;
+  gap: 8px;
+  padding: 0 12px 12px;
 `;
 
 const Item = styled.div`
   background: linear-gradient(145deg, rgba(30,40,60,0.9), rgba(15,20,35,0.95));
   border: 1px solid rgba(243,156,18,0.3);
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 `;
 
 const ItemTitle = styled.h3`
-  font-size: 13px;
-  margin: 0 0 4px 0;
+  font-size: 12px;
+  margin: 0 0 2px 0;
   font-weight: bold;
   color: #4cafff;
 `;
 
 const ItemDesc = styled.p`
-  font-size: 10px;
-  margin: 0 0 6px 0;
+  font-size: 9px;
+  margin: 0 0 4px 0;
   color: #a0aec0;
 `;
 
 const BuyBtn = styled.button`
-  padding: 6px 10px;
+  padding: 4px 8px;
   background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
   color: #fff;
   border: 1px solid rgba(243,156,18,0.4);
   border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 11px;
+  font-size: 10px;
   box-shadow: 0 2px 8px rgba(243,156,18,0.3);
   &:hover { background: linear-gradient(135deg, #d68910 0%, #b8730e 100%); }
 `;
@@ -581,8 +603,8 @@ const BuyBtn = styled.button`
 const EvolutionTab = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 0 16px 16px;
+  gap: 10px;
+  padding: 0 12px 12px;
 `;
 
 const CategorySection = styled.div`
@@ -590,11 +612,11 @@ const CategorySection = styled.div`
 `;
 
 const CategoryTitle = styled.h3`
-  font-size: 13px;
+  font-size: 12px;
   font-weight: bold;
   color: #f39c12;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(243,156,18,0.3);
 `;
 
@@ -606,7 +628,7 @@ const ItemGrid = styled.div`
 
 const EvoItemBtn = styled.button<{ $isUsable?: boolean }>`
   position: relative;
-  padding: 12px;
+  padding: 8px;
   background: rgba(255,255,255,0.05);
   border: 2px solid rgba(255,255,255,0.1);
   border-radius: 10px;
@@ -651,20 +673,20 @@ const UsableBadge = styled.div`
 `;
 
 const EvoItemName = styled.div<{ $isUsable?: boolean }>`
-  font-size: 14px;
+  font-size: 12px;
   font-weight: bold;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
   color: ${props => props.$isUsable ? '#4fffaa' : '#fff'};
 `;
 
 const EvoItemPrice = styled.div`
-  font-size: 12px;
+  font-size: 11px;
   color: #FFD700;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 `;
 
 const EvoItemDesc = styled.div`
-  font-size: 11px;
+  font-size: 10px;
   color: #999;
   line-height: 1.4;
 `;

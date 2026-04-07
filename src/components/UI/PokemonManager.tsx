@@ -34,7 +34,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
   const handleSell = (towerId: string, towerDisplayName: string, level: number) => {
     const sellPrice = level * 20;
     const confirmed = window.confirm(
-      t('manager.sellConfirm', { name: towerDisplayName, level: level, price: sellPrice })
+      t('alerts.confirmSell', { name: towerDisplayName, level: level, price: sellPrice })
     );
     if (confirmed) {
       sellTower(towerId);
@@ -87,7 +87,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
       const fusionCost = 500;
       const confirmed = window.confirm(
-        t('manager.fusionConfirm', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
+        t('alerts.confirmFusion', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
       );
       
       if (confirmed) {
