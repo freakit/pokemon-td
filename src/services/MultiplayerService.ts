@@ -151,6 +151,13 @@ class MultiplayerService {
       await this.deleteRoom(roomId);
       throw new Error('Room has expired');
     }
+    const isAlreadyPlayer = room.players.some(p => p.userId === user.uid);
+    if (isAlreadyPlayer) {
+      this.currentRoomId = roomId;
+      localStorage.setItem('currentRoomId', roomId);
+      return;
+    }
+
     if (room.players.length >= room.maxPlayers) throw new Error('Room is full');
     if (room.status !== 'waiting') throw new Error('Game already started');
 

@@ -642,9 +642,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       const p1IsAI = match.player1Id.startsWith('ai_');
       const p2IsAI = match.player2Id.startsWith('ai_');
 
-      // 인간 vs 인간 매치는 각자의 아레나에서 처리 → 스킵
-      if (!p1IsAI && !p2IsAI) {
-        console.log(`[BattlePhaseUI] Skipping human vs human match: ${match.player1Id} vs ${match.player2Id}`);
+      // AI 둘이서 하는 배틀이 아니면 스킵 (인간이 1명이라도 있으면 직접 아레나에서 진행)
+      if (!(p1IsAI && p2IsAI)) {
+        console.log(`[BattlePhaseUI] Skipping match with human: ${match.player1Id} vs ${match.player2Id}`);
         return;
       }
  
