@@ -591,7 +591,8 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     }
 
     // [수정] 호스트 여부 판별 - 호스트만 AI 매치를 시뮬레이션해야 함
-    // 여러 클라이언트가 동시에 같은 AI 매치를 시뮬레이션하는 중복 실행 방지
+    // 모든 인간 플레이어는 각자의 아레나에서 결과를 직접 제출함
+    // 호스트는 AI가 포함된 매치(AI vs AI, AI vs 인간)만 시뮬레이션
     const myUserId = user?.uid;
     const alivePlayers = state.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
     const hostPlayer = alivePlayers[0] ?? state.players[0];
@@ -621,18 +622,14 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       }, 200);
     });
  
-    const myMatchInfo = state.roundMatchups.matches.find(
-      m => m.player1Id === myUserId || m.player2Id === myUserId
-    );
- 
-    // [수정] 호스트만 "내 매치 제외 나머지(AI vs AI 포함)"를 시뮬레이션
-    // 비호스트 유저는 자신의 매치(아레나)만 처리하고 나머지는 호스트에 위임
+    // [수정] 호스트만 "AI가 포함된 매치"를 시뮬레이션
+    // 인간 플레이어끼리의 매치는 각자 아레나에서 처리 후 직접 제출
     if (!isHost) {
-      console.log('[BattlePhaseUI] Non-host: only handling own arena match, skipping AI simulations');
+      console.log('[BattlePhaseUI] Non-host: skipping AI simulations');
       return;
     }
 
-    // 호스트: 내 매치를 제외한 모든 매치 시뮬레이션 (AI vs AI, 다른 유저 pair 등)
+    // 호스트: AI가 포함된 매치만 시뮬레이션 (인간 vs 인간 매치는 스킵)
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
       const existingResult = (state.battleResults || []).find(
         r =>
@@ -641,16 +638,17 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             (r.player1Id === match.player2Id && r.player2Id === match.player1Id))
       );
       if (existingResult) return;
- 
-      // 내 매치는 아레나에서 전투 후 결과 제출 → 여기서 스킵
-      if (myMatchInfo && 
-          match.player1Id === myMatchInfo.player1Id && 
-          match.player2Id === myMatchInfo.player2Id) {
-        console.log('[BattlePhaseUI] Skipping my match simulation - will be handled by arena');
+
+      const p1IsAI = match.player1Id.startsWith('ai_');
+      const p2IsAI = match.player2Id.startsWith('ai_');
+
+      // AI 둘이서 하는 배틀이 아니면 스킵 (인간이 1명이라도 있으면 직접 아레나에서 진행)
+      if (!(p1IsAI && p2IsAI)) {
+        console.log(`[BattlePhaseUI] Skipping match with human: ${match.player1Id} vs ${match.player2Id}`);
         return;
       }
  
-      // 그 외 매치 (AI vs AI, 다른 유저 pair 등) → 호스트가 즉시 시뮬레이션
+      // AI가 포함된 매치 → 호스트가 즉시 시뮬레이션
       const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
       const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
  
@@ -659,7 +657,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         return;
       }
  
-      console.log(`[BattlePhaseUI] Host simulating: ${match.player1Id} vs ${match.player2Id}`);
+      console.log(`[BattlePhaseUI] Host simulating AI match: ${match.player1Id} vs ${match.player2Id}`);
       const result = pvpBattleService.simulateBattle(
         team1, team2, match.player1Id, match.player2Id, state.currentRound
       );
@@ -794,31 +792,44 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const handleArenaComplete = useCallback(() => {
     setArenaCompleted(true);
     setShowArena(false);
+    // 아레나 종료 후 즉시 라운드 결과 요약 모달 표시
+    const currentState = gameStateRef.current;
+    if (currentState && currentState.currentRound > 0) {
+      const hasResults = (currentState.battleResults || []).some(
+        r => r.roundNumber === currentState.currentRound
+      );
+      if (hasResults && currentState.currentRound !== summaryShownForRoundRef.current) {
+        summaryShownForRoundRef.current = currentState.currentRound;
+        setSummaryRoundNumber(currentState.currentRound);
+        setShowRoundSummary(true);
+      }
+    }
   }, []);
 
-  // ── 비호스트: Firebase battleResult 도착 시 자동으로 아레나 닫기 ──
-  // 비호스트는 자체 루프 결과 대신 Firebase 결과를 source of truth로 사용하므로
-  // TFTBattleArena 내부에서 onBattleComplete를 호출하지 않음.
-  // 대신 battleResult가 Firebase에서 수신되면 여기서 아레나를 닫는다.
-  const nonHostArenaClosedRef = useRef(false);
+  // ── 안전망: 모든 배틀 결과가 Firebase에 올라왔는데 아레나가 아직 열려 있으면 자동 닫기 ──
+  // (네트워크 지연, 중복 제출 등으로 onBattleComplete가 호출 안 된 경우 대비)
+  const safetyArenaClosedRef = useRef(false);
   useEffect(() => {
     if (!gameState || !user) return;
-    const alivePlayers = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
-    const hostPlayer = alivePlayers[0] ?? gameState.players[0];
-    const isHostNow = hostPlayer?.userId === user.uid;
-    if (isHostNow) return; // 호스트는 자체 처리
-    if (nonHostArenaClosedRef.current) return;
-    if (!battleResult) return; // 아직 결과 없음
-    if (!showArena) return; // 아레나가 이미 닫혀 있음
-    // 비호스트: Firebase 결과 수신됨 → 3초 후 자동 닫기
-    nonHostArenaClosedRef.current = true;
-    console.log('[BattlePhaseUI] Non-host: Firebase result received, closing arena in 3s');
+    if (safetyArenaClosedRef.current) return;
+    if (!showArena) return;
+    if (!myMatch) return;
+    // 내 매치 결과가 Firebase에 도착했으면 아레나 닫기
+    const myBattleResult = (gameState.battleResults || []).find(
+      r =>
+        r.roundNumber === gameState.currentRound &&
+        ((r.player1Id === myMatch.player1Id && r.player2Id === myMatch.player2Id) ||
+          (r.player1Id === myMatch.player2Id && r.player2Id === myMatch.player1Id))
+    );
+    if (!myBattleResult) return;
+    safetyArenaClosedRef.current = true;
+    console.log('[BattlePhaseUI] Safety: Firebase result detected, closing arena in 3s');
     setTimeout(() => handleArenaComplete(), 3000);
-  }, [battleResult, gameState, user, showArena, handleArenaComplete]);
+  }, [gameState?.battleResults, gameState?.currentRound, user, showArena, myMatch, handleArenaComplete]);
 
-  // 라운드가 바뀌면 nonHostArenaClosedRef 리셋
+  // 라운드가 바뀌면 safetyArenaClosedRef 리셋
   useEffect(() => {
-    nonHostArenaClosedRef.current = false;
+    safetyArenaClosedRef.current = false;
   }, [gameState?.currentRound]);
 
   // ─── 배틀 시드 계산 (양측 동일한 전투 재현용) ──────────────────
@@ -831,29 +842,24 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   }, [myMatch, gameState?.currentRound]);
 
   // ─── 아레나 전투 완료 시 결과 제출 ────────────────────────────
+  // [수정] 호스트/비호스트 모두 자신의 아레나 결과를 직접 Firebase에 제출
+  // 중복 제출은 matchId 충돌이나 기존 결과 체크로 방지
   const handleArenaBattleComplete = useCallback(async (arenaResult: TFTBattleResult) => {
     if (!myMatch || !gameState || !user) return;
 
-    // 호스트만 결과를 Firebase에 제출
-    const alivePlayers = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
-    const hostPlayer = alivePlayers[0] ?? gameState.players[0];
-    const isHost = hostPlayer?.userId === user.uid;
+    const currentRound = gameStateRef.current?.currentRound ?? gameState.currentRound;
 
-    if (!isHost) {
-      console.log('[BattlePhaseUI] Non-host: arena battle complete, waiting for host result');
-      setTimeout(() => handleArenaComplete(), 3000);
-      return;
-    }
-
-    // 이미 결과가 있으면 중복 제출 방지
-    const existingResult = (gameState.battleResults || []).find(
+    // 이미 결과가 있으면 중복 제출 방지 (호스트/비호스트 공통)
+    const existingResult = (gameStateRef.current?.battleResults || gameState.battleResults || []).find(
       r =>
-        r.roundNumber === gameState.currentRound &&
+        r.roundNumber === currentRound &&
         ((r.player1Id === myMatch.player1Id && r.player2Id === myMatch.player2Id) ||
           (r.player1Id === myMatch.player2Id && r.player2Id === myMatch.player1Id))
     );
     if (existingResult) {
-      setTimeout(() => handleArenaComplete(), 3000);
+      console.log('[BattlePhaseUI] Result already exists, skipping submit');
+      // 결과가 이미 있으면 바로 결과 표시 후 아레나 닫기
+      setTimeout(() => handleArenaComplete(), 2000);
       return;
     }
 
@@ -864,8 +870,8 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       : arenaResult.player2Remaining;
 
     const result = {
-      matchId: `${gameState.currentRound}-${myMatch.player1Id}-${myMatch.player2Id}-${Date.now()}`,
-      roundNumber: gameState.currentRound,
+      matchId: `${currentRound}-${myMatch.player1Id}-${myMatch.player2Id}`,
+      roundNumber: currentRound,
       player1Id: myMatch.player1Id,
       player2Id: myMatch.player2Id,
       winnerId,
@@ -876,9 +882,14 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       timestamp: Date.now(),
     };
 
-    console.log('[BattlePhaseUI] Arena battle result:', result);
-    await multiplayerService.submitBattleResult(roomId, result);
-    setTimeout(() => handleArenaComplete(), 3000);
+    console.log('[BattlePhaseUI] Submitting arena battle result (player:', user.uid, '):', result);
+    try {
+      await multiplayerService.submitBattleResult(roomId, result);
+    } catch (err) {
+      console.error('[BattlePhaseUI] submitBattleResult failed:', err);
+    }
+    // 결과 제출 후 2초 대기 → 아레나 닫기 (결과 배지가 보임)
+    setTimeout(() => handleArenaComplete(), 2000);
   }, [myMatch, gameState, user, roomId, handleArenaComplete]);
 
   // ─── 조건부 렌더링 (모든 Hook 선언 이후) ─────────────────────
@@ -945,10 +956,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'result' : 'prep';
     const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
 
-    // 호스트 판별 (TFTBattleArena에 전달)
-    const alivePlayers2 = gameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
-    const hostPlayer2 = alivePlayers2[0] ?? gameState.players[0];
-    const isHostForArena = hostPlayer2?.userId === user?.uid;
+    // 모든 플레이어가 자신의 아레나 결과를 직접 제출하므로 isHost=true
+    // (중복 제출은 handleArenaBattleComplete의 existingResult 체크로 방지)
+    const isHostForArena = true;
  
     return (
       <>

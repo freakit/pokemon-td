@@ -508,10 +508,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     document.addEventListener('visibilitychange', onVisibility);
 
     loopRef.current = setInterval(() => {
-      // 실제 경과 시간 계산 (백그라운드 throttle 대응)
-      const now = Date.now();
-      const realDt = Math.min((now - lastTickRef.current) / 1000, 0.2); // 최대 200ms 캡
-      lastTickRef.current = now;
+      // 완전한 결정론적 전투를 위해 고정 시간(Fixed DT) 사용
+      const realDt = 1 / FPS;
 
       setUnits(prev => {
         const next = prev.map(u => ({ ...u }));

@@ -378,19 +378,22 @@ const Overlay = styled.div`
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.8);
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
+  backdrop-filter: blur(5px);
 `;
 
 const Container = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-  border-radius: 20px;
+  background: rgba(26, 27, 33, 0.95);
+  padding: 2.5rem;
+  border-radius: 12px;
   max-width: 900px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
 `;
 
 const Header = styled.div`
@@ -401,20 +404,20 @@ const Header = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 2rem;
+  font-size: 1.8rem;
   color: white;
-  font-weight: bold;
+  font-weight: 700;
 `;
 
 const BackButton = styled.button`
   padding: 0.5rem 1rem;
-  background: rgba(255,255,255,0.2);
-  color: white;
-  border: 1px solid white;
-  border-radius: 10px;
+  background: transparent;
+  color: #a0a0a0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover { background: rgba(255,255,255,0.3); }
+  transition: all 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
 `;
 
 const ButtonRow = styled.div`
@@ -426,16 +429,16 @@ const ButtonRow = styled.div`
 const CreateRoomButton = styled.button`
   flex: 1;
   padding: 1rem;
-  background: white;
-  color: #667eea;
-  font-weight: bold;
-  border: none;
-  border-radius: 10px;
+  background: #23252e;
+  color: #e0e0e0;
+  font-weight: 600;
+  font-size: 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    background: #2a2d36;
   }
 `;
 
@@ -447,59 +450,63 @@ const RoomList = styled.div`
 
 const EmptyMessage = styled.div`
   text-align: center;
-  color: white;
-  padding: 2rem;
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+  color: #a0a0a0;
+  padding: 2.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
 const RoomCard = styled.div`
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: white;
 `;
 
 const RoomInfo = styled.div`flex: 1;`;
 
 const RoomName = styled.div`
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-size: 1.15rem;
+  font-weight: 600;
   margin-bottom: 0.25rem;
 `;
 
 const RoomDetails = styled.div`
   font-size: 0.9rem;
-  color: #666;
+  color: #a0a0a0;
 `;
 
 const RoomPlayers = styled.div`
-  font-weight: bold;
-  color: #667eea;
+  font-weight: 600;
+  color: #2563eb;
   font-size: 1.1rem;
 `;
 
 const JoinButton = styled.button`
   padding: 0.75rem 1.5rem;
-  background: #667eea;
+  background: #2563eb;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: bold;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover:not(:disabled) { background: #5568d3; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  transition: background 0.2s;
+  &:hover:not(:disabled) { background: #1d4ed8; }
+  &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
 `;
 
 const Section = styled.div`margin-bottom: 2rem;`;
 
 const SectionTitle = styled.h3`
-  font-size: 1.3rem;
-  color: white;
+  font-size: 1.1rem;
+  color: #e0e0e0;
   margin-bottom: 1rem;
+  font-weight: 500;
 `;
 
 const MapGrid = styled.div`
@@ -510,40 +517,40 @@ const MapGrid = styled.div`
 
 // ✅ selected → $selected (transient prop, DOM에 전달 안 됨)
 const MapCard = styled.div<{ $selected: boolean }>`
-  padding: 1.5rem;
-  background: ${p => p.$selected ? 'white' : 'rgba(255,255,255,0.8)'};
-  border: 3px solid ${p => p.$selected ? '#667eea' : 'transparent'};
-  border-radius: 10px;
+  padding: 1.2rem;
+  background: ${p => p.$selected ? 'rgba(37, 99, 235, 0.1)' : 'rgba(255, 255, 255, 0.03)'};
+  border: 1px solid ${p => p.$selected ? '#2563eb' : 'rgba(255, 255, 255, 0.05)'};
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover { transform: translateY(-2px); }
+  transition: background 0.2s;
+  color: white;
+  &:hover { background: rgba(37, 99, 235, 0.05); }
 `;
 
 const MapName = styled.div`
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: 1.05rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 `;
 
 const MapDifficulty = styled.div`
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.85rem;
+  color: #a0a0a0;
 `;
 
 const CreateButton = styled.button`
   width: 100%;
   padding: 1rem;
-  background: white;
-  color: #667eea;
-  font-size: 1.2rem;
-  font-weight: bold;
+  background: #2563eb;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.2s;
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    background: #1d4ed8;
   }
 `;
 
@@ -554,27 +561,29 @@ const PlayerList = styled.div`
 `;
 
 const PlayerCard = styled.div`
-  padding: 1rem;
-  background: white;
-  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
+  color: white;
 `;
 
 const PlayerName = styled.div`
   font-size: 1.1rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
 `;
 
 const PlayerRating = styled.div`
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.85rem;
+  color: #a0a0a0;
   margin-bottom: 0.5rem;
 `;
 
 // ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
 const PlayerStatus = styled.div<{ $ready: boolean }>`
-  font-weight: bold;
-  color: ${p => p.$ready ? '#4caf50' : '#ff9800'};
+  font-weight: 600;
+  color: ${p => p.$ready ? '#10b981' : '#f59e0b'};
 `;
 
 const AIButtons = styled.div`
@@ -585,44 +594,44 @@ const AIButtons = styled.div`
 const AIButton = styled.button`
   flex: 1;
   padding: 0.75rem;
-  background: white;
-  color: #667eea;
-  font-weight: bold;
-  border: none;
+  background: #23252e;
+  color: #e0e0e0;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover { background: #f0f0f0; }
+  transition: all 0.2s;
+  &:hover { background: #2a2d36; }
 `;
 
 // ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
 const ReadyButton = styled.button<{ $ready: boolean }>`
   flex: 1;
   padding: 1rem;
-  background: ${p => p.$ready ? '#ff9800' : '#4caf50'};
+  background: ${p => p.$ready ? '#d97706' : '#10b981'};
   color: white;
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: 1.05rem;
+  font-weight: 600;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.2s;
   &:hover { opacity: 0.9; }
 `;
 
 const StartButton = styled.button`
   flex: 1;
   padding: 1rem;
-  background: #4caf50;
+  background: #10b981;
   color: white;
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-size: 1.05rem;
+  font-weight: 600;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover:not(:disabled) { background: #45a049; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  transition: background 0.2s;
+  &:hover:not(:disabled) { background: #059669; }
+  &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
 `;
 
 const LoadingText = styled.div`
@@ -642,8 +651,8 @@ const PromptOverlay = styled(Overlay)`
 const PromptContainer = styled(Container)`
   max-width: 500px;
   text-align: center;
-  background: linear-gradient(135deg, #1f2838 0%, #3d4e68 100%);
-  border: 2px solid #667eea;
+  background: rgba(26, 27, 33, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const PromptTitle = styled.h2`
@@ -665,15 +674,17 @@ const PromptButtonRow = styled.div`
 `;
 
 const RejoinButton = styled(CreateRoomButton)`
-  background: #4caf50;
+  background: #10b981;
+  border: none;
   color: white;
-  &:hover { background: #45a049; }
+  &:hover { background: #059669; }
 `;
 
 const AbandonButton = styled(CreateRoomButton)`
-  background: #f44336;
+  background: #ef4444;
+  border: none;
   color: white;
-  &:hover { background: #d32f2f; }
+  &:hover { background: #dc2626; }
 `;
 
 interface RejoinPromptProps {

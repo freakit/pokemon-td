@@ -107,6 +107,14 @@ class AuthService {
         isGuest: true,
         lastLogin: serverTimestamp()
       });
+
+      // 강제로 상태를 최신화하여 화면에 반영되도록 함
+      if (this.currentUser) {
+        this.currentUser = { ...this.currentUser, displayName: nickname };
+      } else {
+        this.currentUser = guestUser;
+      }
+      this.notifyListeners(this.currentUser);
     } catch (error: any) {
       throw error;
     }

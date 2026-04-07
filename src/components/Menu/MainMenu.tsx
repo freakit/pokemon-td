@@ -3,6 +3,7 @@ import { useState } from 'react';
 import styled from 'styled-components';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
+import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
 
 import { Pokedex } from '../Modals/Pokedex';
 import { AchievementsPanel } from '../Modals/Achievements';
@@ -13,6 +14,7 @@ import {
   hasTowerTutorialSeen,
   hasMultiTutorialSeen,
 } from '../Modals/TutorialModal';
+import { Settings } from '../Modals/Settings';
 
 export const MainMenu = () => {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ export const MainMenu = () => {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame,   setShowHallOfFame]   = useState(false);
   const [showRankings,     setShowRankings]     = useState(false);
+  const [showSettings,     setShowSettings]     = useState(false);
 
   // 튜토리얼: 'tower' | 'multi' | null
   const [tutorial, setTutorial] = useState<'tower' | 'multi' | null>(null);
@@ -68,6 +71,7 @@ export const MainMenu = () => {
 
   return (
     <>
+      <ShootingStarsBackground />
       <Overlay>
         <Container>
           <Header>
@@ -82,7 +86,10 @@ export const MainMenu = () => {
               <UserName>{user?.displayName}</UserName>
               <Rating>⭐ Rating: {user?.rating}</Rating>
             </UserInfo>
-            <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
+            <RightButtons>
+              <SettingsButton onClick={() => setShowSettings(true)}>⚙️ 설정</SettingsButton>
+              <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
+            </RightButtons>
           </Header>
 
           <Title>
@@ -138,6 +145,7 @@ export const MainMenu = () => {
       {showAchievements && <AchievementsPanel  onClose={() => setShowAchievements(false)} />}
       {showHallOfFame   && <HallOfFame         onClose={() => setShowHallOfFame(false)} />}
       {showRankings     && <Rankings           onClose={() => setShowRankings(false)} />}
+      {showSettings     && <Settings           onClose={() => setShowSettings(false)} />}
 
       {/* 튜토리얼 모달 */}
       {tutorial && (
@@ -155,7 +163,7 @@ export const MainMenu = () => {
 
 const Overlay = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #0f1015;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -163,20 +171,23 @@ const Overlay = styled.div`
 `;
 
 const Container = styled.div`
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
+  background: rgba(26, 27, 33, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
   padding: 2rem;
   width: 100%;
   max-width: 600px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const UserInfo = styled.div`
@@ -186,52 +197,61 @@ const UserInfo = styled.div`
 `;
 
 const Avatar = styled.img`
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   object-fit: cover;
+  background-color: #0f1015;
 `;
 
-const UserName = styled.span`color: white; font-weight: bold; font-size: 1rem;`;
+const UserName = styled.span`color: white; font-weight: 500; font-size: 1.05rem;`;
 
 const Rating = styled.span`
-  background: rgba(255, 255, 255, 0.2);
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  color: white;
-  font-size: 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  color: #a0a0a0;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
 const SignOutButton = styled.button`
   padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid white;
-  border-radius: 10px;
+  background: transparent;
+  color: #a0a0a0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s;
-  &:hover { background: rgba(255, 255, 255, 0.3); }
+  transition: all 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
 `;
+
+const RightButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+`;
+
+const SettingsButton = styled(SignOutButton)``;
 
 const Title = styled.h1`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2.5rem;
-  font-weight: bold;
+  font-size: 2rem;
+  font-weight: 700;
   color: white;
   text-align: center;
-  margin-bottom: 0.5rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 1.5rem;
 `;
 
-const MenuSection = styled.div`margin-bottom: 2rem;`;
+const MenuSection = styled.div`margin-bottom: 2.5rem;`;
 
 const SectionTitle = styled.h2`
-  font-size: 1.3rem;
-  color: white;
+  font-size: 1.1rem;
+  color: #e0e0e0;
+  font-weight: 500;
   margin-bottom: 1rem;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 `;
 
 const GameModeButtons = styled.div`
@@ -241,54 +261,58 @@ const GameModeButtons = styled.div`
 `;
 
 const ModeButton = styled.button`
-  background: white;
-  padding: 2rem 1rem;
-  border: none;
-  border-radius: 15px;
+  background: #23252e;
+  padding: 1.5rem 1rem;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
-  text-align: center;
-  &:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); }
+  transition: background 0.2s;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  &:hover { background: #2a2d36; }
 `;
 
-const ModeIcon  = styled.div`font-size: 3rem; margin-bottom: 0.5rem;`;
-const ModeTitle = styled.div`font-size: 1.3rem; font-weight: bold; color: #333; margin-bottom: 0.5rem;`;
-const ModeDesc  = styled.div`font-size: 0.9rem; color: #666;`;
+const ModeIcon  = styled.div`font-size: 2rem; margin-bottom: 0.75rem;`;
+const ModeTitle = styled.div`font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 0.25rem;`;
+const ModeDesc  = styled.div`font-size: 0.85rem; color: #888;`;
 
 const BottomButtons = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  gap: 0.75rem;
 `;
 
 const BottomButton = styled.button`
-  background: white;
-  padding: 1rem;
-  border: none;
-  border-radius: 10px;
+  background: #23252e;
+  padding: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 600;
-  color: #333;
-  transition: all 0.3s;
-  &:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); }
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  transition: background 0.2s;
+  &:hover { background: #2a2d36; }
 `;
 
 const HelpRow = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  margin-top: -0.5rem;
+  gap: 0.75rem;
+  margin-top: -1rem;
 `;
 
 const HelpButton = styled.button`
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  padding: 0.6rem 0.75rem;
-  font-size: 0.8rem;
-  font-weight: 500;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #a0a0a0;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.25); color: white; transform: translateY(-1px); }
+  transition: background 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
 `;
