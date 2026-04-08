@@ -58,8 +58,8 @@ export const SynergyDetails: React.FC = () => {
 
 const Container = styled.div`
   position: fixed;
-  left: 304px;
-  top: 16px;
+  left: 260px;
+  top: 10px;
   width: 240px;
   max-height: 45vh;
   overflow-y: auto;

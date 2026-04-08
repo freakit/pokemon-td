@@ -77,6 +77,7 @@ export interface MapData {
   objectives: Position[];
   description: string;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
+  backgroundImage?: string;
 }
 
 export type Gender = "male" | "female" | "genderless";

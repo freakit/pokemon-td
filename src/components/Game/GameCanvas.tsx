@@ -264,6 +264,7 @@ export const GameCanvas: React.FC = () => {
   const [selectedTowerForReposition, setSelectedTowerForReposition] =
     useState<GamePokemon | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [mapBgImage, setMapBgImage] = useState<HTMLImageElement | null>(null);
 
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
@@ -357,6 +358,18 @@ export const GameCanvas: React.FC = () => {
       setPlacementImage(null);
     }
   }, [pokemonToPlace]);
+
+  // 맵 배경 이미지 로드 — map이 바뀔 때만 실행
+  useEffect(() => {
+    if (!map?.backgroundImage) {
+      setMapBgImage(null);
+      return;
+    }
+    const img = new window.Image();
+    img.src = map.backgroundImage;
+    img.onload = () => setMapBgImage(img);
+    img.onerror = () => setMapBgImage(null);
+  }, [map?.backgroundImage]);
 
   // Wave 종료 시 재배치 모드 자동 활성화
   useEffect(() => {
@@ -661,7 +674,7 @@ export const GameCanvas: React.FC = () => {
     return set;
   }, [pathTileSet, towers]);
 
-  // 정적 타일 그리드 — map/theme이 바뀔 때만 재계산 (배치 모드 오버레이는 별도)
+  // 정적 타일 그리드 — map/theme이 바뀔 때만 재계산 (배경 이미지 없을 때 폴백)
   const staticTiles = React.useMemo(() => {
     const tiles: React.ReactNode[] = [];
     for (let y = 0; y < MAP_HEIGHT; y++) {
@@ -684,6 +697,65 @@ export const GameCanvas: React.FC = () => {
     }
     return tiles;
   }, [pathTileSet, theme]);
+
+  // 경로 오버레이 — chamfer + 드롭섀도우 + 하이라이트로 입체감 표현
+  const pathOverlayLines = React.useMemo(() => {
+    if (!map) return null;
+    const bgType = (map.backgroundType ?? 'grass') as BackgroundType;
+
+    // 배경 타입별 메인 경로 색
+    const PATH_COLORS: Record<BackgroundType, string> = {
+      grass:  'rgba(82, 55, 18, 0.62)',
+      cave:   'rgba(22, 18, 15, 0.70)',
+      water:  'rgba(118, 85, 28, 0.65)',
+      desert: 'rgba(102, 64, 16, 0.60)',
+      snow:   'rgba(75, 98, 130, 0.54)',
+    };
+    // 드롭섀도우 색 (배경 타입에 맞는 어두운 색조)
+    const SHADOW_COLORS: Record<BackgroundType, string> = {
+      grass:  '#1a0e04',
+      cave:   '#050404',
+      water:  '#1c1005',
+      desert: '#180c03',
+      snow:   '#141e2e',
+    };
+
+    const color = PATH_COLORS[bgType];
+    const shadow = SHADOW_COLORS[bgType];
+
+    // chamfer: 각 면에서 8px씩 깎아 경로가 타일보다 좁아 보이게
+    const CHAMFER = 8;
+    const W = TILE_SIZE - CHAMFER * 2; // 48px
+
+    return map.paths.map((path, pi) => {
+      const pts = path.flatMap((p) => [p.x, p.y]);
+      return (
+        <React.Fragment key={`pathOverlay-${pi}`}>
+          {/* 메인 경로: 드롭섀도우로 배경 위에 살짝 뜬 느낌 */}
+          <Line
+            points={pts}
+            stroke={color}
+            strokeWidth={W}
+            lineJoin="round"
+            lineCap="round"
+            shadowColor={shadow}
+            shadowBlur={10}
+            shadowOffsetX={2}
+            shadowOffsetY={6}
+            shadowOpacity={0.50}
+          />
+          {/* 상단 하이라이트: 위에서 빛을 받는 윗면 표현 */}
+          <Line
+            points={pts}
+            stroke="rgba(255,255,255,0.11)"
+            strokeWidth={W - 14}
+            lineJoin="round"
+            lineCap="round"
+          />
+        </React.Fragment>
+      );
+    });
+  }, [map]);
 
   // 배치 모드 오버레이 — 배치 모드 진입/towers 변경 시만 재계산
   const placementOverlay = React.useMemo(() => {
@@ -780,25 +852,50 @@ export const GameCanvas: React.FC = () => {
           onTouchEnd={handleTouchEnd}
         >
           <Layer>
-            {/* 격자 — 정적 캐시 사용 (map/theme 변경 시만 재계산) */}
-            {staticTiles}
+            {/* ── 배경 레이어 ── */}
+            {mapBgImage ? (
+              <>
+                {/* 맵 배경 이미지 */}
+                <KonvaImage
+                  image={mapBgImage}
+                  x={0}
+                  y={0}
+                  width={MAP_WIDTH * TILE_SIZE}
+                  height={MAP_HEIGHT * TILE_SIZE}
+                  imageSmoothingEnabled={true}
+                />
+                {/* 흰색 필터 — 포켓몬 가시성 확보 */}
+                <Rect
+                  x={0}
+                  y={0}
+                  width={MAP_WIDTH * TILE_SIZE}
+                  height={MAP_HEIGHT * TILE_SIZE}
+                  fill="rgba(255,255,255,0.05)"
+                />
+                {/* 경로 — 둥근 선으로 자연스러운 곡선 */}
+                {pathOverlayLines}
+              </>
+            ) : (
+              <>
+                {/* 폴백: 격자 + 경로 라인 */}
+                {staticTiles}
+                {map &&
+                  map.paths.map((path, index) => (
+                    <Line
+                      key={`path-${index}`}
+                      points={path.flatMap((p) => [p.x, p.y])}
+                      stroke={theme.pathLineStroke}
+                      strokeWidth={42}
+                      lineJoin="round"
+                      lineCap="round"
+                      opacity={theme.pathLineOpacity}
+                    />
+                  ))}
+              </>
+            )}
 
             {/* 배치 모드 — 가능/불가 타일 오버레이 (useMemo 캐시) */}
             {placementOverlay}
-
-            {/* 경로 — 테마 색상 적용 */}
-            {map &&
-              map.paths.map((path, index) => (
-                <Line
-                  key={`path-${index}`}
-                  points={path.flatMap((p) => [p.x, p.y])}
-                  stroke={theme.pathLineStroke}
-                  strokeWidth={42}
-                  lineJoin="round"
-                  lineCap="round"
-                  opacity={theme.pathLineOpacity}
-                />
-              ))}
 
             {/* ── 입구 마커 (SPAWN) ── 세련된 글로우 화살표 */}
             {map && map.spawns.map((spawn, idx) => {
