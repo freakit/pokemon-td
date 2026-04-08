@@ -1,46 +1,61 @@
 // src/utils/synergyManager.ts
 import { GamePokemon, Synergy } from '../types/game';
 
-// ─── 특수폼 세대 매핑 ────────────────────────────────────────────────────────
-
+// ─── 특수폼 세대 매핑 (Z-A 신규 메가 포함) ────────────────────────────────────────────────────────
 const GEN_1_SPECIAL_FORMS = new Set([
   10033, 10034, 10035, 10036, 10090, 10073, 10037, 10071, 10038,
   10039, 10040, 10041, 10042, 10043, 10044, 10195, 10196, 10197,
   10198, 10199, 10200, 10201, 10202, 10203, 10204, 10205, 10206,
+  10100, 10101, 10102, 10112, 10113, // Z-A Gen1 메가
 ]);
+
 const GEN_2_SPECIAL_FORMS = new Set([
   10045, 10072, 10046, 10047, 10048, 10049,
+  10103, 10104, // Z-A Gen2 메가
 ]);
+
 const GEN_3_SPECIAL_FORMS = new Set([
   10065, 10050, 10064, 10051, 10066, 10052, 10053, 10054, 10055,
   10070, 10087, 10067, 10056, 10057, 10074, 10089, 10076, 10062,
   10063, 10079,
+  10114, // Z-A Gen3 메가
 ]);
+
 const GEN_4_SPECIAL_FORMS = new Set([
   10088, 10058, 10059, 10060, 10068,
+  10105, 10115, 10116, // Z-A Gen4 메가
 ]);
+
 const GEN_5_SPECIAL_FORMS = new Set([
   10069, 10207, 10022, 10023,
 ]);
+
 const GEN_6_SPECIAL_FORMS = new Set([
   10075,
+  10106, 10107, 10108, 10109, 10110, 10111, // Z-A Gen6 메가
 ]);
+
 const GEN_7_SPECIAL_FORMS = new Set([
   10208, 10155, 10156,
+  10117, 10118, 10119, // Z-A Gen7 메가
 ]);
+
 const GEN_8_SPECIAL_FORMS = new Set([
   10209, 10210, 10211, 10212, 10213, 10214, 10215, 10216, 10217,
   10218, 10219, 10220, 10221, 10222, 10223, 10224, 10225,
   10193, 10194,
 ]);
 
-// ─── 특수 시너지 정의 ────────────────────────────────────────────────────────
+const GEN_9_SPECIAL_FORMS = new Set([
+  10120, 10121, 10122, // Z-A Gen9 메가
+]);
 
+// ─── 특수 시너지 정의 ────────────────────────────────────────────────────────
 export interface SpecialSynergyDef {
-  id: string;          // 고유 ID (예: 'special:baby')
-  name: string;        // 한국어 시너지명
-  icon: string;        // 이모지 아이콘
-  pokemonIds: number[]; // 해당 포켓몬 ID 목록
+  id: string;
+  name: string;
+  icon: string;
+  pokemonIds: number[];
 }
 
 export const SPECIAL_SYNERGY_DEFS: SpecialSynergyDef[] = [
@@ -49,170 +64,187 @@ export const SPECIAL_SYNERGY_DEFS: SpecialSynergyDef[] = [
     name: '베이비 포켓몬',
     icon: '🍼',
     pokemonIds: [172, 173, 174, 175, 236, 238, 239, 240, 298, 360, 406, 433, 439, 440, 446, 447, 458],
-    // Pichu, Cleffa, Igglybuff, Togepi, Tyrogue, Smoochum, Elekid, Magby,
-    // Azurill, Wynaut, Budew, Chingling, Mime Jr., Happiny, Munchlax, Riolu, Mantyke
   },
   {
     id: 'special:yoonga',
     name: '윤가놈 파티',
     icon: '🎵',
-    pokemonIds: [402, 225, 127, 214, 96, 254],
-    // Kricketune, Delibird, Pinsir, Heracross, Drowzee, Sceptile
+    pokemonIds: [
+      96, 97,       // 슬리프 → 슬리퍼
+      127,          // 쁘사이저
+      214,          // 헤라크로스
+      225,          // 딜리버드
+      401, 402,     // 크리켓통 → 크리켓툰
+      254,          // 나무킹
+    ],
   },
   {
     id: 'special:nunparty',
     name: '눈파티 파티',
     icon: '❄️',
-    pokemonIds: [678, 195, 980, 487, 473, 471],
-    // Meowstic, Quagsire, Clodsire(토오), Giratina, Mamoswine, Glaceon
+    pokemonIds: [
+      195, 980,     // 누오 → 토오
+      471,          // 글레이시아
+      473,          // 맘모꾸리
+      478, 10105,   // 눈여아 + Mega Froslass
+      487,          // 기라티나
+      678,          // 메오우스틱
+    ],
   },
   {
     id: 'special:sejun',
     name: '박세준 파티',
     icon: '⚡',
-    pokemonIds: [417, 576, 130, 445, 282, 663],
-    // Pachirisu, Gothitelle, Gyarados, Garchomp, Gardevoir, Talonflame
+    pokemonIds: [
+      417,          // 파치리스
+      130,          // 갸라도스
+      282,          // 가디안
+      445,          // 한카리아스
+      575, 576,     // 고디탱 → 고디모아젤
+      662, 663,     // 불화살빈 → 파이어로
+    ],
   },
   {
     id: 'special:etusha',
     name: '에투샤 파티',
     icon: '🎲',
-    pokemonIds: [81, 276, 132, 224, 287, 446],
-    // Magnemite, Taillow, Ditto, Octillery, Slakoth, Munchlax
+    pokemonIds: [
+      81, 82, 462,  // 마그네미트 → 마그네톤 → 자포코일
+      276, 277,     // 테일로 → 스왈로
+      132,          // 메타몽
+      224,          // 옥타리
+      287, 289,     // 슬라크 → 슬라킹
+      446, 143,     // 먹고자 → 잠만보
+    ],
   },
   {
     id: 'special:legendary_birds',
     name: '전설의 새',
     icon: '🦅',
     pokemonIds: [144, 145, 146],
-    // Articuno, Zapdos, Moltres
   },
   {
     id: 'special:legendary_dogs',
     name: '전설의 개',
     icon: '🐕',
     pokemonIds: [243, 244, 245],
-    // Raikou, Entei, Suicune
   },
   {
     id: 'special:baruki',
-    name: '배루키 진화형',
+    name: '배루키즈',
     icon: '🪨',
-    pokemonIds: [438, 185, 106, 237],
-    // Bonsly, Sudowoodo, Hitmonlee, Hitmontop
+    pokemonIds: [438, 185, 106, 107, 237], // Bonsly, Sudowoodo, Hitmonlee, Hitmonchan, Hitmontop
   },
   {
     id: 'special:fossil',
     name: '화석',
     icon: '🦴',
-    pokemonIds: [140, 138, 347, 345, 408, 410, 564, 566, 698, 696],
-    // Kabuto, Omanyte, Anorith, Lileep, Cranidos, Shieldon,
-    // Tirtouga, Archen, Amaura, Tyrunt
+    pokemonIds: [
+      140, 141, 138, 139,     // Kabuto/Kabutops, Omanyte/Omastar
+      347, 348, 345, 346,     // Anorith/Armaldo, Lileep/Cradily
+      408, 409, 410, 411,     // Cranidos/Rampardos, Shieldon/Bastiodon
+      564, 565, 566, 567,     // Tirtouga/Carracosta, Archen/Archeops
+      698, 699, 696, 697,     // Amaura/Aurorus, Tyrunt/Tyrantrum
+    ],
   },
   {
     id: 'special:legendary_jellyfish',
     name: '전설의 해파리',
     icon: '✨',
     pokemonIds: [480, 481, 482],
-    // Uxie, Mesprit, Azelf
   },
   {
     id: 'special:three_monkeys',
     name: '3숭이',
     icon: '🐒',
-    pokemonIds: [511, 513, 515],
-    // Pansage, Pansear, Panpour
+    pokemonIds: [511, 512, 513, 514, 515, 516], // Pansage/Simisage, Pansear/Simisear, Panpour/Simipour
   },
   {
     id: 'special:lati',
     name: '라티아스, 라티오스',
     icon: '💙',
     pokemonIds: [380, 381],
-    // Latias, Latios
   },
   {
     id: 'special:swords_of_justice',
     name: '성검사 4마리',
     icon: '⚔️',
     pokemonIds: [638, 639, 640, 647],
-    // Cobalion, Terrakion, Virizion, Keldeo
   },
   {
     id: 'special:forces_of_nature',
     name: '로스 4형제',
     icon: '🌪️',
     pokemonIds: [641, 642, 645, 905],
-    // Tornadus, Thundurus, Landorus, Enamorus
   },
   {
     id: 'special:ash_no_crown',
-    name: '지우 무관 팀',  // Kalos League 준우승 (Lumiose Conference, 2위)
+    name: '지우 무관 팀',
     icon: '🧢',
-    pokemonIds: [25, 658, 663, 701, 706, 715],
-    // Pikachu (25), Greninja (658), Talonflame (663), Hawlucha (701), Goodra (706), Noivern (715)
+    pokemonIds: [
+      25, 658, 663, 701, 706, 715,
+      10199, 10108, 10111,
+    ],
   },
   {
     id: 'special:ash_alola_champion',
-    name: '지우 리그 우승 팀',  // Alola League 우승 (Manalo Conference, 첫 지역 챔피언)
+    name: '지우 리그 우승 팀',
     icon: '🏆',
-    pokemonIds: [25, 722, 745, 727, 804, 809],
-    // Pikachu (25), Rowlet (722), Lycanroc (Dusk Form, 745), Incineroar (727), Naganadel (804), Melmetal (809)
+    pokemonIds: [
+      25, 722, 745, 727, 804, 809,
+      10199, 10208,
+    ],
   },
   {
     id: 'special:ash_world_champion',
-    name: '지우 월챔 우승 팀',  // World Coronation Series Masters Eight 우승 (세계 챔피언/Monarch)
+    name: '지우 월챔 우승 팀',
     icon: '🌍🏆',
-    pokemonIds: [25, 149, 94, 448, 865, 882],
-    // Pikachu (25), Dragonite (149), Gengar (94), Lucario (448), Sirfetch'd (865), Dracovish (882)
+    pokemonIds: [
+      25, 149, 94, 448, 865, 882,
+      10199, 10102, 10038, 10059,
+    ],
   },
   {
     id: 'special:volcanion_magearna',
     name: '볼케니온, 마기아나',
     icon: '⚙️',
     pokemonIds: [721, 801],
-    // Volcanion, Magearna
   },
   {
     id: 'special:tapu',
     name: '카푸 4형제',
     icon: '🌺',
     pokemonIds: [785, 786, 787, 788],
-    // Tapu Koko, Tapu Lele, Tapu Bulu, Tapu Fini
   },
   {
     id: 'special:ultra_beast',
     name: '울트라비스트',
     icon: '🌀',
     pokemonIds: [793, 794, 795, 796, 797, 798, 799],
-    // Nihilego, Buzzwole, Pheromosa, Xurkitree, Celesteela, Kartana, Guzzlord
   },
   {
     id: 'special:regi',
     name: '레지 시리즈',
     icon: '🗿',
     pokemonIds: [377, 378, 379, 486, 895, 894],
-    // Regirock, Regice, Registeel, Regigigas, Regidrago, Regieleki
   },
   {
     id: 'special:accelgor_escavalier',
     name: '어써러셔 & 싸리용',
     icon: '🔄',
     pokemonIds: [617, 589],
-    // Accelgor, Escavalier
   },
   {
     id: 'special:four_treasures',
     name: '사흉수',
     icon: '🌑',
     pokemonIds: [1001, 1002, 1003, 1004],
-    // Wo-Chien(총지엔), Chien-Pao(파오젠), Ting-Lu(딩루), Chi-Yu(위유이)
   },
   {
     id: 'special:loyal_three',
     name: '개추 4형제',
     icon: '🍑',
     pokemonIds: [1014, 1015, 1016, 1025],
-    // Okidogi, Munkidori, Fezandipiti, Pecharunt
   },
 ];
 
@@ -228,23 +260,15 @@ for (const def of SPECIAL_SYNERGY_DEFS) {
 }
 
 // ─── 특수 시너지 레벨 계산 ───────────────────────────────────────────────────
-
-/**
- * 보유 수에 따른 특수 시너지 배율
- * 2마리: 1.1배 / 3마리: 1.2배 / 4마리: 1.3배 / 5마리: 1.4배 / 6마리+: 1.5배
- */
 export const getSpecialSynergyMultiplier = (count: number): number => {
   if (count < 2) return 1.0;
   if (count === 2) return 1.1;
   if (count === 3) return 1.2;
   if (count === 4) return 1.3;
   if (count === 5) return 1.4;
-  return 1.5; // 6마리 이상
+  return 1.5;
 };
 
-/**
- * 특수 시너지의 레벨 (UI 표시용, 1~5)
- */
 const getSpecialSynergyLevel = (count: number): number => {
   if (count >= 6) return 5;
   if (count >= 5) return 4;
@@ -254,9 +278,6 @@ const getSpecialSynergyLevel = (count: number): number => {
   return 0;
 };
 
-/**
- * 특수 시너지 설명 텍스트 생성
- */
 const getSpecialSynergyDescription = (count: number, maxCount: number): string => {
   const mult = getSpecialSynergyMultiplier(count);
   const nextThreshold = [2, 3, 4, 5, 6].find(t => t > count);
@@ -269,7 +290,6 @@ const getSpecialSynergyDescription = (count: number, maxCount: number): string =
 };
 
 // ─── 세대 유틸 ───────────────────────────────────────────────────────────────
-
 export const getGenerationById = (id: number): number => {
   if (id >= 1 && id <= 151) return 1;
   if (id >= 152 && id <= 251) return 2;
@@ -280,6 +300,7 @@ export const getGenerationById = (id: number): number => {
   if (id >= 722 && id <= 809) return 7;
   if (id >= 810 && id <= 905) return 8;
   if (id >= 906 && id <= 1025) return 9;
+
   if (id > 10000) {
     if (GEN_1_SPECIAL_FORMS.has(id)) return 1;
     if (GEN_2_SPECIAL_FORMS.has(id)) return 2;
@@ -289,12 +310,12 @@ export const getGenerationById = (id: number): number => {
     if (GEN_6_SPECIAL_FORMS.has(id)) return 6;
     if (GEN_7_SPECIAL_FORMS.has(id)) return 7;
     if (GEN_8_SPECIAL_FORMS.has(id)) return 8;
+    if (GEN_9_SPECIAL_FORMS.has(id)) return 9;
   }
   return 0;
 };
 
 // ─── 타입/세대 시너지 계산 ───────────────────────────────────────────────────
-
 const getTypeSynergy = (type: string, count: number): Synergy | null => {
   const name = type;
   if (count >= 6) {
@@ -325,7 +346,6 @@ const getGenSynergy = (gen: number, count: number): Synergy | null => {
 };
 
 // ─── 전체 시너지 계산 ────────────────────────────────────────────────────────
-
 export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
   const typeCounts = new Map<string, number>();
   const genCounts = new Map<number, number>();
@@ -334,16 +354,13 @@ export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
   const activePokemon = towers.filter(t => !t.isFainted);
 
   for (const tower of activePokemon) {
-    // 세대 카운트
     const gen = getGenerationById(tower.pokemonId);
     genCounts.set(gen, (genCounts.get(gen) || 0) + 1);
 
-    // 타입 카운트
     for (const type of tower.types) {
       typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
     }
 
-    // 특수 시너지 카운트
     const synergyIds = POKEMON_TO_SPECIAL_SYNERGIES.get(tower.pokemonId);
     if (synergyIds) {
       for (const sid of synergyIds) {
@@ -364,7 +381,6 @@ export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
     if (synergy) synergies.push(synergy);
   });
 
-  // 특수 시너지: 2마리 이상일 때만 활성화
   specialCounts.forEach((count, synergyId) => {
     if (count < 2) return;
     const def = SPECIAL_SYNERGY_DEFS.find(d => d.id === synergyId);
@@ -383,7 +399,6 @@ export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
 };
 
 // ─── 스탯 버프 계산 ──────────────────────────────────────────────────────────
-
 export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[]) => {
   let stats = {
     attack: pokemon.attack,
@@ -398,7 +413,6 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
   let genBuff = 1.0;
   let specialBuff = 1.0;
 
-  // 1. 타입 시너지
   for (const type of pokemon.types) {
     const matchingSynergies = activeSynergies
       .filter(s => s.id === `type:${type}`)
@@ -413,7 +427,6 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
     }
   }
 
-  // 2. 세대 시너지
   const gen = getGenerationById(pokemon.pokemonId);
   const matchingGenSynergies = activeSynergies
     .filter(s => s.id === `gen:${gen}`)
@@ -425,7 +438,6 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
     if (bestLevel === 3) genBuff = 1.3;
   }
 
-  // 3. 특수 시너지 (해당 포켓몬이 속한 특수 시너지 중 가장 높은 배율 적용)
   const synergyIds = POKEMON_TO_SPECIAL_SYNERGIES.get(pokemon.pokemonId);
   if (synergyIds) {
     for (const sid of synergyIds) {
@@ -438,7 +450,6 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
     }
   }
 
-  // 4. 타입 × 세대 × 특수 시너지 곱연산 중첩
   const finalMultiplier = typeBuff * genBuff * specialBuff;
 
   stats.attack = Math.floor(stats.attack * finalMultiplier);
