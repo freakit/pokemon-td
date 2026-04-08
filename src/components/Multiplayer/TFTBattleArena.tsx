@@ -1039,7 +1039,10 @@ const WinTag = styled.div`
 `;
 const Board = styled.div`
   position:relative;border:2px solid rgba(255,255,255,0.1);
-  border-radius:8px;overflow:hidden;background:rgba(0,0,0,0.45);
+  border-radius:8px;overflow:hidden;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)), url('/images/maps/battle_field.png');
+  background-size: cover;
+  background-position: center;
   flex-shrink: 0;
   min-width: ${COLS * CELL}px;
   min-height: ${ROWS * CELL}px;
@@ -1083,12 +1086,12 @@ const UnitWrap = styled.div<{
 const HpBg = styled.div`width:90%;height:5px;border-radius:3px;background:rgba(0,0,0,0.5);overflow:hidden;margin-bottom:1px;`;
 const HpFill = styled.div`height:100%;border-radius:3px;transition:width 0.15s;`;
 const Sprite = styled.img<{ $fainted: boolean; $flip: boolean }>`
-  width:44px;height:44px;image-rendering:pixelated;
+  width:60px;height:60px;image-rendering:pixelated;
   ${p => p.$fainted && 'filter:grayscale(1) brightness(0.5);'}
   ${p => p.$flip && 'transform:scaleX(-1);'}
 `;
 const Fallback = styled.div<{ $team: 'my' | 'opp' }>`
-  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;display:flex;align-items:center;justify-content:center;
   border-radius:8px;font-size:12px;font-weight:800;
   background:${p => p.$team === 'my' ? 'rgba(0,200,100,0.2)' : 'rgba(200,50,50,0.2)'};
   color:${p => p.$team === 'my' ? '#4ade80' : '#f87171'};
@@ -1130,9 +1133,9 @@ const InfoCard = styled.div`
   padding:6px 4px;border-radius:8px;
   background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);
 `;
-const InfoSprite = styled.img`width:36px;height:36px;image-rendering:pixelated;`;
+const InfoSprite = styled.img`width:60px;height:60px;image-rendering:pixelated;`;
 const InfoFallback = styled.div`
-  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;display:flex;align-items:center;justify-content:center;
   background:rgba(255,0,0,0.15);border-radius:6px;color:#ff6b6b;font-size:11px;font-weight:700;
 `;
 const InfoName = styled.div`color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;margin-top:3px;text-align:center;`;
@@ -1188,14 +1191,14 @@ const BenchCard = styled.div<{ $selected: boolean }>`
     transform:translateY(-2px);
   }
 `;
-const BenchSprite = styled.img`width:40px;height:40px;image-rendering:pixelated;`;
+const BenchSprite = styled.img`width:60px;height:60px;image-rendering:pixelated;`;
 const BenchFallback = styled.div`
-  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  width:60px;height:60px;display:flex;align-items:center;justify-content:center;
   background:rgba(0,200,100,0.15);border-radius:8px;color:#4ade80;font-size:12px;font-weight:700;
 `;
 const BenchName = styled.div`color:rgba(255,255,255,0.8);font-size:10px;font-weight:600;margin-top:3px;`;
 const BenchStats = styled.div`color:rgba(255,255,255,0.4);font-size:9px;margin-top:1px;`;
 const BenchEmptyMsg = styled.div`
-  color:rgba(79,195,247,0.7);font-size:13px;font-weight:600;
-  padding:12px;text-align:center;
+  color:rgba(79,195,247,0.7);font-size:12px;font-weight:600;
+  padding:8px;text-align:center;
 `;
