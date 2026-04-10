@@ -1,5 +1,5 @@
 // src/components/Multiplayer/MultiplayerLobby.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
@@ -25,6 +25,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
   const [rejoinableRoom, setRejoinableRoom] = useState<Room | null>(null);
+  const startingRef = useRef(false);
   const user = authService.getCurrentUser();
 
   const [showPokedex, setShowPokedex] = useState(false);
@@ -62,7 +63,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
   useEffect(() => {
     const roomId = multiplayerService.getCurrentRoomId();
-    if (roomId && view === 'room') {
+    if (roomId && view === 'room' && !startingRef.current) {
       const unsubscribe = multiplayerService.onRoomUpdate(roomId, (room) => {
         if (!room) {
           setView('list');
@@ -70,7 +71,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           return;
         }
         setCurrentRoom(room);
-        if (room.status === 'starting' || room.status === 'playing') {
+        if ((room.status === 'starting' || room.status === 'playing') && !startingRef.current) {
+          startingRef.current = true;
           onStartGame(room.id, room.mapId);
         }
       });

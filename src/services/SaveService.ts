@@ -75,6 +75,14 @@ class SaveService {
     if (!data.pokedex.includes(pokemonId)) {
       data.pokedex.push(pokemonId);
       this.save(data);
+
+      // 새 포켓몬 추가 시 수집 업적 체크
+      try {
+        const { achievementService } = require('./AchievementService');
+        achievementService.onPokedexAdd(data.pokedex);
+      } catch {
+        // 모듈 순환 참조 방지 — 실패 시 조용히 무시
+      }
     }
   }
 
@@ -121,8 +129,11 @@ class SaveService {
       if (authService.getCurrentUser()) {
         databaseService
           .updateUserAchievement(achievement)
-          .catch(() => {
-            // Firebase permission 에러 등은 조용히 무시 (로컬 저장은 이미 완료됨)
+          .catch((err: any) => {
+            // Firebase permission 에러는 조용히 무시 (로컬 저장은 이미 완료됨)
+            if (err?.code !== 'permission-denied') {
+              console.warn('[SaveService] Failed to persist achievement to DB:', err);
+            }
           });
       }
     } catch {
@@ -135,6 +146,50 @@ class SaveService {
     if (!data.unlockedMaps.includes(mapId)) {
       data.unlockedMaps.push(mapId);
       this.save(data);
+    }
+  }
+
+  /**
+   * 로그인 직후 Firebase DB에서 업적 목록을 가져와
+   * 로컬 저장소와 병합합니다 (더 높은 progress / unlocked 우선).
+   * 나갔다 들어와도 업적이 유지되는 핵심 로직입니다.
+   */
+  async syncAchievementsFromDB(): Promise<void> {
+    try {
+      const dbAchievements = await databaseService.getUserAchievements();
+      if (!dbAchievements || dbAchievements.length === 0) return;
+
+      const data = this.load();
+
+      for (const dbAch of dbAchievements) {
+        const localIdx = data.achievements.findIndex(a => a.id === dbAch.id);
+
+        if (localIdx === -1) {
+          // 로컬에 없으면 그대로 추가
+          data.achievements.push(dbAch);
+        } else {
+          const local = data.achievements[localIdx];
+          // DB 기준으로 더 좋은 값(progress 높음 or unlocked) 채택
+          const shouldUpdate =
+            dbAch.unlocked && !local.unlocked ||
+            (!local.unlocked && dbAch.progress > local.progress);
+          if (shouldUpdate) {
+            data.achievements[localIdx] = {
+              ...local,
+              progress: dbAch.unlocked ? dbAch.progress : Math.max(local.progress, dbAch.progress),
+              unlocked: local.unlocked || dbAch.unlocked,
+            };
+          }
+        }
+      }
+
+      this.save(data);
+      console.log(`[SaveService] Synced ${dbAchievements.length} achievements from DB`);
+    } catch (err: any) {
+      // Firebase permission 에러는 로그 없이 무시 (Firestore Rules 미설정 환경)
+      if (err?.code !== 'permission-denied') {
+        console.warn('[SaveService] Failed to sync achievements from DB:', err);
+      }
     }
   }
 

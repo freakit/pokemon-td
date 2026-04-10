@@ -6,7 +6,9 @@ import { authService } from "./services/AuthService";
 import { User } from "./types/multiplayer";
 import { useGameStore } from "./store/gameStore";
 import { multiplayerService } from "./services/MultiplayerService";
+import { saveService } from "./services/SaveService";
 import { pokeAPI } from './api/pokeapi';
+import { getMapById } from './data/maps';
 
 import { LoginScreen } from "./Auth/LoginScreen";
 import { MainMenu } from "./components/Menu/MainMenu";
@@ -61,6 +63,25 @@ const ProgressText = styled.p`
   margin: 0;
 `;
 
+// ─── [수정 1] 맵 배경 이미지 프리로드 헬퍼 ────────────────────────────────────
+
+function preloadMapBackground(mapId: string): Promise<void> {
+  return new Promise((resolve) => {
+    const map = getMapById(mapId);
+    if (!map?.backgroundImage) {
+      resolve();
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => {
+      console.warn(`Map background image failed to load: ${map.backgroundImage}`);
+      resolve(); // 실패해도 게임 진행은 허용
+    };
+    img.src = map.backgroundImage;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 function App() {
@@ -68,6 +89,8 @@ function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isGamePreloading, setIsGamePreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState({ loaded: 0, total: 1025 });
+  // [수정 1] 로딩 단계 텍스트 상태 추가
+  const [loadingStage, setLoadingStage] = useState<'pokemon' | 'map' | 'done'>('pokemon');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,13 +100,20 @@ function App() {
     const unsubscribe = authService.onAuthStateChange((authedUser) => {
       setUser(authedUser);
       setIsAuthLoading(false);
-      if (authedUser && location.pathname === '/login') {
-        navigate('/');
+      if (authedUser) {
+        // 로그인 성공 시 DB 업적을 로컬과 병합 (나갔다 들어와도 업적 유지)
+        saveService.syncAchievementsFromDB().catch(err =>
+          console.warn('[App] Failed to sync achievements:', err)
+        );
+        if (location.pathname === '/login') {
+          navigate('/');
+        }
       }
     });
     return unsubscribe;
   }, [navigate, location.pathname]);
 
+  // [수정 1] 맵 배경 이미지도 함께 프리로드 → 모두 완료 후 게임 화면 열기
   const handlePreloadAndNavigate = useCallback(
     async (mapId: string, gameMode: 'single' | 'multi') => {
       resetGame();
@@ -95,14 +125,22 @@ function App() {
 
       setIsGamePreloading(true);
       setPreloadProgress({ loaded: 0, total: 1025 });
+      setLoadingStage('pokemon');
 
       try {
+        // 1단계: 포켓몬 데이터 프리로드
         await pokeAPI.preloadRarities((loaded, total) => {
           setPreloadProgress({ loaded, total });
         });
+
+        // 2단계: 맵 배경 이미지 프리로드
+        setLoadingStage('map');
+        await preloadMapBackground(mapId);
+
+        setLoadingStage('done');
         navigate('/game');
       } catch (err) {
-        console.error('Failed to preload rarities', err);
+        console.error('Failed to preload game data', err);
         alert('게임 데이터 로드에 실패했습니다. 새로고침 해주세요.');
       } finally {
         setIsGamePreloading(false);
@@ -134,16 +172,23 @@ function App() {
       ? Math.floor((preloadProgress.loaded / preloadProgress.total) * 100)
       : 0;
 
+    // [수정 1] 로딩 단계별 텍스트 표시
+    const stageText = loadingStage === 'map'
+      ? '맵 배경 로딩 중...'
+      : pct >= 100
+        ? '거의 다 됐어요! ✨'
+        : '포켓몬 데이터 로딩 중...';
+
     return (
       <PreloadingOverlay>
-        <LoadingTitle>
-          {pct >= 100 ? '거의 다 됐어요! ✨' : '포켓몬 데이터 로딩 중...'}
-        </LoadingTitle>
+        <LoadingTitle>{stageText}</LoadingTitle>
         <ProgressBarOuter>
-          <ProgressBarInner $pct={pct} />
+          <ProgressBarInner $pct={loadingStage === 'map' ? 100 : pct} />
         </ProgressBarOuter>
         <ProgressText>
-          {preloadProgress.loaded} / {preloadProgress.total} ({pct}%)
+          {loadingStage === 'map'
+            ? '맵 배경 이미지를 불러오고 있습니다...'
+            : `${preloadProgress.loaded} / ${preloadProgress.total} (${pct}%)`}
         </ProgressText>
       </PreloadingOverlay>
     );

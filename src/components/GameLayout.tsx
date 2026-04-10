@@ -62,6 +62,35 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   // gameState가 null → waiting_wave로 전환되기 전까지 조작 차단
   const [multiLoading, setMultiLoading] = useState(isMultiplayer);
 
+  // [수정 2] 멀티플레이 시 리소스 로딩 완료를 Firebase에 보고
+  const loadingReportedRef = useRef(false);
+  useEffect(() => {
+    if (!isMultiplayer || !multiRoomId || !user || loadingReportedRef.current) return;
+
+    // 게임 상태(gameStates)가 생성될 때까지 기다렸다가 보고 (레이스 컨디션 방지)
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
+      if (state && !loadingReportedRef.current) {
+        loadingReportedRef.current = true;
+        multiplayerService.markPlayerLoaded(multiRoomId, user.uid)
+          .then((success) => {
+            if (success) {
+              console.log('[GameLayout] Loading reported successfully');
+              unsubscribe();
+            } else {
+              // 상태가 아직 없거나 하는 이유로 실패했다면 다음 업데이트 때 재시도하도록 함
+              loadingReportedRef.current = false;
+            }
+          })
+          .catch(err => {
+            console.error('[GameLayout] Failed to report loading:', err);
+            loadingReportedRef.current = false; 
+          });
+      }
+    });
+
+    return unsubscribe;
+  }, [isMultiplayer, multiRoomId, user]);
+
   // ─── 멀티플레이어 초기화 ───────────────────────────────────────────
   const syncReadyRef = useRef(false);
   const initializedRef = useRef(false);
@@ -257,8 +286,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       const currentPhase = state.currentPhase;
       const currentRound = state.currentRound;
 
-      // null → waiting_wave 첫 전환 시: 로딩 해제 + AI 시작
-      if (currentPhase === 'waiting_wave' && lastPhase === null) {
+      // null → waiting_wave 또는 loading → waiting_wave 첫 전환 시: 로딩 해제 + AI 시작
+      if (currentPhase === 'waiting_wave' && (lastPhase === null || lastPhase === 'loading')) {
         setMultiLoading(false);
 
         // [수정] AI는 waiting_wave를 수신한 직후 시작
@@ -390,13 +419,13 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
   return (
     <AppContainer>
-      {/* 멀티플레이 게임 시작 로딩 오버레이 — waiting_wave 진입 전까지 조작 차단 */}
+      {/* 멀티플레이 게임 시작 로딩 오버레이 — 모든 플레이어 로딩 완료 전까지 조작 차단 */}
       {isMultiplayer && multiLoading && (
         <MultiLoadingOverlay>
           <MultiLoadingBox>
             <LoadingSpinner />
             <LoadingTitle>🎮 게임 준비 중...</LoadingTitle>
-            <LoadingDesc>모든 플레이어가 로딩될 때까지 기다려주세요</LoadingDesc>
+            <LoadingDesc>모든 플레이어의 리소스 로딩이 완료될 때까지 기다려주세요.<br/>완료되면 동시에 1분 타이머가 시작됩니다.</LoadingDesc>
             <LoadingDots>
               <span />
               <span />

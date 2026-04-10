@@ -22,6 +22,7 @@ const formatTime = (ms: number) => {
 
 const getPhaseText = (phase: GamePhase, round: number, countdown: number | null): string => {
   switch (phase) {
+    case 'loading': return '⏳ 리소스 로딩 중...';
     case 'shopping': return '🛒 쇼핑 중';
     case 'waiting_wave':
       return round === 0

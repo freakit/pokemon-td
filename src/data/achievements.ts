@@ -1,5 +1,6 @@
 // src/data/achievements.ts
 import { Achievement } from '../types/game';
+import { SPECIAL_SYNERGY_DEFS } from '../utils/synergyManager';
 
 export type AchievementCategory =
   | 'wave'
@@ -176,11 +177,33 @@ const fixedAchievements: AchievementWithCategory[] = [
   { id: 'rating1500',      name: '다이아 등급',description: '레이팅 1500 달성',     icon: '💎', category: 'multi', condition: 'rating',    progress: 0, target: 1500, unlocked: false, reward: 10000, hidden: true },
 ];
 
+// ─── 특수 시너지 업적 (SPECIAL_SYNERGY_DEFS 기반 자동 생성) ─────────────────
+// 포켓몬 수(조합 난이도) 기준 보상:
+//  ≤ 3종 → 500   (전설의 새/개, 라티아스-라티오스 등 소규모)
+//  4~6종 → 1000  (카푸 4형제, 성검사, 울트라비스트 등)
+//  7~9종 → 2000  (지우 팀, 베이비 포켓몬 등)
+//  10+종 → 3000  (화석, 윤가놈 등 대규모)
+const specialSynergyAchievements: AchievementWithCategory[] = SPECIAL_SYNERGY_DEFS.map(def => {
+  const key = def.id.replace('special:', '');
+  const n = def.pokemonIds.length;
+  const reward = n <= 3 ? 500 : n <= 6 ? 1000 : n <= 9 ? 2000 : 3000;
+  return {
+    id: `syn_special_${key}`,
+    name: `${def.name}`,
+    description: `${def.name} 시너지 발동 (2마리 이상 동시 배치)`,
+    icon: def.icon,
+    category: 'synergy' as AchievementCategory,
+    condition: `special_synergy_${key}`,
+    progress: 0, target: 1, unlocked: false, reward,
+  };
+});
+
 // ─── 최종 목록 조합 ───────────────────────────────────────────────────────────
 export const ACHIEVEMENTS: AchievementWithCategory[] = [
   ...fixedAchievements,
   ...typeSynergyAchievements,
   ...genSynergyAchievements,
+  ...specialSynergyAchievements,
 ];
 
 // ─── 카테고리 메타데이터 ──────────────────────────────────────────────────────

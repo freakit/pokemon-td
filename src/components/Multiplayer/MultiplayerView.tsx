@@ -36,18 +36,9 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     if (!roomId) return;
     try {
       setIsRefreshing(true);
-      // onAllTowerDetailsUpdate를 한 번만 호출해서 현재 스냅샷을 가져옴
-      // 새로운 구독을 만들고 첫 콜백에서 바로 해제
-      await new Promise<void>((resolve) => {
-        const unsub = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
-          setAllTowerDetails(new Map(allTowers));
-          setLastRefreshed(new Date());
-          unsub();
-          resolve();
-        });
-        // 3초 안에 응답이 없으면 타임아웃
-        setTimeout(() => { unsub(); resolve(); }, 3000);
-      });
+      const allTowers = await multiplayerService.getAllTowerDetailsOnce(roomId);
+      setAllTowerDetails(allTowers);
+      setLastRefreshed(new Date());
     } catch (err) {
       console.error('[MultiplayerView] fetchTowerDetails error:', err);
     } finally {

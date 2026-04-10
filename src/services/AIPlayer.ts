@@ -256,6 +256,11 @@ export class AIPlayer {
     const round = state.currentRound;
 
     switch (this.currentPhase) {
+      case 'loading':
+        // AI는 initializePvPGameState에서 loadingReady: true로 즉시 설정되므로
+        // 실제로 이 케이스에 진입하는 일은 없음. 방어적 처리.
+        break;
+
       case 'waiting_wave':
         this.waveProcessing = false;
         setTimeout(() => {

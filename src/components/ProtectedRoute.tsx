@@ -37,10 +37,8 @@ export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   }
 
   if (!user) {
-    console.log('ProtectedRoute: user 없음, /login으로 이동');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  console.log('ProtectedRoute: user 있음, children 렌더링');
   return children;
 };
