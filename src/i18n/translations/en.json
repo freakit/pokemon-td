@@ -326,6 +326,7 @@
   },
   "multiplayer": {
     "phase": {
+      "loading": "⏳ Loading resources...",
       "shopping": "🛒 Shopping",
       "waitingWave": "⏳ Next Wave: {countdown}s",
       "waitingWaveFirst": "⏳ Starting: {countdown}s",

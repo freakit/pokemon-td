@@ -289,19 +289,30 @@ class MultiplayerService {
     if (room.hostId !== user.uid) throw new Error('Only host can start game');
     if (room.players.length < 2) throw new Error('Need at least 2 players');
 
+    // 1. 게임 상태 즉시 초기화 (중요: status 변경 전에 미리 만들어둬야 클라이언트 로딩 보고 유실 안 됨)
+    await this.initializePvPGameState(roomId, room.players);
+
     await update(roomRef, { status: 'starting' });
 
     setTimeout(async () => {
       await update(roomRef, { status: 'playing' });
-      await this.initializePvPGameState(roomId, room.players);
     }, 3000);
   }
 
   /**
    * 게임 상태 초기화 - 서버 보정 시간 사용
+   * [수정 2] phaseEndTime을 즉시 설정하지 않음
+   * → 모든 플레이어가 리소스 로딩을 완료(markPlayerLoaded)하면 그때 phaseEndTime 설정
+   * → 이렇게 해야 모든 플레이어가 동시에 1분 타이머를 시작할 수 있음
    */
   private async initializePvPGameState(roomId: string, players: RoomPlayer[]): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+
+    // AI 플레이어는 즉시 로딩 완료 처리
+    const loadingReady: Record<string, boolean> = {};
+    for (const p of players) {
+      loadingReady[p.userId] = p.isAI; // AI는 true, 인간은 false
+    }
 
     const initialState: MultiplayerGameState = {
       roomId,
@@ -320,13 +331,55 @@ class MultiplayerService {
       startTime: this.now(),
       rankings: [],
       currentRound: 0,
-      currentPhase: 'waiting_wave',
+      currentPhase: 'loading',  // [수정 2] 초기 페이즈를 'loading'으로 설정
       encounterRecord: {},
       battleResults: [],
-      phaseEndTime: this.now() + FIRST_WAVE_PREP_SECONDS * 1000
+      phaseEndTime: null,        // [수정 2] 모든 플레이어 로딩 완료 전까지 타이머 시작하지 않음
+      loadingReady,             // [수정 2] 각 플레이어의 로딩 완료 상태
     };
 
     await set(gameStateRef, initialState);
+  }
+
+  /**
+   * [수정 2] 플레이어 리소스 로딩 완료 표시
+   * 모든 플레이어가 로딩 완료하면 자동으로 waiting_wave + 1분 타이머 시작
+   */
+  async markPlayerLoaded(roomId: string, userId: string): Promise<boolean> {
+    const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
+    let updated = false;
+
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+
+      const loadingReady = { ...(gameState as any).loadingReady || {} };
+      if (loadingReady[userId]) {
+        updated = true; // 이미 완료된 것도 성공으로 간주하여 재시도 중단
+        return gameState;
+      }
+
+      loadingReady[userId] = true;
+      updated = true;
+
+      // 모든 플레이어가 로딩 완료했는지 확인
+      const allLoaded = gameState.players.every(
+        (p: PlayerGameState) => loadingReady[p.userId] === true
+      );
+
+      if (allLoaded) {
+        // 모든 플레이어 로딩 완료 → waiting_wave 페이즈 + 1분 타이머 시작
+        return {
+          ...gameState,
+          loadingReady,
+          currentPhase: 'waiting_wave',
+          phaseEndTime: this.now() + FIRST_WAVE_PREP_SECONDS * 1000,
+        };
+      }
+
+      return { ...gameState, loadingReady };
+    });
+
+    return updated;
   }
 
   /**

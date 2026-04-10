@@ -7,26 +7,10 @@ import { db } from '../config/firebase';
 import { PokedexEntry, HallOfFameEntry, LeaderboardEntry } from '../types/multiplayer';
 import { Achievement } from '../types/game';
 import { authService } from './AuthService';
-import { saveService } from './SaveService';
-import { ACHIEVEMENTS } from '../data/achievements';
+// achievementService는 동적 require()로 사용 (순환 의존성 방지:
+// DatabaseService → AchievementService → SaveService → DatabaseService)
 
 class DatabaseService {
-
-  // ─── 도감 업적 체크 ───────────────────────────────────────────────
-  private async checkPokedexAchievements(currentCount: number) {
-    try {
-      const achievements = ACHIEVEMENTS.filter(a => a.condition === 'collect');
-      for (const ach of achievements) {
-        if (currentCount >= ach.target) {
-          await saveService.updateAchievement(ach.id, ach.target);
-        } else {
-          await saveService.updateAchievement(ach.id, currentCount);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to check pokedex achievements:', err);
-    }
-  }
 
   async addToPokedex(pokemonId: number, name: string): Promise<void> {
     const user = authService.getCurrentUser();
@@ -50,7 +34,10 @@ class DatabaseService {
       // 새 포켓몬 등록 시에만 업적 체크
       try {
         const pokedex = await this.getUserPokedex();
-        await this.checkPokedexAchievements(pokedex.length);
+        const pokedexIds = pokedex.map(p => p.pokemonId);
+        // 동적 require로 순환 의존성 회피
+        const { achievementService } = require('./AchievementService');
+        achievementService.onPokedexAdd(pokedexIds);
       } catch (err) {
         console.error('Failed to check achievements after adding to pokedex:', err);
       }

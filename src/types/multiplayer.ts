@@ -65,8 +65,8 @@ export interface RoomPlayer {
 
 // DebuffItem 제거됨 - TFT 스타일 PvP 시스템으로 대체
 
-// 게임 페이즈 (멀티플레이어)
-export type GamePhase = 'shopping' | 'wave' | 'waiting_battle' | 'battle' | 'waiting_wave';
+// [수정 2] 게임 페이즈 (멀티플레이어) — 'loading' 추가
+export type GamePhase = 'loading' | 'shopping' | 'wave' | 'waiting_battle' | 'battle' | 'waiting_wave';
 
 // Battle Log Entry
 export interface BattleLogEntry {
@@ -138,7 +138,8 @@ export interface MultiplayerGameState {
   roundMatchups?: RoundMatchup;
   encounterRecord: EncounterRecord;
   battleResults: PvPBattleResult[];
-  phaseEndTime?: number; // 페이즈 종료 시간 (서버 타임스탬프) - 모든 클라이언트가 동일하게 계산
+  phaseEndTime?: number | null; // 페이즈 종료 시간 (서버 타임스탬프) - 모든 클라이언트가 동일하게 계산
+  loadingReady?: Record<string, boolean>; // [수정 2] 각 플레이어의 리소스 로딩 완료 상태
 }
 
 export interface TowerDetail {

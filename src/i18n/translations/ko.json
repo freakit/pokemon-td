@@ -326,6 +326,7 @@
   },
   "multiplayer": {
     "phase": {
+      "loading": "⏳ 리소스 로딩 중...",
       "shopping": "🛒 쇼핑 중",
       "waitingWave": "⏳ 다음 웨이브: {countdown}초",
       "waitingWaveFirst": "⏳ 게임 시작: {countdown}초",
