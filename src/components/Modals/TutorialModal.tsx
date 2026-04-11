@@ -78,7 +78,8 @@ const MULTI_SLIDES: Slide[] = [
   {
     icon: '👥',
     title: '멀티플레이 모드',
-    desc: '최대 4인이 동시에 타워 디펜스를 진행하며\n서로 경쟁하는 PvP 배틀 모드입니다!',
+    desc: '최대 8인이 동시에 타워 디펜스를 진행하며\n서로 경쟁하는 PvP 배틀 모드입니다!',
+
     details: [
       { icon: '🏠', text: '방 만들기 또는 기존 방 참가' },
       { icon: '🤖', text: 'AI 봇으로 인원 자동 채움 가능' },

@@ -249,6 +249,11 @@ class MultiplayerService {
     if (!snapshot.exists()) return;
 
     const room = snapshot.val() as Room;
+
+    if (room.players.length >= room.maxPlayers) {
+      throw new Error('Room is full');
+    }
+
     const aiId = `ai_${difficulty}_${Date.now()}`;
     const aiPlayer: RoomPlayer = {
       userId: aiId,
@@ -261,6 +266,7 @@ class MultiplayerService {
 
     await update(roomRef, { players: [...room.players, aiPlayer] });
   }
+
 
   async toggleReady(roomId: string): Promise<void> {
     const user = authService.getCurrentUser();

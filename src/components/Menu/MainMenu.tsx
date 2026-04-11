@@ -112,7 +112,8 @@ export const MainMenu = () => {
               <ModeButton onClick={handleMultiPlay}>
                 <ModeIcon>👥</ModeIcon>
                 <ModeTitle>멀티 플레이</ModeTitle>
-                <ModeDesc>최대 4인 PvP 배틀</ModeDesc>
+                <ModeDesc>최대 8인 PvP 배틀</ModeDesc>
+
               </ModeButton>
             </GameModeButtons>
           </MenuSection>
