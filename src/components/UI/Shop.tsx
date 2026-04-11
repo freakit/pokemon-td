@@ -168,9 +168,11 @@ export const Shop: React.FC = () => {
               } else if (itemMode === 'exp_candy') {
                 const aliveTowers = towers.filter(t => !t.isFainted);
                 if (aliveTowers.length >= 2) {
-                  const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-                  isSelectable = !tower.isFainted && tower.id === sortedTowers[0].id;
+                  const minLevel = Math.min(...aliveTowers.map(t => t.level));
+                  const hasHigher = aliveTowers.some(t => t.level > minLevel);
+                  isSelectable = !tower.isFainted && tower.level === minLevel && hasHigher;
                 }
+
               } else if (currentItem) {
                 const result = canEvolveWithItem(tower.pokemonId, itemMode);
                 isSelectable = !!result && !tower.isFainted;
@@ -201,13 +203,16 @@ export const Shop: React.FC = () => {
                   )}
                   {isSelectable && itemMode === 'exp_candy' && (() => {
                     const aliveTowers = towers.filter(t => !t.isFainted);
-                    const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-                    const secondLowestLevel = sortedTowers[1]?.level ?? tower.level;
+                    const higherLevels = [...new Set(aliveTowers.map(t => t.level))]
+                      .filter(lvl => lvl > tower.level)
+                      .sort((a, b) => a - b);
+                    const nextTargetLevel = higherLevels[0] || tower.level;
                     return (
                       <PriceLabel $type="exp">
-                        {t('shop.costLevelChange', { cost: secondLowestLevel * 50, from: tower.level, to: secondLowestLevel })}
+                        {t('shop.costLevelChange', { cost: nextTargetLevel * 50, from: tower.level, to: nextTargetLevel })}
                       </PriceLabel>
                     );
+
                   })()}
                   {isEvolveTarget && (
                     <PriceLabel $type="evolve">
