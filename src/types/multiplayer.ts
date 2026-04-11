@@ -94,6 +94,8 @@ export interface PvPBattleResult {
   player2RemainingPokemon: number;
   lifeLost: number; // 패배자가 잃는 라이프 = 상대 남은 포켓몬 수
   battleLog: BattleLogEntry[];
+  rewardP1?: { gold: number; lives: number };
+  rewardP2?: { gold: number; lives: number };
   timestamp: number;
 }
 

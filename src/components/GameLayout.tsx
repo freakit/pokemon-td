@@ -51,6 +51,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const isMultiplayer = !!multiRoomId;
   const user = authService.getCurrentUser();
   const lastAppliedRoundRef = useRef<number>(-1);
+  const lastAppliedByeRoundRef = useRef<number>(-1);
   const [battleResultToast, setBattleResultToast] = useState<{
     won: boolean;
     goldDelta: number;
@@ -310,8 +311,21 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         }
       }
 
+      // ─── 부전승(Bye) 보너스 처리 ─────────────────────────────
+      if (
+        (currentPhase === 'battle' || currentPhase === 'waiting_battle') &&
+        state.roundMatchups?.skipPlayerId === user?.uid &&
+        lastAppliedByeRoundRef.current < currentRound
+      ) {
+        lastAppliedByeRoundRef.current = currentRound;
+        const { addMoney } = useGameStore.getState();
+        console.log('[GameLayout] Applying Bye Bonus (+50G) for round:', currentRound);
+        addMoney(50);
+      }
+
       lastPhase = currentPhase;
     });
+
 
     return unsubscribe;
   }, [multiRoomId]);
@@ -351,31 +365,29 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
  
       if (!myResult) return;
       lastAppliedRoundRef.current = myResult.roundNumber;
- 
-      const isWinner = myResult.winnerId === user.uid;
- 
-      const myFirebaseState = state.players.find(p => p.userId === user.uid);
-      if (!myFirebaseState) return;
- 
-      const localState = useGameStore.getState();
-      const livesDelta = myFirebaseState.lives - localState.lives;
-      const goldDelta  = myFirebaseState.money  - localState.money;
- 
-      if (livesDelta !== 0 || goldDelta !== 0) {
-        useGameStore.setState({
-          lives: Math.max(0, myFirebaseState.lives),
-          money: Math.max(0, myFirebaseState.money),
-        });
+
+      const myReward = user.uid === myResult.player1Id ? myResult.rewardP1 : myResult.rewardP2;
+      if (!myReward) return;
+
+      const { addMoney, addLives } = useGameStore.getState();
+      
+      // 보상/패널티를 델타(증분)로 적용하여 로컬에서 번 돈이 증발하지 않게 함
+      if (myReward.gold !== 0) {
+        addMoney(myReward.gold);
       }
- 
+      if (myReward.lives !== 0) {
+        addLives(myReward.lives);
+      }
+
       setBattleResultToast({
-        won: isWinner,
-        goldDelta,
-        livesDelta,
+        won: user.uid === myResult.winnerId,
+        goldDelta: myReward.gold,
+        livesDelta: myReward.lives,
         round: myResult.roundNumber,
       });
       setTimeout(() => setBattleResultToast(null), 5000);
     });
+
  
     return unsubscribe;
   }, [multiRoomId, user]);

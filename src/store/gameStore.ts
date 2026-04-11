@@ -32,6 +32,8 @@ interface GameStore extends GameState {
   removeDamageNumber: (id: string) => void;
   addMoney: (amount: number) => void;
   spendMoney: (amount: number) => boolean;
+  addLives: (amount: number) => void;
+  spendLives: (amount: number) => boolean;
   setMap: (mapId: string) => void;
   setDifficulty: (difficulty: Difficulty) => void;
   setGameSpeed: (speed: number) => void;
@@ -162,6 +164,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
     return false;
   },
+
+  addLives: (amount) => set(state => ({ lives: Math.min(INITIAL_LIVES_SINGLE, state.lives + amount) })),
+  spendLives: (amount) => {
+    set(state => ({ lives: Math.max(0, state.lives - amount) }));
+    return true;
+  },
+
 
   // ─── 설정 ─────────────────────────────────────────────────────────
   setMap: (mapId) => set({ currentMap: mapId }),

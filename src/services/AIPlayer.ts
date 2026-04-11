@@ -179,6 +179,8 @@ export class AIPlayer {
   // 중복 실행 방지
   private waveProcessing = false;
   private lastProcessedRound = -1;
+  private lastAppliedBattleRound = -1;
+  private lastAppliedByeRound = -1;
 
   private cfg: typeof AI_CONFIG['normal'];
   private mapData: ReturnType<typeof getMapById>;
@@ -211,8 +213,8 @@ export class AIPlayer {
     this.gameStateSub = multiplayerService.onGameStateUpdate(this.roomId, players => {
       const me = players.find(p => p.userId === this.playerId);
       if (!me) return;
-      this.money = me.money;
-      this.lives = me.lives;
+      // [수정] 절대값 덮어씌우기 삭제: 웨이브 시뮬레이션 결과가 보존되도록 함
+      // 보상은 onPhaseChange에서 델타로 적용
       this.wave = me.wave;
       this.isAlive = me.isAlive;
       if (!this.isAlive) this.stop();
@@ -255,7 +257,37 @@ export class AIPlayer {
   private onPhaseChange(state: MultiplayerGameState) {
     const round = state.currentRound;
 
+    // ─── 보상/패널티 (델타) 처리 ─────────────────────────────────────
+    
+    // 1. 배틀 결과 처리
+    if (this.lastAppliedBattleRound < round) {
+      const myResult = (state.battleResults || []).find(r => 
+        r.roundNumber === round && (r.player1Id === this.playerId || r.player2Id === this.playerId)
+      );
+      if (myResult) {
+        this.lastAppliedBattleRound = round;
+        const reward = this.playerId === myResult.player1Id ? myResult.rewardP1 : myResult.rewardP2;
+        if (reward) {
+          this.money += reward.gold;
+          this.lives = Math.min(50, Math.max(0, this.lives + reward.lives));
+          console.log(`[AI:${this.playerId}] Battle Reward: +${reward.gold}G, ${reward.lives}L (Round ${round})`);
+        }
+      }
+    }
+
+    // 2. 부전승(Bye) 보너스 처리
+    if (
+      (this.currentPhase === 'battle' || this.currentPhase === 'waiting_battle') &&
+      state.roundMatchups?.skipPlayerId === this.playerId &&
+      this.lastAppliedByeRound < round
+    ) {
+      this.lastAppliedByeRound = round;
+      this.money += 50;
+      console.log(`[AI:${this.playerId}] Bye Bonus: +50G (Round ${round})`);
+    }
+
     switch (this.currentPhase) {
+
       case 'loading':
         // AI는 initializePvPGameState에서 loadingReady: true로 즉시 설정되므로
         // 실제로 이 케이스에 진입하는 일은 없음. 방어적 처리.
