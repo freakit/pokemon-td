@@ -735,6 +735,9 @@ class MultiplayerService {
 
       let loserWillBeEliminated = false;
 
+      let rewardP1: { gold: number; lives: number } | undefined;
+      let rewardP2: { gold: number; lives: number } | undefined;
+
       const updatedPlayers = gameState.players.map((p: PlayerGameState) => {
         const isWinner = p.userId === result.winnerId;
         const isLoser = p.userId === loserId;
@@ -747,11 +750,14 @@ class MultiplayerService {
           isWinner ? loserRemaining : winnerRemaining,
         );
 
+        // 결과 객체에 델타 정보 저장 (클라이언트 동기화용)
+        if (p.userId === result.player1Id) rewardP1 = { gold: goldDelta, lives: livesDelta };
+        if (p.userId === result.player2Id) rewardP2 = { gold: goldDelta, lives: livesDelta };
+
         const newMoney = Math.max(0, p.money + goldDelta);
         const newLives = Math.max(0, p.lives + livesDelta);
 
         if (isLoser && newLives <= 0) {
-          // [수정] 외부 클로저 변수 대신 로컬 플래그 사용
           loserWillBeEliminated = true;
         }
 
@@ -767,8 +773,12 @@ class MultiplayerService {
         };
       });
 
-      const battleResults = [...(gameState.battleResults || []), result];
-      // [수정] 탈락 여부를 반환 객체에 포함해 트랜잭션 완료 후 단 1회만 처리
+      const battleResults = [...(gameState.battleResults || []), {
+        ...result,
+        rewardP1,
+        rewardP2
+      }];
+      
       return {
         ...gameState,
         players: updatedPlayers,
@@ -776,6 +786,7 @@ class MultiplayerService {
         battleResults,
         _pendingElimination: loserWillBeEliminated ? loserId : null,
       } as any;
+
     });
 
     // [수정] 트랜잭션이 최종 커밋된 후 Firebase에서 탈락 대상 확인 (재시도 무관)
