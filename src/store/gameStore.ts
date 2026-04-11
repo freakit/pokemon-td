@@ -381,15 +381,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!target) return false;
 
     if (itemType === 'candy') {
-      const cost = target.level * 25;
-      if (!get().spendMoney(cost)) return false;
       get().addXpToTower(targetTowerId, target.level * 100);
       return true;
     }
 
     if (itemType === 'revive') {
-      const cost = target.level * 10;
-      if (!get().spendMoney(cost)) return false;
       if (!target.isFainted) return false;
       get().updateTower(targetTowerId, {
         isFainted: false,
