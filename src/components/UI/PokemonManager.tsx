@@ -142,7 +142,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
       <Modal>
         <Header>
           <div>
-            <Title>🎒 {t('manager.title', { towers: towers.length })}</Title>
+            <Title>{t('manager.title', { towers: towers.length })}</Title>
             <MoneyDisplay>💰 {money}{t('common.money')}</MoneyDisplay>
           </div>
           <HeaderButtons>

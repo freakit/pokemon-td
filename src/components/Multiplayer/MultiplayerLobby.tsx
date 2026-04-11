@@ -7,7 +7,7 @@ import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 import { useTranslation } from '../../i18n';
 
-import { Pokedex } from '../Modals/Pokedex';
+
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
 import { Rankings } from '../Modals/Rankings';
@@ -28,7 +28,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const startingRef = useRef(false);
   const user = authService.getCurrentUser();
 
-  const [showPokedex, setShowPokedex] = useState(false);
+
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
@@ -234,7 +234,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </RoomList>
           </Container>
         </Overlay>
-        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
         {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
         {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
@@ -277,7 +277,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </CreateButton>
           </Container>
         </Overlay>
-        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
         {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
         {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
@@ -363,7 +363,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             </ButtonRow>
           </Container>
         </Overlay>
-        {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
         {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
         {showRankings && <Rankings onClose={() => setShowRankings(false)} />}

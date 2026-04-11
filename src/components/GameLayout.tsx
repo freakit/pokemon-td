@@ -7,7 +7,7 @@ import { HUD } from "./UI/HUD";
 import { PokemonPicker } from "./UI/PokemonPicker";
 import { PokemonManager } from "./UI/PokemonManager";
 import { Shop } from "./UI/Shop";
-import { Pokedex } from "./Modals/Pokedex";
+
 import { AchievementsPanel } from "./Modals/Achievements";
 import { Settings } from "./Modals/Settings";
 import { HallOfFame } from "./Modals/HallOfFame";
@@ -38,7 +38,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const { t } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
   const [showPokemonManager, setShowPokemonManager] = useState(false);
-  const [showPokedex, setShowPokedex] = useState(false);
+
   const [showAchievements, setShowAchievements] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
@@ -59,7 +59,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   } | null>(null);
 
   // ─── 멀티플레이 게임 시작 로딩 상태 ──────────────────────────────
-  // gameState가 null → waiting_wave로 전환되기 전까지 조작 차단
   const [multiLoading, setMultiLoading] = useState(isMultiplayer);
 
   // [수정 2] 멀티플레이 시 리소스 로딩 완료를 Firebase에 보고
@@ -67,7 +66,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   useEffect(() => {
     if (!isMultiplayer || !multiRoomId || !user || loadingReportedRef.current) return;
 
-    // 게임 상태(gameStates)가 생성될 때까지 기다렸다가 보고 (레이스 컨디션 방지)
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (state && !loadingReportedRef.current) {
         loadingReportedRef.current = true;
@@ -77,7 +75,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               console.log('[GameLayout] Loading reported successfully');
               unsubscribe();
             } else {
-              // 상태가 아직 없거나 하는 이유로 실패했다면 다음 업데이트 때 재시도하도록 함
               loadingReportedRef.current = false;
             }
           })
@@ -98,7 +95,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   useEffect(() => {
     if (isMultiplayer && !initializedRef.current) {
       initializedRef.current = true;
-      // 싱글과 동일하게 lives:50으로 통일
       useGameStore.setState({ lives: 50, money: 500, gameSpeed: 3 });
       syncReadyRef.current = true;
     } else if (!isMultiplayer) {
@@ -146,13 +142,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   };
 
   // ─── 로컬 → Firebase 상태 동기화 ────────────────────────────────
-  // syncReadyRef가 true가 된 이후에만 subscribe가 실제로 전송
-  // (초기화 전 lives:50 유출 원천 차단)
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
-      // 초기화 완료(초기값 Firebase 전송) 전에는 전송하지 않음
       if (!syncReadyRef.current) return;
 
       const changed =
@@ -205,7 +198,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }, [multiRoomId, user, towers]);
 
   // ─── [수정] 탈락 처리 ────────────────────────────────────────────
-  // 중복 호출 방지: 이미 탈락 처리됐으면 재호출하지 않음
   const defeatedRef = useRef(false);
 
   useEffect(() => {
@@ -223,23 +215,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }, [multiRoomId, user]);
 
   // ─── [수정] 웨이브 완료 감지 → markWaveCompleted 호출 ────────────
-  // wasWaveActive를 ref로 관리해 클로저 오감지 방지
-  // 탈락 후에는 호출하지 않음
   useEffect(() => {
     if (!multiRoomId || !user) return;
 
     const wasWaveActiveRef = { current: false };
 
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
-      // 탈락 후에는 무시
       if (defeatedRef.current) return;
 
-      // isWaveActive가 true → false 로 바뀔 때만 (웨이브 종료)
       if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
         console.log('[GameLayout] Wave completed, notifying Firebase and force syncing towers');
         
-        // 웨이브 도중 타워의 현재 체력, 경험치 등이 배열 참조 변경 없이 가변(mutate)되므로, 
-        // 여기서 마지막 상태를 강제로 JSON 직렬화 후 한 번 더 동기화하여 TFT 전에 최신판으로 맞춤
         const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
         const currentTowers = useGameStore.getState().towers;
         const towerDetails: TowerDetail[] = currentTowers.map(t => scrub({
@@ -273,12 +259,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }, [multiRoomId, user]);
 
   // ─── 페이즈 'wave' → 로컬 웨이브 시작 ──────────────────────────
-  // 탈락 후에는 로컬 웨이브를 시작하지 않음
   useEffect(() => {
     if (!multiRoomId) return;
 
     let lastPhase: string | null = null;
-    let aiStarted = false; // AI는 딱 한 번만 시작
+    let aiStarted = false;
 
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (!state) return;
@@ -286,13 +271,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       const currentPhase = state.currentPhase;
       const currentRound = state.currentRound;
 
-      // null → waiting_wave 또는 loading → waiting_wave 첫 전환 시: 로딩 해제 + AI 시작
       if (currentPhase === 'waiting_wave' && (lastPhase === null || lastPhase === 'loading')) {
         setMultiLoading(false);
 
-        // [수정] AI는 waiting_wave를 수신한 직후 시작
-        // → AI의 currentPhase 초기값('waiting_wave')과 실제 페이즈가 같아
-        //   onPhaseChange가 누락되던 문제 해결
         if (!aiStarted) {
           aiStarted = true;
           const startAIs = async () => {
@@ -301,7 +282,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             if (room && currentUser && room.hostId === currentUser.uid) {
               for (const player of room.players) {
                 if (player.isAI && player.aiDifficulty) {
-                  // 초기 페이즈를 null로 강제해서 waiting_wave를 반드시 onPhaseChange로 처리
                   aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
                 }
               }
@@ -314,7 +294,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       if (currentPhase === 'wave' && lastPhase !== 'wave') {
         console.log('[GameLayout] Phase changed to wave, starting wave:', currentRound);
 
-        // 탈락한 플레이어는 로컬 웨이브를 시작하지 않음
         if (defeatedRef.current) {
           lastPhase = currentPhase;
           return;
@@ -351,10 +330,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         import('../services/AIPlayer').then(({ aiPlayerManager }) => {
           aiPlayerManager.stopAll();
         });
-
-        // 게임 종료 시 레이팅 업데이트 (호스트가 처리)
-        // BattlePhaseUI에서 처리하도록 신호를 줄 수도 있지만,
-        // 여기서는 단순히 모달만 띄움
       }
     });
 
@@ -367,7 +342,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (!state) return;
  
-      // 내 결과 찾기 (현재 라운드, 아직 로컬에 반영 안 한 것)
       const myResult = (state.battleResults || []).find(
         r =>
           r.roundNumber === state.currentRound &&
@@ -380,16 +354,13 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
  
       const isWinner = myResult.winnerId === user.uid;
  
-      // Firebase PlayerGameState에서 내 최신 상태 가져오기
       const myFirebaseState = state.players.find(p => p.userId === user.uid);
       if (!myFirebaseState) return;
  
-      // 로컬 store와 Firebase 값의 차이 계산 (실제 변경분)
       const localState = useGameStore.getState();
       const livesDelta = myFirebaseState.lives - localState.lives;
       const goldDelta  = myFirebaseState.money  - localState.money;
  
-      // 로컬 Zustand store에 반영
       if (livesDelta !== 0 || goldDelta !== 0) {
         useGameStore.setState({
           lives: Math.max(0, myFirebaseState.lives),
@@ -397,7 +368,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         });
       }
  
-      // 결과 토스트 표시
       setBattleResultToast({
         won: isWinner,
         goldDelta,
@@ -419,7 +389,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
   return (
     <AppContainer>
-      {/* 멀티플레이 게임 시작 로딩 오버레이 — 모든 플레이어 로딩 완료 전까지 조작 차단 */}
+      {/* 멀티플레이 게임 시작 로딩 오버레이 */}
       {isMultiplayer && multiLoading && (
         <MultiLoadingOverlay>
           <MultiLoadingBox>
@@ -442,7 +412,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           <GameCanvas />
         </CanvasContainer>
 
-        {/* BattlePhaseUI는 페이즈 전환 로직 담당 */}
         {multiRoomId && <BattlePhaseUI roomId={multiRoomId} />}
 
         <BottomPanel>
@@ -453,9 +422,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           />
 
           <ExtraButtons>
-            <BottomBtn onClick={() => setShowPokedex(true)}>
-              {t('nav.pokedex')}
-            </BottomBtn>
+
             <BottomBtn onClick={() => setShowAchievements(true)}>
               {t('nav.achievements')}
             </BottomBtn>
@@ -484,7 +451,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {showPicker && <PokemonPicker onClose={() => setShowPicker(false)} />}
       {showPokemonManager && <PokemonManager onClose={() => setShowPokemonManager(false)} />}
-      {showPokedex && <Pokedex onClose={() => setShowPokedex(false)} />}
+
       {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
       {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
@@ -532,7 +499,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         </GameOverOverlay>
       )}
 
-      {/* 업적 달성 토스트 (alert 대체) */}
+      {/* [수정] 업적 달성 토스트 — 눈에 잘 띄는 카드형 */}
       <AchievementToastDisplay />
 
       {/* 배틀 결과 토스트 */}
@@ -685,41 +652,128 @@ const RestartBtn = styled.button`
   }
 `;
 
-// ─── 업적 달성 토스트 (alert 대체) ────────────────────────────────────────────
+// ─── [수정] 업적 달성 토스트 — 카드형으로 개선 ───────────────────────────────
+// 우측 하단에 슬라이드인, 트로피 아이콘 + 업적명 + 빛나는 테두리
 
 const AchievementToastDisplay: React.FC = () => {
-  const { t } = useTranslation();
   const achievementToast = useGameStore(s => s.achievementToast);
   if (!achievementToast) return null;
+ 
+  // earnedAP 기준으로 tier 색상 결정
+  const ap = achievementToast.earnedAP ?? 3;
+  const tierColor =
+    ap >= 100 ? '#ff80ff' :   // legendary
+    ap >= 50  ? '#b9f2ff' :   // diamond
+    ap >= 25  ? '#FFD700' :   // gold
+    ap >= 10  ? '#c0c0c0' :   // silver
+               '#cd7f32';     // bronze
+ 
+  const tierLabel =
+    ap >= 100 ? '👑 Legendary' :
+    ap >= 50  ? '💎 Diamond'  :
+    ap >= 25  ? '🥇 Gold'     :
+    ap >= 10  ? '🥈 Silver'   :
+               '🥉 Bronze';
+ 
   return (
-    <AchievementToastOverlay>
-      🏆 {t('achievement.unlocked', { name: achievementToast.name })}
-    </AchievementToastOverlay>
+    <AchievementToastCard
+      key={achievementToast.timestamp}
+      $color={tierColor}
+    >
+      <AchToastLeft>
+        <AchToastTrophyIcon>🏆</AchToastTrophyIcon>
+      </AchToastLeft>
+      <AchToastContent>
+        <AchToastTopRow>
+          <AchToastLabel $color={tierColor}>
+            업적 달성{achievementToast.isFirstTime ? ' (첫 달성!)' : ''}
+          </AchToastLabel>
+          <AchToastTier $color={tierColor}>{tierLabel}</AchToastTier>
+        </AchToastTopRow>
+        <AchToastName $color={tierColor}>{achievementToast.name}</AchToastName>
+        <AchToastAP $color={tierColor}>+{ap} AP ⚡</AchToastAP>
+      </AchToastContent>
+    </AchievementToastCard>
   );
 };
 
-const AchievementToastOverlay = styled.div`
+const achSlideIn = keyframes`
+  0%   { opacity: 0; transform: translateX(120px) scale(0.88); }
+  15%  { opacity: 1; transform: translateX(0)     scale(1.03); }
+  22%  { transform: scale(1); }
+  76%  { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(80px); }
+`;
+ 
+const achPulse = keyframes`
+  0%, 100% { box-shadow: 0 0 16px rgba(255,215,0,0.35), 0 8px 32px rgba(0,0,0,0.5); }
+  50%       { box-shadow: 0 0 28px rgba(255,215,0,0.65), 0 8px 32px rgba(0,0,0,0.5); }
+`;
+ 
+const AchievementToastCard = styled.div<{ $color: string }>`
   position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.95), rgba(184, 134, 11, 0.95));
-  color: #fff;
-  font-size: 15px;
-  font-weight: bold;
-  padding: 10px 24px;
-  border-radius: 14px;
-  border: 2px solid rgba(255, 215, 0, 0.7);
-  box-shadow: 0 8px 24px rgba(212, 175, 55, 0.5);
+  bottom: 100px;
+  right: 24px;
   z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  min-width: 260px;
+  max-width: 340px;
+  background: linear-gradient(
+    135deg,
+    rgba(12, 10, 4, 0.97) 0%,
+    rgba(28, 22, 6, 0.97) 60%,
+    rgba(12, 10, 4, 0.97) 100%
+  );
+  border: 1.5px solid ${p => p.$color}88;
+  animation:
+    ${achSlideIn} 5s ease forwards,
+    ${achPulse}   2s ease-in-out 0.3s infinite;
   pointer-events: none;
-  animation: slideUp 0.3s ease-out;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-  }
+`;
+ 
+const AchToastLeft = styled.div`flex-shrink: 0;`;
+ 
+const AchToastTrophyIcon = styled.div`
+  font-size: 34px; line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(255,215,0,0.6));
+`;
+ 
+const AchToastContent = styled.div`
+  display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;
+`;
+ 
+const AchToastTopRow = styled.div`
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+`;
+ 
+const AchToastLabel = styled.div<{ $color: string }>`
+  font-size: 10px; font-weight: 700; color: ${p => p.$color}BB;
+  letter-spacing: 0.04em; text-transform: uppercase;
+`;
+ 
+const AchToastTier = styled.div<{ $color: string }>`
+  font-size: 10px; font-weight: 700;
+  color: ${p => p.$color};
+  padding: 1px 6px; border-radius: 8px;
+  background: ${p => p.$color}18;
+  border: 1px solid ${p => p.$color}33;
+`;
+ 
+const AchToastName = styled.div<{ $color: string }>`
+  font-size: 16px; font-weight: 800;
+  color: ${p => p.$color};
+  text-shadow: 0 0 14px ${p => p.$color}55;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+`;
+ 
+const AchToastAP = styled.div<{ $color: string }>`
+  font-size: 12px; font-weight: 700;
+  color: ${p => p.$color}CC;
+  margin-top: 1px;
 `;
 
 // ─── 멀티플레이 게임 시작 로딩 오버레이 ──────────────────────────────────────

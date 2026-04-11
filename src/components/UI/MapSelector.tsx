@@ -129,8 +129,9 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
             onClick={() => setSelectedFilter(null)}
             $isActive={selectedFilter === null}
           >
-            {t('pokedex.filterAll')}
+            {t('mapSelector.filterAll')}
           </DiffBtn>
+
           <DiffBtn
             onClick={() => handleDifficultyFilter("easiest")}
             $difficulty="easiest"

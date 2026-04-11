@@ -150,14 +150,18 @@ function App() {
   );
 
   const handleLeaveGame = useCallback(() => {
-    resetGame();
     const multiRoomId = multiplayerService.getCurrentRoomId();
+    resetGame();
     if (multiRoomId) {
       multiplayerService.leaveRoom(multiRoomId);
+      multiplayerService.clearCurrentRoom();
+      navigate('/lobby');
+    } else {
+      multiplayerService.clearCurrentRoom();
+      navigate('/map-select');
     }
-    multiplayerService.clearCurrentRoom();
-    navigate('/');
   }, [resetGame, navigate]);
+
 
   if (isAuthLoading) {
     return (

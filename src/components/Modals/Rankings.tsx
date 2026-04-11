@@ -141,48 +141,56 @@ const Overlay = styled.div`
 `;
 
 const Container = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-  border-radius: 20px;
-  max-width: 900px;
+  background: #1e1f26;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  max-width: 800px;
   width: 90%;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 2px solid rgba(255,255,255,0.2);
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 `;
 
 const Title = styled.h2`
-  font-size: 2rem;
-  color: white;
-  font-weight: bold;
+  font-size: 1.8rem;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 `;
 
 const CloseButton = styled.button`
-  width: 40px;
-  height: 40px;
-  background: rgba(255,255,255,0.2);
-  color: white;
-  border: none;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #a0a0a0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 1.5rem;
-  transition: all 0.3s;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 
   &:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
   }
 `;
 
 const Controls = styled.div`
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 `;
 
 const MapSelector = styled.div`
@@ -198,11 +206,19 @@ const Label = styled.label`
 `;
 
 const Select = styled.select`
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 8px;
-  border: none;
-  font-size: 1rem;
+  background: #2a2c35;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.95rem;
   cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
 `;
 
 const SortSelector = styled.div`
@@ -212,29 +228,32 @@ const SortSelector = styled.div`
 
 const TabButton = styled.button<{ active: boolean }>`
   flex: 1;
-  padding: 0.75rem;
-  background: ${props => props.active ? 'white' : 'rgba(255,255,255,0.2)'};
-  color: ${props => props.active ? '#667eea' : 'white'};
-  font-weight: bold;
-  border: none;
-  border-radius: 10px;
+  padding: 0.6rem;
+  background: ${props => props.active ? 'rgba(102, 126, 234, 0.15)' : 'rgba(255, 255, 255, 0.05)'};
+  color: ${props => props.active ? '#8a9cff' : '#a0a0a0'};
+  font-weight: 600;
+  border: 1px solid ${props => props.active ? 'rgba(102, 126, 234, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
+  font-size: 0.95rem;
 
   &:hover {
-    background: ${props => props.active ? 'white' : 'rgba(255,255,255,0.3)'};
+    background: ${props => props.active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.08)'};
+    color: ${props => props.active ? '#8a9cff' : '#fff'};
   }
 `;
 
 const MyRank = styled.div`
   text-align: center;
-  background: rgba(255,255,255,0.2);
-  padding: 1rem;
-  border-radius: 10px;
-  color: white;
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 1.5rem;
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.8rem;
+  border-radius: 8px;
+  color: #8a9cff;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1.2rem;
+  border: 1px solid rgba(102, 126, 234, 0.2);
 `;
 
 const Loading = styled.div`
@@ -254,32 +273,37 @@ const EmptyMessage = styled.div`
 `;
 
 const RankingList = styled.div`
-  background: white;
-  border-radius: 15px;
+  background: #14151a;
+  border-radius: 12px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
 const RankingHeader = styled.div`
   display: grid;
-  grid-template-columns: 100px 1fr 150px 200px;
+  grid-template-columns: 80px 1fr 140px 160px;
   gap: 1rem;
-  padding: 1rem;
-  background: #f5f5f5;
-  font-weight: bold;
-  color: #333;
-  border-bottom: 2px solid #ddd;
+  padding: 0.8rem 1.2rem;
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 600;
+  color: #888;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 `;
 
 const RankingRow = styled.div`
   display: grid;
-  grid-template-columns: 100px 1fr 150px 200px;
+  grid-template-columns: 80px 1fr 140px 160px;
   gap: 1rem;
-  padding: 1rem;
-  border-bottom: 1px solid #eee;
-  transition: all 0.3s;
+  padding: 0.8rem 1.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.2s;
+  align-items: center;
 
   &:hover {
-    background: #f9f9f9;
+    background: rgba(255, 255, 255, 0.02);
   }
 
   &:last-child {
@@ -288,24 +312,30 @@ const RankingRow = styled.div`
 `;
 
 const Rank = styled.div`
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #667eea;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #a0a0a0;
 `;
 
 const PlayerName = styled.div`
   font-size: 1rem;
-  color: #333;
+  color: #e0e0e0;
+  font-weight: 500;
 `;
 
 const Rating = styled.div`
-  font-size: 1rem;
-  color: #666;
+  font-size: 0.95rem;
+  color: #f1c40f;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
 `;
 
 const Score = styled.div`
   font-size: 1rem;
-  font-weight: bold;
-  color: #333;
+  font-weight: 700;
+  color: #fff;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 `;

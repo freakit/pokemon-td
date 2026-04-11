@@ -1,6 +1,6 @@
 // src/components/UI/HUD.tsx
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
 import { media } from '../../utils/responsive.utils';
@@ -37,7 +37,6 @@ const getPhaseText = (phase: GamePhase, round: number, countdown: number | null)
 
 export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
   const { t } = useTranslation();
-  // [수정 1] authService 제거 — money/lives는 항상 로컬 store에서 직접 읽어 즉시 UI 반영
   const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay, gameTime } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
 
@@ -49,8 +48,6 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
   const [multiCountdown, setMultiCountdown] = useState<number | null>(null);
   const [phaseEndTime, setPhaseEndTime] = useState<number | null>(null);
 
-  // 멀티플레이어 페이즈/라운드만 구독
-  // money/lives는 로컬 store를 직접 사용하므로 Firebase에서 읽지 않음
   useEffect(() => {
     if (!multiRoomId) return;
 
@@ -64,7 +61,6 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
     return unsubscribe;
   }, [multiRoomId]);
 
-  // 서버 시간 오프셋 보정 카운트다운
   useEffect(() => {
     if (!isMultiplayer) return;
 
@@ -81,11 +77,13 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
     return () => clearInterval(timer);
   }, [isMultiplayer, phaseEndTime]);
 
-  // 멀티/싱글 모두 로컬 store 값 사용 (즉시 반영)
-  // wave만 멀티플레이 시 서버 라운드 기준
   const displayMoney = money;
   const displayLives = lives;
   const displayWave = isMultiplayer ? multiRound : wave;
+
+  // [클릭 유도] 포켓몬 0마리면 구입 버튼 펄스, 포켓몬 있고 웨이브 대기 중이면 시작 버튼 펄스
+  const pulseWaveBtn = !isMultiplayer && !isWaveActive && towers.length > 0;
+  const pulsePokemonBtn = towers.length === 0;
 
   return (
     <Container>
@@ -125,11 +123,11 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
 
       <ButtonSection>
         {!isMultiplayer && (
-          <Btn $variant="wave" onClick={onStartWave} disabled={isWaveActive}>
+          <Btn $variant="wave" $pulse={pulseWaveBtn} onClick={onStartWave} disabled={isWaveActive}>
             🎯 {t('hud.startWave')}
           </Btn>
         )}
-        <Btn $variant="pokemon" onClick={onAddPokemon}>
+        <Btn $variant="pokemon" $pulse={pulsePokemonBtn} onClick={onAddPokemon}>
           ➕ {t('hud.addPokemon')}
         </Btn>
         <Btn $variant="manage" onClick={onManagePokemon}>
@@ -149,6 +147,20 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
+
+// [클릭 유도] 웨이브 시작 버튼 펄스 (초록)
+const hudPulseGreen = keyframes`
+  0%   { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.85), 0 0 12px rgba(46, 204, 113, 0.4); transform: scale(1); }
+  50%  { box-shadow: 0 0 0 14px rgba(46, 204, 113, 0), 0 0 24px rgba(46, 204, 113, 0.7); transform: scale(1.08); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0), 0 0 12px rgba(46, 204, 113, 0.4); transform: scale(1); }
+`;
+
+// [클릭 유도] 포켓몬 구입 버튼 펄스 (오렌지)
+const hudPulseOrange = keyframes`
+  0%   { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.85), 0 0 12px rgba(243, 156, 18, 0.4); transform: scale(1); }
+  50%  { box-shadow: 0 0 0 14px rgba(243, 156, 18, 0), 0 0 24px rgba(243, 156, 18, 0.7); transform: scale(1.08); }
+  100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0), 0 0 12px rgba(243, 156, 18, 0.4); transform: scale(1); }
+`;
 
 const Container = styled.div`
   display: flex;
@@ -274,13 +286,13 @@ const ButtonSection = styled.div`
   }
 `;
 
-const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' }>`
+const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed'; $pulse?: boolean }>`
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
   border-radius: 10px;
   font-weight: bold;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease;
   white-space: nowrap;
 
   ${p => {
@@ -312,6 +324,18 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' }>
       `;
     }
   }}
+
+  /* [클릭 유도] $pulse 시 variant별 펄스 애니메이션 */
+  ${p => p.$pulse && p.$variant === 'wave' && css`
+    animation: ${hudPulseGreen} 1.3s ease-in-out infinite;
+    border-color: rgba(46, 204, 113, 0.9) !important;
+    background: rgba(46, 204, 113, 0.3) !important;
+  `}
+  ${p => p.$pulse && p.$variant === 'pokemon' && css`
+    animation: ${hudPulseOrange} 1.3s ease-in-out infinite;
+    border-color: rgba(243, 156, 18, 0.9) !important;
+    background: rgba(243, 156, 18, 0.3) !important;
+  `}
 
   ${media.mobile} {
     padding: 5px 10px;

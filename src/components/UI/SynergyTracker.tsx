@@ -1,5 +1,6 @@
 // src/components/UI/SynergyTracker.tsx
-import React from 'react';
+import React, { useState } from 'react';
+
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -46,9 +47,12 @@ export const SynergyTracker: React.FC = () => {
     setHoveredSynergy: state.setHoveredSynergy,
   }));
 
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   if (!activeSynergies || activeSynergies.length === 0) {
     return null;
   }
+
 
   const sortedSynergies = [...activeSynergies].sort((a, b) => {
     if (b.level !== a.level) return b.level - a.level;
@@ -56,54 +60,64 @@ export const SynergyTracker: React.FC = () => {
   });
 
   return (
-    <Container onMouseLeave={() => setHoveredSynergy(null)}>
-      <Title>💎 {t('synergy.title')}</Title>
-      <List>
-        {sortedSynergies.map(syn => {
-          const styleInfo = getSynergyStyle(syn.id, t);
-          const isSpecial = syn.id.startsWith('special:');
+    <Container 
+      $isCollapsed={isCollapsed}
+      onMouseLeave={() => setHoveredSynergy(null)}
+    >
+      <Title onClick={() => setIsCollapsed(!isCollapsed)}>
+        <span>💎 {t('synergy.title')}</span>
+        <ToggleButton>{isCollapsed ? '➕' : '➖'}</ToggleButton>
+      </Title>
+      <CollapseContent $isCollapsed={isCollapsed}>
+        <List>
+          {sortedSynergies.map(syn => {
+            const styleInfo = getSynergyStyle(syn.id, t);
+            const isSpecial = syn.id.startsWith('special:');
 
-          return (
-            <SynergyItem
-              key={syn.id}
-              $level={syn.level}
-              $isSpecial={isSpecial}
-              onMouseEnter={() => setHoveredSynergy(syn)}
-            >
-              {styleInfo.imageUrl ? (
-                <SynergyImage src={styleInfo.imageUrl} alt={styleInfo.name} />
-              ) : (
-                <SynergyIcon $isSpecial={isSpecial}>{styleInfo.icon}</SynergyIcon>
-              )}
+            return (
+              <SynergyItem
+                key={syn.id}
+                $level={syn.level}
+                $isSpecial={isSpecial}
+                onMouseEnter={() => setHoveredSynergy(syn)}
+              >
+                {styleInfo.imageUrl ? (
+                  <SynergyImage src={styleInfo.imageUrl} alt={styleInfo.name} />
+                ) : (
+                  <SynergyIcon $isSpecial={isSpecial}>{styleInfo.icon}</SynergyIcon>
+                )}
 
-              <SynergyInfo>
-                <SynergyName>{styleInfo.name} ({syn.count})</SynergyName>
-                <SynergyDesc>{syn.description}</SynergyDesc>
-              </SynergyInfo>
-            </SynergyItem>
-          );
-        })}
-      </List>
+                <SynergyInfo>
+                  <SynergyName>{styleInfo.name} ({syn.count})</SynergyName>
+                  <SynergyDesc>{syn.description}</SynergyDesc>
+                </SynergyInfo>
+              </SynergyItem>
+            );
+          })}
+        </List>
+      </CollapseContent>
     </Container>
+
   );
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
-const Container = styled.div`
+const Container = styled.div<{ $isCollapsed: boolean }>`
   position: fixed;
   left: 10px;
   top: 10px;
   width: 240px;
-  max-height: 45vh;
-  overflow-y: auto;
+  max-height: ${props => props.$isCollapsed ? '46px' : '45vh'};
+  overflow: hidden;
   background: linear-gradient(145deg, rgba(26, 31, 46, 0.95), rgba(15, 20, 25, 0.95));
   border: 3px solid rgba(76, 175, 255, 0.4);
   border-radius: 16px;
   padding: 12px;
   box-shadow: 0 15px 40px rgba(0,0,0,0.5);
   backdrop-filter: blur(10px);
-  z-index: 999;
+  z-index: 3000;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: slideInLeft 0.3s ease-out;
 `;
 
@@ -111,11 +125,45 @@ const Title = styled.h3`
   font-size: 16px;
   font-weight: bold;
   color: #4cafff;
-  text-align: center;
-  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
   padding-bottom: 6px;
   border-bottom: 2px solid rgba(76, 175, 255, 0.2);
+  cursor: pointer;
+  user-select: none;
+  
+  &:hover {
+    color: #8ccfff;
+  }
 `;
+
+const ToggleButton = styled.span`
+  font-size: 14px;
+  opacity: 0.8;
+  transition: transform 0.3s ease;
+`;
+
+const CollapseContent = styled.div<{ $isCollapsed: boolean }>`
+  max-height: ${props => props.$isCollapsed ? '0' : '40vh'};
+  opacity: ${props => props.$isCollapsed ? 0 : 1};
+  overflow-y: auto;
+  margin-top: ${props => props.$isCollapsed ? '0' : '10px'};
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(76, 175, 255, 0.3);
+    border-radius: 3px;
+  }
+`;
+
 
 const List = styled.div`
   display: flex;

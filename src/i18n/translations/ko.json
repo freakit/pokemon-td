@@ -47,14 +47,14 @@
     "fetchLearnableMovesError": "기술 학습 정보 로딩 실패"
   },
   "nav": {
-    "pokedex": "도감",
     "achievements": "업적",
     "settings": "설정"
+
   },
   "hud": {
     "startWave": "웨이브 시작",
     "addPokemon": "포켓몬 (20원)",
-    "managePokemon": "관리",
+    "managePokemon": "관리/판매",
     "speed": "속도"
   },
   "mapSelector": {
@@ -89,7 +89,7 @@
     "reroll": "리롤 (20원)"
   },
   "manager": {
-    "title": "포켓몬 관리 ({towers}/6)",
+    "title": "포켓몬 관리/판매 ({towers}/6)",
     "currentMoney": "💰 {money}원",
     "cancel": "취소",
     "fusion": "합체",
@@ -138,8 +138,8 @@
     "candyDesc": "레벨 1 상승",
     "candyCost": "레벨×25원",
     "expCandyName": "경험치 사탕",
-    "expCandyDesc": "가장 낮은 레벨 포켓몬 레벨업",
-    "expCandyCost": "2위 레벨×50원",
+    "expCandyDesc": "제일 낮은 레벨 포켓몬의 레벨을 다음 순위 레벨에 맞춤",
+    "expCandyCost": "목표 레벨×50원",
     "categoryStone": "진화의 돌",
     "categoryTrade": "통신교환 아이템",
     "categoryFriendship": "친밀도 아이템",
@@ -197,12 +197,7 @@
     "methodTime": " ({time})",
     "cancel": "진화 취소"
   },
-  "pokedex": {
-    "title": "포켓몬 도감",
-    "collected": "수집한 포켓몬: {count}마리",
-    "generation": "세대",
-    "filterAll": "전체"
-  },
+
   "achievements": {
     "title": "업적",
     "loading": "업적 정보를 불러오는 중...",
@@ -273,9 +268,7 @@
     "wave20": { "name": "중급자", "description": "웨이브 20 도달" },
     "wave30": { "name": "고급자", "description": "웨이브 30 도달" },
     "wave50": { "name": "마스터", "description": "웨이브 50 도달" },
-    "collect10": { "name": "수집가", "description": "포켓몬 10마리 수집" },
-    "collect50": { "name": "포켓몬 박사", "description": "포켓몬 50마리 수집" },
-    "collect100": { "name": "포켓몬 마스터", "description": "포켓몬 100마리 수집" },
+
     "evolve1": { "name": "첫 진화", "description": "포켓몬 1마리 진화" },
     "evolve10": { "name": "진화 마니아", "description": "포켓몬 10마리 진화" },
     "kill100": { "name": "사냥꾼", "description": "적 100마리 처치" },

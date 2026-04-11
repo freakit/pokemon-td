@@ -47,14 +47,14 @@
     "fetchLearnableMovesError": "Failed to fetch learnable moves"
   },
   "nav": {
-    "pokedex": "Pokédex",
     "achievements": "Achievements",
     "settings": "Settings"
+
   },
   "hud": {
     "startWave": "Start Wave",
     "addPokemon": "Pokémon (20G)",
-    "managePokemon": "Manage",
+    "managePokemon": "Manage/Sell",
     "speed": "Speed"
   },
   "mapSelector": {
@@ -89,7 +89,7 @@
     "reroll": "Reroll (20G)"
   },
   "manager": {
-    "title": "Manage Pokémon ({towers}/6)",
+    "title": "Pokémon Manage/Sell ({towers}/6)",
     "currentMoney": "{money}G",
     "cancel": "Cancel",
     "fusion": "Fuse",
@@ -138,8 +138,8 @@
     "candyDesc": "Increases Level by 1",
     "candyCost": "Lv×25G",
     "expCandyName": "Exp. Candy",
-    "expCandyDesc": "Boost lowest level",
-    "expCandyCost": "2nd Lv×50G",
+    "expCandyDesc": "Match lowest level to next rank",
+    "expCandyCost": "Target Lv×50G",
     "categoryStone": "Evolution Stones",
     "categoryTrade": "Trade Items",
     "categoryFriendship": "Friendship Items",
@@ -197,12 +197,7 @@
     "methodTime": " ({time})",
     "cancel": "Cancel Evolution"
   },
-  "pokedex": {
-    "title": "Pokédex",
-    "collected": "Collected: {count}",
-    "generation": "Gen",
-    "filterAll": "All"
-  },
+
   "achievements": {
     "title": "Achievements",
     "loading": "Loading achievements...",
@@ -273,9 +268,7 @@
     "wave20": { "name": "Intermediate", "description": "Reach Wave 20" },
     "wave30": { "name": "Advanced", "description": "Reach Wave 30" },
     "wave50": { "name": "Master", "description": "Reach Wave 50" },
-    "collect10": { "name": "Collector", "description": "Collect 10 Pokémon" },
-    "collect50": { "name": "Professor", "description": "Collect 50 Pokémon" },
-    "collect100": { "name": "Pokémon Master", "description": "Collect 100 Pokémon" },
+
     "evolve1": { "name": "First Evolution", "description": "Evolve 1 Pokémon" },
     "evolve10": { "name": "Evolution Maniac", "description": "Evolve 10 Pokémon" },
     "kill100": { "name": "Hunter", "description": "Defeat 100 enemies" },

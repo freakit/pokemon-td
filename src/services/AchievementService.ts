@@ -14,32 +14,6 @@
  *   achievementService.onPokedexAdd(pokedex); // 포켓몬 도감 등록 시
  */
 
-// 전설 포켓몬 ID 목록
-const LEGENDARY_IDS = new Set([
-  // 1세대
-  144, 145, 146, 150, 151,
-  // 2세대
-  243, 244, 245, 249, 250, 251,
-  // 3세대
-  377, 378, 379, 380, 381, 382, 383, 384, 385, 386,
-  // 4세대
-  480, 481, 482, 483, 484, 485, 486, 487, 488, 489, 490, 491, 492, 493,
-  // 5세대
-  494, 638, 639, 640, 641, 642, 643, 644, 645, 646, 647, 648, 649,
-  // 6세대
-  716, 717, 718, 719, 720, 721,
-  // 7세대
-  785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799,
-  800, 801, 802, 807, 808, 809,
-  // 8세대
-  888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898,
-  // 9세대
-  1001, 1002, 1003, 1004, 1007, 1008, 1009, 1010,
-]);
-
-// 스타터 3종 ID (이상해씨, 파이리, 꼬부기)
-const STARTER_IDS = new Set([1, 4, 7]);
-
 import { saveService } from './SaveService';
 
 class AchievementService {
@@ -200,34 +174,6 @@ class AchievementService {
     saveService.updateAchievement('all_maps', 1);
   }
 
-  // ─── 도감 수집 업적 ──────────────────────────────────────────────
-
-  /**
-   * 포켓몬이 도감에 새로 추가될 때 호출
-   * @param pokedex 현재 도감에 등록된 포켓몬 ID 배열 (새 포켓몬 포함)
-   */
-  onPokedexAdd(pokedex: number[]) {
-    const count = pokedex.length;
-
-    // 수집 수량 업적
-    const collectThresholds = [10, 50, 100, 200, 500];
-    for (const t of collectThresholds) {
-      saveService.updateAchievement(`collect${t}`, count);
-    }
-
-    // 스타터 3종 완성 업적
-    const hasAllStarters = STARTER_IDS.size > 0 &&
-      [...STARTER_IDS].every(id => pokedex.includes(id));
-    if (hasAllStarters) {
-      saveService.updateAchievement('allstarters', 1);
-    }
-
-    // 전설 포켓몬 수집 업적
-    const hasLegendary = pokedex.some(id => LEGENDARY_IDS.has(id));
-    if (hasLegendary) {
-      saveService.updateAchievement('legendary', 1);
-    }
-  }
 
   // ─── 멀티플레이 업적 ──────────────────────────────────────────────────
 
@@ -252,6 +198,8 @@ class AchievementService {
   }
 
   // ─── 세션 리셋 (게임 재시작 시 localStorage 카운터는 유지) ────────────
+
+
   // sell/mega/multi 카운터는 localStorage에 영속 저장되므로 별도 리셋 불필요
 }
 
