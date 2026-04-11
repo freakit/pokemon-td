@@ -5,8 +5,10 @@ import {
   Difficulty, Item, GameMove, Synergy
 } from '../types/game';
 import {
-  EVOLUTION_CHAINS, FUSION_DATA
+  EVOLUTION_CHAINS, FUSION_DATA,
+  canMegaEvolve, canGigantamax
 } from '../data/evolution';
+
 import { pokeAPI } from '../api/pokeapi';
 import { saveService } from '../services/SaveService';
 import { calculateActiveSynergies } from '../utils/synergyManager';
@@ -333,26 +335,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (itemType === 'exp_candy') {
       const aliveTowers = towers.filter(t => !t.isFainted);
       if (aliveTowers.length < 2) return false;
-      
-      const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-      const target = sortedTowers[0]; // 가장 낮은 레벨
-      const secondLowestLevel = sortedTowers[1].level;
 
-      // 이미 모든 포켓몬의 레벨이 같다면 사용 불가
-      if (target.level === secondLowestLevel) return false;
-      
-      const cost = secondLowestLevel * 50;
+      const target = towers.find(t => t.id === targetTowerId);
+      if (!target || target.isFainted) return false;
+
+      // 현재 타겟보다 높은 레벨들 중 가장 낮은 레벨 찾기
+      const higherLevels = [...new Set(aliveTowers.map(t => t.level))]
+        .filter(lvl => lvl > target.level)
+        .sort((a, b) => a - b);
+
+      if (higherLevels.length === 0) return false;
+      const nextTargetLevel = higherLevels[0];
+
+      const cost = nextTargetLevel * 50;
       if (!get().spendMoney(cost)) return false;
-      
+
       // 목표 레벨까지 필요한 정확한 경험치 계산
-      // (현재 레벨 i에서 i+1로 가는데 i*100 필요)
       let totalXpNeeded = 0;
-      for (let lvl = target.level; lvl < secondLowestLevel; lvl++) {
+      for (let lvl = target.level; lvl < nextTargetLevel; lvl++) {
         totalXpNeeded += lvl * 100;
       }
-      // 현재 가지고 있는 경험치만큼은 제외 (목표 레벨에 딱 맞추기 위해)
       const xpToApply = Math.max(0, totalXpNeeded - target.experience);
-      
+
       get().addXpToTower(target.id, xpToApply);
       return true;
     }
@@ -449,7 +453,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // 각 레벨업마다 배울 수 있는 기술 체크
       try {
-        const { pokeAPI: _pokeAPI } = require('../api/pokeapi');
+        const _pokeAPI = pokeAPI;
+
         
         // 순차적으로 기술 학습 팝업을 띄우기 위해 개별 레벨마다 호출
         levelUps.forEach(lvl => {
@@ -472,23 +477,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!tower) return false;
 
     try {
-      const evolutionTarget = targetId ?? (() => {
+      const evolutionTarget = await (async () => {
+        if (targetId) return targetId;
+
+        // 1. 메가진화 체크 (mega_stone_ 상성)
+        if (item?.startsWith('mega_stone_')) {
+          const stoneName = item.replace('mega_stone_', '');
+          const mega = canMegaEvolve(tower.pokemonId, stoneName);
+          return mega?.to;
+        }
+
+        // 2. 거다이맥스 체크 (max_mushroom_)
+        if (item?.startsWith('max_mushroom')) {
+          const gmax = canGigantamax(tower.pokemonId, 'max-mushroom');
+          return gmax?.to;
+        }
+
+        // 3. 일반 진화 체크
         const chain = EVOLUTION_CHAINS.find(c =>
           c.from === tower.pokemonId && (!item || c.item === item)
         );
         return chain?.to;
       })();
 
-      if (!evolutionTarget) return false;
+      if (!evolutionTarget) {
+        console.warn(`[Evolution] No evolution target found for ${tower.name} with item ${item}`);
+        return false;
+      }
+
 
       const newData = await pokeAPI.getPokemon(evolutionTarget);
 
+      // 현재 레벨에 따른 스탯 스케일링 계산 (1.1^level-1)
+      const scaleFactor = Math.pow(1.1, tower.level - 1);
+      
+      const newMaxHp = Math.floor(newData.stats.hp * scaleFactor);
+      const newAttack = Math.floor(newData.stats.attack * scaleFactor);
+      const newSpecialAttack = Math.floor(newData.stats.specialAttack * scaleFactor);
+      const newDefense = Math.floor(newData.stats.defense * scaleFactor);
+      const newStatSpeed = newData.stats.speed; 
+
+
       const hpRatio = tower.currentHp / tower.maxHp;
-      const newMaxHp = Math.max(tower.maxHp, newData.stats.hp);
-      const newAttack = Math.max(tower.attack, newData.stats.attack);
-      const newSpecialAttack = Math.max(tower.specialAttack, newData.stats.specialAttack);
-      const newDefense = Math.max(tower.defense, newData.stats.defense);
-      const newSpeed = Math.max(tower.speed, newData.stats.speed);
 
       updateTower(towerId, {
         pokemonId: newData.id,
@@ -502,8 +532,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         baseAttack: newAttack,
         specialAttack: newSpecialAttack,
         defense: newDefense,
-        speed: newSpeed,
+        speed: newStatSpeed,
       });
+
 
       set(() => ({
         evolutionToast: {
