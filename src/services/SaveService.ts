@@ -29,7 +29,12 @@ class SaveService {
   load(): SaveData {
     try {
       const saved = localStorage.getItem(SAVE_KEY);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // totalAP 필드가 없는 구버전 데이터 마이그레이션
+        if (parsed.totalAP === undefined) parsed.totalAP = 0;
+        return parsed;
+      }
     } catch (error) {
       console.error('Failed to load game:', error);
     }
@@ -49,7 +54,6 @@ class SaveService {
         mapClears: {},
       },
       achievements: [],
-      pokedex: [],
       unlockedMaps: ['beginner'],
       settings: {
         musicVolume: 0.2,
@@ -61,6 +65,7 @@ class SaveService {
         language: 'ko',
       },
       highScores: [],
+      totalAP: 0,
     };
   }
 
@@ -70,23 +75,10 @@ class SaveService {
     this.save(data);
   }
 
-  addToPokedex(pokemonId: number) {
-    const data = this.load();
-    if (!data.pokedex.includes(pokemonId)) {
-      data.pokedex.push(pokemonId);
-      this.save(data);
 
-      // 새 포켓몬 추가 시 수집 업적 체크
-      try {
-        const { achievementService } = require('./AchievementService');
-        achievementService.onPokedexAdd(data.pokedex);
-      } catch {
-        // 모듈 순환 참조 방지 — 실패 시 조용히 무시
-      }
-    }
-  }
-
-  // [수정] alert → achievementToast 사용
+  // ─── [리뉴얼] 업적 업데이트 — 횟수 누적 + AP 포인트 ─────────────────────
+  // progress >= target 달성 시마다 completions++ / totalPoints += pointsPerCompletion
+  // 기존 unlocked 플래그는 최초 달성 기록용으로 유지
   updateAchievement(achievementId: string, progress: number) {
     const data = this.load();
     let achievement: Achievement | undefined = data.achievements.find(
@@ -96,7 +88,13 @@ class SaveService {
     if (!achievement) {
       const base = ACHIEVEMENTS.find(a => a.id === achievementId);
       if (base) {
-        achievement = { ...base, progress: 0, unlocked: false };
+        achievement = {
+          ...base,
+          progress: 0,
+          unlocked: false,
+          completions: 0,
+          totalPoints: 0,
+        };
         data.achievements.push(achievement);
       } else {
         console.warn(`Attempted to update undefined achievement: ${achievementId}`);
@@ -104,41 +102,73 @@ class SaveService {
       }
     }
 
-    if (achievement.unlocked) return;
+    // 리뉴얼 필드 마이그레이션 (구버전 데이터 대응)
+    if (achievement.completions === undefined) achievement.completions = achievement.unlocked ? 1 : 0;
+    if (achievement.totalPoints === undefined) achievement.totalPoints = achievement.completions * (achievement.pointsPerCompletion ?? 3);
+    if (achievement.pointsPerCompletion === undefined) achievement.pointsPerCompletion = achievement.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[achievement.tier] ?? 3 : 3;
 
+    const prevProgress = achievement.progress;
     achievement.progress = progress;
 
-    if (progress >= achievement.target && !achievement.unlocked) {
+    // 달성 조건: target 도달 (횟수 누적)
+    if (progress >= achievement.target) {
+      const isFirstTime = !achievement.unlocked;
       achievement.unlocked = true;
-      console.log(`Achievement unlocked: ${achievement.name}`);
 
-      // [수정] alert 제거 → 게임 내 토스트 사용
+      // 새 달성 1회 카운트
+      achievement.completions = (achievement.completions ?? 0) + 1;
+      const earnedAP = achievement.pointsPerCompletion ?? 3;
+      achievement.totalPoints = (achievement.totalPoints ?? 0) + earnedAP;
+
+      // 전체 누적 AP 갱신
+      data.totalAP = (data.totalAP ?? 0) + earnedAP;
+
+      // progress 리셋 (다음 달성 준비 — 단 일회성 업적은 리셋 안 함)
+      // target이 1 이하인 업적(일회성) vs 반복 가능한 업적 구분
+      // 반복 가능: kills, boss, money, sell, evolve, wave, combo 등 누적형
+      const repeatable = ['kills', 'boss', 'money', 'sell', 'evolve', 'wave', 'combo', 'multi_win', 'collect'].some(
+        c => achievement!.condition.includes(c)
+      );
+      if (repeatable) {
+        achievement.progress = 0; // 다음 사이클 준비
+      }
+
+
+
+      // 토스트 알림
       try {
         const { useGameStore } = require('../store/gameStore');
-        useGameStore.getState().showAchievementToast(achievement.name);
+        useGameStore.getState().showAchievementToast(achievement.name, earnedAP, isFirstTime);
       } catch {
-        // 스토어가 없는 경우 무시
+        // 스토어 없는 경우 무시
       }
+    } else {
+      // 미달성 — progress만 업데이트 (prevProgress보다 높은 경우만)
+      achievement.progress = Math.max(prevProgress, progress);
     }
 
     this.save(data);
 
-    // DB 저장 (로그인 상태일 때만, 에러는 조용히 무시)
+    // Firebase DB 동기화
     try {
       const { authService } = require('./AuthService');
       if (authService.getCurrentUser()) {
         databaseService
-          .updateUserAchievement(achievement)
+          .updateUserAchievement(achievement, data.totalAP)
           .catch((err: any) => {
-            // Firebase permission 에러는 조용히 무시 (로컬 저장은 이미 완료됨)
             if (err?.code !== 'permission-denied') {
               console.warn('[SaveService] Failed to persist achievement to DB:', err);
             }
           });
       }
     } catch {
-      // 모듈 로드 실패 시 무시
+      // 무시
     }
+  }
+
+  // ─── 총 AP 조회 ──────────────────────────────────────────────────────────
+  getTotalAP(): number {
+    return this.load().totalAP ?? 0;
   }
 
   unlockMap(mapId: string) {
@@ -149,11 +179,7 @@ class SaveService {
     }
   }
 
-  /**
-   * 로그인 직후 Firebase DB에서 업적 목록을 가져와
-   * 로컬 저장소와 병합합니다 (더 높은 progress / unlocked 우선).
-   * 나갔다 들어와도 업적이 유지되는 핵심 로직입니다.
-   */
+  // ─── Firebase → localStorage 병합 ────────────────────────────────────────
   async syncAchievementsFromDB(): Promise<void> {
     try {
       const dbAchievements = await databaseService.getUserAchievements();
@@ -165,28 +191,29 @@ class SaveService {
         const localIdx = data.achievements.findIndex(a => a.id === dbAch.id);
 
         if (localIdx === -1) {
-          // 로컬에 없으면 그대로 추가
           data.achievements.push(dbAch);
         } else {
           const local = data.achievements[localIdx];
-          // DB 기준으로 더 좋은 값(progress 높음 or unlocked) 채택
-          const shouldUpdate =
-            dbAch.unlocked && !local.unlocked ||
-            (!local.unlocked && dbAch.progress > local.progress);
-          if (shouldUpdate) {
+          // DB가 더 많은 completions를 가지면 DB 우선
+          const dbCompletions = dbAch.completions ?? 0;
+          const localCompletions = local.completions ?? 0;
+          if (dbCompletions > localCompletions) {
             data.achievements[localIdx] = {
               ...local,
-              progress: dbAch.unlocked ? dbAch.progress : Math.max(local.progress, dbAch.progress),
+              completions: dbCompletions,
+              totalPoints: dbAch.totalPoints ?? dbCompletions * (local.pointsPerCompletion ?? 3),
               unlocked: local.unlocked || dbAch.unlocked,
+              progress: Math.max(local.progress, dbAch.progress),
             };
           }
         }
       }
 
+      // 총 AP 재계산
+      data.totalAP = data.achievements.reduce((sum, a) => sum + (a.totalPoints ?? 0), 0);
       this.save(data);
-      console.log(`[SaveService] Synced ${dbAchievements.length} achievements from DB`);
+
     } catch (err: any) {
-      // Firebase permission 에러는 로그 없이 무시 (Firestore Rules 미설정 환경)
       if (err?.code !== 'permission-denied') {
         console.warn('[SaveService] Failed to sync achievements from DB:', err);
       }

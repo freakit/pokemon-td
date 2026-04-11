@@ -5,7 +5,7 @@ import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
 
-import { Pokedex } from '../Modals/Pokedex';
+
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
 import { Rankings } from '../Modals/Rankings';
@@ -20,7 +20,7 @@ export const MainMenu = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
 
-  const [showPokedex,      setShowPokedex]      = useState(false);
+
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame,   setShowHallOfFame]   = useState(false);
   const [showRankings,     setShowRankings]     = useState(false);
@@ -87,7 +87,6 @@ export const MainMenu = () => {
               <Rating>⭐ Rating: {user?.rating}</Rating>
             </UserInfo>
             <RightButtons>
-              <SettingsButton onClick={() => setShowSettings(true)}>⚙️ 설정</SettingsButton>
               <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
             </RightButtons>
           </Header>
@@ -121,10 +120,10 @@ export const MainMenu = () => {
           <MenuSection>
             <SectionTitle>내 정보</SectionTitle>
             <BottomButtons>
-              <BottomButton onClick={() => setShowPokedex(true)}>📖 도감</BottomButton>
               <BottomButton onClick={() => setShowAchievements(true)}>🏆 업적</BottomButton>
               <BottomButton onClick={() => setShowHallOfFame(true)}>🎖️ 전당</BottomButton>
               <BottomButton onClick={() => setShowRankings(true)}>📊 랭킹</BottomButton>
+              <BottomButton onClick={() => setShowSettings(true)}>⚙️ 설정</BottomButton>
             </BottomButtons>
           </MenuSection>
 
@@ -141,7 +140,7 @@ export const MainMenu = () => {
       </Overlay>
 
       {/* 일반 모달 */}
-      {showPokedex      && <Pokedex           onClose={() => setShowPokedex(false)} />}
+
       {showAchievements && <AchievementsPanel  onClose={() => setShowAchievements(false)} />}
       {showHallOfFame   && <HallOfFame         onClose={() => setShowHallOfFame(false)} />}
       {showRankings     && <Rankings           onClose={() => setShowRankings(false)} />}
@@ -232,7 +231,7 @@ const RightButtons = styled.div`
   gap: 0.5rem;
 `;
 
-const SettingsButton = styled(SignOutButton)``;
+
 
 const Title = styled.h1`
   display: flex;

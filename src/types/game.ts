@@ -17,6 +17,15 @@ export type PokemonRarity =
   | "Master"
   | "Legend";
 
+// ─── Achievement 티어 ────────────────────────────────────────────────────────
+// 매판 달성 가능한 정도에 따라 포인트 차등
+// Bronze(3) : 게임마다 쉽게 달성 가능
+// Silver(10) : 플레이 잘 하면 달성 가능
+// Gold(25)   : 집중해야 달성 가능
+// Diamond(50): 고난도 도전
+// Legendary(100): 거의 불가능에 가까운 도전
+export type AchievementTier = 'bronze' | 'silver' | 'gold' | 'diamond' | 'legendary';
+
 export interface Synergy {
   id: string;
   name: string;
@@ -37,26 +46,26 @@ export interface StatusEffect {
 }
 
 export interface PokemonAbility {
-  name: string; // 영문 key
-  displayName: string; // 현지화된 이름
+  name: string;
+  displayName: string;
   description: string;
   effect: "crit" | "lifesteal" | "aoe" | "speed" | "tank";
   value: number;
 }
 
 export interface GameMove {
-  name: string;              // 영문 key (예: "thunderbolt")
-  displayName: string;       // 현지화된 이름 (예: "10만볼트")
-  type: string;              // 타입 (예: "electric")
-  power: number;             // 위력
-  accuracy: number;          // 명중률
-  damageClass: DamageClass;  // "physical" | "special" | "status"
-  effect: MoveEffect;        // 기술 효과
-  cooldown: number;          // 쿨다운 (ms)
-  currentCooldown: number;   // 현재 남은 쿨다운 (ms)
-  isAOE: boolean;            // 광역 공격 여부
-  aoeRadius?: number;        // 광역 범위 (optional)
-  manualCast?: boolean;      // 수동 시전 여부 (optional)
+  name: string;
+  displayName: string;
+  type: string;
+  power: number;
+  accuracy: number;
+  damageClass: DamageClass;
+  effect: MoveEffect;
+  cooldown: number;
+  currentCooldown: number;
+  isAOE: boolean;
+  aoeRadius?: number;
+  manualCast?: boolean;
 }
 
 export interface MoveEffect {
@@ -83,54 +92,39 @@ export interface MapData {
 export type Gender = "male" | "female" | "genderless";
 
 export interface GamePokemon {
-  // 기본 정보
-  id: string;                      // 고유 ID
-  pokemonId: number;               // 포켓몬 도감 번호
-  name: string;                    // 영문 이름
-  displayName: string;             // 현지화된 이름
-  
-  // 레벨 & 경험치
-  level: number;                   // 레벨
-  experience: number;              // 경험치
-  
-  // 스탯
-  currentHp: number;               // 현재 HP
-  maxHp: number;                   // 최대 HP
-  baseAttack: number;              // 기본 공격력
-  attack: number;                  // 현재 공격력
-  defense: number;                 // 방어력
-  specialAttack: number;           // 특수 공격력
-  specialDefense: number;          // 특수 방어력
-  speed: number;                   // 스피드
-  
-  // 타입 & 위치
-  types: string[];                 // 타입 배열 (예: ["fire", "flying"])
-  position: Position;              // 배치 위치 { x: number, y: number }
-  
-  // 전투 관련
-  range: number;                   // 공격 범위
-  sellValue: number;               // ⭐️ [추가] 판매 가격
-  kills: number;                   // ⭐️ [추가] 킬 수
-  damageDealt: number;             // ⭐️ [추가] 가한 데미지
-  targetEnemyId: string | null;    // 타겟 적 ID
-  isFainted: boolean;              // 기절 여부
-  
-  // 비주얼
-  sprite: string;                  // 스프라이트 URL
-  
-  // 기술 (중요!)
-  equippedMoves: GameMove[];       // 장착된 기술 (최대 4개)
-  rejectedMoves?: string[];        // ⭐️ [수정] 2. 타입을 GameMove[]에서 string[]로 변경
-  
-  // 추가 속성 (optional)
+  id: string;
+  pokemonId: number;
+  name: string;
+  displayName: string;
+  level: number;
+  experience: number;
+  currentHp: number;
+  maxHp: number;
+  baseAttack: number;
+  attack: number;
+  defense: number;
+  specialAttack: number;
+  specialDefense: number;
+  speed: number;
+  types: string[];
+  position: Position;
+  range: number;
+  sellValue: number;
+  kills: number;
+  damageDealt: number;
+  targetEnemyId: string | null;
+  isFainted: boolean;
+  sprite: string;
+  equippedMoves: GameMove[];
+  rejectedMoves?: string[];
   statusEffect?: StatusEffect;
-  rarity?: PokemonRarity;          // 레어도
-  gender?: Gender;                 // 성별
-  ability?: PokemonAbility;        // 특성
-  critChance?: number;             // 크리티컬 확률
-  critDamage?: number;             // 크리티컬 데미지
-  lifesteal?: number;              // 흡혈
-  aoeBonus?: number;               // 광역 보너스
+  rarity?: PokemonRarity;
+  gender?: Gender;
+  ability?: PokemonAbility;
+  critChance?: number;
+  critDamage?: number;
+  lifesteal?: number;
+  aoeBonus?: number;
 }
 
 export interface Enemy {
@@ -205,18 +199,35 @@ export interface Item {
   targetPokemonId?: number;
 }
 
+// ─── Achievement (리뉴얼) ─────────────────────────────────────────────────────
 export interface Achievement {
   id: string;
   name: string;
   description: string;
   icon: string;
   condition: string;
+  // 기존 호환용 (단순 진행도 추적 — condition별 누적 카운터)
   progress: number;
   target: number;
-  unlocked: boolean;
-  reward: number;
+  unlocked: boolean;         // 최초 1회 달성 여부 (레거시 호환)
+  reward: number;            // 레거시 골드 보상 (0으로 통일, AP 포인트로 대체)
   hidden?: boolean;
+
+  // ── 리뉴얼 필드 ─────────────────────────────────────────────────────────────
+  tier: AchievementTier;              // 난이도 티어
+  pointsPerCompletion: number;        // 달성 1회당 AP 포인트
+  completions: number;               // 누적 달성 횟수 (매판 초기화 안 됨)
+  totalPoints: number;               // completions × pointsPerCompletion (누적 AP)
 }
+
+// ─── AP 티어 포인트 상수 ──────────────────────────────────────────────────────
+export const TIER_POINTS: Record<AchievementTier, number> = {
+  bronze:    3,
+  silver:    10,
+  gold:      25,
+  diamond:   50,
+  legendary: 100,
+};
 
 export interface GameStats {
   totalPlayTime: number;
@@ -232,10 +243,10 @@ export interface GameStats {
 export interface SaveData {
   stats: GameStats;
   achievements: Achievement[];
-  pokedex: number[];
   unlockedMaps: string[];
   settings: GameSettings;
   highScores: HighScore[];
+  totalAP: number;           // 누적 Achievement Points
 }
 
 export interface GameSettings {
@@ -305,5 +316,5 @@ export interface GameState {
   hoveredSynergy: Synergy | null;
 
   isPreloading: boolean;
-  isShopDisabled: boolean; // ⭐ 추가
+  isShopDisabled: boolean;
 }

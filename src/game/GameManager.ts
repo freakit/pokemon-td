@@ -12,6 +12,7 @@ import { getMapById } from '../data/maps';
 import { pokeAPI } from '../api/pokeapi';
 import { multiplayerService } from '../services/MultiplayerService';
 import { achievementService } from '../services/AchievementService';
+import { WaveSystem } from './WaveSystem'; // [버그3 수정] 추가
 
 export class GameManager {
   private static instance: GameManager;
@@ -511,10 +512,13 @@ export class GameManager {
 
   // [수정] checkWaveComplete: isCompletingWave 플래그로 중복 실행 방지
   // [수정] 멀티플레이에서 isPaused: true 설정 안 함 (BattlePhaseUI가 페이즈 전환 담당)
+  // [버그3 수정] 보스 스폰 대기 중(isBossSpawnPending)이면 완료 처리 금지
   private async checkWaveComplete() {
     const { enemies, isWaveActive, isSpawning } = useGameStore.getState();
 
-    if (!isWaveActive || isSpawning || enemies.length !== 0) return;
+    // [버그3 수정] 보스가 아직 async로 addEnemy 처리 중이면 완료 판정 금지
+    const waveSystem = WaveSystem.getInstance();
+    if (!isWaveActive || isSpawning || enemies.length !== 0 || waveSystem.isBossSpawnPending) return;
     if (this.isCompletingWave) return;
 
     this.isCompletingWave = true;
@@ -553,10 +557,8 @@ export class GameManager {
             gameTime
           );
           await databaseService.updateLeaderboard(currentMap, gameTime, wave);
-          for (const tower of towers) {
-            await databaseService.addToPokedex(tower.pokemonId, tower.displayName);
-          }
           saveService.updateAchievement('wave50', 50);
+
         } catch (err) {
           console.error('Failed to save Wave 50 clear data:', err);
         }

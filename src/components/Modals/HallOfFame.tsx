@@ -150,16 +150,16 @@ const GlobalClearList = ({
       <tbody>
         {entries.map((e, i) => (
           <Tr key={e.id} $isMe={e.userId === myUid} $rank={i}>
-            <Td center>{MEDAL[i] ?? `${i + 1}위`}</Td>
-            <Td bold>{e.userName}</Td>
+            <Td $center>{MEDAL[i] ?? `${i + 1}위`}</Td>
+            <Td $bold>{e.userName}</Td>
             <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapName}</Td>
-            <Td bold accent>{formatTime(e.clearTime)}</Td>
+            <Td $bold $accent>{formatTime(e.clearTime)}</Td>
             <PokemonCell>
               {e.pokemonUsed.slice(0, 6).map((name, j) => (
                 <PokemonTag key={j}>{name}</PokemonTag>
               ))}
             </PokemonCell>
-            <Td small>{formatDate(e.timestamp)}</Td>
+            <Td $small>{formatDate(e.timestamp)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -190,8 +190,8 @@ const GlobalWaveList = ({
       <tbody>
         {entries.map((e, i) => (
           <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={i}>
-            <Td center>{MEDAL[i] ?? `${i + 1}위`}</Td>
-            <Td bold>{e.userName}</Td>
+            <Td $center>{MEDAL[i] ?? `${i + 1}위`}</Td>
+            <Td $bold>{e.userName}</Td>
             <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapId}</Td>
             <WaveCell>{e.highestWave}</WaveCell>
             <Td>{formatTime(e.clearTime)}</Td>
@@ -350,12 +350,12 @@ const Tr = styled.tr<{ $isMe?: boolean; $rank?: number }>`
   &:hover { background: rgba(255,255,255,0.06); }
 `;
 
-const Td = styled.td<{ center?: boolean; bold?: boolean; accent?: boolean; small?: boolean }>`
+const Td = styled.td<{ $center?: boolean; $bold?: boolean; $accent?: boolean; $small?: boolean }>`
   padding: 10px 12px;
-  font-size: ${p => p.small ? '11px' : '13px'};
-  color: ${p => p.accent ? '#4fc3f7' : 'rgba(255,255,255,0.85)'};
-  font-weight: ${p => p.bold ? 'bold' : 'normal'};
-  text-align: ${p => p.center ? 'center' : 'left'};
+  font-size: ${p => p.$small ? '11px' : '13px'};
+  color: ${p => p.$accent ? '#4fc3f7' : 'rgba(255,255,255,0.85)'};
+  font-weight: ${p => p.$bold ? 'bold' : 'normal'};
+  text-align: ${p => p.$center ? 'center' : 'left'};
 `;
 
 const PokemonCell = styled.td`

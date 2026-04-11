@@ -41,6 +41,10 @@ export class WaveSystem {
   // [수정] 스폰 타이머 ID 추적 (웨이브 전환 시 취소)
   private activeTimers: ReturnType<typeof setTimeout>[] = [];
 
+  // [버그3 수정] 보스 스폰 대기 중 플래그
+  // setSpawning(false) 이후에도 보스가 아직 async 스폰 중이면 웨이브 완료 방지
+  private _bossSpawnPending = false;
+
   static getInstance() {
     if (!WaveSystem.instance) {
       WaveSystem.instance = new WaveSystem();
@@ -48,10 +52,16 @@ export class WaveSystem {
     return WaveSystem.instance;
   }
 
+  // [버그3 수정] GameManager에서 조회 가능한 getter
+  get isBossSpawnPending(): boolean {
+    return this._bossSpawnPending;
+  }
+
   // [수정] 새 웨이브 시작 전 이전 웨이브의 미실행 타이머 취소
   cancelPendingSpawns() {
     this.activeTimers.forEach(id => clearTimeout(id));
     this.activeTimers = [];
+    this._bossSpawnPending = false;
   }
 
   startWave(wave: number) {
@@ -67,6 +77,14 @@ export class WaveSystem {
     const mult = DIFFICULTY_MULTIPLIERS[difficulty];
     const pathsToUse = map.paths;
 
+    // [수정①] 3의 배수 웨이브마다 보스 스폰 (기존 5의 배수 → 3의 배수)
+    const isBossWave = wave % 3 === 0;
+
+    // [버그3 수정] 보스 웨이브 시작 시 플래그 ON
+    if (isBossWave) {
+      this._bossSpawnPending = true;
+    }
+
     let lastSpawnTime = 0;
 
     for (let i = 0; i < count; i++) {
@@ -81,11 +99,13 @@ export class WaveSystem {
       lastSpawnTime = spawnTime;
     }
 
-    // 5의 배수 웨이브마다 보스 스폰
-    if (wave % 5 === 0) {
+    // 3의 배수 웨이브마다 보스 스폰
+    if (isBossWave) {
       const bossSpawnTime = Math.ceil(count / pathsToUse.length) * 800 + 2000;
-      const bossTimer = setTimeout(() => {
-        this.spawnBossInternal(wave, pathsToUse[0], mult, addEnemy);
+      const bossTimer = setTimeout(async () => {
+        // [버그3 수정] 보스 addEnemy 완료 후 플래그 OFF
+        await this.spawnBossInternal(wave, pathsToUse[0], mult, addEnemy);
+        this._bossSpawnPending = false;
       }, bossSpawnTime);
       this.activeTimers.push(bossTimer);
       lastSpawnTime = bossSpawnTime;
@@ -126,17 +146,18 @@ export class WaveSystem {
       // [수정] 보스 보상: 일반 적의 5배
       const reward = isBoss ? 50 : 10;
 
+      // [보스 강화] HP 5배, 공격/특공/방어/특방 2.5배, 이동속도 40
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,
         name: pokemonData.name,
         pokemonId: pokemonData.id,
-        hp: isBoss ? baseHp * 3 : baseHp,
-        maxHp: isBoss ? baseHp * 3 : baseHp,
-        baseAttack: isBoss ? baseAttack * 2 : baseAttack,
-        attack: isBoss ? baseAttack * 2 : baseAttack,
-        defense: baseDefense,
-        specialAttack: isBoss ? baseSpecialAttack * 2 : baseSpecialAttack,
-        specialDefense: baseSpecialDefense,
+        hp: isBoss ? baseHp * 5 : baseHp,
+        maxHp: isBoss ? baseHp * 5 : baseHp,
+        baseAttack: isBoss ? baseAttack * 2.5 : baseAttack,
+        attack: isBoss ? baseAttack * 2.5 : baseAttack,
+        defense: isBoss ? baseDefense * 2.5 : baseDefense,
+        specialAttack: isBoss ? baseSpecialAttack * 2.5 : baseSpecialAttack,
+        specialDefense: isBoss ? baseSpecialDefense * 2.5 : baseSpecialDefense,
         speed: pokemonData.stats.speed,
         position: { ...path[0] },
         path: [...path],
@@ -144,7 +165,7 @@ export class WaveSystem {
         isNamed: isBoss,
         isBoss,
         reward,
-        moveSpeed: 60,
+        moveSpeed: isBoss ? 40 : 60,
         types: pokemonData.types,
         sprite: pokemonData.sprite,
         range: 80,
@@ -157,13 +178,13 @@ export class WaveSystem {
     }
   }
 
-  private spawnBossInternal(
+  private async spawnBossInternal(
     wave: number,
     path: any[],
     mult: any,
     addEnemy: (enemy: Enemy) => void
   ) {
-    this.spawnEnemy(wave, path, true, mult, addEnemy);
+    await this.spawnEnemy(wave, path, true, mult, addEnemy);
   }
 
   spawnDebuffBoss(wave: number) {
@@ -195,17 +216,18 @@ export class WaveSystem {
     const baseDefense = 5 + wave;
     const reward = isBoss ? 50 : 10;
 
+    // [보스 강화] fallback도 동일 배율 적용
     const enemy: Enemy = {
       id: `enemy-${this.enemyCounter++}`,
       name: isBoss ? `Boss ${wave}` : `Enemy ${wave}`,
       pokemonId: 0,
-      hp: baseHp,
-      maxHp: baseHp,
-      baseAttack: baseAttack,
-      attack: baseAttack,
-      defense: baseDefense,
-      specialAttack: baseAttack,
-      specialDefense: baseDefense,
+      hp: isBoss ? baseHp * 5 : baseHp,
+      maxHp: isBoss ? baseHp * 5 : baseHp,
+      baseAttack: isBoss ? baseAttack * 2.5 : baseAttack,
+      attack: isBoss ? baseAttack * 2.5 : baseAttack,
+      defense: isBoss ? baseDefense * 2.5 : baseDefense,
+      specialAttack: isBoss ? baseAttack * 2.5 : baseAttack,
+      specialDefense: isBoss ? baseDefense * 2.5 : baseDefense,
       speed: 50 + wave,
       position: { ...path[0] },
       path: [...path],
@@ -213,7 +235,7 @@ export class WaveSystem {
       isNamed: isBoss,
       isBoss,
       reward,
-      moveSpeed: 60,
+      moveSpeed: isBoss ? 40 : 60,
       types: ['normal'],
       sprite: '',
       range: 80,

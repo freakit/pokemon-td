@@ -1,68 +1,24 @@
 // src/services/DatabaseService.ts
 import {
   doc, setDoc, getDoc, collection, query, where, orderBy,
-  limit, getDocs, addDoc, updateDoc, increment
+  limit, getDocs, addDoc, updateDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { PokedexEntry, HallOfFameEntry, LeaderboardEntry } from '../types/multiplayer';
+import { HallOfFameEntry, LeaderboardEntry } from '../types/multiplayer';
 import { Achievement } from '../types/game';
 import { authService } from './AuthService';
-// achievementService는 동적 require()로 사용 (순환 의존성 방지:
-// DatabaseService → AchievementService → SaveService → DatabaseService)
+
+// ─── AP 랭킹 엔트리 타입 ──────────────────────────────────────────────────────
+export interface APRankingEntry {
+  userId: string;
+  userName: string | null;
+  totalAP: number;
+  achievementCount: number; // 달성 횟수 합산
+  updatedAt: number;
+}
 
 class DatabaseService {
 
-  async addToPokedex(pokemonId: number, name: string): Promise<void> {
-    const user = authService.getCurrentUser();
-    if (!user) return;
-
-    const docRef = doc(db, 'pokedex', `${user.uid}_${pokemonId}`);
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists()) {
-      // 이미 등록됨 - 횟수만 증가
-      await updateDoc(docRef, { timesSeen: increment(1) });
-    } else {
-      const entry: PokedexEntry = {
-        pokemonId,
-        name,
-        firstSeen: Date.now(),
-        timesSeen: 1,
-      };
-      await setDoc(docRef, { userId: user.uid, ...entry });
-
-      // 새 포켓몬 등록 시에만 업적 체크
-      try {
-        const pokedex = await this.getUserPokedex();
-        const pokedexIds = pokedex.map(p => p.pokemonId);
-        // 동적 require로 순환 의존성 회피
-        const { achievementService } = require('./AchievementService');
-        achievementService.onPokedexAdd(pokedexIds);
-      } catch (err) {
-        console.error('Failed to check achievements after adding to pokedex:', err);
-      }
-    }
-  }
-
-  async getUserPokedex(): Promise<PokedexEntry[]> {
-    const user = authService.getCurrentUser();
-    if (!user) return [];
-    const q = query(
-      collection(db, 'pokedex'),
-      where('userId', '==', user.uid),
-      orderBy('pokemonId')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        pokemonId: data.pokemonId,
-        name: data.name,
-        firstSeen: data.firstSeen,
-        timesSeen: data.timesSeen,
-      };
-    });
-  }
 
   async addHallOfFameEntry(
     mapId: string,
@@ -103,10 +59,6 @@ class DatabaseService {
     } as HallOfFameEntry));
   }
 
-  /**
-   * 전체 유저 전당등록 - 맵별 클리어 시간 Top 20
-   * (hallOfFame 컬렉션에 difficulty 필드 없으면 mapId로만 필터)
-   */
   async getGlobalHallOfFame(
     mapId?: string,
     sortBy: 'clearTime' | 'timestamp' = 'clearTime'
@@ -137,9 +89,6 @@ class DatabaseService {
     }
   }
 
-  /**
-   * 전체 유저 최고 웨이브 랭킹 (맵별)
-   */
   async getGlobalHighestWave(mapId?: string): Promise<LeaderboardEntry[]> {
     try {
       let q;
@@ -164,11 +113,6 @@ class DatabaseService {
     }
   }
 
-  /**
-   * [수정] 리더보드 갱신 로직 수정:
-   * - clearTime 있음 (50웨이브 클리어): clearTime이 더 작으면 갱신
-   * - clearTime 없음 (진행 중): highestWave가 더 크면 갱신
-   */
   async updateLeaderboard(
     mapId: string,
     clearTime: number | undefined,
@@ -198,12 +142,10 @@ class DatabaseService {
     const existing = docSnap.data() as LeaderboardEntry;
 
     if (clearTime !== undefined) {
-      // 클리어 기록: 더 빠른 시간 우선
       if (!existing.clearTime || clearTime < existing.clearTime) {
         await setDoc(docRef, newEntry);
       }
     } else {
-      // 진행 중: 더 높은 웨이브 우선 (단순 비교)
       if (highestWave > (existing.highestWave ?? 0)) {
         await setDoc(docRef, { ...existing, highestWave, timestamp: Date.now() });
       }
@@ -254,12 +196,18 @@ class DatabaseService {
     await updateDoc(docRef, { rating: newRating });
   }
 
-  async updateUserAchievement(achievement: Achievement): Promise<void> {
+  // ─── [리뉴얼] 업적 저장 — AP 포함 ──────────────────────────────────────────
+  async updateUserAchievement(achievement: Achievement, totalAP?: number): Promise<void> {
     const user = authService.getCurrentUser();
     if (!user) return;
 
     const docRef = doc(db, 'achievements', `${user.uid}_${achievement.id}`);
     await setDoc(docRef, { userId: user.uid, ...achievement }, { merge: true });
+
+    // totalAP가 전달되면 AP 랭킹도 동시에 갱신
+    if (totalAP !== undefined) {
+      await this.updateAPRanking(totalAP, achievement.completions ?? 1);
+    }
   }
 
   async getUserAchievements(): Promise<Achievement[]> {
@@ -272,6 +220,75 @@ class DatabaseService {
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as Achievement);
   }
+
+  // ─── AP 랭킹 ─────────────────────────────────────────────────────────────
+
+  /**
+   * 내 AP 랭킹 문서 갱신 (상위 AP면 업데이트)
+   */
+  async updateAPRanking(totalAP: number, achievementCount: number): Promise<void> {
+    const user = authService.getCurrentUser();
+    if (!user) return;
+
+    const docRef = doc(db, 'apRankings', user.uid);
+    const docSnap = await getDoc(docRef);
+
+    const entry: APRankingEntry = {
+      userId: user.uid,
+      userName: user.displayName,
+      totalAP,
+      achievementCount,
+      updatedAt: Date.now(),
+    };
+
+    if (!docSnap.exists() || totalAP > (docSnap.data() as APRankingEntry).totalAP) {
+      await setDoc(docRef, entry);
+    }
+  }
+
+  /**
+   * 전체 AP 랭킹 Top 100 조회
+   */
+  async getAPRanking(limitCount = 100): Promise<APRankingEntry[]> {
+    try {
+      const q = query(
+        collection(db, 'apRankings'),
+        orderBy('totalAP', 'desc'),
+        limit(limitCount)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data() as APRankingEntry);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * 내 AP 랭킹 순위 조회
+   */
+  async getMyAPRank(): Promise<number | null> {
+    const user = authService.getCurrentUser();
+    if (!user) return null;
+
+    try {
+      const myDoc = await getDoc(doc(db, 'apRankings', user.uid));
+      if (!myDoc.exists()) return null;
+
+      const myAP = (myDoc.data() as APRankingEntry).totalAP;
+      // 나보다 AP 높은 사람 수 + 1 = 내 순위
+      const q = query(
+        collection(db, 'apRankings'),
+        where('totalAP', '>', myAP)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size + 1;
+    } catch {
+      return null;
+    }
+  }
 }
+
+
+
 
 export const databaseService = new DatabaseService();

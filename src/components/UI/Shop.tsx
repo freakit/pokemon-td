@@ -20,6 +20,8 @@ export const Shop: React.FC = () => {
   }));
   const [itemMode, setItemMode] = useState<ItemMode>('none');
   const [activeTab, setActiveTab] = useState<ShopTab>('general');
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
 
   useEffect(() => {
     if (isWaveActive) {
@@ -243,96 +245,100 @@ export const Shop: React.FC = () => {
   // ── 메인 상점 UI ─────────────────────────────────────────────────────────
   return (
     <ShopOverlay>
-      <ShopModal>
-        <ShopHeader>
+      <ShopModal $isCollapsed={isCollapsed}>
+        <ShopHeader onClick={() => setIsCollapsed(!isCollapsed)}>
           <ShopTitle>🏪 {t('shop.title')}</ShopTitle>
+          <ToggleButton>{isCollapsed ? '➕' : '➖'}</ToggleButton>
         </ShopHeader>
 
-        <MoneyDisplay>{t('shop.currentMoney', { money: money })}</MoneyDisplay>
+        <CollapseContent $isCollapsed={isCollapsed}>
+          <MoneyDisplay>{t('shop.currentMoney', { money: money })}</MoneyDisplay>
 
-        {!isWaveActive && (
-          <TabContainer>
-            <TabButton
-              $isActive={activeTab === 'general'}
-              onClick={() => setActiveTab('general')}
-            >
-              🛒 {t('shop.tabGeneral')}
-            </TabButton>
-            <TabButton
-              $isActive={activeTab === 'evolution'}
-              onClick={() => setActiveTab('evolution')}
-            >
-              ✨ {t('shop.tabEvolution')}
-              {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
-            </TabButton>
-          </TabContainer>
-        )}
+          {!isWaveActive && (
+            <TabContainer>
+              <TabButton
+                $isActive={activeTab === 'general'}
+                onClick={() => setActiveTab('general')}
+              >
+                🛒 {t('shop.tabGeneral')}
+              </TabButton>
+              <TabButton
+                $isActive={activeTab === 'evolution'}
+                onClick={() => setActiveTab('evolution')}
+              >
+                ✨ {t('shop.tabEvolution')}
+                {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
+              </TabButton>
+            </TabContainer>
+          )}
 
-        {activeTab === 'general' && (
-          <ItemsContainer>
-            <Item>
-              <ItemTitle>{t('shop.potionName')}</ItemTitle>
-              <ItemDesc>{t('shop.potionDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyPotion}>{t('shop.potionCost')}</BuyBtn>
-            </Item>
-            <Item>
-              <ItemTitle>{t('shop.potionGoodName')}</ItemTitle>
-              <ItemDesc>{t('shop.potionGoodDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyPotionGood}>{t('shop.potionGoodCost')}</BuyBtn>
-            </Item>
-            <Item>
-              <ItemTitle>{t('shop.potionSuperName')}</ItemTitle>
-              <ItemDesc>{t('shop.potionSuperDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyPotionSuper}>{t('shop.potionSuperCost')}</BuyBtn>
-            </Item>
-            <Item>
-              <ItemTitle>{t('shop.reviveName')}</ItemTitle>
-              <ItemDesc>{t('shop.reviveDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyRevive}>{t('shop.reviveCost')}</BuyBtn>
-            </Item>
-            <Item>
-              <ItemTitle>{t('shop.candyName')}</ItemTitle>
-              <ItemDesc>{t('shop.candyDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyCandy}>{t('shop.candyCost')}</BuyBtn>
-            </Item>
-            <Item>
-              <ItemTitle>{t('shop.expCandyName')}</ItemTitle>
-              <ItemDesc>{t('shop.expCandyDesc')}</ItemDesc>
-              <BuyBtn onClick={handleBuyExpCandy}>{t('shop.expCandyCost')}</BuyBtn>
-            </Item>
-          </ItemsContainer>
-        )}
+          {activeTab === 'general' && (
+            <ItemsContainer>
+              <Item>
+                <ItemTitle>{t('shop.potionName')}</ItemTitle>
+                <ItemDesc>{t('shop.potionDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotion(); }}>{t('shop.potionCost')}</BuyBtn>
+              </Item>
+              <Item>
+                <ItemTitle>{t('shop.potionGoodName')}</ItemTitle>
+                <ItemDesc>{t('shop.potionGoodDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotionGood(); }}>{t('shop.potionGoodCost')}</BuyBtn>
+              </Item>
+              <Item>
+                <ItemTitle>{t('shop.potionSuperName')}</ItemTitle>
+                <ItemDesc>{t('shop.potionSuperDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotionSuper(); }}>{t('shop.potionSuperCost')}</BuyBtn>
+              </Item>
+              <Item>
+                <ItemTitle>{t('shop.reviveName')}</ItemTitle>
+                <ItemDesc>{t('shop.reviveDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyRevive(); }}>{t('shop.reviveCost')}</BuyBtn>
+              </Item>
+              <Item>
+                <ItemTitle>{t('shop.candyName')}</ItemTitle>
+                <ItemDesc>{t('shop.candyDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyCandy(); }}>{t('shop.candyCost')}</BuyBtn>
+              </Item>
+              <Item>
+                <ItemTitle>{t('shop.expCandyName')}</ItemTitle>
+                <ItemDesc>{t('shop.expCandyDesc')}</ItemDesc>
+                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyExpCandy(); }}>{t('shop.expCandyCost')}</BuyBtn>
+              </Item>
+            </ItemsContainer>
+          )}
 
-        {activeTab === 'evolution' && (
-          <EvolutionTab>
-            <CategorySection>
-              <CategoryTitle>🔥 {t('shop.categoryStone')}</CategoryTitle>
-              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
-            </CategorySection>
+          {activeTab === 'evolution' && (
+            <EvolutionTab>
+              <CategorySection>
+                <CategoryTitle>🔥 {t('shop.categoryStone')}</CategoryTitle>
+                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
+              </CategorySection>
 
-            <CategorySection>
-              <CategoryTitle>🔗 {t('shop.categoryTrade')}</CategoryTitle>
-              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
-            </CategorySection>
+              <CategorySection>
+                <CategoryTitle>🔗 {t('shop.categoryTrade')}</CategoryTitle>
+                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
+              </CategorySection>
 
-            <CategorySection>
-              <CategoryTitle>💝 {t('shop.categoryFriendship')}</CategoryTitle>
-              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
-            </CategorySection>
+              <CategorySection>
+                <CategoryTitle>💝 {t('shop.categoryFriendship')}</CategoryTitle>
+                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
+              </CategorySection>
 
-            <CategorySection>
-              <CategoryTitle>⭐ {t('shop.categoryOthers')}</CategoryTitle>
-              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
-            </CategorySection>
+              <CategorySection>
+                <CategoryTitle>⭐ {t('shop.categoryOthers')}</CategoryTitle>
+                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
+              </CategorySection>
 
-            <CategorySection>
-              <CategoryTitle>✨ {t('shop.categorySpecial')}</CategoryTitle>
-              <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
-            </CategorySection>
-          </EvolutionTab>
-        )}
+              <CategorySection>
+                <CategoryTitle>✨ {t('shop.categorySpecial')}</CategoryTitle>
+                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
+              </CategorySection>
+            </EvolutionTab>
+          )}
+        </CollapseContent>
       </ShopModal>
     </ShopOverlay>
+
   );
 };
 
@@ -470,17 +476,18 @@ const ShopOverlay = styled.div`
   pointer-events: auto;
 `;
 
-const ShopModal = styled.div`
+const ShopModal = styled.div<{ $isCollapsed: boolean }>`
   background: linear-gradient(145deg, rgba(26,31,46,0.98), rgba(15,20,25,0.98));
   color: #e8edf3;
   border-radius: 12px;
   padding: 0;
   width: 240px;
-  max-height: 70vh;
-  overflow-y: auto;
+  max-height: ${props => props.$isCollapsed ? '46px' : '70vh'};
+  overflow: hidden;
   box-shadow: 0 20px 60px rgba(243,156,18,0.4), 0 0 2px 1px rgba(243,156,18,0.3);
   border: 3px solid rgba(243,156,18,0.4);
   backdrop-filter: blur(10px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: slideInRight 0.3s ease-out;
 `;
 
@@ -488,8 +495,41 @@ const ShopHeader = styled.div`
   padding: 12px;
   background: linear-gradient(90deg, rgba(243,156,18,0.2), transparent);
   border-bottom: 2px solid rgba(243,156,18,0.3);
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    background: linear-gradient(90deg, rgba(243,156,18,0.3), transparent);
+  }
 `;
+
+const ToggleButton = styled.span`
+  font-size: 14px;
+  opacity: 0.8;
+  transition: transform 0.3s ease;
+`;
+
+const CollapseContent = styled.div<{ $isCollapsed: boolean }>`
+  max-height: ${props => props.$isCollapsed ? '0' : '65vh'};
+  opacity: ${props => props.$isCollapsed ? 0 : 1};
+  overflow-y: auto;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(243, 156, 18, 0.3);
+    border-radius: 3px;
+  }
+`;
+
 
 const ShopTitle = styled.h2`
   font-size: 16px;
@@ -541,8 +581,8 @@ const TabButton = styled.button<{ $isActive: boolean }>`
 // 진화 탭에 사용 가능 아이템 개수 뱃지
 const TabBadge = styled.span`
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 2px;
+  right: 2px;
   background: #2ecc71;
   color: white;
   font-size: 10px;
