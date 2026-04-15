@@ -69,9 +69,30 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (state && !loadingReportedRef.current) {
         loadingReportedRef.current = true;
+
+        // [FIX-12] 재접속 시 이미 loading 이후 페이즈면 로딩 화면 즉시 해제
+        // markPlayerLoaded는 이미 loadingReady: true인 경우에도 호출하되,
+        // 페이즈가 이미 넘어갔으면 로딩 화면은 즉시 닫음
+        if (state.currentPhase !== 'loading') {
+          console.log('[GameLayout] Rejoined after loading phase, skipping markPlayerLoaded');
+          setMultiLoading(false);
+          unsubscribe();
+          return;
+        }
+
         multiplayerService.markPlayerLoaded(multiRoomId, user.uid)
-          .then((success) => { if (success) { console.log('[GameLayout] Loading reported successfully'); unsubscribe(); } else { loadingReportedRef.current = false; } })
-          .catch(err => { console.error('[GameLayout] Failed to report loading:', err); loadingReportedRef.current = false; });
+          .then((success) => {
+            if (success) {
+              console.log('[GameLayout] Loading reported successfully');
+              unsubscribe();
+            } else {
+              loadingReportedRef.current = false;
+            }
+          })
+          .catch(err => {
+            console.error('[GameLayout] Failed to report loading:', err);
+            loadingReportedRef.current = false;
+          });
       }
     });
     return unsubscribe;
@@ -157,6 +178,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             // 탈락 상태면 반영
             if (!restored.isAlive) {
               defeatedRef.current = true;
+            }
+
+            // ★ [FIX-8] 재접속 시 battle 페이즈면 타워 데이터 즉시 재동기화
+            // BattlePhaseUI 아레나 자동 오픈을 위해 Firebase에 최신 타워 데이터 업로드
+            if (restored.currentPhase === 'battle' && restored.towerDetails.length > 0) {
+              console.log('[GameLayout] Rejoined during battle phase - force syncing towers to Firebase');
+              const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
+              const battleTowerDetails = restored.towerDetails.map((td: any) => scrub({
+                pokemonId: td.pokemonId, name: td.name, level: td.level, sprite: td.sprite,
+                position: td.position, currentHp: td.currentHp, maxHp: td.maxHp,
+                isFainted: td.isFainted, attack: td.attack, defense: td.defense,
+                specialAttack: td.specialAttack, specialDefense: td.specialDefense,
+                speed: td.speed, types: td.types, equippedMoves: td.equippedMoves ?? [],
+                lifesteal: td.lifesteal ?? 0, aoeBonus: td.aoeBonus ?? 0,
+              }));
+              multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, battleTowerDetails);
             }
           } else {
             // 신규 게임
@@ -259,21 +296,28 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       const currentPhase = state.currentPhase;
       const currentRound = state.currentRound;
 
-      if (currentPhase === 'waiting_wave' && (lastPhase === null || lastPhase === 'loading')) {
+      // [FIX-12] 재접속 시 어느 페이즈든 loading이 아니면 즉시 로딩 화면 해제
+      // 기존: waiting_wave 첫 전환 시에만 해제 → 재접속 시 이미 다른 페이즈면 영구 로딩
+      // 수정: loading 페이즈가 아닌 모든 상태에서 해제
+      if (currentPhase !== 'loading') {
         setMultiLoading(false);
-        if (!aiStarted) {
-          aiStarted = true;
-          const startAIs = async () => {
-            const room = await multiplayerService.getRoom(multiRoomId);
-            const currentUser = authService.getCurrentUser();
-            if (room && currentUser && room.hostId === currentUser.uid) {
-              for (const player of room.players) {
-                if (player.isAI && player.aiDifficulty) aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
-              }
+      }
+
+      // [FIX-12] AI 시작: 첫 상태 수신 시 (lastPhase === null) 페이즈 무관하게 시작
+      // 기존: waiting_wave 첫 전환 시에만 AI 시작 → 재접속 시 이미 wave/battle이면 AI 미시작
+      // 수정: 첫 상태 수신 시점에 항상 AI 시작 시도 (aiPlayerManager가 중복 방지 처리)
+      if (lastPhase === null && !aiStarted) {
+        aiStarted = true;
+        const startAIs = async () => {
+          const room = await multiplayerService.getRoom(multiRoomId);
+          const currentUser = authService.getCurrentUser();
+          if (room && currentUser && room.hostId === currentUser.uid) {
+            for (const player of room.players) {
+              if (player.isAI && player.aiDifficulty) aiPlayerManager.startAI(room.id, player.userId, player.aiDifficulty, room.mapId);
             }
-          };
-          startAIs().catch(console.error);
-        }
+          }
+        };
+        startAIs().catch(console.error);
       }
 
       if (currentPhase === 'wave' && lastPhase !== 'wave') {

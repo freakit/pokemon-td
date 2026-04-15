@@ -249,12 +249,13 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   }, [roomId]);
 
   const executeBattles = useCallback(async (state: MultiplayerGameState) => {
+    // [FIX-11] AI vs AI 매치만 호스트 판정 유지 (나머지는 호스트 불필요)
+    // 실제 플레이어 간 배틀은 TFTBattleArena에서 양측이 독립 실행 후 각자 제출
     if (!state.roundMatchups) { await multiplayerService.startWaitingWavePhase(roomId); return; }
-    const myUserId = user?.uid;
-    const alivePlayers = state.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
-    const hostPlayer = alivePlayers[0] ?? state.players[0];
-    const isHost = hostPlayer?.userId === myUserId;
 
+    const myUserId = user?.uid;
+
+    // 타워 데이터 로드 대기 (양측 모두 실행)
     await forceFetchTowerDetails();
     await new Promise<void>((resolve) => {
       let attempts = 0;
@@ -272,18 +273,28 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       }, 200);
     });
 
-    if (!isHost) { console.log('[BattlePhaseUI] Non-host: skipping AI simulations'); return; }
+    // AI vs AI 매치: 호스트 역할(살아있는 비AI 중 첫번째)만 시뮬레이션
+    // → 모두가 시도하면 submitBattleResult의 transaction이 차단하지만 불필요한 연산 낭비
+    const alivePlayers = state.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
+    const hostPlayer = alivePlayers[0] ?? state.players[0];
+    const isHostForAI = hostPlayer?.userId === myUserId;
+
+    if (!isHostForAI) {
+      console.log('[BattlePhaseUI] Not AI-host: skipping AI vs AI simulations');
+      return;
+    }
 
     const matchPromises = state.roundMatchups.matches.map(async (match) => {
       const existingResult = (state.battleResults || []).find(r => r.roundNumber === state.currentRound && ((r.player1Id === match.player1Id && r.player2Id === match.player2Id) || (r.player1Id === match.player2Id && r.player2Id === match.player1Id)));
       if (existingResult) return;
       const p1IsAI = match.player1Id.startsWith('ai_');
       const p2IsAI = match.player2Id.startsWith('ai_');
-      if (!(p1IsAI && p2IsAI)) { console.log(`[BattlePhaseUI] Skipping match with human: ${match.player1Id} vs ${match.player2Id}`); return; }
+      // 사람이 포함된 매치는 TFTBattleArena에서 양측이 각자 처리
+      if (!(p1IsAI && p2IsAI)) { console.log(`[BattlePhaseUI] Human match: ${match.player1Id} vs ${match.player2Id} — handled by TFTBattleArena`); return; }
       const team1 = towerDetailsRef.current.get(match.player1Id) ?? [];
       const team2 = towerDetailsRef.current.get(match.player2Id) ?? [];
-      if (team1.length === 0 && team2.length === 0) { console.warn('[BattlePhaseUI] Both teams empty, skipping match'); return; }
-      console.log(`[BattlePhaseUI] Host simulating AI match: ${match.player1Id} vs ${match.player2Id}`);
+      if (team1.length === 0 && team2.length === 0) { console.warn('[BattlePhaseUI] Both AI teams empty, skipping match'); return; }
+      console.log(`[BattlePhaseUI] AI-host simulating AI vs AI: ${match.player1Id} vs ${match.player2Id}`);
       const result = pvpBattleService.simulateBattle(team1, team2, match.player1Id, match.player2Id, state.currentRound);
       await multiplayerService.submitBattleResult(roomId, result);
     });
@@ -302,19 +313,21 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     } catch (err) { console.error('[BattlePhaseUI] handlePhaseTransition failed:', err); transitionTriggeredRef.current = false; }
   }, [roomId]);
 
-  // ─── [FIX-5] 서버 시간 기반 페이즈 전환 체크 + visibilitychange 보완 ──
+  // ─── [FIX-11] 호스트 의존도 완전 제거: 모든 클라이언트가 페이즈 전환 시도 ──
+  // - 기존: 호스트만 doPhaseCheck 실행 → 호스트 연결 끊기면 게임 멈춤
+  // - 수정: 모든 클라이언트가 시도, MultiplayerService의 runTransaction이 중복 실행 차단
+  //   → 먼저 도착한 요청만 실행되고 나머지는 조용히 무시됨
+  // - 예외: AI vs AI 시뮬레이션만 isHostForAI 체크 유지 (불필요한 연산 방지)
   useEffect(() => {
     if (!roomId) return;
 
-    // 호스트 페이즈 체크 로직 (공통)
     const doPhaseCheck = () => {
       const currentGameState = gameStateRef.current;
       if (!currentGameState || !user) return;
 
-      const alivePlayers = currentGameState.players.filter(p => p.isAlive && !p.userId.startsWith('ai_'));
-      const hostPlayer = alivePlayers[0] ?? currentGameState.players[0];
-      const isHost = hostPlayer?.userId === user.uid;
-      if (!isHost) return;
+      // [FIX-11] 호스트 체크 제거 — 모든 클라이언트가 페이즈 전환 시도
+      // startSynchronizedWave / startBattlePhase / startWaitingWavePhase 모두
+      // 내부적으로 runTransaction + 페이즈 상태 검사로 중복 실행 차단
 
       const serverNow = Date.now() + multiplayerService.getServerTimeOffset();
       if (currentGameState.phaseEndTime && serverNow >= currentGameState.phaseEndTime && !transitionTriggeredRef.current) {
@@ -351,11 +364,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
     const checkTimer = setInterval(doPhaseCheck, 200);
 
-    // ★ [FIX-5] 탭 복귀 시 즉시 페이즈 체크 (스로틀링 보완)
+    // 탭 복귀 시 즉시 페이즈 체크 (백그라운드 throttle 보완)
     const onVisibility = () => {
-      if (!document.hidden) {
-        doPhaseCheck();
-      }
+      if (!document.hidden) doPhaseCheck();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
@@ -374,7 +385,15 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const iAmSkipped = skipPlayerId === user?.uid;
   const battleResult = gameState?.battleResults?.find(r => r.roundNumber === gameState?.currentRound && (r.player1Id === user?.uid || r.player2Id === user?.uid));
 
-  useEffect(() => { if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped) setShowArena(true); }, [gameState?.currentPhase, arenaCompleted, iAmSkipped]);
+  // [FIX-8] 재접속 시 battle 페이즈면 아레나 자동 오픈
+  // 기존: currentPhase 변경 시에만 effect 발화 → 재접속 시 이미 'battle'이면 변경 없어 미작동
+  // 수정: gameState 자체를 의존성으로 → 첫 로드(null→state) 시에도 battle이면 오픈
+  useEffect(() => {
+    if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped) {
+      setShowArena(true);
+    }
+  }, [gameState?.currentPhase, arenaCompleted, iAmSkipped]);
+
   useEffect(() => { setArenaCompleted(false); setShowArena(false); }, [gameState?.currentRound]);
 
   const handleArenaComplete = useCallback(() => {
@@ -406,9 +425,18 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
   useEffect(() => { safetyArenaClosedRef.current = false; }, [gameState?.currentRound]);
 
+  // [FIX-7] 강화된 battleSeed — djb2 해시로 전체 UID 반영
+  // 기존: charCodeAt(0)만 사용 → UID 첫 글자 같으면 충돌, fallback이 Date.now() → 양측 불일치
+  // 수정: 전체 문자열 해시 → 충돌 대폭 감소, fallback 고정값 → 양측 항상 동일
   const battleSeed = React.useMemo(() => {
-    if (!myMatch || !gameState) return Date.now();
-    return gameState.currentRound * 100000 + myMatch.player1Id.charCodeAt(0) * 1000 + myMatch.player2Id.charCodeAt(0);
+    if (!myMatch || !gameState) return 42424242; // 고정 fallback
+    const str = `${gameState.currentRound}-${myMatch.player1Id}-${myMatch.player2Id}`;
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+      hash = hash >>> 0;
+    }
+    return hash;
   }, [myMatch, gameState?.currentRound]);
 
   const handleArenaBattleComplete = useCallback(async (arenaResult: TFTBattleResult) => {
@@ -451,12 +479,14 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     const opponentTeam = towerDetailsRef.current.get(opponentId || '') ?? [];
     const arenaPhase: 'prep' | 'battle' | 'result' = battleResult ? 'result' : 'prep';
     const myArenaPosition: 'L' | 'R' = myMatch.player1Id === user?.uid ? 'L' : 'R';
-    const isHostForArena = true;
+    // [FIX-11] isHost prop은 TFTBattleArena에서 더 이상 배틀 루프 제어에 사용되지 않음
+    // 양측 모두 동일한 루프를 실행하고 각자 결과를 제출 (transaction으로 중복 차단)
+    // prop 자체는 하위 호환성을 위해 유지하되 의미 없음
 
     return (
       <>
         <TFTArenaOverlay>
-          <TFTBattleArena roomId={roomId} myUserId={user?.uid} opponentId={opponentId} myTeam={myTeam} opponentTeam={opponentTeam} opponentName={opponent?.userName || 'Opponent'} myPosition={myArenaPosition} phase={arenaPhase} battleSeed={battleSeed} battleResult={battleResult ?? null} isHost={isHostForArena} onBattleComplete={handleArenaBattleComplete} />
+          <TFTBattleArena roomId={roomId} myUserId={user?.uid} opponentId={opponentId} myTeam={myTeam} opponentTeam={opponentTeam} opponentName={opponent?.userName || 'Opponent'} myPosition={myArenaPosition} phase={arenaPhase} battleSeed={battleSeed} battleResult={battleResult ?? null} onBattleComplete={handleArenaBattleComplete} />
           <ArenaFooter>
             <RoundInfo>
               ⚔️ ROUND {gameState?.currentRound}

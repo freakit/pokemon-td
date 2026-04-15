@@ -228,14 +228,24 @@ class MultiplayerService {
     await update(gameStateRef, { currentPhase: phase, phaseEndTime: needsCountdown ? this.now() + PHASE_COUNTDOWN_SECONDS * 1000 : null });
   }
 
+  // [FIX-11] 호스트 의존도 제거: 페이즈 전환을 runTransaction으로 원자화
+  // 모든 클라이언트가 동시에 호출해도 딱 한 번만 실행되도록 보장
   async startSynchronizedWave(roomId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    if (!snapshot.exists()) return;
-    const gameState = snapshot.val() as MultiplayerGameState;
-    const newRound = gameState.currentRound + 1;
-    const updatedPlayers = gameState.players.map((p: PlayerGameState) => ({ ...p, wave: p.isAlive ? newRound : p.wave, waveCompleted: false }));
-    await update(gameStateRef, { currentRound: newRound, currentPhase: 'wave', players: updatedPlayers, phaseEndTime: null });
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+      // 이미 wave 페이즈로 전환됐으면 무시 (다른 클라이언트가 먼저 실행)
+      if (gameState.currentPhase === 'wave') return gameState;
+      // waiting_wave 상태일 때만 전환
+      if (gameState.currentPhase !== 'waiting_wave') return gameState;
+      const newRound = gameState.currentRound + 1;
+      const updatedPlayers = gameState.players.map((p: PlayerGameState) => ({
+        ...p,
+        wave: p.isAlive ? newRound : p.wave,
+        waveCompleted: false,
+      }));
+      return { ...gameState, currentRound: newRound, currentPhase: 'wave', players: updatedPlayers, phaseEndTime: null };
+    });
   }
 
   async markWaveCompleted(roomId: string, userId: string): Promise<void> {
@@ -329,21 +339,35 @@ class MultiplayerService {
 
   async startBattlePhase(roomId: string): Promise<RoundMatchup | null> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    if (!snapshot.exists()) return null;
-    const gameState = snapshot.val() as MultiplayerGameState;
-    const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
-    if (alivePlayers.length <= 1) return null;
-    const lastSkipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
-    const matchups = pvpBattleService.generateMatchups(alivePlayers, gameState.encounterRecord || {}, gameState.currentRound, lastSkipPlayerId);
-    let updatedPlayers = gameState.players;
-    if (matchups.skipPlayerId) {
-      const BYE_BONUS_GOLD = 50;
-      updatedPlayers = gameState.players.map((p: PlayerGameState) => p.userId === matchups.skipPlayerId ? { ...p, money: p.money + BYE_BONUS_GOLD } : p);
-      console.log(`[MultiplayerService] Bye bonus +${BYE_BONUS_GOLD}G → ${matchups.skipPlayerId}`);
-    }
-    await update(gameStateRef, { currentPhase: 'battle', roundMatchups: matchups, players: updatedPlayers, phaseEndTime: null });
-    return matchups;
+    let resultMatchup: RoundMatchup | null = null;
+
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+      // 이미 battle 페이즈로 전환됐으면 무시 (다른 클라이언트가 먼저 실행)
+      if (gameState.currentPhase === 'battle') return gameState;
+      // waiting_battle 상태일 때만 전환
+      if (gameState.currentPhase !== 'waiting_battle') return gameState;
+
+      const alivePlayers = gameState.players.filter((p: PlayerGameState) => p.isAlive);
+      if (alivePlayers.length <= 1) return gameState;
+
+      const lastSkipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
+      const matchups = pvpBattleService.generateMatchups(alivePlayers, gameState.encounterRecord || {}, gameState.currentRound, lastSkipPlayerId);
+      resultMatchup = matchups;
+
+      let updatedPlayers = gameState.players;
+      if (matchups.skipPlayerId) {
+        const BYE_BONUS_GOLD = 50;
+        updatedPlayers = gameState.players.map((p: PlayerGameState) =>
+          p.userId === matchups.skipPlayerId ? { ...p, money: p.money + BYE_BONUS_GOLD } : p
+        );
+        console.log(`[MultiplayerService] Bye bonus +${BYE_BONUS_GOLD}G → ${matchups.skipPlayerId}`);
+      }
+
+      return { ...gameState, currentPhase: 'battle', roundMatchups: matchups, players: updatedPlayers, phaseEndTime: null };
+    });
+
+    return resultMatchup;
   }
 
   private calcBattleRewards(player: PlayerGameState, isWinner: boolean, myRemaining: number, oppRemaining: number): { goldDelta: number; livesDelta: number } {
@@ -422,12 +446,23 @@ class MultiplayerService {
 
   async startWaitingWavePhase(roomId: string): Promise<void> {
     const gameStateRef = ref(rtdb, `gameStates/${roomId}`);
-    const snapshot = await get(gameStateRef);
-    if (!snapshot.exists()) return;
-    const gameState = snapshot.val() as MultiplayerGameState;
-    const currentRound = gameState.currentRound;
-    const recentResults = (gameState.battleResults || []).filter((r: PvPBattleResult) => r.roundNumber >= currentRound - 2);
-    await update(gameStateRef, { currentPhase: 'waiting_wave', phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000, battleResults: recentResults });
+    await runTransaction(gameStateRef, (gameState: MultiplayerGameState | null) => {
+      if (!gameState) return gameState;
+      // 이미 waiting_wave로 전환됐으면 무시
+      if (gameState.currentPhase === 'waiting_wave') return gameState;
+      // battle 페이즈일 때만 전환 (모든 배틀 완료 후)
+      if (gameState.currentPhase !== 'battle') return gameState;
+      const currentRound = gameState.currentRound;
+      const recentResults = (gameState.battleResults || []).filter(
+        (r: PvPBattleResult) => r.roundNumber >= currentRound - 2
+      );
+      return {
+        ...gameState,
+        currentPhase: 'waiting_wave',
+        phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000,
+        battleResults: recentResults,
+      };
+    });
   }
 
   async finalizeGame(roomId: string): Promise<void> {
