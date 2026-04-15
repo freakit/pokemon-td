@@ -1,11 +1,12 @@
 // src/components/Multiplayer/TFTBattleArena.tsx
-// 6x6 TFT 스타일 배틀 (수정 버전 v3)
+// 6x6 TFT 스타일 배틀 (수정 버전 v4 - 호스트 의존도 제거)
 // ──────────────────────────────────────────────────────────────────
 // [FIX-1] 전투 루프 유닛 순회를 캐노니컬 순서로 통일
 //   - 기존: `for (const unit of next)` → next 배열 순서가 양측 클라이언트에서 다름
 //   - 수정: L팀(col 0-1) 유닛 → R팀(col 4-5) 유닛 순서로 고정 순회
 //     양측 모두 물리적 위치 기준이므로 my/opp 라벨과 무관하게 동일한 RNG 소비 순서 보장
 // [FIX-2] 전투 루프 내 side-effect(setFloats, setTimeout) 제거 → 순수 상태 업데이트만 수행
+// [FIX-10] 호스트 의존도 제거: 양측 모두 동일 시드로 루프 실행, Firebase transaction으로 중복 제출 차단
 //   - 기존: setUnits 콜백 안에서 setTimeout, setFloats 호출 → 비결정론적 타이밍
 //   - 수정: floats를 units 밖에서 별도 ref로 관리, isAtk/isHit 리셋을 별도 interval로 분리
 
@@ -79,7 +80,6 @@ export interface TFTBattleArenaProps {
   phase: 'prep' | 'battle' | 'result';
   battleResult?: unknown;
   battleSeed?: number;
-  isHost?: boolean;
   onBattleComplete?: (result: TFTBattleResult) => void;
 }
 
@@ -197,7 +197,7 @@ function buildUnits(
 }
 
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, battleResult: battleResultProp, isHost = true, onBattleComplete,
+  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, battleResult: battleResultProp, onBattleComplete,
 }) => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [floats, setFloats] = useState<FloatTxt[]>([]);
@@ -235,7 +235,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const placedMyUnits = units.filter(u => u.team === 'my' && u.x >= 0 && !u.fainted);
 
   useEffect(() => {
-    const seed = battleSeed ?? Date.now();
+    const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
     rngRef.current = mulberry32(seed);
   }, [battleSeed]);
 
@@ -262,7 +262,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     initRef.current = { my: myTeam.length, op: opponentTeam.length };
     resultReportedRef.current = false;
     hasSubmittedRef.current = false;
-    const seed = battleSeed ?? Date.now();
+    const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
     const rng = mulberry32(seed);
     rngRef.current = rng;
     setUnits(buildUnits(myTeam, opponentTeam, myPosition, rng, mySynergies, oppSynergies));
@@ -403,7 +403,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           countdownRef.current = null;
 
           // ★ 캐노니컬 전투 초기화
-          const seed = battleSeed ?? Date.now();
+          const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
           const battleRng = mulberry32(seed + 99999);
           rngRef.current = battleRng;
 
@@ -460,16 +460,28 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [phase, battleState, autoPlaceRemainingUnits]);
 
-  // ── 비호스트: Firebase battleResult 수신 → 자동 완료 처리 ──
+  // ── [FIX-10] Firebase battleResult 수신 → 루프 종료 (양측 공통) ──
+  // 기존: isHost가 아닐 때만 Firebase 결과로 루프 종료
+  //   → 호스트는 루프 완료 후 직접 종료, 비호스트는 Firebase 대기
+  //   → 두 클라이언트가 다른 경로로 종료 → 타이밍 불일치
+  // 수정: 양측 모두 자체 루프로 전투를 완전히 실행
+  //   → 자체 루프가 먼저 완료되면 즉시 결과 제출 시도
+  //   → Firebase에 이미 결과가 있으면(상대가 먼저 제출) 자신은 조용히 건너뜀
+  //   → Firebase 결과 수신 시: 이미 done 상태이면 무시, 아직 fighting이면 동기화 완료
   useEffect(() => {
-    if (isHost) return;
     if (!battleResultProp) return;
     if (nonHostCompletedRef.current) return;
     nonHostCompletedRef.current = true;
-    if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
-    setBattleState('done');
-    console.log('[TFTBattleArena] Non-host: Firebase battle result received, stopping local loop');
-  }, [isHost, battleResultProp]);
+    // 이미 로컬 루프가 완료됐으면 무시 (정상 케이스)
+    if (loopRef.current) {
+      // 루프가 아직 돌고 있다면 Firebase 결과를 신뢰하고 종료
+      // (네트워크 지연으로 로컬이 늦게 완료되는 엣지 케이스 대응)
+      clearInterval(loopRef.current);
+      loopRef.current = null;
+      setBattleState('done');
+      console.log('[TFTBattleArena] Firebase result received while loop running - syncing to done');
+    }
+  }, [battleResultProp]);
 
   // ── [FIX-1] 배틀 루프 — 캐노니컬 순서 적용 ──
   useEffect(() => {
@@ -503,7 +515,11 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           setBattleState('done');
           setWinnerText(winTeam === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
 
-          if (!resultReportedRef.current && isHost) {
+          if (!resultReportedRef.current) {
+            // ★ [FIX-10] 호스트/비호스트 구분 없이 양측 모두 결과 제출 시도
+            // submitBattleResult 내부의 runTransaction이 중복 제출을 원자적으로 차단
+            // → 먼저 도착한 쪽의 결과만 적용되고, 늦게 도착한 쪽은 자동으로 무시됨
+            // → 동일한 시드·동일한 RNG·동일한 캐노니컬 순서이므로 양측 결과는 항상 동일
             resultReportedRef.current = true;
 
             const p1Alive = next.filter(u => {
@@ -647,7 +663,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       document.removeEventListener('visibilitychange', onVisibility);
       if (loopRef.current) clearInterval(loopRef.current);
     };
-  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed, isHost]);
+  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed]);
 
   useEffect(() => () => { if (loopRef.current) clearInterval(loopRef.current); }, []);
 

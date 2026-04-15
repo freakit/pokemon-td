@@ -1,6 +1,11 @@
 // src/components/Multiplayer/MultiplayerView.tsx
 // 멀티플레이어 현황 뷰 - 플레이어 체력 순 정렬
-// [수정] 상대 포켓몬 정보를 주기적으로 새로고침 (3초마다 Firebase 직접 fetch)
+// [수정] 이중 데이터 소스(onValue + setInterval) 레이스 컨디션 제거
+//   - 기존: onAllTowerDetailsUpdate(실시간) + fetchTowerDetails(3초 get) 동시 사용
+//     → 둘 중 나중에 호출된 setState가 이전 결과를 덮어써 표시 값 불안정
+//   - 수정: onAllTowerDetailsUpdate 실시간 구독만 유지
+//     → 연결 재시도가 필요한 경우에만 수동 fetch 버튼 사용
+//     → 마운트 직후 1회 강제 fetch는 유지 (초기 데이터 보장)
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
@@ -15,14 +20,11 @@ interface MultiplayerViewProps {
   onClose: () => void;
 }
 
-const REFRESH_INTERVAL_MS = 3000; // 3초마다 강제 새로고침
-
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
   const [allTowerDetails, setAllTowerDetails] = useState<Map<string, TowerDetail[]>>(new Map());
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const user = authService.getCurrentUser();
 
@@ -31,13 +33,21 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const localWave = useGameStore(s => s.wave);
   const towers = useGameStore(s => s.towers);
 
-  // ─── Firebase에서 타워 데이터 강제 fetch ─────────────────────────
+  // ─── 수동 fetch (수동 새로고침 버튼 또는 초기 1회 로드용) ─────
   const fetchTowerDetails = useCallback(async () => {
     if (!roomId) return;
     try {
       setIsRefreshing(true);
       const allTowers = await multiplayerService.getAllTowerDetailsOnce(roomId);
-      setAllTowerDetails(allTowers);
+      // onValue 구독과 충돌 방지: 실시간 구독 데이터를 덮어쓰지 않도록
+      // 각 플레이어 데이터를 병합 (이미 있는 데이터는 유지)
+      setAllTowerDetails(prev => {
+        const merged = new Map(prev);
+        allTowers.forEach((towers, userId) => {
+          if (towers.length > 0) merged.set(userId, towers);
+        });
+        return merged;
+      });
       setLastRefreshed(new Date());
     } catch (err) {
       console.error('[MultiplayerView] fetchTowerDetails error:', err);
@@ -58,7 +68,9 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
   }, [roomId]);
 
-  // ─── 타워 상세 실시간 구독 (Firebase onValue 리스너) ─────────────
+  // ─── 타워 상세 실시간 구독 (단일 소스) ───────────────────────────
+  // [수정] 기존의 onValue + setInterval 이중 구독을 onValue 단독으로 변경
+  // onValue는 Firebase 연결 유지 시 실시간으로 업데이트되므로 별도 polling 불필요
   useEffect(() => {
     if (!roomId) return;
     const unsub = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
@@ -68,19 +80,15 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     return () => unsub();
   }, [roomId]);
 
-  // ─── 마운트 시 즉시 + 3초마다 주기적 강제 fetch ─────────────────
+  // ─── 마운트 시 1회 강제 fetch (초기 데이터 즉시 표시) ────────────
+  // onValue 리스너가 첫 데이터를 받기까지 약간의 지연이 있을 수 있으므로
+  // 마운트 직후 1회 get()으로 즉시 데이터를 채움
+  const initialFetchDoneRef = useRef(false);
   useEffect(() => {
-    // 마운트 즉시 1회 fetch
+    if (initialFetchDoneRef.current) return;
+    initialFetchDoneRef.current = true;
     fetchTowerDetails();
-
-    // 3초마다 강제 새로고침
-    refreshTimerRef.current = setInterval(() => {
-      fetchTowerDetails();
-    }, REFRESH_INTERVAL_MS);
-
-    return () => {
-      if (refreshTimerRef.current) clearInterval(refreshTimerRef.current);
-    };
+    // 주기적 폴링 제거: onValue 실시간 구독이 더 정확하고 효율적
   }, [fetchTowerDetails]);
 
   // ─── 내 타워 정보 Firebase에 즉시 업로드 ─────────────────────────
@@ -180,7 +188,6 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                   </PokemonCount>
                   <PokemonIcons>
                     {playerTowers.length === 0 && player.userId !== user?.uid ? (
-                      // 데이터 없음 — 로딩 플레이스홀더
                       Array.from({ length: 3 }).map((_, i) => (
                         <PokemonPlaceholder key={i} />
                       ))
@@ -193,14 +200,12 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                             $isFainted={tower.isFainted}
                             title={`${tower.name} Lv.${tower.level}${tower.isFainted ? ' (기절)' : ''}`}
                           />
-                          {/* HP 바 */}
                           <MiniHpBar>
                             <MiniHpFill
                               $pct={Math.max(0, (tower.currentHp / Math.max(tower.maxHp, 1)) * 100)}
                               $fainted={tower.isFainted}
                             />
                           </MiniHpBar>
-                          {/* 레벨 뱃지 */}
                           <LvBadge>Lv{tower.level}</LvBadge>
                         </PokemonIconWrapper>
                       ))
@@ -215,7 +220,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
         </PlayerList>
 
         <Footer>
-          <FooterNote>📡 {REFRESH_INTERVAL_MS / 1000}초마다 자동 새로고침</FooterNote>
+          <FooterNote>📡 실시간 동기화 중</FooterNote>
         </Footer>
       </Container>
     </Overlay>
