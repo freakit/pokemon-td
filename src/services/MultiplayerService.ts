@@ -283,7 +283,7 @@ class MultiplayerService {
   }
 
   private lastTowerUpdate: Map<string, number> = new Map();
-  private towerUpdateThrottle = 1000;
+  private towerUpdateThrottle = 500; // [FIX] 1000ms → 500ms: 웨이브 종료 직전 누락 가능성 감소
   private towerUpdateTimeouts: Map<string, NodeJS.Timeout> = new Map();
 
   async updatePlayerTowerDetails(roomId: string, userId: string, towerDetails: TowerDetail[]): Promise<void> {
@@ -299,6 +299,21 @@ class MultiplayerService {
       const timeout = setTimeout(async () => { await doUpdate(); this.towerUpdateTimeouts.delete(userId); }, this.towerUpdateThrottle - (now - lastUpdate));
       this.towerUpdateTimeouts.set(userId, timeout);
     }
+  }
+
+  // [FIX] 웨이브 완료 시 스로틀 대기 중인 타워 업데이트를 즉시 flush
+  // markWaveCompleted 직전에 호출해 최신 타워 상태가 Firebase에 확실히 반영되도록 보장
+  async flushTowerUpdate(roomId: string, userId: string, towerDetails: TowerDetail[]): Promise<void> {
+    // 대기 중인 스로틀 타임아웃 취소
+    if (this.towerUpdateTimeouts.has(userId)) {
+      clearTimeout(this.towerUpdateTimeouts.get(userId)!);
+      this.towerUpdateTimeouts.delete(userId);
+    }
+    // 즉시 업로드
+    const towerDetailsRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+    await update(towerDetailsRef, { towers: towerDetails, updatedAt: this.now() });
+    this.lastTowerUpdate.set(userId, Date.now());
+    console.log(`[MultiplayerService] flushTowerUpdate: ${towerDetails.length} towers for ${userId}`);
   }
 
   async submitTFTPlacements(roomId: string, userId: string, placements: { id: string, x: number, y: number }[]): Promise<void> {

@@ -426,8 +426,16 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
               && u.x >= 0 && !u.fainted
             );
 
+            // [FIX-ATKCD] atkCd 초기화 순서를 ID 기반 정렬로 고정
+            // 기존: [...lTeam, ...rTeam] 배열 순서가 withOppPos 필터링 순서에 의존
+            //   → React 상태 업데이트 타이밍에 따라 양측 배열 순서가 다를 수 있음
+            // 수정: 팀 내에서 ID 인덱스(숫자) 오름차순으로 정렬 후 RNG 소비
+            //   → 양측 클라이언트에서 항상 동일한 순서 보장
+            const sortById = (units: typeof lTeam) =>
+              [...units].sort((a, b) => parseInt(a.id.split('-')[1]) - parseInt(b.id.split('-')[1]));
+
             const atkCdMap = new Map<string, number>();
-            for (const u of [...lTeam, ...rTeam]) {
+            for (const u of [...sortById(lTeam), ...sortById(rTeam)]) {
               atkCdMap.set(u.id, battleRng() * 0.5);
             }
 
@@ -491,6 +499,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     const rng = rngRef.current;
     lastTickRef.current = Date.now();
 
+    // [FIX-BG] 탭 복귀 시 lastTickRef를 리셋해서 catch-up 루프가 과도한 틱을 처리하지 않도록 함
     const onVisibility = () => {
       if (!document.hidden) {
         lastTickRef.current = Date.now();
@@ -499,8 +508,21 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     document.addEventListener('visibilitychange', onVisibility);
 
     loopRef.current = setInterval(() => {
-      const realDt = 1 / FPS;
+      const now = Date.now();
+      const elapsed = now - lastTickRef.current;
+      lastTickRef.current = now;
 
+      // [FIX-BG] 백그라운드 스로틀링 catch-up
+      // 경과 시간이 1틱(1/FPS)보다 크면 그만큼 추가 틱을 처리
+      // 단, 최대 FPS*5(5초치)로 제한해 무한 루프 방지
+      const tickMs = 1000 / FPS;
+      const tickCount = Math.min(Math.round(elapsed / tickMs), FPS * 5);
+      const realDt = 1 / FPS; // 항상 고정 스텝 사용 (결정론 보장)
+
+      // catch-up: tickCount만큼 순수 상태 계산 반복
+      // 마지막 틱만 setUnits로 실제 반영 (중간 틱은 로컬 변수로만 계산)
+      // → 렌더링은 1회, 결과는 catch-up 완료 상태
+      for (let tick = 0; tick < Math.max(1, tickCount); tick++) {
       setUnits(prev => {
         const next = prev.map(u => ({ ...u, isAtk: false, isHit: false }));
         const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
@@ -649,6 +671,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
 
         return next;
       });
+      } // end catch-up for loop
 
       // [FIX-2] setUnits 콜백 밖에서 floats 적용
       if (pendingFloatsRef.current.length > 0) {
