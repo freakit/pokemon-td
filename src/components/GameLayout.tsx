@@ -230,6 +230,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     if (!multiRoomId || !user) return;
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (!syncReadyRef.current) return;
+      // [FIX] 탈락 후에는 isAlive:false가 Firebase에 이미 기록됐으므로
+      // 이후 로컬 상태 변경이 isAlive를 덮어쓰지 않도록 중단
+      if (defeatedRef.current) return;
       const changed = state.wave !== prevState.wave || state.lives !== prevState.lives || state.money !== prevState.money || state.towers.length !== prevState.towers.length;
       if (!changed) return;
       multiplayerService.updatePlayerState(multiRoomId, user.uid, { wave: state.wave, lives: state.lives, money: state.money, towers: state.towers.length, isAlive: state.lives > 0 });
@@ -269,7 +272,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (defeatedRef.current) return;
       if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
-        console.log('[GameLayout] Wave completed, notifying Firebase and force syncing towers');
+        console.log('[GameLayout] Wave completed, flushing tower data and notifying Firebase');
         const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
         const currentTowers = useGameStore.getState().towers;
         const towerDetails: TowerDetail[] = currentTowers.map(t => scrub({
@@ -278,8 +281,14 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           specialAttack: t.specialAttack, specialDefense: t.specialDefense, speed: t.speed, types: t.types,
           equippedMoves: t.equippedMoves, lifesteal: t.lifesteal, aoeBonus: t.aoeBonus,
         }));
-        multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
-        multiplayerService.markWaveCompleted(multiRoomId, user.uid);
+        // [FIX] flushTowerUpdate: 스로틀 대기 취소 후 즉시 업로드 → markWaveCompleted와 순서 보장
+        multiplayerService.flushTowerUpdate(multiRoomId, user.uid, towerDetails)
+          .then(() => multiplayerService.markWaveCompleted(multiRoomId, user.uid))
+          .catch(err => {
+            console.error('[GameLayout] flushTowerUpdate or markWaveCompleted failed:', err);
+            // flush 실패해도 markWaveCompleted는 시도
+            multiplayerService.markWaveCompleted(multiRoomId, user.uid);
+          });
       }
       wasWaveActiveRef.current = state.isWaveActive;
     });
@@ -297,15 +306,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       const currentRound = state.currentRound;
 
       // [FIX-12] 재접속 시 어느 페이즈든 loading이 아니면 즉시 로딩 화면 해제
-      // 기존: waiting_wave 첫 전환 시에만 해제 → 재접속 시 이미 다른 페이즈면 영구 로딩
-      // 수정: loading 페이즈가 아닌 모든 상태에서 해제
       if (currentPhase !== 'loading') {
         setMultiLoading(false);
       }
 
       // [FIX-12] AI 시작: 첫 상태 수신 시 (lastPhase === null) 페이즈 무관하게 시작
-      // 기존: waiting_wave 첫 전환 시에만 AI 시작 → 재접속 시 이미 wave/battle이면 AI 미시작
-      // 수정: 첫 상태 수신 시점에 항상 AI 시작 시도 (aiPlayerManager가 중복 방지 처리)
       if (lastPhase === null && !aiStarted) {
         aiStarted = true;
         const startAIs = async () => {
@@ -330,11 +335,38 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         }
       }
 
+      // [FIX-REJOIN-WAVE] 재접속 시 이미 wave 페이즈인 경우 처리
+      // 첫 수신(lastPhase === null)이고 현재 페이즈가 'wave'면 웨이브가 아직 시작되지 않은 상태
+      // → 즉시 로컬 웨이브 시작 (waiting_wave→wave 전환 이벤트를 놓쳤으므로)
+      if (currentPhase === 'wave' && lastPhase === null && currentRound > 0) {
+        if (!defeatedRef.current) {
+          const gameStore = useGameStore.getState();
+          if (!gameStore.isWaveActive) {
+            console.log('[GameLayout] Rejoined during wave phase, starting wave immediately:', currentRound);
+            useGameStore.setState({ wave: currentRound, isWaveActive: true, isPaused: false });
+            WaveSystem.getInstance().startWave(currentRound);
+          }
+        }
+      }
+
+      // [FIX-BYE] bye 보상: currentRound 기준으로 비교해 재접속 시 중복 지급 방지
+      // lastAppliedByeRoundRef는 재마운트 시 -1로 초기화되므로,
+      // 재접속 시에도 currentRound 이하면 이미 지급된 것으로 간주
       if ((currentPhase === 'battle' || currentPhase === 'waiting_battle') && state.roundMatchups?.skipPlayerId === user?.uid && lastAppliedByeRoundRef.current < currentRound) {
-        lastAppliedByeRoundRef.current = currentRound;
-        const { addMoney } = useGameStore.getState();
-        console.log('[GameLayout] Applying Bye Bonus (+50G) for round:', currentRound);
-        addMoney(50);
+        // 재접속 케이스: Firebase의 players에서 이미 money가 반영됐는지 확인
+        // startBattlePhase에서 Firebase players에 bye 보너스를 직접 추가하므로
+        // 재접속 시 getPlayerStateForRejoin이 이미 반영된 money를 복원함
+        // → lastPhase가 null(첫 수신)이면 재접속이므로 로컬 addMoney 스킵
+        if (lastPhase !== null) {
+          lastAppliedByeRoundRef.current = currentRound;
+          const { addMoney } = useGameStore.getState();
+          console.log('[GameLayout] Applying Bye Bonus (+50G) for round:', currentRound);
+          addMoney(50);
+        } else {
+          // 재접속: Firebase money에 이미 포함됐으므로 ref만 업데이트
+          lastAppliedByeRoundRef.current = currentRound;
+          console.log('[GameLayout] Rejoined with bye round, skipping addMoney (already in Firebase):', currentRound);
+        }
       }
 
       lastPhase = currentPhase;

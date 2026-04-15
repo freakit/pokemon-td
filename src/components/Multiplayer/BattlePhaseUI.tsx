@@ -17,7 +17,7 @@ interface BattlePhaseUIProps {
   roomId: string;
 }
 
-const BATTLE_STUCK_TIMEOUT_MS = 180_000;
+const BATTLE_STUCK_TIMEOUT_MS = 30_000; // [FIX] 180s → 30s: AI 호스트 오프라인 시 대기 시간 단축
 
 // ─── 스타일드 컴포넌트 ───────────────────────────────────────────
 const fadeIn = keyframes`
@@ -186,20 +186,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         } else {
           battlePhaseEnteredAtRef.current = null;
         }
-
-        if (
-          lastPhaseRef.current === 'waiting_wave' &&
-          (state.currentPhase === 'waiting_wave' || state.currentPhase === 'waiting_battle') &&
-          state.currentRound > 0 &&
-          state.currentRound !== summaryShownForRoundRef.current
-        ) {
-          const hasResults = (state.battleResults || []).some(r => r.roundNumber === state.currentRound);
-          if (hasResults) {
-            summaryShownForRoundRef.current = state.currentRound;
-            setSummaryRoundNumber(state.currentRound);
-            setShowRoundSummary(true);
-          }
-        }
       }
 
       if (state.phaseEndTime && state.phaseEndTime !== lastPhaseEndTimeRef.current) {
@@ -210,12 +196,24 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     return unsubscribe;
   }, [roomId]);
 
+  // [FIX] 라운드 요약 모달 중복 표시 수정
+  // 기존: onGameStateUpdateWithPhase 콜백 + useEffect([currentPhase]) 두 곳에서 감지
+  //   → lastPhaseRef.current를 콜백에서 먼저 변경하므로 조건 검사가 항상 같은 값 → 불일치
+  //   → 동일 라운드에 모달이 2번 뜨는 경우 발생
+  // 수정: useEffect 하나로 통합, prevPhaseRef로 이전 페이즈 추적
   const prevPhaseRef = useRef<string | null>(null);
   useEffect(() => {
     if (!gameState) return;
     const phase = gameState.currentPhase;
     const prevPhase = prevPhaseRef.current;
-    if (prevPhase === 'battle' && (phase === 'waiting_wave' || phase === 'waiting_battle') && gameState.currentRound > 0 && gameState.currentRound !== summaryShownForRoundRef.current) {
+
+    // battle → waiting_wave or waiting_battle 전환 시에만 요약 표시
+    if (
+      prevPhase === 'battle' &&
+      (phase === 'waiting_wave' || phase === 'waiting_battle') &&
+      gameState.currentRound > 0 &&
+      gameState.currentRound !== summaryShownForRoundRef.current
+    ) {
       const hasResults = (gameState.battleResults || []).some(r => r.roundNumber === gameState.currentRound);
       if (hasResults) {
         summaryShownForRoundRef.current = gameState.currentRound;
@@ -224,7 +222,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       }
     }
     prevPhaseRef.current = phase;
-  }, [gameState?.currentPhase]);
+  }, [gameState?.currentPhase, gameState?.currentRound]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -386,13 +384,15 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const battleResult = gameState?.battleResults?.find(r => r.roundNumber === gameState?.currentRound && (r.player1Id === user?.uid || r.player2Id === user?.uid));
 
   // [FIX-8] 재접속 시 battle 페이즈면 아레나 자동 오픈
-  // 기존: currentPhase 변경 시에만 effect 발화 → 재접속 시 이미 'battle'이면 변경 없어 미작동
-  // 수정: gameState 자체를 의존성으로 → 첫 로드(null→state) 시에도 battle이면 오픈
+  // 기존: currentPhase만 의존성으로 → 재접속 시 null→battle 전환이 한 번만 발화,
+  //   myMatch 데이터가 아직 없으면 showArena=true 됐다가 조건 불충족으로 렌더링 안 됨
+  // 수정: gameState 전체를 의존성으로 → myMatch가 채워진 후에도 재평가됨
+  //   또한 waiting_battle 재접속 시 battle로 전환되면 자동 오픈되도록 보장
   useEffect(() => {
-    if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped) {
+    if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped && myMatch) {
       setShowArena(true);
     }
-  }, [gameState?.currentPhase, arenaCompleted, iAmSkipped]);
+  }, [gameState?.currentPhase, gameState?.roundMatchups, arenaCompleted, iAmSkipped, myMatch]);
 
   useEffect(() => { setArenaCompleted(false); setShowArena(false); }, [gameState?.currentRound]);
 

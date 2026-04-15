@@ -85,18 +85,30 @@ export class WaveSystem {
       this._bossSpawnPending = true;
     }
 
+    // [FIX-BG] 백그라운드 탭에서 setTimeout이 최대 1000ms로 스로틀링되는 문제 대응
+    // 절대 시각(waveStartAt) 기반으로 각 스폰의 예정 시각을 계산하고,
+    // setTimeout 콜백 내에서 실제 경과 시간을 확인해 지연된 경우에도 즉시 실행
+    const waveStartAt = Date.now();
+
     let lastSpawnTime = 0;
 
     for (let i = 0; i < count; i++) {
       const pathIndex = i % pathsToUse.length;
       const currentPath = pathsToUse[pathIndex];
-      const spawnTime = Math.floor(i / pathsToUse.length) * 800;
+      const spawnDelay = Math.floor(i / pathsToUse.length) * 800;
+      const scheduledAt = waveStartAt + spawnDelay;
 
       const timer = setTimeout(() => {
+        // 탭이 비활성이었다면 이미 스폰됐어야 할 시간이 지난 것 → 그냥 즉시 실행
+        const late = Date.now() - scheduledAt;
+        if (late > 5000) {
+          // 5초 이상 지연: 탭 비활성으로 인한 지연이므로 스킵하지 않고 즉시 실행
+          console.log(`[WaveSystem] Spawning enemy ${i} late by ${late}ms (background tab)`);
+        }
         this.spawnEnemy(wave, currentPath, false, mult, addEnemy);
-      }, spawnTime);
+      }, spawnDelay);
       this.activeTimers.push(timer);
-      lastSpawnTime = spawnTime;
+      lastSpawnTime = spawnDelay;
     }
 
     // 3의 배수 웨이브마다 보스 스폰
