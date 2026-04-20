@@ -512,13 +512,13 @@ export class GameManager {
 
   // [수정] checkWaveComplete: isCompletingWave 플래그로 중복 실행 방지
   // [수정] 멀티플레이에서 isPaused: true 설정 안 함 (BattlePhaseUI가 페이즈 전환 담당)
-  // [버그3 수정] 보스 스폰 대기 중(isBossSpawnPending)이면 완료 처리 금지
+  // [FIX] 보스뿐 아니라 일반 적의 async 스폰도 완료될 때까지 웨이브 종료 방지
   private async checkWaveComplete() {
     const { enemies, isWaveActive, isSpawning } = useGameStore.getState();
 
-    // [버그3 수정] 보스가 아직 async로 addEnemy 처리 중이면 완료 판정 금지
+    // [FIX] hasPendingSpawns: 보스 + 일반 적의 async 스폰 모두 체크
     const waveSystem = WaveSystem.getInstance();
-    if (!isWaveActive || isSpawning || enemies.length !== 0 || waveSystem.isBossSpawnPending) return;
+    if (!isWaveActive || isSpawning || enemies.length !== 0 || waveSystem.hasPendingSpawns) return;
     if (this.isCompletingWave) return;
 
     this.isCompletingWave = true;
