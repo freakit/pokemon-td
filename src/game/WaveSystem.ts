@@ -45,6 +45,9 @@ export class WaveSystem {
   // setSpawning(false) 이후에도 보스가 아직 async 스폰 중이면 웨이브 완료 방지
   private _bossSpawnPending = false;
 
+  // [FIX] 비동기 스폰 중인 적 수 추적 (async spawnEnemy가 addEnemy 호출 전까지 카운트)
+  private _pendingSpawnCount = 0;
+
   static getInstance() {
     if (!WaveSystem.instance) {
       WaveSystem.instance = new WaveSystem();
@@ -57,11 +60,17 @@ export class WaveSystem {
     return this._bossSpawnPending;
   }
 
+  // [FIX] 모든 비동기 스폰(일반 적 + 보스) 완료 여부 체크
+  get hasPendingSpawns(): boolean {
+    return this._pendingSpawnCount > 0 || this._bossSpawnPending;
+  }
+
   // [수정] 새 웨이브 시작 전 이전 웨이브의 미실행 타이머 취소
   cancelPendingSpawns() {
     this.activeTimers.forEach(id => clearTimeout(id));
     this.activeTimers = [];
     this._bossSpawnPending = false;
+    this._pendingSpawnCount = 0;
   }
 
   startWave(wave: number) {
@@ -105,7 +114,10 @@ export class WaveSystem {
           // 5초 이상 지연: 탭 비활성으로 인한 지연이므로 스킵하지 않고 즉시 실행
           console.log(`[WaveSystem] Spawning enemy ${i} late by ${late}ms (background tab)`);
         }
-        this.spawnEnemy(wave, currentPath, false, mult, addEnemy);
+        // [FIX] async 스폰 추적: 시작 시 증가, 완료(성공/실패 불문) 시 감소
+        this._pendingSpawnCount++;
+        this.spawnEnemy(wave, currentPath, false, mult, addEnemy)
+          .finally(() => { this._pendingSpawnCount--; });
       }, spawnDelay);
       this.activeTimers.push(timer);
       lastSpawnTime = spawnDelay;
@@ -115,9 +127,15 @@ export class WaveSystem {
     if (isBossWave) {
       const bossSpawnTime = Math.ceil(count / pathsToUse.length) * 800 + 2000;
       const bossTimer = setTimeout(async () => {
-        // [버그3 수정] 보스 addEnemy 완료 후 플래그 OFF
-        await this.spawnBossInternal(wave, pathsToUse[0], mult, addEnemy);
-        this._bossSpawnPending = false;
+        // [FIX] 보스도 pendingSpawnCount로 추적
+        this._pendingSpawnCount++;
+        try {
+          // [버그3 수정] 보스 addEnemy 완료 후 플래그 OFF
+          await this.spawnBossInternal(wave, pathsToUse[0], mult, addEnemy);
+        } finally {
+          this._pendingSpawnCount--;
+          this._bossSpawnPending = false;
+        }
       }, bossSpawnTime);
       this.activeTimers.push(bossTimer);
       lastSpawnTime = bossSpawnTime;
