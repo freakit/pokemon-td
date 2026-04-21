@@ -1,14 +1,26 @@
 // src/components/Multiplayer/TFTBattleArena.tsx
-// 6x6 TFT 스타일 배틀 (수정 버전 v4 - 호스트 의존도 제거)
+// 6x6 TFT 스타일 배틀 — V5 결정론 재설계
 // ──────────────────────────────────────────────────────────────────
-// [FIX-1] 전투 루프 유닛 순회를 캐노니컬 순서로 통일
-//   - 기존: `for (const unit of next)` → next 배열 순서가 양측 클라이언트에서 다름
-//   - 수정: L팀(col 0-1) 유닛 → R팀(col 4-5) 유닛 순서로 고정 순회
-//     양측 모두 물리적 위치 기준이므로 my/opp 라벨과 무관하게 동일한 RNG 소비 순서 보장
-// [FIX-2] 전투 루프 내 side-effect(setFloats, setTimeout) 제거 → 순수 상태 업데이트만 수행
-// [FIX-10] 호스트 의존도 제거: 양측 모두 동일 시드로 루프 실행, Firebase transaction으로 중복 제출 차단
-//   - 기존: setUnits 콜백 안에서 setTimeout, setFloats 호출 → 비결정론적 타이밍
-//   - 수정: floats를 units 밖에서 별도 ref로 관리, isAtk/isHit 리셋을 별도 interval로 분리
+// [V5-CRIT-1] 순수 시뮬레이션 ref 분리 + target tick 방식
+//   - 이전: setUnits 콜백 안에서 시뮬 → React 배칭 영향으로 tick 수 불일치 가능
+//   - 수정: simUnitsRef(순수 JS 객체)에 실제 시뮬 수행, setUnits는 렌더 전용 복사본
+//   - target tick: battleStartAt으로부터 Math.floor(elapsed / tickMs)까지 catch-up
+//     → 양 클라이언트가 어떤 경로로 와도 동일한 tick 수에 수렴
+//
+// [V5-CRIT-2] myTeam/opponentTeam은 Firebase 스냅샷 입력으로 통일
+//   - 이전: 내 팀은 로컬 state, 상대 팀은 Firebase → 스로틀 지연으로 불일치 가능
+//   - 수정: BattlePhaseUI가 양측 모두 Firebase 기준 데이터 전달 (호출부 수정)
+//     이 파일에서는 props를 신뢰만 하면 됨
+//
+// [V5-CRIT-3] equippedMoves currentCooldown 등 런타임 필드 정규화 의존
+//   - MultiplayerService.normalizeTowerDetails()가 업로드 시 런타임 필드 제거
+//   - 이 파일은 정규화된 데이터만 본다고 가정
+//
+// [V5-CRIT-4] move 배열 순서 결정론
+//   - Firebase RTDB sparse array → object 변환 대응
+//   - normalizeTowerDetails()가 name 기준 사전순 정렬
+//
+// [V5] setFloats/setTimeout를 루프 한 번당 1회만 호출하도록 재구성 → 렌더 결정적
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
@@ -27,14 +39,20 @@ const ATTACK_RANGE = 1.4;
 const MOVE_SPEED = 1.0;
 const ATK_COOLDOWN = 1.3;
 const FPS = 30;
+const TICK_MS = 1000 / FPS;
 
-const PREP_TIME = 30; // 준비 시간 (초)
-const REVEAL_TIME = 5; // 공개 → 배틀 시작까지 (초)
+const PREP_TIME = 30;
+const REVEAL_TIME = 5;
 
-// ── 시드 기반 결정론적 랜덤 (mulberry32) ──
+// [V5] 장시간 백그라운드 방어 — 최대 10초치까지만 catch-up, 그 이상은 즉시 종료 조건 확인만
+const MAX_CATCHUP_TICKS = FPS * 10;
+
+// ── 시드 기반 결정론 RNG ──
 function mulberry32(seed: number) {
+  let s = seed >>> 0;
   return function () {
-    let t = (seed += 0x6d2b79f5);
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -45,7 +63,7 @@ interface Unit {
   id: string;
   detail: TowerDetail;
   team: 'my' | 'opp';
-  x: number; // -1 = 벤치(미배치)
+  x: number;
   y: number;
   hp: number;
   maxHp: number;
@@ -83,7 +101,6 @@ export interface TFTBattleArenaProps {
   onBattleComplete?: (result: TFTBattleResult) => void;
 }
 
-// 상대 기본 배치 위치 (상대는 자동 배치)
 const L_POS = [
   { x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 2 },
   { x: 1, y: 3 }, { x: 0, y: 4 }, { x: 1, y: 5 },
@@ -93,27 +110,39 @@ const R_POS = [
   { x: 4, y: 3 }, { x: 5, y: 4 }, { x: 4, y: 5 },
 ];
 
+/**
+ * [V5-CRIT-4] 데미지 계산 — moves는 사전순 정렬되어 있다고 가정
+ *   이 함수의 rng 호출 순서는 반드시 양측에서 동일해야 함
+ */
 function calcDmg(a: Unit, d: Unit, rng: () => number): number {
   const atk = a.detail.attack ?? a.detail.level * 10;
   const def = d.detail.defense ?? d.detail.level * 5;
   const types = a.detail.types ?? [];
   const dTypes = d.detail.types ?? [];
-  
+
   let power = 50 + a.detail.level;
   const moves = a.detail.equippedMoves;
   if (moves && moves.length > 0) {
-    if (rng() < 0.3) {
+    // RNG 소비 순서: 먼저 rng() 한 번 (0.3 비교), 그 다음 rng() 한 번 (인덱스)
+    // → 양측이 동일한 moves 배열 + 동일한 RNG 상태면 같은 결과
+    const r1 = rng();
+    if (r1 < 0.3) {
       power = Math.max(...moves.map(m => m.power || 0));
     } else {
       const idx = Math.floor(rng() * moves.length);
-      power = moves[idx].power || power;
+      power = moves[idx]?.power || power;
     }
     power = Math.max(30, power);
+  } else {
+    // moves가 없어도 RNG 소비 횟수 맞추기
+    rng(); // r1
+    rng(); // r2 (사용 안 함)
   }
 
   const lvl = a.detail.level;
   const eff = getTypeEffectiveness(types[0] ?? 'normal', dTypes);
   const base = ((2 * lvl / 5 + 2) * power * atk / Math.max(def, 1)) / 50 + 2;
+  // 마지막 rng (randomFactor)
   return Math.max(1, Math.floor(base * eff * (0.85 + rng() * 0.15)));
 }
 
@@ -121,25 +150,36 @@ function dst(a: Unit, b: Unit) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
 }
 
-// ── [FIX-1] 캐노니컬 순서 생성 헬퍼 ──
-// 양측 클라이언트에서 동일한 순서를 보장하기 위해
-// "L팀(col 0-1) 유닛 → R팀(col 4-5) 유닛" 순서로 정렬
-// 각 팀 내에서는 유닛 ID의 인덱스(숫자 부분) 순서
+/**
+ * [V5-CRIT-1] 캐노니컬 순서 — L팀 → R팀, ID 인덱스 오름차순
+ */
 function buildCanonicalOrder(units: Unit[], myPosition: 'L' | 'R'): Unit[] {
   const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
-  const aliveUnits = units.filter(u => alive(u));
+  const aliveUnits = units.filter(alive);
 
-  // L팀: myPosition=L이면 'my', myPosition=R이면 'opp'
   const lTeam = aliveUnits
     .filter(u => (myPosition === 'L' ? u.team === 'my' : u.team === 'opp'))
     .sort((a, b) => parseInt(a.id.split('-')[1]) - parseInt(b.id.split('-')[1]));
 
-  // R팀: myPosition=R이면 'my', myPosition=L이면 'opp'
   const rTeam = aliveUnits
     .filter(u => (myPosition === 'R' ? u.team === 'my' : u.team === 'opp'))
     .sort((a, b) => parseInt(a.id.split('-')[1]) - parseInt(b.id.split('-')[1]));
 
   return [...lTeam, ...rTeam];
+}
+
+/**
+ * [V5-CRIT-2] 입력 팀 데이터를 결정론적으로 정렬
+ *   BattlePhaseUI에서 Firebase 스냅샷을 그대로 넘겨주지만,
+ *   혹시 순서가 다를 경우를 대비한 방어. 정렬 키는 MultiplayerService의
+ *   normalizeTowerDetails()와 동일하게 (pokemonId, level desc, name).
+ */
+function sortTeamDeterministic(team: TowerDetail[]): TowerDetail[] {
+  return (team || []).slice().sort((a, b) => {
+    if (a.pokemonId !== b.pokemonId) return a.pokemonId - b.pokemonId;
+    if (a.level !== b.level) return b.level - a.level;
+    return (a.name || '').localeCompare(b.name || '');
+  });
 }
 
 function buildUnits(
@@ -148,16 +188,19 @@ function buildUnits(
   myPos: 'L' | 'R',
   rng: () => number,
   mySynergies: Synergy[],
-  oppSynergies: Synergy[]
+  oppSynergies: Synergy[],
 ): Unit[] {
   const units: Unit[] = [];
   const oppDefaults = myPos === 'L' ? R_POS : L_POS;
 
-  myTeam.slice(0, 6).forEach((d, i) => {
+  // [V5-CRIT-2] 입력 팀을 결정론 정렬
+  const sortedMy = sortTeamDeterministic(myTeam).slice(0, 6);
+  const sortedOpp = sortTeamDeterministic(oppTeam).slice(0, 6);
+
+  sortedMy.forEach((d, i) => {
     const p = d as unknown as GamePokemon;
     const buffed = getBuffedStats(p, mySynergies);
     const detailWithSynergy = { ...d, ...buffed };
-
     units.push({
       id: `my-${i}`,
       detail: detailWithSynergy,
@@ -173,12 +216,11 @@ function buildUnits(
     });
   });
 
-  oppTeam.slice(0, 6).forEach((d, i) => {
+  sortedOpp.forEach((d, i) => {
     const p = d as unknown as GamePokemon;
     const buffed = getBuffedStats(p, oppSynergies);
     const detailWithSynergy = { ...d, ...buffed };
     const pos = oppDefaults[i] ?? { x: myPos === 'L' ? 4 + (i % 2) : i % 2, y: i };
-    
     units.push({
       id: `op-${i}`,
       detail: detailWithSynergy,
@@ -196,8 +238,138 @@ function buildUnits(
   return units;
 }
 
+/**
+ * [V5-CRIT-1] 순수 시뮬 1틱 — 모든 입력/출력을 명시적 객체로
+ *   이 함수는 React state를 건드리지 않음. 양 클라이언트에서 동일한 입력이면 동일한 출력.
+ *   RNG 상태는 closure로 공유 (rng() 호출 순서가 결정론)
+ */
+function simulateTick(
+  units: Unit[],
+  myPosition: 'L' | 'R',
+  rng: () => number,
+): { units: Unit[]; floats: FloatTxt[]; done: boolean } {
+  // 다음 상태는 얕은 복사로 시작 (isAtk/isHit 리셋)
+  const next = units.map(u => ({ ...u, isAtk: false, isHit: false }));
+  const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
+  const myAlive = next.filter(u => u.team === 'my' && alive(u));
+  const oppAlive = next.filter(u => u.team === 'opp' && alive(u));
+
+  if (myAlive.length === 0 || oppAlive.length === 0) {
+    return { units: next, floats: [], done: true };
+  }
+
+  const canonicalOrder = buildCanonicalOrder(next, myPosition);
+  const floats: FloatTxt[] = [];
+  let floatSeq = 0;
+
+  for (const unitRef of canonicalOrder) {
+    const unit = next.find(u => u.id === unitRef.id)!;
+    if (!alive(unit)) continue;
+
+    const enemies = unit.team === 'my'
+      ? next.filter(u => u.team === 'opp' && alive(u))
+      : next.filter(u => u.team === 'my' && alive(u));
+    if (!enemies.length) continue;
+
+    // 타겟팅: 최단거리 → 동거리 시 ID 사전순 (결정론)
+    let target = enemies[0];
+    let minD = Infinity;
+    for (const e of enemies) {
+      const d = dst(unit, e);
+      if (d < minD - 1e-9) {
+        minD = d;
+        target = e;
+      } else if (Math.abs(d - minD) < 1e-9 && e.id.localeCompare(target.id) < 0) {
+        target = e;
+      }
+    }
+
+    unit.atkCd = Math.max(0, unit.atkCd - (1 / FPS));
+
+    if (minD <= ATTACK_RANGE) {
+      if (unit.atkCd <= 0) {
+        unit.isAtk = true;
+        unit.atkCd = ATK_COOLDOWN;
+        const t2 = next.find(u => u.id === target.id);
+        if (t2 && alive(t2)) {
+          const dmg = calcDmg(unit, t2, rng);
+
+          // AoE
+          const aoeRatio = unit.detail.aoeBonus || 0;
+          if (aoeRatio > 0 && enemies.length > 1) {
+            const splashRange = 1.6;
+            const splashDmg = Math.floor(dmg * aoeRatio);
+            // 스플래시 대상도 결정론 순서 (ID 사전순)
+            const splashTargets = enemies
+              .filter(e => e.id !== t2.id && dst(t2, e) <= splashRange)
+              .sort((a, b) => a.id.localeCompare(b.id));
+            for (const e of splashTargets) {
+              const spTarget = next.find(u => u.id === e.id);
+              if (spTarget && alive(spTarget)) {
+                spTarget.hp = Math.max(0, spTarget.hp - splashDmg);
+                spTarget.isHit = true;
+                if (spTarget.hp <= 0) spTarget.fainted = true;
+                floats.push({
+                  id: ++floatSeq,
+                  text: `-${splashDmg}`,
+                  x: spTarget.x * CELL + CELL / 2 + 10,
+                  y: spTarget.y * CELL - 10,
+                  color: '#e67e22',
+                });
+              }
+            }
+          }
+
+          // Main damage
+          t2.hp = Math.max(0, t2.hp - dmg);
+          t2.isHit = true;
+          if (t2.hp <= 0) t2.fainted = true;
+          floats.push({
+            id: ++floatSeq,
+            text: `-${dmg}`,
+            x: t2.x * CELL + CELL / 2,
+            y: t2.y * CELL,
+            color: t2.team === 'my' ? '#ff6b6b' : '#ffd93d',
+          });
+
+          // Life Steal
+          const lsRatio = unit.detail.lifesteal || 0;
+          if (lsRatio > 0) {
+            const healAmount = Math.floor(dmg * lsRatio);
+            if (healAmount > 0 && unit.hp < unit.maxHp) {
+              unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
+              floats.push({
+                id: ++floatSeq,
+                text: `+${healAmount}`,
+                x: unit.x * CELL + CELL / 2,
+                y: unit.y * CELL - 15,
+                color: '#2ecc71',
+              });
+            }
+          }
+        }
+      }
+    } else {
+      unit.isAtk = false;
+      const dx = target.x - unit.x;
+      const dy = target.y - unit.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0.01) {
+        unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * (1 / FPS)));
+        unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * (1 / FPS)));
+      }
+    }
+  }
+
+  return { units: next, floats, done: false };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 메인 컴포넌트
+// ─────────────────────────────────────────────────────────────────
 export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
-  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName, myPosition, phase, battleSeed, battleResult: battleResultProp, onBattleComplete,
+  roomId, myUserId, opponentId, myTeam, opponentTeam, opponentName,
+  myPosition, phase, battleSeed, battleResult: battleResultProp, onBattleComplete,
 }) => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [floats, setFloats] = useState<FloatTxt[]>([]);
@@ -206,24 +378,27 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const [selectedBenchId, setSelectedBenchId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(PREP_TIME);
+
+  // [V5-CRIT-1] 순수 시뮬은 ref에 저장 — React 배칭 영향 없음
+  const simUnitsRef = useRef<Unit[]>([]);
+  const rngRef = useRef<() => number>(() => Math.random());
+  const simTickRef = useRef<number>(0);         // 현재까지 시뮬된 tick 수
+  const battleStartAtRef = useRef<number>(0);   // 배틀 시작 시각
+
   const loopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const floatIdRef = useRef(0);
   const initRef = useRef({ my: -1, op: -1 });
-  const rngRef = useRef<() => number>(() => Math.random());
   const resultReportedRef = useRef(false);
   const hasSubmittedRef = useRef(false);
-  const lastTickRef = useRef<number>(Date.now());
-  const nonHostCompletedRef = useRef(false);
-  // [FIX-2] 보류 중인 floats를 ref로 관리 (setUnits 콜백 외부에서 배치 적용)
-  const pendingFloatsRef = useRef<FloatTxt[]>([]);
-  
+  const floatCleanupTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+
   const [remotePlacements, setRemotePlacements] = useState<Map<string, { id: string, x: number, y: number }[]>>(new Map());
 
   useEffect(() => {
     if (!roomId) return;
-    const unsub = multiplayerService.onAllTFTPlacementsUpdate(roomId, (placementsMap) => {
-      setRemotePlacements(placementsMap);
+    const unsub = multiplayerService.onAllTFTPlacementsUpdate(roomId, (pm) => {
+      setRemotePlacements(pm);
     });
     return unsub;
   }, [roomId]);
@@ -234,17 +409,14 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const benchUnits = units.filter(u => u.team === 'my' && u.x === -1 && !u.fainted);
   const placedMyUnits = units.filter(u => u.team === 'my' && u.x >= 0 && !u.fainted);
 
-  useEffect(() => {
-    const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
-    rngRef.current = mulberry32(seed);
-  }, [battleSeed]);
-
-  const mySynergies = useMemo(() => {
-    return calculateActiveSynergies(myTeam as unknown as GamePokemon[]);
-  }, [myTeam]);
-  const oppSynergies = useMemo(() => {
-    return calculateActiveSynergies(opponentTeam as unknown as GamePokemon[]);
-  }, [opponentTeam]);
+  const mySynergies = useMemo(
+    () => calculateActiveSynergies(sortTeamDeterministic(myTeam) as unknown as GamePokemon[]),
+    [myTeam],
+  );
+  const oppSynergies = useMemo(
+    () => calculateActiveSynergies(sortTeamDeterministic(opponentTeam) as unknown as GamePokemon[]),
+    [opponentTeam],
+  );
 
   useEffect(() => {
     if (phase !== 'result') {
@@ -252,6 +424,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [mySynergies, phase]);
 
+  // ─── 초기화 ─────────────────────────────────────────────
   useEffect(() => {
     if (myTeam.length === 0 && opponentTeam.length === 0) return;
     if (
@@ -262,10 +435,12 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     initRef.current = { my: myTeam.length, op: opponentTeam.length };
     resultReportedRef.current = false;
     hasSubmittedRef.current = false;
-    const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
+    const seed = battleSeed ?? 42424242;
     const rng = mulberry32(seed);
     rngRef.current = rng;
-    setUnits(buildUnits(myTeam, opponentTeam, myPosition, rng, mySynergies, oppSynergies));
+    const initialUnits = buildUnits(myTeam, opponentTeam, myPosition, rng, mySynergies, oppSynergies);
+    simUnitsRef.current = initialUnits;
+    setUnits(initialUnits);
     setBattleState('idle');
     setWinnerText(null);
     setFloats([]);
@@ -274,11 +449,10 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     setCountdown(PREP_TIME);
   }, [myTeam, opponentTeam, myPosition, battleSeed, mySynergies, oppSynergies]);
 
-  // ── 준비 페이즈 카운트다운 (30초) ──
+  // ─── 준비 페이즈 카운트다운 (30초) ──
   useEffect(() => {
     if (phase !== 'prep' || battleState !== 'idle') return;
     if (countdownRef.current) clearInterval(countdownRef.current);
-
     setCountdown(PREP_TIME);
     countdownRef.current = setInterval(() => {
       setCountdown(prev => {
@@ -292,25 +466,20 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         return prev - 1;
       });
     }, 1000);
-
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [phase, battleState]);
 
-  // ── 미배치 유닛 자동 배치 ──
   const autoPlaceRemainingUnits = useCallback(() => {
     setUnits(prev => {
       const next = [...prev];
       const defaults = myPosition === 'L' ? L_POS : R_POS;
       const unplaced = next.filter(u => u.team === 'my' && u.x === -1 && !u.fainted);
-
       if (unplaced.length === 0) return prev;
-
       const usedPositions = new Set(
         next.filter(u => u.team === 'my' && u.x >= 0).map(u => `${Math.round(u.x)},${Math.round(u.y)}`)
       );
-
       let defaultIdx = 0;
       for (const unit of unplaced) {
         while (defaultIdx < defaults.length) {
@@ -325,7 +494,6 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           }
           defaultIdx++;
         }
-
         if (unit.x === -1) {
           for (let col of myCols) {
             for (let row = 0; row < ROWS; row++) {
@@ -341,18 +509,18 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           }
         }
       }
-
+      // simUnitsRef도 동기화
+      simUnitsRef.current = next;
       return next;
     });
   }, [myPosition, myCols]);
 
-  // ── 내 배치를 Firebase에 업로드 ──
+  // ── 내 배치 Firebase 업로드 ──
   useEffect(() => {
     if (battleState === 'reveal' && roomId && myUserId && !hasSubmittedRef.current) {
       const myPlacements = units
         .filter(u => u.team === 'my' && u.x >= 0)
         .map(u => ({ id: u.id, x: u.x, y: u.y }));
-      
       if (myPlacements.length > 0) {
         hasSubmittedRef.current = true;
         multiplayerService.submitTFTPlacements(roomId, myUserId, myPlacements).catch(console.error);
@@ -360,40 +528,40 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [battleState, units, roomId, myUserId]);
 
-  // ── 공개 페이즈 (5초) → 배틀 시작 ──
+  // ── 공개 페이즈 → 배틀 시작 ──
   useEffect(() => {
     if (battleState !== 'reveal') return;
-    
     const isOpponentAI = opponentId?.startsWith('ai_');
     const oppPlacements = opponentId ? remotePlacements.get(opponentId) : null;
     const isOpponentReady = isOpponentAI || (oppPlacements && oppPlacements.length > 0);
-    
+
     if (!isOpponentReady) {
       if (countdownRef.current) clearInterval(countdownRef.current);
       setCountdown(REVEAL_TIME);
       return;
     }
 
+    // 상대 배치 반영
     if (!isOpponentAI && oppPlacements && oppPlacements.length > 0) {
       setUnits(prev => {
         let changed = false;
         const next = prev.map(u => {
           if (u.team === 'opp') {
-            const matchIndex = parseInt(u.id.split('-')[1]);
-            const placement = oppPlacements[matchIndex];
-            if (placement && (u.x !== placement.x || u.y !== placement.y)) {
+            const idx = parseInt(u.id.split('-')[1]);
+            const pl = oppPlacements[idx];
+            if (pl && (u.x !== pl.x || u.y !== pl.y)) {
               changed = true;
-              return { ...u, x: placement.x, y: placement.y };
+              return { ...u, x: pl.x, y: pl.y };
             }
           }
           return u;
         });
+        if (changed) simUnitsRef.current = next;
         return changed ? next : prev;
       });
     }
 
     if (countdownRef.current) clearInterval(countdownRef.current);
-
     setCountdown(REVEAL_TIME);
 
     countdownRef.current = setInterval(() => {
@@ -402,11 +570,12 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           clearInterval(countdownRef.current!);
           countdownRef.current = null;
 
-          // ★ 캐노니컬 전투 초기화
-          const seed = battleSeed ?? 42424242; // 고정 fallback (양측 동일 보장)
+          // [V5-CRIT-1] 시드 전용 새 RNG (reveal 이후 공격 시작 시점 RNG)
+          const seed = battleSeed ?? 42424242;
           const battleRng = mulberry32(seed + 99999);
           rngRef.current = battleRng;
 
+          // atkCd 초기화 (결정론 순서)
           setUnits(currentUnits => {
             const withOppPos = currentUnits.map(u => {
               if (u.team === 'opp' && !isOpponentAI && oppPlacements && oppPlacements.length > 0) {
@@ -426,27 +595,25 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
               && u.x >= 0 && !u.fainted
             );
 
-            // [FIX-ATKCD] atkCd 초기화 순서를 ID 기반 정렬로 고정
-            // 기존: [...lTeam, ...rTeam] 배열 순서가 withOppPos 필터링 순서에 의존
-            //   → React 상태 업데이트 타이밍에 따라 양측 배열 순서가 다를 수 있음
-            // 수정: 팀 내에서 ID 인덱스(숫자) 오름차순으로 정렬 후 RNG 소비
-            //   → 양측 클라이언트에서 항상 동일한 순서 보장
-            const sortById = (units: typeof lTeam) =>
-              [...units].sort((a, b) => parseInt(a.id.split('-')[1]) - parseInt(b.id.split('-')[1]));
+            const sortById = (uu: typeof lTeam) =>
+              [...uu].sort((a, b) => parseInt(a.id.split('-')[1]) - parseInt(b.id.split('-')[1]));
 
             const atkCdMap = new Map<string, number>();
             for (const u of [...sortById(lTeam), ...sortById(rTeam)]) {
               atkCdMap.set(u.id, battleRng() * 0.5);
             }
 
-            return withOppPos.map(u => {
-              if (atkCdMap.has(u.id)) {
-                return { ...u, atkCd: atkCdMap.get(u.id)! };
-              }
+            const finalUnits = withOppPos.map(u => {
+              if (atkCdMap.has(u.id)) return { ...u, atkCd: atkCdMap.get(u.id)! };
               return { ...u, fainted: true };
             });
+            simUnitsRef.current = finalUnits;
+            return finalUnits;
           });
 
+          // 배틀 시작 시각 기록
+          battleStartAtRef.current = Date.now();
+          simTickRef.current = 0;
           setBattleState('fighting');
           return 0;
         }
@@ -457,9 +624,9 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [battleState, battleSeed, opponentId, remotePlacements]);
+  }, [battleState, battleSeed, opponentId, remotePlacements, myPosition]);
 
-  // ── 외부 phase='battle'에 의한 강제 전환 ──
+  // ── 외부 phase='battle' 강제 전환 ──
   useEffect(() => {
     if (phase === 'battle' && battleState === 'idle') {
       if (countdownRef.current) clearInterval(countdownRef.current);
@@ -468,260 +635,157 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [phase, battleState, autoPlaceRemainingUnits]);
 
-  // ── [FIX-10] Firebase battleResult 수신 → 루프 종료 (양측 공통) ──
-  // 기존: isHost가 아닐 때만 Firebase 결과로 루프 종료
-  //   → 호스트는 루프 완료 후 직접 종료, 비호스트는 Firebase 대기
-  //   → 두 클라이언트가 다른 경로로 종료 → 타이밍 불일치
-  // 수정: 양측 모두 자체 루프로 전투를 완전히 실행
-  //   → 자체 루프가 먼저 완료되면 즉시 결과 제출 시도
-  //   → Firebase에 이미 결과가 있으면(상대가 먼저 제출) 자신은 조용히 건너뜀
-  //   → Firebase 결과 수신 시: 이미 done 상태이면 무시, 아직 fighting이면 동기화 완료
+  // ── Firebase battleResult 수신 → 루프 종료 ──
   useEffect(() => {
     if (!battleResultProp) return;
-    if (nonHostCompletedRef.current) return;
-    nonHostCompletedRef.current = true;
-    // 이미 로컬 루프가 완료됐으면 무시 (정상 케이스)
+    // 아직 시뮬 중이면 강제 종료
     if (loopRef.current) {
-      // 루프가 아직 돌고 있다면 Firebase 결과를 신뢰하고 종료
-      // (네트워크 지연으로 로컬이 늦게 완료되는 엣지 케이스 대응)
       clearInterval(loopRef.current);
       loopRef.current = null;
-      setBattleState('done');
-      console.log('[TFTBattleArena] Firebase result received while loop running - syncing to done');
     }
-  }, [battleResultProp]);
+    if (battleState !== 'done') {
+      setBattleState('done');
+      console.log('[TFTBattleArena] Firebase result received - syncing to done');
+    }
+  }, [battleResultProp, battleState]);
 
-  // ── [FIX-1] 배틀 루프 — 캐노니컬 순서 적용 ──
+  // ─── [V5-CRIT-1] 배틀 루프 — target tick 방식 ───
   useEffect(() => {
     if (battleState !== 'fighting') return;
     if (loopRef.current) clearInterval(loopRef.current);
 
-    const rng = rngRef.current;
-    lastTickRef.current = Date.now();
+    // 렌더 주기는 고정 FPS의 1배
+    const RENDER_INTERVAL = TICK_MS;
 
-    // [FIX-BG] 탭 복귀 시 lastTickRef를 리셋해서 catch-up 루프가 과도한 틱을 처리하지 않도록 함
-    const onVisibility = () => {
-      if (!document.hidden) {
-        lastTickRef.current = Date.now();
+    const tick = () => {
+      // 목표 tick 수 = 경과 시간 / tickMs (양측이 같은 기준)
+      // catch-up은 필요한 만큼 반복하되 최대 MAX_CATCHUP_TICKS 제한
+      const elapsed = Date.now() - battleStartAtRef.current;
+      const targetTick = Math.floor(elapsed / TICK_MS);
+      const simTick = simTickRef.current;
+      let ticksToRun = Math.min(targetTick - simTick, MAX_CATCHUP_TICKS);
+      if (ticksToRun <= 0) return;
+
+      const rng = rngRef.current;
+      let current = simUnitsRef.current;
+      const allFloats: FloatTxt[] = [];
+      let done = false;
+
+      for (let i = 0; i < ticksToRun; i++) {
+        const res = simulateTick(current, myPosition, rng);
+        current = res.units;
+        // float는 마지막 반영 틱에서만 표시되도록 누적 (너무 많아지면 모이지만 최대 60개 제한)
+        if (allFloats.length < 60) {
+          for (const f of res.floats) {
+            if (allFloats.length < 60) allFloats.push(f);
+          }
+        }
+        simTickRef.current++;
+        if (res.done) { done = true; break; }
       }
+
+      simUnitsRef.current = current;
+      setUnits(current);
+
+      // floats 렌더 (한 번만)
+      if (allFloats.length > 0) {
+        const idOffset = floatIdRef.current;
+        const rebased = allFloats.map((f, idx) => ({ ...f, id: idOffset + idx + 1 }));
+        floatIdRef.current += allFloats.length;
+        setFloats(f => [...f, ...rebased]);
+        const cleanupTimer = setTimeout(() => {
+          setFloats(f => f.filter(x => !rebased.some(r => r.id === x.id)));
+        }, 850);
+        floatCleanupTimersRef.current.push(cleanupTimer);
+      }
+
+      // 전투 종료
+      if (done) {
+        if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
+        setBattleState('done');
+
+        const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
+        const myWon = current.some(u => u.team === 'my' && alive(u));
+        setWinnerText(myWon ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
+
+        if (!resultReportedRef.current) {
+          resultReportedRef.current = true;
+
+          // player1/player2 매핑 (L=player1, R=player2)
+          const p1Alive = current.filter(u => {
+            const isP1 = (myPosition === 'L' && u.team === 'my') || (myPosition === 'R' && u.team === 'opp');
+            return isP1 && alive(u);
+          }).length;
+          const p2Alive = current.filter(u => {
+            const isP2 = (myPosition === 'R' && u.team === 'my') || (myPosition === 'L' && u.team === 'opp');
+            return isP2 && alive(u);
+          }).length;
+          const winner: 'player1' | 'player2' = p1Alive > 0 ? 'player1' : 'player2';
+          onBattleComplete?.({
+            winner,
+            player1Remaining: p1Alive,
+            player2Remaining: p2Alive,
+          });
+        }
+      }
+    };
+
+    // 탭 복귀 즉시 catch-up
+    const onVisibility = () => {
+      if (!document.hidden) tick();
     };
     document.addEventListener('visibilitychange', onVisibility);
 
-    loopRef.current = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - lastTickRef.current;
-      lastTickRef.current = now;
-
-      // [FIX-BG] 백그라운드 스로틀링 catch-up
-      // 경과 시간이 1틱(1/FPS)보다 크면 그만큼 추가 틱을 처리
-      // 단, 최대 FPS*5(5초치)로 제한해 무한 루프 방지
-      const tickMs = 1000 / FPS;
-      const tickCount = Math.min(Math.round(elapsed / tickMs), FPS * 5);
-      const realDt = 1 / FPS; // 항상 고정 스텝 사용 (결정론 보장)
-
-      // catch-up: tickCount만큼 순수 상태 계산 반복
-      // 마지막 틱만 setUnits로 실제 반영 (중간 틱은 로컬 변수로만 계산)
-      // → 렌더링은 1회, 결과는 catch-up 완료 상태
-      for (let tick = 0; tick < Math.max(1, tickCount); tick++) {
-      setUnits(prev => {
-        const next = prev.map(u => ({ ...u, isAtk: false, isHit: false }));
-        const alive = (u: Unit) => !u.fainted && u.hp > 0 && u.x >= 0;
-        const myAlive = next.filter(u => u.team === 'my' && alive(u));
-        const oppAlive = next.filter(u => u.team === 'opp' && alive(u));
-
-        if (myAlive.length === 0 || oppAlive.length === 0) {
-          if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
-
-          const myWon = myAlive.length > 0;
-          const winTeam = myWon ? 'my' : 'opp';
-          setBattleState('done');
-          setWinnerText(winTeam === 'my' ? '🏆 내 팀 승리!' : `💀 ${opponentName} 승리!`);
-
-          if (!resultReportedRef.current) {
-            // ★ [FIX-10] 호스트/비호스트 구분 없이 양측 모두 결과 제출 시도
-            // submitBattleResult 내부의 runTransaction이 중복 제출을 원자적으로 차단
-            // → 먼저 도착한 쪽의 결과만 적용되고, 늦게 도착한 쪽은 자동으로 무시됨
-            // → 동일한 시드·동일한 RNG·동일한 캐노니컬 순서이므로 양측 결과는 항상 동일
-            resultReportedRef.current = true;
-
-            const p1Alive = next.filter(u => {
-              const isP1 = (myPosition === 'L' && u.team === 'my') || (myPosition === 'R' && u.team === 'opp');
-              return isP1 && !u.fainted && u.hp > 0 && u.x >= 0;
-            }).length;
-            const p2Alive = next.filter(u => {
-              const isP2 = (myPosition === 'R' && u.team === 'my') || (myPosition === 'L' && u.team === 'opp');
-              return isP2 && !u.fainted && u.hp > 0 && u.x >= 0;
-            }).length;
-
-            const winner: 'player1' | 'player2' = p1Alive > 0 ? 'player1' : 'player2';
-
-            onBattleComplete?.({
-              winner,
-              player1Remaining: p1Alive,
-              player2Remaining: p2Alive,
-            });
-          }
-
-          return prev;
-        }
-
-        // ★ [FIX-1] 캐노니컬 순서로 유닛 순회
-        // L팀(col 0-1) → R팀(col 4-5), 각 팀 내 인덱스순
-        // 양측 클라이언트에서 동일한 순서로 RNG를 소비
-        const canonicalOrder = buildCanonicalOrder(next, myPosition);
-
-        const newFloats: FloatTxt[] = [];
-
-        for (const unitRef of canonicalOrder) {
-          // canonicalOrder는 next 배열의 같은 객체 참조이므로 직접 수정 가능
-          const unit = next.find(u => u.id === unitRef.id)!;
-          if (!alive(unit)) continue;
-          const enemies = unit.team === 'my'
-            ? next.filter(u => u.team === 'opp' && alive(u))
-            : next.filter(u => u.team === 'my' && alive(u));
-          if (!enemies.length) continue;
-
-          let target = enemies[0];
-          let minD = Infinity;
-          for (const e of enemies) {
-            const d = dst(unit, e);
-            if (d < minD) { minD = d; target = e; }
-          }
-
-          unit.atkCd = Math.max(0, unit.atkCd - realDt);
-
-          if (minD <= ATTACK_RANGE) {
-            if (unit.atkCd <= 0) {
-              unit.isAtk = true;
-              unit.atkCd = ATK_COOLDOWN;
-              const t2 = next.find(u => u.id === target.id);
-              if (t2 && alive(t2)) {
-                const dmg = calcDmg(unit, t2, rng);
-                
-                // AoE
-                const aoeRatio = unit.detail.aoeBonus || 0;
-                if (aoeRatio > 0 && enemies.length > 1) {
-                  const splashRange = 1.6;
-                  const splashDmg = Math.floor(dmg * aoeRatio);
-                  for (const e of enemies) {
-                    if (e.id === t2.id) continue;
-                    if (dst(t2, e) <= splashRange) {
-                      const spTarget = next.find(u => u.id === e.id);
-                      if (spTarget && alive(spTarget)) {
-                        spTarget.hp = Math.max(0, spTarget.hp - splashDmg);
-                        spTarget.isHit = true;
-                        if (spTarget.hp <= 0) spTarget.fainted = true;
-                        newFloats.push({
-                          id: ++floatIdRef.current,
-                          text: `-${splashDmg}`,
-                          x: spTarget.x * CELL + CELL / 2 + 10,
-                          y: spTarget.y * CELL - 10,
-                          color: '#e67e22',
-                        });
-                      }
-                    }
-                  }
-                }
-
-                // Main damage
-                t2.hp = Math.max(0, t2.hp - dmg);
-                t2.isHit = true;
-                if (t2.hp <= 0) t2.fainted = true;
-                newFloats.push({
-                  id: ++floatIdRef.current,
-                  text: `-${dmg}`,
-                  x: t2.x * CELL + CELL / 2,
-                  y: t2.y * CELL,
-                  color: t2.team === 'my' ? '#ff6b6b' : '#ffd93d',
-                });
-
-                // Life Steal
-                const lsRatio = unit.detail.lifesteal || 0;
-                if (lsRatio > 0) {
-                  const healAmount = Math.floor(dmg * lsRatio);
-                  if (healAmount > 0 && unit.hp < unit.maxHp) {
-                    unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
-                    newFloats.push({
-                      id: ++floatIdRef.current,
-                      text: `+${healAmount}`,
-                      x: unit.x * CELL + CELL / 2,
-                      y: unit.y * CELL - 15,
-                      color: '#2ecc71',
-                    });
-                  }
-                }
-              }
-            }
-          } else {
-            unit.isAtk = false;
-            const dx = target.x - unit.x;
-            const dy = target.y - unit.y;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            if (len > 0.01) {
-              unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * realDt));
-              unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * realDt));
-            }
-          }
-        }
-
-        // [FIX-2] floats를 setUnits 외부에서 처리하기 위해 ref에 축적
-        if (newFloats.length > 0) {
-          pendingFloatsRef.current = [...pendingFloatsRef.current, ...newFloats];
-        }
-
-        return next;
-      });
-      } // end catch-up for loop
-
-      // [FIX-2] setUnits 콜백 밖에서 floats 적용
-      if (pendingFloatsRef.current.length > 0) {
-        const batch = pendingFloatsRef.current;
-        pendingFloatsRef.current = [];
-        setFloats(f => [...f, ...batch]);
-        setTimeout(() => setFloats(f => f.slice(batch.length)), 850);
-      }
-    }, 1000 / FPS);
+    loopRef.current = setInterval(tick, RENDER_INTERVAL);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       if (loopRef.current) clearInterval(loopRef.current);
     };
-  }, [battleState, opponentName, onBattleComplete, myPosition, battleSeed]);
+  }, [battleState, opponentName, onBattleComplete, myPosition]);
 
-  useEffect(() => () => { if (loopRef.current) clearInterval(loopRef.current); }, []);
+  // ─── 언마운트 시 정리 ────────────────────────────────
+  useEffect(() => () => {
+    if (loopRef.current) clearInterval(loopRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    for (const t of floatCleanupTimersRef.current) clearTimeout(t);
+    floatCleanupTimersRef.current = [];
+  }, []);
 
-  // ── 벤치 유닛 클릭 → 선택 ──
+  // ─── UI 핸들러들 (원본 유지) ────────────────────────
   const handleBenchClick = (unitId: string) => {
     if (battleState !== 'idle' || phase !== 'prep') return;
     setSelectedBenchId(prev => prev === unitId ? null : unitId);
     setDragId(null);
   };
 
-  // ── 셀 클릭: 배치 또는 이동 ──
   const handleCellClick = (col: number, row: number) => {
     if (phase !== 'prep' || battleState !== 'idle' || !myCols.includes(col)) return;
-
     if (selectedBenchId) {
       const occ = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
       if (occ) return;
-      setUnits(prev => prev.map(u => {
-        if (u.id === selectedBenchId) return { ...u, x: col, y: row };
-        return u;
-      }));
+      setUnits(prev => {
+        const next = prev.map(u => u.id === selectedBenchId ? { ...u, x: col, y: row } : u);
+        simUnitsRef.current = next;
+        return next;
+      });
       setSelectedBenchId(null);
       return;
     }
-
     if (dragId) {
       const occ = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
-      setUnits(prev => prev.map(u => {
-        if (u.id === dragId) return { ...u, x: col, y: row };
-        if (occ && u.id === occ.id) {
-          const src = prev.find(p => p.id === dragId)!;
-          return { ...u, x: src.x, y: src.y };
-        }
-        return u;
-      }));
+      setUnits(prev => {
+        const next = prev.map(u => {
+          if (u.id === dragId) return { ...u, x: col, y: row };
+          if (occ && u.id === occ.id) {
+            const src = prev.find(p => p.id === dragId)!;
+            return { ...u, x: src.x, y: src.y };
+          }
+          return u;
+        });
+        simUnitsRef.current = next;
+        return next;
+      });
       setDragId(null);
     } else {
       const clicked = units.find(u => u.team === 'my' && u.x >= 0 && Math.round(u.x) === col && Math.round(u.y) === row);
@@ -732,13 +796,14 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   };
 
-  // ── 보드에서 유닛을 벤치로 되돌리기 ──
   const handleReturnToBench = (unitId: string) => {
     if (phase !== 'prep' || battleState !== 'idle') return;
-    setUnits(prev => prev.map(u => {
-      if (u.id === unitId) return { ...u, x: -1, y: units.filter(u2 => u2.team === 'my' && u2.x === -1).length };
-      return u;
-    }));
+    setUnits(prev => {
+      const benchCount = prev.filter(u2 => u2.team === 'my' && u2.x === -1).length;
+      const next = prev.map(u => u.id === unitId ? { ...u, x: -1, y: benchCount } : u);
+      simUnitsRef.current = next;
+      return next;
+    });
     setDragId(null);
   };
 
@@ -813,7 +878,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           <OpponentInfoPanel>
             <InfoTitle>🔍 상대 타워 ({opponentName})</InfoTitle>
             <InfoGrid>
-              {opponentTeam.slice(0, 6).map((t, i) => (
+              {sortTeamDeterministic(opponentTeam).slice(0, 6).map((t, i) => (
                 <InfoCard key={i}>
                   {t.sprite ? <InfoSprite src={t.sprite} alt={t.name} /> : <InfoFallback>{t.name?.slice(0, 2) ?? '?'}</InfoFallback>}
                   <InfoName>{t.name}</InfoName>
@@ -864,23 +929,32 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                 $team={unit.team} $fainted={unit.fainted} $hit={unit.isHit} $atk={unit.isAtk} $sel={dragId === unit.id}
                 onClick={() => { if (isPrep && unit.team === 'my' && !unit.fainted) { setDragId(p => p === unit.id ? null : unit.id); setSelectedBenchId(null); } }}
                 onContextMenu={(e) => { e.preventDefault(); if (isPrep && unit.team === 'my') handleReturnToBench(unit.id); }}>
-                <HpBg><HpFill style={{ width: `${hpPct * 100}%`, background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c' }} /></HpBg>
-                {unit.detail.sprite ? <Sprite src={unit.detail.sprite} alt={unit.detail.name} $fainted={unit.fainted} $flip={unit.team === 'opp'} /> : <Fallback $team={unit.team}>{unit.detail.name?.slice(0, 2).toUpperCase() ?? '?'}</Fallback>}
+                <HpBg><HpFill style={{ width: `${hpPct * 100}%`, background: hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f39c12' : '#e74c3c' }} /></HpBg>
+                {unit.detail.sprite
+                  ? <Sprite src={unit.detail.sprite} alt={unit.detail.name} $fainted={unit.fainted} $flip={unit.team === 'opp'} />
+                  : <Fallback $team={unit.team}>{unit.detail.name?.slice(0, 3) ?? '?'}</Fallback>
+                }
                 <UnitName>{unit.detail.name}</UnitName>
               </UnitWrap>
             );
           })}
 
-          {floats.map(f => <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>)}
+          {floats.map(f => (
+            <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>
+          ))}
 
-          {isReveal && <RevealOverlay><RevealText>⚔️ 배틀 시작까지 {countdown}초</RevealText></RevealOverlay>}
+          {isReveal && (
+            <RevealOverlay>
+              <RevealText>⚔️ {countdown}초 후 배틀 시작 ⚔️</RevealText>
+            </RevealOverlay>
+          )}
         </Board>
 
         {isPrep && myPosition === 'L' && (
           <OpponentInfoPanel>
             <InfoTitle>🔍 상대 타워 ({opponentName})</InfoTitle>
             <InfoGrid>
-              {opponentTeam.slice(0, 6).map((t, i) => (
+              {sortTeamDeterministic(opponentTeam).slice(0, 6).map((t, i) => (
                 <InfoCard key={i}>
                   {t.sprite ? <InfoSprite src={t.sprite} alt={t.name} /> : <InfoFallback>{t.name?.slice(0, 2) ?? '?'}</InfoFallback>}
                   <InfoName>{t.name}</InfoName>
@@ -915,8 +989,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   );
 };
 
-// ── 스타일 ──────────────────────────────────────────────────────
-
+// ── 스타일 (원본 유지) ──────────────────────────────────────────
 const floatUp = keyframes`
   0%  { opacity:1; transform:translateX(-50%) translateY(0); }
   100%{ opacity:0; transform:translateX(-50%) translateY(-42px); }

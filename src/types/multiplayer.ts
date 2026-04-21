@@ -10,13 +10,6 @@ export interface User {
   createdAt: number;
 }
 
-export interface PokedexEntry {
-  pokemonId: number;
-  name: string;
-  firstSeen: number;
-  timesSeen: number;
-}
-
 export interface HallOfFameEntry {
   id: string;
   userId: string;
@@ -63,15 +56,13 @@ export interface RoomPlayer {
   rating: number;
 }
 
-// DebuffItem 제거됨 - TFT 스타일 PvP 시스템으로 대체
-
 // [수정 2] 게임 페이즈 (멀티플레이어) — 'loading' 추가
 export type GamePhase = 'loading' | 'shopping' | 'wave' | 'waiting_battle' | 'battle' | 'waiting_wave';
 
 // Battle Log Entry
 export interface BattleLogEntry {
   turn: number;
-  attackerId: string; // "p1-0", "p2-3" etc (index based)
+  attackerId: string;
   targetId: string;
   action: 'attack' | 'skill';
   damage: number;
@@ -92,7 +83,7 @@ export interface PvPBattleResult {
   winnerId: string;
   player1RemainingPokemon: number;
   player2RemainingPokemon: number;
-  lifeLost: number; // 패배자가 잃는 라이프 = 상대 남은 포켓몬 수
+  lifeLost: number;
   battleLog: BattleLogEntry[];
   rewardP1?: { gold: number; lives: number };
   rewardP2?: { gold: number; lives: number };
@@ -103,7 +94,7 @@ export interface PvPBattleResult {
 export interface RoundMatchup {
   roundNumber: number;
   matches: Array<{ player1Id: string; player2Id: string }>;
-  skipPlayerId: string | null; // 홀수일 때 스킵하는 플레이어 (꼴지), Firebase 호환을 위해 null 사용
+  skipPlayerId: string | null;
   timestamp: number;
 }
 
@@ -123,7 +114,7 @@ export interface PlayerGameState {
   rating: number;
   placement?: number;
   ratingChange?: number;
-  waveCompleted?: boolean; // 현재 웨이브 완료 여부
+  waveCompleted?: boolean;
   battleRecord?: {
     wins: number;
     losses: number;
@@ -140,8 +131,8 @@ export interface MultiplayerGameState {
   roundMatchups?: RoundMatchup;
   encounterRecord: EncounterRecord;
   battleResults: PvPBattleResult[];
-  phaseEndTime?: number | null; // 페이즈 종료 시간 (서버 타임스탬프) - 모든 클라이언트가 동일하게 계산
-  loadingReady?: Record<string, boolean>; // [수정 2] 각 플레이어의 리소스 로딩 완료 상태
+  phaseEndTime?: number | null;
+  loadingReady?: Record<string, boolean>;
 }
 
 export interface TowerDetail {

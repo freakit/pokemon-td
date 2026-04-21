@@ -1,7 +1,22 @@
 // src/services/AIPlayer.ts
-/**
- * AI 플레이어 - 실제 유저와 동일한 TFT 흐름으로 동작
- */
+// AI 플레이어 - 실제 유저와 동일한 TFT 흐름으로 동작
+// ──────────────────────────────────────────────────────────────────
+// V5 — 서버 권위 기반 재설계
+//
+// [V5-FIX-AI-1] money, lives, isAlive 는 Firebase 서버 상태에서 읽음
+//   - 이전: onPhaseChange에서 델타(this.money += ...)로 누적 → 서버 트랜잭션과 불일치
+//   - 수정: gameStateSub 구독으로 Firebase → this.money/lives 단방향 동기화
+//     AI가 자체적으로 구매/보상 델타를 적용하지 않음 (서버가 이미 반영)
+//     단, 로컬 쇼핑 시에는 임시 차감 → 서버 실패 시 롤백
+//
+// [V5-FIX-AI-2] purchaseInterval 백그라운드 스로틀 방어
+//   - setInterval이 1초로 스로틀링되는 탭 환경에서도 시각 기반 체크
+//
+// [V5-FIX-AI-3] AI-host 이전 대응
+//   - stopAll() 후 GameLayout에서 다시 startAI() 호출 가능하도록 중복 시작 방지
+//
+// [V5-FIX-AI-4] 배틀/Bye 보너스 로컬 누적 제거
+//   - Firebase에서 money/lives가 동기화되므로 lastAppliedRound 추적 불필요
 
 import { multiplayerService } from './MultiplayerService';
 import { pokeAPI } from '../api/pokeapi';
@@ -14,8 +29,8 @@ import {
 import { getMapById, MAPS } from '../data/maps';
 import { EVOLUTION_CHAINS, canMegaEvolve } from '../data/evolution';
 import { getTypeEffectiveness } from '../utils/typeEffectiveness';
-
-// ─── 상수 ─────────────────────────────────────────────────────────────────────
+import { ref as fbRef, set as fbSet } from 'firebase/database';
+import { rtdb } from '../config/firebase';
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -31,7 +46,6 @@ const RARITY_COST: Record<PokemonRarity, number> = {
   Bronze: 50, Silver: 100, Gold: 200, Diamond: 350, Master: 500, Legend: 800,
 };
 
-// 난이도별 AI 설정
 const AI_CONFIG: Record<AIDifficulty, {
   purchaseIntervalMs: number;
   pickTopN: number;
@@ -46,8 +60,6 @@ const AI_CONFIG: Record<AIDifficulty, {
   hard:   { purchaseIntervalMs: 3000,  pickTopN: 1,   levelUpChance: 0.9,  evolvePriority: 0.85, upgradeTeam: true,  rerollCount: 3, synergyWeight: 1.0 },
 };
 
-// ─── 인터페이스 ───────────────────────────────────────────────────────────────
-
 interface AICandidate {
   pokemonId: number;
   rarity: PokemonRarity;
@@ -55,8 +67,7 @@ interface AICandidate {
   score: number;
 }
 
-// ─── 전투 시뮬레이터 ─────────────────────────────────────────────────────────
-
+// ─── 전투 시뮬레이터 (원본 유지) ─────────────────────────────
 function getDiffMult(diff: string): { hp: number; atk: number } {
   switch (diff) {
     case 'easiest': return { hp: 0.1, atk: 0.1 };
@@ -106,34 +117,27 @@ function runWaveSim(towers: GamePokemon[], wave: number, difficulty: string): Wa
 
   const processEnemy = (enemyHp: number, enemyAtk: number, enemyDef: number, reward: number, enemyTypes: string[]) => {
     let remainingHp = enemyHp;
-
     for (const tower of aliveTowers) {
       if ((towerHp[tower.id] ?? 0) <= 0) continue;
-
       const attackType = tower.types[0] || 'normal';
       const eff = getTypeEffectiveness(attackType, enemyTypes);
       const power = tower.equippedMoves[0]?.power || 50;
       const towerAtk = tower.attack;
-
       const rawDmg = ((2 * tower.level / 5 + 2) * power * towerAtk / Math.max(1, enemyDef) / 50 + 2) * eff;
       const exposureTime = 3.0 + wave * 0.05;
       const speedMult = Math.max(0.2, 1 - tower.speed / 300);
       const cooldown = (tower.equippedMoves[0]?.cooldown || 2.0) * speedMult;
       const hits = Math.max(1, Math.floor(exposureTime / cooldown));
       const totalDmg = rawDmg * hits;
-
       remainingHp -= totalDmg;
-
       const enemyDmgPerTick = Math.max(1, Math.floor(enemyAtk / Math.max(1, tower.defense)));
       const takenDmg = enemyDmgPerTick * Math.min(hits, 3);
       towerHp[tower.id] = Math.max(0, (towerHp[tower.id] ?? 0) - takenDmg);
-
       if (remainingHp <= 0) {
         moneyEarned += reward;
         return true;
       }
     }
-
     if (remainingHp > 0) {
       livesLost++;
       return false;
@@ -144,7 +148,6 @@ function runWaveSim(towers: GamePokemon[], wave: number, difficulty: string): Wa
   for (let i = 0; i < enemyCount; i++) {
     processEnemy(baseEnemyHp, baseEnemyAtk, baseEnemyDef, 10, ['normal']);
   }
-
   if (hasBoss) {
     processEnemy(baseEnemyHp * 3, baseEnemyAtk * 2, baseEnemyDef * 1.5, 50, ['normal']);
   }
@@ -158,29 +161,28 @@ function runWaveSim(towers: GamePokemon[], wave: number, difficulty: string): Wa
   return { livesLost, moneyEarned, towerHpFractions };
 }
 
-// ─── AIPlayer ─────────────────────────────────────────────────────────────────
-
+// ─── AIPlayer ────────────────────────────────────────────────
 export class AIPlayer {
   private isRunning = false;
   private purchaseInterval: ReturnType<typeof setInterval> | null = null;
+  private lastPurchaseCheck = 0;
   private gameStateSub: (() => void) | null = null;
   private phaseSub: (() => void) | null = null;
 
-  // 로컬 상태 (Firebase와 주기적 동기화)
+  // [V6-FIX-AI] 로컬이 money/lives 의 주인. Firebase 구독은 wave/isAlive만 받음.
   private money = 500;
   private lives = 50;
   private wave = 0;
   private towers: GamePokemon[] = [];
   private isAlive = true;
-  // [수정 9] null로 초기화: start() 후 첫 waiting_wave 수신 시 반드시 onPhaseChange 호출되도록
   private currentPhase: GamePhase | null = null;
   private roomDifficulty = 'normal';
-
-  // 중복 실행 방지
-  private waveProcessing = false;
-  private lastProcessedRound = -1;
+  // [V6-FIX-AI] 배틀 보상/Bye 보너스 중복 방지
   private lastAppliedBattleRound = -1;
   private lastAppliedByeRound = -1;
+
+  private waveProcessing = false;
+  private lastProcessedRound = -1;
 
   private cfg: typeof AI_CONFIG['normal'];
   private mapData: ReturnType<typeof getMapById>;
@@ -195,13 +197,10 @@ export class AIPlayer {
     this.mapData = getMapById(mapId) || MAPS[0];
   }
 
-  // ─── 공개 API ───────────────────────────────────────────────────────────────
-
   start() {
     if (this.isRunning) return;
     this.isRunning = true;
 
-    // 룸 난이도 읽기
     multiplayerService.getRoom(this.roomId).then(room => {
       if (room) {
         const mapData = getMapById(room.mapId);
@@ -209,39 +208,39 @@ export class AIPlayer {
       }
     }).catch(() => {});
 
-    // Firebase 플레이어 상태 구독
+    // [V6-FIX-AI] Firebase 구독 — wave, isAlive만 동기화
+    //   money/lives는 로컬이 주인. GameLayout과 동일한 방식.
     this.gameStateSub = multiplayerService.onGameStateUpdate(this.roomId, players => {
       const me = players.find(p => p.userId === this.playerId);
       if (!me) return;
-      // [수정] 절대값 덮어씌우기 삭제: 웨이브 시뮬레이션 결과가 보존되도록 함
-      // 보상은 onPhaseChange에서 델타로 적용
       this.wave = me.wave;
       this.isAlive = me.isAlive;
       if (!this.isAlive) this.stop();
     });
 
-    // 페이즈 변경 구독
     this.phaseSub = multiplayerService.onGameStateUpdateWithPhase(this.roomId, state => {
       if (!state || !this.isRunning || !this.isAlive) return;
       const prev = this.currentPhase;
       this.currentPhase = state.currentPhase;
-      // [수정 9] prev가 null(초기)이거나 페이즈가 바뀌면 onPhaseChange 호출
       if (prev !== this.currentPhase) {
         this.onPhaseChange(state);
       }
     });
 
-    // 주기적 쇼핑 (waiting_wave 또는 shopping 페이즈일 때)
+    // [V5-FIX-AI-2] 백그라운드 스로틀 방어 — 시각 기반 체크
+    this.lastPurchaseCheck = Date.now();
     this.purchaseInterval = setInterval(() => {
       if (!this.isRunning || !this.isAlive) return;
+      const now = Date.now();
+      if (now - this.lastPurchaseCheck < this.cfg.purchaseIntervalMs) return;
+      this.lastPurchaseCheck = now;
       if (this.currentPhase === 'waiting_wave' || this.currentPhase === 'shopping') {
         this.doShoppingTurn().catch(err =>
           console.warn(`[AI:${this.playerId}] shopping error`, err)
         );
       }
-    }, this.cfg.purchaseIntervalMs);
+    }, 1000); // 1초 주기로 체크, 내부에서 실제 interval 판정
 
-    // 초기 타워 정보 전송
     this.pushTowerDetails();
   }
 
@@ -252,30 +251,33 @@ export class AIPlayer {
     if (this.phaseSub) { this.phaseSub(); this.phaseSub = null; }
   }
 
-  // ─── 페이즈 핸들러 ─────────────────────────────────────────────────────────
-
+  // [V6-FIX-AI] 배틀 보상/Bye 보너스 로컬 적용 — GameLayout과 동일 방식
   private onPhaseChange(state: MultiplayerGameState) {
     const round = state.currentRound;
 
-    // ─── 보상/패널티 (델타) 처리 ─────────────────────────────────────
-    
-    // 1. 배틀 결과 처리
+    // 1. 배틀 결과 로컬 적용
     if (this.lastAppliedBattleRound < round) {
-      const myResult = (state.battleResults || []).find(r => 
+      const myResult = (state.battleResults || []).find(r =>
         r.roundNumber === round && (r.player1Id === this.playerId || r.player2Id === this.playerId)
       );
       if (myResult) {
         this.lastAppliedBattleRound = round;
         const reward = this.playerId === myResult.player1Id ? myResult.rewardP1 : myResult.rewardP2;
         if (reward) {
-          this.money += reward.gold;
-          this.lives = Math.min(50, Math.max(0, this.lives + reward.lives));
+          this.money = Math.max(0, this.money + reward.gold);
+          this.lives = Math.max(0, Math.min(50, this.lives + reward.lives));
           console.log(`[AI:${this.playerId}] Battle Reward: +${reward.gold}G, ${reward.lives}L (Round ${round})`);
+          // Firebase에 반영
+          multiplayerService.updatePlayerState(this.roomId, this.playerId, {
+            money: this.money,
+            lives: this.lives,
+            isAlive: this.lives > 0,
+          }).catch(() => {});
         }
       }
     }
 
-    // 2. 부전승(Bye) 보너스 처리
+    // 2. Bye 보너스 로컬 적용
     if (
       (this.currentPhase === 'battle' || this.currentPhase === 'waiting_battle') &&
       state.roundMatchups?.skipPlayerId === this.playerId &&
@@ -284,63 +286,51 @@ export class AIPlayer {
       this.lastAppliedByeRound = round;
       this.money += 50;
       console.log(`[AI:${this.playerId}] Bye Bonus: +50G (Round ${round})`);
+      multiplayerService.updatePlayerState(this.roomId, this.playerId, {
+        money: this.money,
+      }).catch(() => {});
     }
 
     switch (this.currentPhase) {
-
       case 'loading':
-        // AI는 initializePvPGameState에서 loadingReady: true로 즉시 설정되므로
-        // 실제로 이 케이스에 진입하는 일은 없음. 방어적 처리.
         break;
 
       case 'waiting_wave':
         this.waveProcessing = false;
-        setTimeout(() => {
-          this.doShoppingTurn().catch(() => {});
-        }, 500 + Math.random() * 1500);
+        setTimeout(() => { this.doShoppingTurn().catch(() => {}); }, 500 + Math.random() * 1500);
         break;
 
       case 'wave':
         if (!this.waveProcessing && round !== this.lastProcessedRound) {
           this.waveProcessing = true;
           this.lastProcessedRound = round;
-          this.handleWave(round).catch(err => {
-            console.error(`[AI:${this.playerId}] handleWave error`, err);
-          }).finally(() => {
-            this.waveProcessing = false;
-          });
+          this.handleWave(round)
+            .catch(err => console.error(`[AI:${this.playerId}] handleWave error`, err))
+            .finally(() => { this.waveProcessing = false; });
         }
         break;
 
       case 'waiting_battle':
-        // 즉시 1회 전송 (스로틀링 타이머 초기화 후 강제 전송)
         this.forcePushTowerDetails();
-        // 2초 후 한 번 더 재전송 (Firebase 반영 보장)
         setTimeout(() => {
-          if (this.isRunning && this.isAlive) {
-            this.forcePushTowerDetails();
-          }
+          if (this.isRunning && this.isAlive) this.forcePushTowerDetails();
         }, 2000);
-        // 웨이브 완료 신호 재전송
         if (round === this.lastProcessedRound) {
           multiplayerService.markWaveCompleted(this.roomId, this.playerId).catch(() => {});
         }
         break;
 
       case 'battle':
-        // AI 대전은 BattlePhaseUI(호스트)가 처리
+        // BattlePhaseUI가 AI vs AI 처리
         break;
 
       case 'shopping':
-        setTimeout(() => {
-          this.doShoppingTurn().catch(() => {});
-        }, 1000 + Math.random() * 2000);
+        setTimeout(() => { this.doShoppingTurn().catch(() => {}); }, 1000 + Math.random() * 2000);
         break;
     }
   }
 
-  // ─── 웨이브 처리 ────────────────────────────────────────────────────────────
-
+  // ─── 웨이브 처리 ───────────────────────────────────────────
   private async handleWave(round: number) {
     if (!this.isAlive) return;
 
@@ -349,8 +339,6 @@ export class AIPlayer {
 
     if (!this.isRunning || !this.isAlive) return;
 
-    // [수정 10] markWaveCompleted를 try/finally로 보장
-    // 예외가 발생해도 완료 신호를 반드시 전송해 게임이 멈추지 않도록 함
     try {
       const sim = runWaveSim(this.towers, round, this.roomDifficulty);
 
@@ -365,21 +353,28 @@ export class AIPlayer {
       const newLives = Math.max(0, this.lives - sim.livesLost);
       const newMoney = this.money + sim.moneyEarned + waveBonus;
 
-      this.lives = newLives;
       this.money = newMoney;
+      this.lives = newLives;
 
-      // 탈락 체크
       if (newLives <= 0) {
-        this.lives = 0;
         this.isAlive = false;
+        // 탈락 시 lives=0 반영 후 defeated 처리
+        await multiplayerService.updatePlayerState(this.roomId, this.playerId, {
+          wave: round,
+          lives: 0,
+          money: newMoney,
+          towers: this.towers.length,
+          isAlive: false,
+        }).catch(() => {});
         await multiplayerService.playerDefeated(this.roomId, this.playerId);
         this.stop();
-        return; // 탈락 시에는 markWaveCompleted 불필요
+        return;
       }
 
       await this.postWaveProcessing(round);
 
-      // [수정 12] waveCompleted는 markWaveCompleted가 처리하므로 여기선 제외
+      // [V6-FIX-AI-1] money/lives 포함 전체 필드 업데이트
+      //   MultiplayerService가 이제 money/lives 화이트리스트 허용
       await multiplayerService.updatePlayerState(this.roomId, this.playerId, {
         wave: round,
         lives: this.lives,
@@ -389,9 +384,7 @@ export class AIPlayer {
       });
 
       this.pushTowerDetails();
-
     } finally {
-      // [수정 10] 예외 발생 여부와 무관하게 항상 완료 신호 전송
       if (this.isAlive && this.isRunning) {
         await multiplayerService.markWaveCompleted(this.roomId, this.playerId)
           .catch(err => console.error(`[AI:${this.playerId}] markWaveCompleted failed`, err));
@@ -399,49 +392,19 @@ export class AIPlayer {
     }
   }
 
-  // ─── 웨이브 후처리 ──────────────────────────────────────────────────────────
-
   private async postWaveProcessing(wave: number) {
-    // 1. 전원 HP 완전 회복
-    this.towers = this.towers.map(t => ({
-      ...t,
-      currentHp: t.maxHp,
-      isFainted: false,
-    }));
-
-    // 2. 레벨업 (확률 기반)
-    if (Math.random() < this.cfg.levelUpChance) {
-      this.levelUpBestTower();
-    }
-
-    // 3. 진화 시도
-    if (Math.random() < this.cfg.evolvePriority) {
-      await this.tryEvolve();
-    }
-
-    // 4. hard: 5의 배수 웨이브에서 메가진화
-    if (this.difficulty === 'hard' && wave % 5 === 0) {
-      await this.tryMegaEvolve();
-    }
+    this.towers = this.towers.map(t => ({ ...t, currentHp: t.maxHp, isFainted: false }));
+    if (Math.random() < this.cfg.levelUpChance) this.levelUpBestTower();
+    if (Math.random() < this.cfg.evolvePriority) await this.tryEvolve();
+    if (this.difficulty === 'hard' && wave % 5 === 0) await this.tryMegaEvolve();
   }
-
-  // ─── 쇼핑 턴 ────────────────────────────────────────────────────────────────
 
   private async doShoppingTurn() {
     if (!this.isAlive) return;
-
     this.healFainted();
-
-    if (this.towers.length < MAX_TOWERS) {
-      await this.buyPokemon();
-    }
-
-    if (this.cfg.upgradeTeam && this.towers.length === MAX_TOWERS) {
-      await this.upgradeWeakest();
-    }
+    if (this.towers.length < MAX_TOWERS) await this.buyPokemon();
+    if (this.cfg.upgradeTeam && this.towers.length === MAX_TOWERS) await this.upgradeWeakest();
   }
-
-  // ─── 포켓몬 구매 ────────────────────────────────────────────────────────────
 
   private async buyPokemon() {
     if (this.money < ENTRY_FEE + RARITY_COST['Bronze']) return;
@@ -455,14 +418,16 @@ export class AIPlayer {
     const pos = this.findEmptyTile();
     if (!pos) return;
 
-    // [수정 11] 차감 전에 비용 저장해두고, 실패 시 환불
     const cost = ENTRY_FEE + picked.cost;
-    this.money -= cost;
+    const newMoney = this.money - cost;
 
     try {
       const data = await pokeAPI.getPokemon(picked.pokemonId);
       const move = await this.pickMove(data.moves, data.types);
       const tower = this.makeTower(data, pos, move, picked.rarity);
+
+      // [V6-FIX] money 차감도 updatePlayerState로 일원화
+      this.money = newMoney;
       this.towers.push(tower);
 
       await multiplayerService.updatePlayerState(this.roomId, this.playerId, {
@@ -470,38 +435,27 @@ export class AIPlayer {
         towers: this.towers.length,
       });
       this.pushTowerDetails();
-
     } catch (err) {
-      // [수정 11] 실패 시 차감된 돈 환불
-      this.money += cost;
-      console.warn(`[AI:${this.playerId}] buy failed, refunded ${cost}G`, err);
+      console.warn(`[AI:${this.playerId}] buy failed`, err);
     }
   }
-
-  // ─── 후보 생성 ──────────────────────────────────────────────────────────────
 
   private async generateCandidates(): Promise<AICandidate[]> {
     const totalAttempts = 3 + this.cfg.rerollCount;
     const results: AICandidate[] = [];
-
     for (let i = 0; i < totalAttempts; i++) {
       try {
         const id = await pokeAPI.getRandomPokemonIdWithRarity();
         const rarity = await pokeAPI.getRarity(id);
         const cost = RARITY_COST[rarity];
         if (ENTRY_FEE + cost > this.money) continue;
-
         const data = await pokeAPI.getPokemon(id);
         const score = this.scoreCandidate(data.stats, data.types, cost, rarity);
         results.push({ pokemonId: id, rarity, cost, score });
-      } catch {
-        // 무시
-      }
+      } catch { /* 무시 */ }
     }
     return results;
   }
-
-  // ─── 포켓몬 평가 ────────────────────────────────────────────────────────────
 
   private scoreCandidate(
     stats: { hp: number; attack: number; defense: number; specialAttack: number; specialDefense: number; speed: number },
@@ -509,34 +463,21 @@ export class AIPlayer {
     cost: number,
     rarity: PokemonRarity,
   ): number {
-    const total = stats.hp + stats.attack + stats.defense +
-      stats.specialAttack + stats.specialDefense + stats.speed;
+    const total = stats.hp + stats.attack + stats.defense + stats.specialAttack + stats.specialDefense + stats.speed;
     const isEarly = this.wave <= 10;
-
     let score = 0;
     score += total * (isEarly ? 0.4 : 0.8);
     score += (stats.attack + stats.specialAttack) * 0.6;
     score += (total / Math.max(1, cost)) * 60;
     score += RARITY_SCORE[rarity] * 20;
-
-    if (this.cfg.synergyWeight > 0) {
-      score += this.calcTypeSynergyScore(types) * this.cfg.synergyWeight * 40;
-    }
-
-    if (this.difficulty === 'easy') {
-      score *= 0.3 + Math.random() * 1.4;
-    }
-
+    if (this.cfg.synergyWeight > 0) score += this.calcTypeSynergyScore(types) * this.cfg.synergyWeight * 40;
+    if (this.difficulty === 'easy') score *= 0.3 + Math.random() * 1.4;
     return score;
   }
 
   private calcTypeSynergyScore(types: string[]): number {
     const typeCounts: Record<string, number> = {};
-    for (const t of this.towers) {
-      for (const type of t.types) {
-        typeCounts[type] = (typeCounts[type] || 0) + 1;
-      }
-    }
+    for (const t of this.towers) for (const type of t.types) typeCounts[type] = (typeCounts[type] || 0) + 1;
     let bonus = 0;
     for (const type of types) {
       const after = (typeCounts[type] || 0) + 1;
@@ -546,8 +487,6 @@ export class AIPlayer {
     return bonus;
   }
 
-  // ─── 후보 선택 ──────────────────────────────────────────────────────────────
-
   private pickCandidate(candidates: AICandidate[]): AICandidate | null {
     const sorted = [...candidates].sort((a, b) => b.score - a.score);
     const poolSize = Math.min(this.cfg.pickTopN, sorted.length);
@@ -555,40 +494,30 @@ export class AIPlayer {
     return sorted[Math.floor(Math.random() * poolSize)];
   }
 
-  // ─── 기술 선택 ──────────────────────────────────────────────────────────────
-
   private async pickMove(moveNames: string[], pokemonTypes: string[]): Promise<any> {
     const fallback = {
       name: 'tackle', displayName: '몸통박치기',
       type: 'normal', power: 40, accuracy: 100,
       damageClass: 'physical', effectChance: null,
     };
-
     const attackMoves: any[] = [];
     for (const name of moveNames.slice(0, 15)) {
       try {
         const m = await pokeAPI.getMove(name);
-        if (m.damageClass !== 'status' && (m.power || 0) > 0) {
-          attackMoves.push(m);
-        }
+        if (m.damageClass !== 'status' && (m.power || 0) > 0) attackMoves.push(m);
       } catch { /* 무시 */ }
       if (attackMoves.length >= 5) break;
     }
-
     if (attackMoves.length === 0) return fallback;
-
     if (this.difficulty === 'hard') {
       const stab = attackMoves.filter(m => pokemonTypes.includes(m.type));
       const pool = stab.length > 0 ? stab : attackMoves;
       return pool.sort((a, b) => (b.power || 0) - (a.power || 0))[0];
     }
-
     const sorted = attackMoves.sort((a, b) => (b.power || 0) - (a.power || 0));
     const top = sorted.slice(0, Math.min(3, sorted.length));
     return top[Math.floor(Math.random() * top.length)];
   }
-
-  // ─── 타워 생성 ──────────────────────────────────────────────────────────────
 
   private makeTower(
     data: { id: number; name: string; displayName: string; types: string[]; sprite: string; stats: any; moves: string[] },
@@ -609,7 +538,6 @@ export class AIPlayer {
       currentCooldown: 0,
       isAOE: false,
     };
-
     return {
       id: `ai_${this.playerId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       pokemonId: data.id,
@@ -642,12 +570,9 @@ export class AIPlayer {
     };
   }
 
-  // ─── 레벨업 ─────────────────────────────────────────────────────────────────
-
   private levelUpBestTower() {
     const alive = this.towers.filter(t => !t.isFainted && t.level < 100);
     if (alive.length === 0) return;
-
     let target: GamePokemon;
     if (this.difficulty === 'easy') {
       target = alive[Math.floor(Math.random() * alive.length)];
@@ -657,10 +582,8 @@ export class AIPlayer {
         (a.level * RARITY_SCORE[a.rarity || 'Bronze'])
       )[0];
     }
-
     const idx = this.towers.indexOf(target);
     if (idx === -1) return;
-
     const M = 1.05;
     this.towers[idx] = {
       ...target,
@@ -676,8 +599,6 @@ export class AIPlayer {
     };
   }
 
-  // ─── 진화 ────────────────────────────────────────────────────────────────────
-
   private async tryEvolve() {
     for (let i = 0; i < this.towers.length; i++) {
       const t = this.towers[i];
@@ -685,14 +606,12 @@ export class AIPlayer {
         e.from === t.pokemonId && !e.item && (!e.level || t.level >= e.level)
       );
       if (evos.length === 0) continue;
-
       try {
         const toId = evos[0].to;
         const d = await pokeAPI.getPokemon(toId);
         const M = Math.pow(1.05, t.level - 1);
         const hpRatio = t.currentHp / t.maxHp;
         const newMax = Math.floor(d.stats.hp * M);
-
         this.towers[i] = {
           ...t,
           pokemonId: d.id, name: d.name, displayName: d.displayName,
@@ -737,34 +656,29 @@ export class AIPlayer {
     }
   }
 
-  // ─── 팀 강화 (hard) ──────────────────────────────────────────────────────────
-
   private async upgradeWeakest() {
     if (this.money < ENTRY_FEE + RARITY_COST['Silver'] + 50) return;
-
     const weakestIdx = this.towers.reduce((minI, t, i) => {
       const s = t.level * RARITY_SCORE[t.rarity || 'Bronze'];
       return s < this.towers[minI].level * RARITY_SCORE[this.towers[minI].rarity || 'Bronze'] ? i : minI;
     }, 0);
-
     const weakScore = this.towers[weakestIdx].level * RARITY_SCORE[this.towers[weakestIdx].rarity || 'Bronze'];
-
     const candidates = await this.generateCandidates();
     if (candidates.length === 0) return;
     const best = candidates.sort((a, b) => b.score - a.score)[0];
-
     const newScore = 1 * RARITY_SCORE[best.rarity];
     if (newScore < weakScore * 1.5) return;
-
     const sell = this.towers[weakestIdx];
     const sellPrice = Math.max(sell.level * 20, Math.floor((sell.sellValue || 50) * 0.6));
     this.towers.splice(weakestIdx, 1);
     this.money += sellPrice;
-
+    // 판매 결과를 서버에 푸시
+    await multiplayerService.updatePlayerState(this.roomId, this.playerId, {
+      money: this.money,
+      towers: this.towers.length,
+    });
     await this.buyPokemon();
   }
-
-  // ─── 기절 회복 ───────────────────────────────────────────────────────────────
 
   private healFainted() {
     const fainted = this.towers
@@ -773,18 +687,11 @@ export class AIPlayer {
         (b.level * RARITY_SCORE[b.rarity || 'Bronze']) -
         (a.level * RARITY_SCORE[a.rarity || 'Bronze'])
       );
- 
-    if (fainted.length === 0) return; // [수정] 빈 배열 조기 탈출
- 
-    // [수정] count를 실제 fainted 수로 재한
-    const count = Math.min(
-      this.difficulty === 'hard' ? 2 : 1,
-      fainted.length
-    );
- 
+    if (fainted.length === 0) return;
+    const count = Math.min(this.difficulty === 'hard' ? 2 : 1, fainted.length);
     for (let i = 0; i < count; i++) {
       const target = fainted[i];
-      if (!target) continue; // [수정] undefined 방어
+      if (!target) continue;
       const idx = this.towers.findIndex(t => t.id === target.id);
       if (idx !== -1) {
         this.towers[idx] = {
@@ -796,18 +703,13 @@ export class AIPlayer {
     }
   }
 
-  // ─── 배치 탐색 ───────────────────────────────────────────────────────────────
-
   private findEmptyTile(): { x: number; y: number } | null {
     const used = new Set(this.towers.map(t => `${t.position.x},${t.position.y}`));
-
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const x = col * TILE_SIZE;
         const y = row * TILE_SIZE;
-        if (!used.has(`${x},${y}`) && !this.isOnPath(x, y)) {
-          return { x, y };
-        }
+        if (!used.has(`${x},${y}`) && !this.isOnPath(x, y)) return { x, y };
       }
     }
     return null;
@@ -828,8 +730,6 @@ export class AIPlayer {
     return false;
   }
 
-  // ─── Firebase 동기화 ─────────────────────────────────────────────────────────
-
   private pushTowerDetails() {
     const details: TowerDetail[] = this.towers.map(t => ({
       pokemonId: t.pokemonId,
@@ -842,13 +742,15 @@ export class AIPlayer {
       isFainted: t.isFainted,
       attack: t.attack,
       defense: t.defense,
+      specialAttack: t.specialAttack,
+      specialDefense: t.specialDefense,
       types: t.types,
       speed: t.speed,
+      equippedMoves: t.equippedMoves,
     }));
     multiplayerService.updatePlayerTowerDetails(this.roomId, this.playerId, details);
   }
 
-  /** 스로틀링 없이 즉시 Firebase에 타워 정보 강제 전송 */
   private forcePushTowerDetails() {
     const details: TowerDetail[] = this.towers.map(t => ({
       pokemonId: t.pokemonId,
@@ -865,28 +767,27 @@ export class AIPlayer {
       specialDefense: t.specialDefense ?? t.defense,
       types: t.types,
       speed: t.speed,
+      equippedMoves: t.equippedMoves,
     }));
-    // MultiplayerService의 스로틀 타이머를 초기화하기 위해 직접 Firebase에 씀
-    // (updatePlayerTowerDetails 우회)
-    import('firebase/database').then(({ ref: fbRef, set: fbSet }) => {
-      import('../config/firebase').then(({ rtdb }) => {
-        const towerDetailsRef = fbRef(rtdb, `towerDetails/${this.roomId}/${this.playerId}`);
-        fbSet(towerDetailsRef, { towers: details, updatedAt: Date.now() }).catch(console.error);
-      });
-    });
+    const tRef = fbRef(rtdb, `towerDetails/${this.roomId}/${this.playerId}`);
+    fbSet(tRef, { towers: details, updatedAt: Date.now() }).catch(console.error);
   }
 }
 
-// ─── AIPlayerManager ──────────────────────────────────────────────────────────
-
+// ─── AIPlayerManager ──────────────────────────────────────────
 class AIPlayerManager {
   private players = new Map<string, AIPlayer>();
 
+  // [V5-FIX-AI-3] 중복 시작 방지 — 호스트 이전 시 안전하게 재시작 가능
   startAI(roomId: string, playerId: string, difficulty: AIDifficulty, mapId: string) {
-    if (this.players.has(playerId)) return;
+    if (this.players.has(playerId)) {
+      // 이미 실행 중이면 skip (idempotent)
+      return;
+    }
     const ai = new AIPlayer(roomId, playerId, difficulty, mapId);
     ai.start();
     this.players.set(playerId, ai);
+    console.log(`[AIManager] Started AI ${playerId} (${difficulty})`);
   }
 
   stopAI(playerId: string) {
@@ -901,8 +802,6 @@ class AIPlayerManager {
 }
 
 export const aiPlayerManager = new AIPlayerManager();
-
-// ─── 헬퍼 ────────────────────────────────────────────────────────────────────
 
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));

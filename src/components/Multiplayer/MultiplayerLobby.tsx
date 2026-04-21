@@ -1,4 +1,10 @@
 // src/components/Multiplayer/MultiplayerLobby.tsx
+// ──────────────────────────────────────────────────────────────────
+// [V5-FIX-LB-1] 나가기 확인 모달 — 게임 진행 중 실수로 나가기 방지
+// [V5-FIX-LB-2] AI가 호스트가 되는 경우에 대한 안전 장치
+//   - MultiplayerService.leaveRoom이 비AI 플레이어 우선 호스트로 승격하므로
+//     일반적으로 AI가 호스트가 되지 않지만, 방에 AI만 남았을 때는 방 자동 삭제
+
 import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { multiplayerService } from '../../services/MultiplayerService';
@@ -6,7 +12,6 @@ import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 import { useTranslation } from '../../i18n';
-
 
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
@@ -25,9 +30,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [currentRoom, setCurrentRoom] = useState<Room | null>(null);
   const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
   const [rejoinableRoom, setRejoinableRoom] = useState<Room | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const startingRef = useRef(false);
   const user = authService.getCurrentUser();
-
 
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
@@ -39,11 +44,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       if (savedRoomId) {
         try {
           const { room, canRejoin } = await multiplayerService.rejoinRoom(savedRoomId);
-          if (canRejoin && room) {
-            setRejoinableRoom(room);
-          } else {
-            multiplayerService.clearCurrentRoom();
-          }
+          if (canRejoin && room) setRejoinableRoom(room);
+          else multiplayerService.clearCurrentRoom();
         } catch (error) {
           console.error('Failed to check rejoin room:', error);
           multiplayerService.clearCurrentRoom();
@@ -104,20 +106,19 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     }
   };
 
-  const handleLeaveRoom = async () => {
+  // [V5-FIX-LB-1] 나가기 확인 모달
+  const handleLeaveRoomRequest = () => {
+    if (!currentRoom) return;
+    setLeaveConfirmOpen(true);
+  };
+
+  const handleLeaveRoomConfirmed = async () => {
+    setLeaveConfirmOpen(false);
     if (currentRoom) {
       await multiplayerService.leaveRoom(currentRoom.id);
       setView('list');
       setCurrentRoom(null);
     }
-  };
-
-  const handleBackToCreate = () => {
-    if (currentRoom) {
-      multiplayerService.leaveRoom(currentRoom.id);
-      setCurrentRoom(null);
-    }
-    setView('create');
   };
 
   const handleAddAI = async (difficulty: AIDifficulty) => {
@@ -131,9 +132,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   };
 
   const handleToggleReady = async () => {
-    if (currentRoom) {
-      await multiplayerService.toggleReady(currentRoom.id);
-    }
+    if (currentRoom) await multiplayerService.toggleReady(currentRoom.id);
   };
 
   const handleStartGame = async () => {
@@ -170,13 +169,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   };
 
   if (isCheckingRejoin) {
-    return (
-      <Overlay>
-        <Container>
-          <LoadingText>재접속 확인 중...</LoadingText>
-        </Container>
-      </Overlay>
-    );
+    return <Overlay><Container><LoadingText>재접속 확인 중...</LoadingText></Container></Overlay>;
   }
 
   if (rejoinableRoom) {
@@ -219,9 +212,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                           : room.mapName} | 호스트: {room.hostName}
                       </RoomDetails>
                     </RoomInfo>
-                    <RoomPlayers>
-                      {room.players.length} / {room.maxPlayers}
-                    </RoomPlayers>
+                    <RoomPlayers>{room.players.length} / {room.maxPlayers}</RoomPlayers>
                     <JoinButton
                       onClick={() => handleJoinRoom(room.id)}
                       disabled={room.players.length >= room.maxPlayers}
@@ -272,9 +263,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
               </MapGrid>
             </Section>
 
-            <CreateButton onClick={handleCreateRoom}>
-              방 만들기
-            </CreateButton>
+            <CreateButton onClick={handleCreateRoom}>방 만들기</CreateButton>
           </Container>
         </Overlay>
 
@@ -289,7 +278,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     const isHost = currentRoom.hostId === user?.uid;
     const currentPlayer = currentRoom.players.find(p => p.userId === user?.uid);
     const allReady = currentRoom.players.every(p => p.isReady);
-    const backAction = currentRoom.hostId === user?.uid ? handleBackToCreate : handleLeaveRoom;
 
     return (
       <>
@@ -297,7 +285,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           <Container>
             <Header>
               <Title>{currentRoom.name}</Title>
-              <BackButton onClick={backAction}>← 나가기</BackButton>
+              <BackButton onClick={handleLeaveRoomRequest}>← 나가기</BackButton>
             </Header>
 
             <Section>
@@ -321,7 +309,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       {player.isAI && ' 🤖'}
                     </PlayerName>
                     <PlayerRating>Rating: {player.rating}</PlayerRating>
-                    {/* $ready transient prop — DOM에 전달 안 됨 */}
                     <PlayerStatus $ready={player.isReady}>
                       {player.isReady ? '✓ 준비완료' : '대기중'}
                     </PlayerStatus>
@@ -343,7 +330,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
             <ButtonRow>
               {!isHost && (
-                /* $ready transient prop — DOM에 전달 안 됨 */
                 <ReadyButton
                   onClick={handleToggleReady}
                   $ready={currentPlayer?.isReady || false}
@@ -364,6 +350,23 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           </Container>
         </Overlay>
 
+        {/* [V5-FIX-LB-1] 나가기 확인 모달 */}
+        {leaveConfirmOpen && (
+          <ConfirmOverlay onClick={() => setLeaveConfirmOpen(false)}>
+            <ConfirmContainer onClick={e => e.stopPropagation()}>
+              <ConfirmTitle>방 나가기</ConfirmTitle>
+              <ConfirmText>
+                정말로 방을 나가시겠습니까?<br />
+                {isHost && '방장이 나가면 다른 플레이어에게 자동으로 호스트가 이전됩니다.'}
+              </ConfirmText>
+              <ConfirmButtons>
+                <CancelButton onClick={() => setLeaveConfirmOpen(false)}>취소</CancelButton>
+                <ConfirmLeaveButton onClick={handleLeaveRoomConfirmed}>나가기</ConfirmLeaveButton>
+              </ConfirmButtons>
+            </ConfirmContainer>
+          </ConfirmOverlay>
+        )}
+
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
         {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
         {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
@@ -374,8 +377,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   return null;
 };
 
-// ─── Styled Components ────────────────────────────────────────────────────────
-
+// ─── Styled Components (원본 유지 + 확인 모달) ─────────────────
 const Overlay = styled.div`
   position: fixed;
   top: 0; left: 0;
@@ -439,9 +441,7 @@ const CreateRoomButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover {
-    background: #2a2d36;
-  }
+  &:hover { background: #2a2d36; }
 `;
 
 const RoomList = styled.div`
@@ -471,24 +471,9 @@ const RoomCard = styled.div`
 `;
 
 const RoomInfo = styled.div`flex: 1;`;
-
-const RoomName = styled.div`
-  font-size: 1.15rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-`;
-
-const RoomDetails = styled.div`
-  font-size: 0.9rem;
-  color: #a0a0a0;
-`;
-
-const RoomPlayers = styled.div`
-  font-weight: 600;
-  color: #2563eb;
-  font-size: 1.1rem;
-`;
-
+const RoomName = styled.div`font-size: 1.15rem;font-weight: 600;margin-bottom: 0.25rem;`;
+const RoomDetails = styled.div`font-size: 0.9rem;color: #a0a0a0;`;
+const RoomPlayers = styled.div`font-weight: 600;color: #2563eb;font-size: 1.1rem;`;
 const JoinButton = styled.button`
   padding: 0.75rem 1.5rem;
   background: #2563eb;
@@ -503,13 +488,7 @@ const JoinButton = styled.button`
 `;
 
 const Section = styled.div`margin-bottom: 2rem;`;
-
-const SectionTitle = styled.h3`
-  font-size: 1.1rem;
-  color: #e0e0e0;
-  margin-bottom: 1rem;
-  font-weight: 500;
-`;
+const SectionTitle = styled.h3`font-size: 1.1rem;color: #e0e0e0;margin-bottom: 1rem;font-weight: 500;`;
 
 const MapGrid = styled.div`
   display: grid;
@@ -517,7 +496,6 @@ const MapGrid = styled.div`
   gap: 1rem;
 `;
 
-// ✅ selected → $selected (transient prop, DOM에 전달 안 됨)
 const MapCard = styled.div<{ $selected: boolean }>`
   padding: 1.2rem;
   background: ${p => p.$selected ? 'rgba(37, 99, 235, 0.1)' : 'rgba(255, 255, 255, 0.03)'};
@@ -529,16 +507,8 @@ const MapCard = styled.div<{ $selected: boolean }>`
   &:hover { background: rgba(37, 99, 235, 0.05); }
 `;
 
-const MapName = styled.div`
-  font-size: 1.05rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-`;
-
-const MapDifficulty = styled.div`
-  font-size: 0.85rem;
-  color: #a0a0a0;
-`;
+const MapName = styled.div`font-size: 1.05rem;font-weight: 600;margin-bottom: 0.5rem;`;
+const MapDifficulty = styled.div`font-size: 0.85rem;color: #a0a0a0;`;
 
 const CreateButton = styled.button`
   width: 100%;
@@ -551,9 +521,7 @@ const CreateButton = styled.button`
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
-  &:hover {
-    background: #1d4ed8;
-  }
+  &:hover { background: #1d4ed8; }
 `;
 
 const PlayerList = styled.div`
@@ -570,29 +538,14 @@ const PlayerCard = styled.div`
   color: white;
 `;
 
-const PlayerName = styled.div`
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-`;
-
-const PlayerRating = styled.div`
-  font-size: 0.85rem;
-  color: #a0a0a0;
-  margin-bottom: 0.5rem;
-`;
-
-// ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
+const PlayerName = styled.div`font-size: 1.1rem;font-weight: 600;margin-bottom: 0.4rem;`;
+const PlayerRating = styled.div`font-size: 0.85rem;color: #a0a0a0;margin-bottom: 0.5rem;`;
 const PlayerStatus = styled.div<{ $ready: boolean }>`
   font-weight: 600;
   color: ${p => p.$ready ? '#10b981' : '#f59e0b'};
 `;
 
-const AIButtons = styled.div`
-  display: flex;
-  gap: 0.5rem;
-`;
-
+const AIButtons = styled.div`display: flex;gap: 0.5rem;`;
 const AIButton = styled.button`
   flex: 1;
   padding: 0.75rem;
@@ -606,7 +559,6 @@ const AIButton = styled.button`
   &:hover { background: #2a2d36; }
 `;
 
-// ✅ ready → $ready (transient prop, DOM에 전달 안 됨)
 const ReadyButton = styled.button<{ $ready: boolean }>`
   flex: 1;
   padding: 1rem;
@@ -643,8 +595,7 @@ const LoadingText = styled.div`
   padding: 2rem;
 `;
 
-// ─── Rejoin Prompt ────────────────────────────────────────────────────────────
-
+// ─── Rejoin Prompt ─────────────────────────────
 const PromptOverlay = styled(Overlay)`
   z-index: 2000;
   background: rgba(0, 0, 0, 0.95);
@@ -670,10 +621,7 @@ const PromptText = styled.p`
   line-height: 1.5;
 `;
 
-const PromptButtonRow = styled.div`
-  display: flex;
-  gap: 1rem;
-`;
+const PromptButtonRow = styled.div`display: flex;gap: 1rem;`;
 
 const RejoinButton = styled(CreateRoomButton)`
   background: #10b981;
@@ -686,6 +634,70 @@ const AbandonButton = styled(CreateRoomButton)`
   background: #ef4444;
   border: none;
   color: white;
+  &:hover { background: #dc2626; }
+`;
+
+// ─── [V5-FIX-LB-1] Leave Confirm Modal ────────────
+const ConfirmOverlay = styled.div`
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 3000;
+`;
+
+const ConfirmContainer = styled.div`
+  background: rgba(26, 27, 33, 0.98);
+  padding: 2rem;
+  border-radius: 12px;
+  max-width: 420px;
+  width: 90%;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+`;
+
+const ConfirmTitle = styled.h3`
+  color: #f87171;
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const ConfirmText = styled.p`
+  color: #e0e0e0;
+  font-size: 1rem;
+  line-height: 1.6;
+  text-align: center;
+  margin-bottom: 1.5rem;
+`;
+
+const ConfirmButtons = styled.div`
+  display: flex;
+  gap: 0.75rem;
+`;
+
+const CancelButton = styled.button`
+  flex: 1;
+  padding: 0.75rem;
+  background: #3f3f46;
+  color: #e0e0e0;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover { background: #52525b; }
+`;
+
+const ConfirmLeaveButton = styled.button`
+  flex: 1;
+  padding: 0.75rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
   &:hover { background: #dc2626; }
 `;
 

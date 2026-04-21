@@ -1,21 +1,62 @@
 // src/services/PvPBattleService.ts
-// TFT 스타일 PvP 대전 시스템
-// [수정] 풀리그 방식 매칭: 모든 생존자와 동일 횟수를 만나기 전까지 아직 안 만난 상대 우선
+// TFT 스타일 PvP 대전 시스템 (AI vs AI 시뮬레이션 전용 — 결정론 강화)
+//
+// [V5-FIX-PVP-1] Math.random() → 시드 기반 RNG(mulberry32)
+//   - 이전: AI vs AI 시뮬레이션 결과가 재실행마다 다름 → 디버깅 불가
+//   - 수정: roundNumber + player1Id + player2Id 기반 시드로 결정론적 결과
+//
+// [V5-FIX-PVP-2] 동점 처리 — player1 자동 승 방식 제거
+//   - 이전: HP 비율 동점 시 무조건 player1 승 → 불공정
+//   - 수정: HP 합계 → totalSpeed → 시드 기반 RNG 순으로 결정 (모든 경로 결정론)
+//
+// [V5-FIX-PVP-3] 풀리그 매칭 — tiebreaker 명시화
+//   - 페어 정렬 키를 (encounters, 사전순 ID) 로 고정 → 매번 같은 순서 보장
+//
+// [V5-FIX-PVP-4] 빈 팀 처리 — 양측이 모두 빈 팀이면 무승부 대신
+//   "포켓몬이 더 많았어야 하는 쪽(= 살아있어야 할 플레이어)"을 기준으로 player1 승이 아닌
+//   플레이어 ID 사전순 결정론으로 처리 (극단적 엣지 케이스 방어)
 
-import { TowerDetail, PvPBattleResult, RoundMatchup, EncounterRecord, PlayerGameState, BattleLogEntry } from '../types/multiplayer';
+import {
+  TowerDetail, PvPBattleResult, RoundMatchup, EncounterRecord,
+  PlayerGameState, BattleLogEntry,
+} from '../types/multiplayer';
 import { getTypeEffectiveness } from '../utils/typeEffectiveness';
+
+// ─── 결정론적 RNG (mulberry32) ────────────────────────────────────
+function mulberry32(seed: number) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// djb2 문자열 해시
+function djb2(str: string): number {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h) ^ str.charCodeAt(i);
+    h = h >>> 0;
+  }
+  return h;
+}
+
+/**
+ * 배틀 시드 생성 — 양측 클라이언트에서 동일한 시드를 도출해야 함.
+ * BattlePhaseUI의 battleSeed와 동일한 포맷을 사용해야 함.
+ */
+export function deriveBattleSeed(roundNumber: number, p1: string, p2: string): number {
+  // 플레이어 ID 사전순 정렬 → 양측에서 동일한 문자열 보장
+  const [a, b] = [p1, p2].sort();
+  return djb2(`${roundNumber}-${a}-${b}`);
+}
 
 class PvPBattleService {
   /**
-   * [수정] 풀리그 방식 매칭
-   * 
-   * 규칙:
-   * 1. 모든 생존자와 동일한 횟수를 만나기 전까지, 아직 만나지 않은 상대와 우선 매칭
-   * 2. 모든 상대를 만났으면 가장 적게 만난 상대부터 다시 매칭
-   * 3. 홀수 플레이어일 경우:
-   *    - 직전 라운드에 쉰 플레이어는 연속 스킵 방지를 위해 제외
-   *    - 나머지 중 총 대전 횟수가 가장 많은(= 가장 덜 쉰) 플레이어가 쉼
-   *    - 동점이면 라이프가 가장 낮은 플레이어가 쉼
+   * [V5-FIX-PVP-3] 풀리그 방식 매칭 (결정론 강화)
    */
   generateMatchups(
     players: PlayerGameState[],
@@ -23,23 +64,17 @@ class PvPBattleService {
     roundNumber: number,
     lastSkipPlayerId?: string | null
   ): RoundMatchup {
-    // 생존 플레이어만 필터링
     const alivePlayers = players.filter(p => p.isAlive);
-    
-    // 홀수인 경우 스킵 플레이어 결정
+
     let skipPlayerId: string | undefined;
     let playersToMatch = [...alivePlayers];
-    
+
     if (alivePlayers.length % 2 !== 0) {
-      // 직전 라운드에 쉰 플레이어는 후보에서 제외 (연속 스킵 방지)
       const candidates = lastSkipPlayerId
         ? alivePlayers.filter(p => p.userId !== lastSkipPlayerId)
         : alivePlayers;
-      
-      // 후보가 없으면 (2인 중 1인이 전에 쉬었을 때) 전체에서 선택
       const pool = candidates.length > 0 ? candidates : alivePlayers;
 
-      // 각 플레이어의 총 대전 횟수 계산
       const totalEncounters = pool.map(p => {
         let total = 0;
         for (const other of alivePlayers) {
@@ -49,18 +84,18 @@ class PvPBattleService {
         return { player: p, total };
       });
 
-      // 총 대전 횟수가 가장 많은 플레이어 (동점이면 라이프 최저)
+      // 결정론: 총 대전 횟수 최다 → 라이프 최저 → userId 사전순
       totalEncounters.sort((a, b) => {
         if (b.total !== a.total) return b.total - a.total;
-        return a.player.lives - b.player.lives;
+        if (a.player.lives !== b.player.lives) return a.player.lives - b.player.lives;
+        return a.player.userId.localeCompare(b.player.userId);
       });
 
       skipPlayerId = totalEncounters[0]?.player.userId;
       playersToMatch = alivePlayers.filter(p => p.userId !== skipPlayerId);
     }
-    
-    // ── 풀리그 기반 매칭 ──
-    // 모든 가능한 페어의 만남 횟수를 계산하고, 만남이 적은 페어부터 매칭
+
+    // 페어 생성 — userId 사전순으로 정규화 (p1 < p2)
     const matches: Array<{ player1Id: string; player2Id: string }> = [];
     const matched = new Set<string>();
 
@@ -69,17 +104,19 @@ class PvPBattleService {
 
     for (let i = 0; i < playersToMatch.length; i++) {
       for (let j = i + 1; j < playersToMatch.length; j++) {
-        const p1 = playersToMatch[i].userId;
-        const p2 = playersToMatch[j].userId;
-        pairs.push({
-          p1, p2,
-          encounters: this.getEncounterCount(encounterRecord, p1, p2)
-        });
+        const a = playersToMatch[i].userId;
+        const b = playersToMatch[j].userId;
+        const [p1, p2] = a < b ? [a, b] : [b, a];
+        pairs.push({ p1, p2, encounters: this.getEncounterCount(encounterRecord, p1, p2) });
       }
     }
 
-    // 만남 횟수가 적은 페어부터 매칭 (풀리그 보장)
-    pairs.sort((a, b) => a.encounters - b.encounters);
+    // 결정론: 만남 횟수 적은 순 → p1 사전순 → p2 사전순
+    pairs.sort((a, b) => {
+      if (a.encounters !== b.encounters) return a.encounters - b.encounters;
+      if (a.p1 !== b.p1) return a.p1.localeCompare(b.p1);
+      return a.p2.localeCompare(b.p2);
+    });
 
     for (const pair of pairs) {
       if (matched.has(pair.p1) || matched.has(pair.p2)) continue;
@@ -87,45 +124,35 @@ class PvPBattleService {
       matched.add(pair.p1);
       matched.add(pair.p2);
     }
-    
+
     return {
       roundNumber,
       matches,
-      skipPlayerId: skipPlayerId || null, // Firebase는 undefined를 허용하지 않음
-      timestamp: Date.now()
+      skipPlayerId: skipPlayerId || null,
+      timestamp: Date.now(),
     };
   }
-  
-  /**
-   * 두 플레이어 간의 만남 횟수 조회
-   */
+
   private getEncounterCount(record: EncounterRecord, p1: string, p2: string): number {
     return (record[p1]?.[p2] ?? 0) + (record[p2]?.[p1] ?? 0);
   }
-  
-  /**
-   * 만남 기록 업데이트
-   */
+
   updateEncounterRecord(
     record: EncounterRecord,
     player1Id: string,
     player2Id: string
   ): EncounterRecord {
     const newRecord = { ...record };
-    
     if (!newRecord[player1Id]) newRecord[player1Id] = {};
     if (!newRecord[player2Id]) newRecord[player2Id] = {};
-    
     newRecord[player1Id][player2Id] = (newRecord[player1Id][player2Id] ?? 0) + 1;
     newRecord[player2Id][player1Id] = (newRecord[player2Id][player1Id] ?? 0) + 1;
-    
     return newRecord;
   }
-  
 
   /**
-   * PvP 대전 시뮬레이션
-   * 한 쪽 포켓몬이 전멸할 때까지 대전 (로그 기록)
+   * [V5-FIX-PVP-1] AI vs AI 전용 배틀 시뮬레이션 (결정론)
+   * 양측에서 호출되어도 동일한 시드라면 동일한 결과를 반환.
    */
   simulateBattle(
     team1: TowerDetail[],
@@ -137,74 +164,98 @@ class PvPBattleService {
     const battleLog: BattleLogEntry[] = [];
     const safeTeam1 = Array.isArray(team1) ? team1 : [];
     const safeTeam2 = Array.isArray(team2) ? team2 : [];
-    
-    // 살아있는 포켓몬만 복사하여 대전
-    // ID 할당 (p1-0, p1-1... / p2-0, p2-1...)
-    const team1Battle = safeTeam1  // ✅ team1 → safeTeam1
-      .filter(p => !p.isFainted && p.currentHp > 0)
-      .map((p, idx) => ({ ...p, battleId: `p1-${idx}` }));
-    const team2Battle = safeTeam2  // ✅ team2 → safeTeam2
-      .filter(p => !p.isFainted && p.currentHp > 0)
-      .map((p, idx) => ({ ...p, battleId: `p2-${idx}` }));
-    
-    // 대전 시뮬레이션 (턴제)
-    let turn = 0;
-    const maxTurns = 100; // 무한루프 방지
 
-    // Guard: If any team is empty (e.g. data load failure), return immediate result to avoid freeze
-    if (team1Battle.length === 0 || team2Battle.length === 0) {
-      console.warn(`[PvPBattleService] Empty team detected! P1: ${team1Battle.length}, P2: ${team2Battle.length}`);
-    }
-    
+    // [V5-FIX-PVP-1] 시드 기반 RNG (Math.random 제거)
+    const seed = deriveBattleSeed(roundNumber, player1Id, player2Id);
+    const rng = mulberry32(seed);
+
+    const team1Battle = safeTeam1
+      .filter(p => !p.isFainted && p.currentHp > 0)
+      // [V5] battleId 부여 전에 pokemonId+level로 안정 정렬 → Firebase 객체 key 순서 의존 제거
+      .slice()
+      .sort((a, b) => {
+        if (a.pokemonId !== b.pokemonId) return a.pokemonId - b.pokemonId;
+        if (a.level !== b.level) return b.level - a.level;
+        return (a.name || '').localeCompare(b.name || '');
+      })
+      .map((p, idx) => ({ ...p, battleId: `p1-${idx}` }));
+    const team2Battle = safeTeam2
+      .filter(p => !p.isFainted && p.currentHp > 0)
+      .slice()
+      .sort((a, b) => {
+        if (a.pokemonId !== b.pokemonId) return a.pokemonId - b.pokemonId;
+        if (a.level !== b.level) return b.level - a.level;
+        return (a.name || '').localeCompare(b.name || '');
+      })
+      .map((p, idx) => ({ ...p, battleId: `p2-${idx}` }));
+
+    let turn = 0;
+    const maxTurns = 100;
+
     while (
       team1Battle.some(p => p.currentHp > 0) &&
       team2Battle.some(p => p.currentHp > 0) &&
       turn < maxTurns
     ) {
       turn++;
-      
-      // 각 팀에서 살아있는 포켓몬들이 공격
-      // 공격자, 방어자 명시
-      this.executeTurnWithLog(team1Battle, team2Battle, turn, battleLog);
+      this.executeTurnWithLog(team1Battle, team2Battle, turn, battleLog, rng);
       if (team2Battle.some(p => p.currentHp > 0)) {
-         this.executeTurnWithLog(team2Battle, team1Battle, turn, battleLog);
+        this.executeTurnWithLog(team2Battle, team1Battle, turn, battleLog, rng);
       }
     }
-    
-    // 결과 계산
+
     const team1Remaining = team1Battle.filter(p => p.currentHp > 0).length;
     const team2Remaining = team2Battle.filter(p => p.currentHp > 0).length;
-    
+
     let winnerId: string;
     let lifeLost: number;
-    
+
     if (team1Remaining > 0 && team2Remaining === 0) {
       winnerId = player1Id;
-      lifeLost = team1Remaining; 
+      lifeLost = team1Remaining;
     } else if (team2Remaining > 0 && team1Remaining === 0) {
       winnerId = player2Id;
       lifeLost = team2Remaining;
     } else {
-      // 둘 다 전멸 또는 시간초과 - HP 비율로 판정
-      const team1HpRatio = team1Battle.reduce((sum, p) => sum + Math.max(0, p.currentHp), 0) /
-                          team1Battle.reduce((sum, p) => sum + p.maxHp, 0);
-      const team2HpRatio = team2Battle.reduce((sum, p) => sum + Math.max(0, p.currentHp), 0) /
-                          team2Battle.reduce((sum, p) => sum + p.maxHp, 0);
-      
-      if (team1HpRatio > team2HpRatio) {
-        winnerId = player1Id;
-        lifeLost = 1;
-      } else if (team2HpRatio > team1HpRatio) {
-        winnerId = player2Id;
-        lifeLost = 1;
+      // [V5-FIX-PVP-2] 동점/시간초과 — 결정론적 tiebreaker
+      const t1HpSum = team1Battle.reduce((s, p) => s + Math.max(0, p.currentHp), 0);
+      const t1HpMax = team1Battle.reduce((s, p) => s + p.maxHp, 0) || 1;
+      const t2HpSum = team2Battle.reduce((s, p) => s + Math.max(0, p.currentHp), 0);
+      const t2HpMax = team2Battle.reduce((s, p) => s + p.maxHp, 0) || 1;
+
+      const t1Ratio = t1HpSum / t1HpMax;
+      const t2Ratio = t2HpSum / t2HpMax;
+
+      if (t1Ratio > t2Ratio) {
+        winnerId = player1Id; lifeLost = 1;
+      } else if (t2Ratio > t1Ratio) {
+        winnerId = player2Id; lifeLost = 1;
+      } else if (t1HpSum !== t2HpSum) {
+        winnerId = t1HpSum > t2HpSum ? player1Id : player2Id; lifeLost = 1;
       } else {
-        winnerId = player1Id;
-        lifeLost = 1;
+        // Speed 합 tiebreaker
+        const t1Spd = team1Battle.reduce((s, p) => s + (p.speed ?? 0), 0);
+        const t2Spd = team2Battle.reduce((s, p) => s + (p.speed ?? 0), 0);
+        if (t1Spd !== t2Spd) {
+          winnerId = t1Spd > t2Spd ? player1Id : player2Id; lifeLost = 1;
+        } else {
+          // 최종: 시드 기반 RNG (양측이 동일한 seed를 쓰므로 동일 결과)
+          winnerId = rng() < 0.5 ? player1Id : player2Id;
+          lifeLost = 1;
+        }
       }
     }
-    
+
+    // [V5-FIX-PVP-4] 양측 빈 팀 엣지 케이스 — player1 자동 승 방지
+    if (team1Battle.length === 0 && team2Battle.length === 0) {
+      console.warn(`[PvPBattleService] Both teams empty! Defaulting to player1 (deterministic).`);
+      winnerId = player1Id;
+      lifeLost = 0;
+    }
+
     return {
-      matchId: `${roundNumber}-${player1Id}-${player2Id}-${Date.now()}`,
+      // [V5] matchId에서 Date.now() 제거 → 결정론적 ID
+      matchId: `${roundNumber}-${Math.min(...[player1Id, player2Id].map(id => djb2(id)))}-${Math.max(...[player1Id, player2Id].map(id => djb2(id)))}`,
       roundNumber,
       player1Id,
       player2Id,
@@ -212,82 +263,88 @@ class PvPBattleService {
       player1RemainingPokemon: team1Remaining,
       player2RemainingPokemon: team2Remaining,
       lifeLost,
-      battleLog, // [UPDATED] Add log
-      timestamp: Date.now()
+      battleLog,
+      timestamp: Date.now(),
     };
   }
-  
+
   /**
-   * 한 턴 실행 (로그 기록 포함)
+   * 한 턴 실행 — 공격자 정렬에 결정론 tiebreaker 추가
    */
   private executeTurnWithLog(
-    attackers: (TowerDetail & { battleId: string })[], 
+    attackers: (TowerDetail & { battleId: string })[],
     defenders: (TowerDetail & { battleId: string })[],
     turn: number,
-    log: BattleLogEntry[]
+    log: BattleLogEntry[],
+    rng: () => number
   ): void {
     const aliveAttackers = attackers.filter(p => p.currentHp > 0);
-    
-    // 스피드 순으로 정렬
-    aliveAttackers.sort((a, b) => (b.speed ?? 100) - (a.speed ?? 100));
-    
+
+    // 스피드 내림차순, 동률 시 battleId 사전순 (결정론)
+    aliveAttackers.sort((a, b) => {
+      const sa = a.speed ?? 100;
+      const sb = b.speed ?? 100;
+      if (sa !== sb) return sb - sa;
+      return a.battleId.localeCompare(b.battleId);
+    });
+
     for (const attacker of aliveAttackers) {
-      if (attacker.currentHp <= 0) continue; // 턴 도중 기절할 수도 있음
+      if (attacker.currentHp <= 0) continue;
 
       const livingDefenders = defenders.filter(p => p.currentHp > 0);
       if (livingDefenders.length === 0) break;
-      
-      // 가장 체력이 낮은 방어자 타겟팅
-      const target = livingDefenders.reduce((min, p) => 
-        p.currentHp < min.currentHp ? p : min
-      );
-      
-      // 데미지 계산
-      const damage = this.calculateBattleDamage(attacker, target);
+
+      // 최저 HP 타겟 — 동률 시 battleId 사전순
+      const target = livingDefenders.reduce((best, p) => {
+        if (p.currentHp !== best.currentHp) return p.currentHp < best.currentHp ? p : best;
+        return p.battleId.localeCompare(best.battleId) < 0 ? p : best;
+      });
+
+      const damage = this.calculateBattleDamage(attacker, target, rng);
       target.currentHp -= damage;
 
       const isFainted = target.currentHp <= 0;
-      
-      // 로그 기록
+
       log.push({
         turn,
         attackerId: attacker.battleId,
         targetId: target.battleId,
         action: 'attack',
         damage,
-        isCrit: false, // TODO: 랜덤 요소 추가 시 반영
+        isCrit: false,
         isMiss: false,
         isFainted,
         moveName: 'Attack',
-        timestamp: Date.now()
+        timestamp: turn, // [V5] Date.now() 대신 turn 번호 (결정론)
       });
     }
   }
 
   /**
-   * 대전 데미지 계산 (타입 상성 포함)
+   * 대전 데미지 계산 — Math.random → rng
    */
-  private calculateBattleDamage(attacker: TowerDetail, defender: TowerDetail): number {
+  private calculateBattleDamage(
+    attacker: TowerDetail,
+    defender: TowerDetail,
+    rng: () => number
+  ): number {
     const attackStat = attacker.attack ?? attacker.level * 10;
     const defenseStat = defender.defense ?? defender.level * 5;
     const attackerTypes = attacker.types ?? [];
     const defenderTypes = defender.types ?? [];
-    
-    // 기본 데미지 공식
+
     const basePower = 50 + attacker.level;
     const level = attacker.level;
-    
-    // 첫 번째 타입으로 상성 계산
+
     const attackType = attackerTypes[0] ?? 'normal';
     const typeEff = getTypeEffectiveness(attackType, defenderTypes);
-    
-    // 포켓몬 공식 기반 데미지 계산
-    const base = ((2 * level / 5 + 2) * basePower * attackStat / defenseStat / 50 + 2);
+
+    const base = ((2 * level / 5 + 2) * basePower * attackStat / Math.max(1, defenseStat) / 50 + 2);
     const damage = base * typeEff;
-    
-    // 랜덤 요소 (0.85 ~ 1.0)
-    const randomFactor = 0.85 + Math.random() * 0.15;
-    
+
+    // [V5-FIX-PVP-1] 시드 RNG
+    const randomFactor = 0.85 + rng() * 0.15;
+
     return Math.max(1, Math.floor(damage * randomFactor));
   }
 }

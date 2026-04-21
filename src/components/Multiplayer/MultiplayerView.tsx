@@ -1,11 +1,12 @@
 // src/components/Multiplayer/MultiplayerView.tsx
 // 멀티플레이어 현황 뷰 - 플레이어 체력 순 정렬
-// [수정] 이중 데이터 소스(onValue + setInterval) 레이스 컨디션 제거
-//   - 기존: onAllTowerDetailsUpdate(실시간) + fetchTowerDetails(3초 get) 동시 사용
-//     → 둘 중 나중에 호출된 setState가 이전 결과를 덮어써 표시 값 불안정
-//   - 수정: onAllTowerDetailsUpdate 실시간 구독만 유지
-//     → 연결 재시도가 필요한 경우에만 수동 fetch 버튼 사용
-//     → 마운트 직후 1회 강제 fetch는 유지 (초기 데이터 보장)
+// ──────────────────────────────────────────────────────────────────
+// [V5-FIX-MV-1] 본인 데이터도 Firebase 구독 기준으로 일관성 확보
+//   - 기존: 내 것만 로컬 towers 사용 → 서버와 순간 불일치 가능
+//   - 수정: Firebase 구독 데이터 우선, 로컬 towers는 fallback
+//
+// [V5-FIX-MV-2] 플레이어 데이터 정렬 정규화
+//   - normalizeTowerDetails와 동일한 sort 키 사용
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
@@ -27,24 +28,18 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const user = authService.getCurrentUser();
-
-  const localMoney = useGameStore(s => s.money);
-  const localLives = useGameStore(s => s.lives);
-  const localWave = useGameStore(s => s.wave);
   const towers = useGameStore(s => s.towers);
 
-  // ─── 수동 fetch (수동 새로고침 버튼 또는 초기 1회 로드용) ─────
+  // ─── 수동 fetch ────────────────────────────────────────
   const fetchTowerDetails = useCallback(async () => {
     if (!roomId) return;
     try {
       setIsRefreshing(true);
       const allTowers = await multiplayerService.getAllTowerDetailsOnce(roomId);
-      // onValue 구독과 충돌 방지: 실시간 구독 데이터를 덮어쓰지 않도록
-      // 각 플레이어 데이터를 병합 (이미 있는 데이터는 유지)
       setAllTowerDetails(prev => {
         const merged = new Map(prev);
-        allTowers.forEach((towers, userId) => {
-          if (towers.length > 0) merged.set(userId, towers);
+        allTowers.forEach((towersList, userId) => {
+          if (towersList.length > 0) merged.set(userId, towersList);
         });
         return merged;
       });
@@ -56,7 +51,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
   }, [roomId]);
 
-  // ─── Firebase 게임 상태 구독 (플레이어 목록) ──────────────────────
+  // ─── Firebase 게임 상태 구독 ──────────────────────────────
   useEffect(() => {
     try {
       const unsubscribe = multiplayerService.onGameStateUpdate(roomId, (updatedPlayers) => {
@@ -68,9 +63,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     }
   }, [roomId]);
 
-  // ─── 타워 상세 실시간 구독 (단일 소스) ───────────────────────────
-  // [수정] 기존의 onValue + setInterval 이중 구독을 onValue 단독으로 변경
-  // onValue는 Firebase 연결 유지 시 실시간으로 업데이트되므로 별도 polling 불필요
+  // ─── 타워 상세 실시간 구독 ─────────────────────────────────
   useEffect(() => {
     if (!roomId) return;
     const unsub = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
@@ -80,22 +73,17 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     return () => unsub();
   }, [roomId]);
 
-  // ─── 마운트 시 1회 강제 fetch (초기 데이터 즉시 표시) ────────────
-  // onValue 리스너가 첫 데이터를 받기까지 약간의 지연이 있을 수 있으므로
-  // 마운트 직후 1회 get()으로 즉시 데이터를 채움
+  // ─── 마운트 시 1회 강제 fetch ─────────────────────────────
   const initialFetchDoneRef = useRef(false);
   useEffect(() => {
     if (initialFetchDoneRef.current) return;
     initialFetchDoneRef.current = true;
     fetchTowerDetails();
-    // 주기적 폴링 제거: onValue 실시간 구독이 더 정확하고 효율적
   }, [fetchTowerDetails]);
 
-  // ─── 내 타워 정보 Firebase에 즉시 업로드 ─────────────────────────
-  // (GameLayout에서도 하지만 멀티뷰가 열렸을 때 최신 데이터 보장)
+  // ─── 내 타워 정보 Firebase에 즉시 업로드 ─────────────────
   useEffect(() => {
     if (!user || !roomId) return;
-
     const towerDetails: TowerDetail[] = towers.map(t => ({
       pokemonId: t.pokemonId,
       name: t.displayName,
@@ -112,22 +100,14 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
       speed: t.speed,
       types: t.types,
     }));
-
     multiplayerService.updatePlayerTowerDetails(roomId, user.uid, towerDetails);
   }, [towers, roomId, user]);
 
-  // ─── 정렬: 생존자 우선, 라이프 내림차순 ─────────────────────────
-  const sortedPlayers = [...players]
-    .map(p => {
-      if (p.userId === user?.uid) {
-        return { ...p, money: localMoney, lives: localLives, wave: localWave };
-      }
-      return p;
-    })
-    .sort((a, b) => {
-      if (a.isAlive !== b.isAlive) return b.isAlive ? 1 : -1;
-      return b.lives - a.lives;
-    });
+  // ─── [V5-FIX-MV-1] 정렬: Firebase 기준 ────────────────────
+  const sortedPlayers = [...players].sort((a, b) => {
+    if (a.isAlive !== b.isAlive) return b.isAlive ? 1 : -1;
+    return b.lives - a.lives;
+  });
 
   const refreshedTimeStr = lastRefreshed.toLocaleTimeString('ko-KR', {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
@@ -142,31 +122,23 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
             <RefreshInfo $refreshing={isRefreshing}>
               {isRefreshing ? '🔄 새로고침 중...' : `⏱ ${refreshedTimeStr}`}
             </RefreshInfo>
-            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침">
-              🔃
-            </ManualRefreshBtn>
+            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침">🔃</ManualRefreshBtn>
             <CloseButton onClick={onClose}>✕</CloseButton>
           </HeaderRight>
         </Header>
 
         <PlayerList>
           {sortedPlayers.map((player, index) => {
+            // [V5-FIX-MV-1] 본인 포함 모두 Firebase 구독 데이터 우선
             const playerTowers: (TowerDetail & { name: string })[] =
-              player.userId === user?.uid
-                ? towers.map(t => ({ ...t, name: t.displayName, sprite: t.sprite ?? '' }))
-                : (allTowerDetails.get(player.userId) || []).map(t => ({ ...t }));
+              (allTowerDetails.get(player.userId) || []).map(t => ({ ...t }));
 
             const alivePokemon = playerTowers.filter(t => !t.isFainted).length;
             const totalPokemon = playerTowers.length;
 
             return (
-              <PlayerRow
-                key={player.userId}
-                $isMe={player.userId === user?.uid}
-                $isDead={!player.isAlive}
-              >
+              <PlayerRow key={player.userId} $isMe={player.userId === user?.uid} $isDead={!player.isAlive}>
                 <RankBadge $rank={index + 1}>{index + 1}</RankBadge>
-
                 <PlayerInfo>
                   <PlayerNameRow>
                     {player.userName}
@@ -182,15 +154,11 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                 <PokemonSection>
                   <PokemonCount>
                     ⚔️ {alivePokemon}/{totalPokemon}
-                    {totalPokemon === 0 && player.userId !== user?.uid && (
-                      <LoadingDot>···</LoadingDot>
-                    )}
+                    {totalPokemon === 0 && player.userId !== user?.uid && <LoadingDot>···</LoadingDot>}
                   </PokemonCount>
                   <PokemonIcons>
                     {playerTowers.length === 0 && player.userId !== user?.uid ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <PokemonPlaceholder key={i} />
-                      ))
+                      Array.from({ length: 3 }).map((_, i) => <PokemonPlaceholder key={i} />)
                     ) : (
                       playerTowers.slice(0, 6).map((tower, idx) => (
                         <PokemonIconWrapper key={idx}>
@@ -219,29 +187,25 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
           })}
         </PlayerList>
 
-        <Footer>
-          <FooterNote>📡 실시간 동기화 중</FooterNote>
-        </Footer>
+        <Footer><FooterNote>📡 실시간 동기화 중</FooterNote></Footer>
       </Container>
     </Overlay>
   );
 };
 
-// ─── 애니메이션 ───────────────────────────────────────────────────────────────
+// ─── 애니메이션 / 스타일 (원본 유지) ─────────────────────────
 const shimmer = keyframes`
   0%{background-position:-200% 0}
   100%{background-position:200% 0}
 `;
 const blink = keyframes`0%,100%{opacity:0.3}50%{opacity:1}`;
 
-// ─── Styled Components ────────────────────────────────────────────────────────
 const Overlay = styled.div`
   position:fixed;top:0;left:0;width:100vw;height:100vh;
   background:rgba(0,0,0,0.9);
   display:flex;align-items:center;justify-content:center;
   z-index:2000;
 `;
-
 const Container = styled.div`
   background:linear-gradient(145deg,#1a1a2e,#16213e);
   padding:1.5rem;border-radius:20px;
@@ -250,29 +214,19 @@ const Container = styled.div`
   box-shadow:0 0 30px rgba(255,215,0,0.15);
   ${media.mobile}{padding:1rem;max-height:95vh;}
 `;
-
 const Header = styled.div`
   display:flex;justify-content:space-between;align-items:center;
   margin-bottom:1.5rem;padding-bottom:0.8rem;
   border-bottom:2px solid rgba(255,255,255,0.1);
   gap:8px;
 `;
-
-const Title = styled.h2`
-  color:#ffd700;margin:0;font-size:1.4rem;
-  ${media.mobile}{font-size:1.2rem;}
-`;
-
-const HeaderRight = styled.div`
-  display:flex;align-items:center;gap:8px;flex-shrink:0;
-`;
-
+const Title = styled.h2`color:#ffd700;margin:0;font-size:1.4rem;${media.mobile}{font-size:1.2rem;}`;
+const HeaderRight = styled.div`display:flex;align-items:center;gap:8px;flex-shrink:0;`;
 const RefreshInfo = styled.span<{ $refreshing: boolean }>`
   font-size:11px;
   color:${p => p.$refreshing ? '#4fc3f7' : 'rgba(255,255,255,0.4)'};
   white-space:nowrap;
 `;
-
 const ManualRefreshBtn = styled.button`
   background:rgba(255,255,255,0.1);border:none;
   color:#fff;width:32px;height:32px;border-radius:50%;
@@ -280,16 +234,13 @@ const ManualRefreshBtn = styled.button`
   &:hover:not(:disabled){background:rgba(79,195,247,0.3);}
   &:disabled{opacity:0.4;cursor:not-allowed;}
 `;
-
 const CloseButton = styled.button`
   background:rgba(255,255,255,0.1);border:none;color:#fff;
   width:36px;height:36px;border-radius:50%;cursor:pointer;
   font-size:1.2rem;transition:all 0.2s;
   &:hover{background:rgba(255,107,107,0.3);}
 `;
-
 const PlayerList = styled.div`display:flex;flex-direction:column;gap:0.75rem;`;
-
 const PlayerRow = styled.div<{ $isMe:boolean;$isDead:boolean }>`
   display:flex;align-items:center;gap:1rem;padding:1rem;
   background:${p=>p.$isMe
@@ -300,7 +251,6 @@ const PlayerRow = styled.div<{ $isMe:boolean;$isDead:boolean }>`
   opacity:${p=>p.$isDead?0.5:1};position:relative;
   ${media.mobile}{padding:0.75rem;gap:0.75rem;flex-wrap:wrap;}
 `;
-
 const RankBadge = styled.div<{ $rank:number }>`
   width:32px;height:32px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
@@ -313,42 +263,19 @@ const RankBadge = styled.div<{ $rank:number }>`
   }};
   color:${p=>p.$rank<=3?'#000':'#fff'};
 `;
-
 const PlayerInfo = styled.div`flex:1;min-width:0;`;
-
 const PlayerNameRow = styled.div`
   font-size:1rem;font-weight:bold;color:white;
   display:flex;align-items:center;gap:0.5rem;
 `;
-
 const MeTag = styled.span`font-size:0.8rem;color:#4cafff;font-weight:normal;`;
-
 const PlayerStats = styled.div`display:flex;gap:0.75rem;margin-top:0.25rem;`;
-
 const StatIcon = styled.span`font-size:0.85rem;color:rgba(255,255,255,0.8);`;
-
-const PokemonSection = styled.div`
-  display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;
-`;
-
-const PokemonCount = styled.div`
-  font-size:0.8rem;color:rgba(255,255,255,0.6);
-  display:flex;align-items:center;gap:4px;
-`;
-
-const LoadingDot = styled.span`
-  font-size:0.75rem;color:#4fc3f7;
-  animation:${blink} 1.2s ease infinite;
-`;
-
-const PokemonIcons = styled.div`
-  display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;
-`;
-
-const PokemonIconWrapper = styled.div`
-  position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;
-`;
-
+const PokemonSection = styled.div`display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;`;
+const PokemonCount = styled.div`font-size:0.8rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:4px;`;
+const LoadingDot = styled.span`font-size:0.75rem;color:#4fc3f7;animation:${blink} 1.2s ease infinite;`;
+const PokemonIcons = styled.div`display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;`;
+const PokemonIconWrapper = styled.div`position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;`;
 const PokemonIcon = styled.img<{ $isFainted:boolean }>`
   width:38px;height:38px;border-radius:6px;
   background:rgba(0,0,0,0.3);object-fit:contain;
@@ -356,22 +283,14 @@ const PokemonIcon = styled.img<{ $isFainted:boolean }>`
   image-rendering:pixelated;
   border:1px solid rgba(255,255,255,0.1);
 `;
-
-const MiniHpBar = styled.div`
-  width:38px;height:3px;background:rgba(0,0,0,0.4);border-radius:2px;overflow:hidden;
-`;
-
+const MiniHpBar = styled.div`width:38px;height:3px;background:rgba(0,0,0,0.4);border-radius:2px;overflow:hidden;`;
 const MiniHpFill = styled.div<{ $pct:number;$fainted:boolean }>`
   height:100%;border-radius:2px;
   width:${p=>p.$pct}%;
   background:${p=>p.$fainted?'#555':p.$pct>50?'#2ecc71':p.$pct>25?'#f39c12':'#e74c3c'};
   transition:width 0.4s ease;
 `;
-
-const LvBadge = styled.div`
-  font-size:8px;color:rgba(255,255,255,0.5);line-height:1;
-`;
-
+const LvBadge = styled.div`font-size:8px;color:rgba(255,255,255,0.5);line-height:1;`;
 const PokemonPlaceholder = styled.div`
   width:38px;height:38px;border-radius:6px;
   background:linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%);
@@ -379,7 +298,6 @@ const PokemonPlaceholder = styled.div`
   animation:${shimmer} 1.5s infinite;
   border:1px solid rgba(255,255,255,0.07);
 `;
-
 const DeadBadge = styled.div`
   position:absolute;top:0.5rem;right:0.5rem;
   font-size:0.75rem;color:#ff6b6b;
@@ -387,13 +305,5 @@ const DeadBadge = styled.div`
   padding:2px 8px;border-radius:10px;
   border:1px solid rgba(255,107,107,0.3);
 `;
-
-const Footer = styled.div`
-  margin-top:1rem;padding-top:0.6rem;
-  border-top:1px solid rgba(255,255,255,0.07);
-  text-align:center;
-`;
-
-const FooterNote = styled.div`
-  font-size:11px;color:rgba(255,255,255,0.3);
-`;
+const Footer = styled.div`margin-top:1rem;padding-top:0.6rem;border-top:1px solid rgba(255,255,255,0.07);text-align:center;`;
+const FooterNote = styled.div`font-size:11px;color:rgba(255,255,255,0.3);`;
