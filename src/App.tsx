@@ -1,4 +1,15 @@
 // src/App.tsx
+// ──────────────────────────────────────────────────────────────────
+// [V5-FIX-APP-1] handleLeaveGame에서 cleanupGame(immediate=false) 호출
+//   - 게임 진행 중 의도적 나가기 시 leaveRoom만 호출하면 다른 플레이어가 남아있을 수 있어
+//     방을 즉시 삭제하면 안 됨 → leaveRoom이 알아서 처리
+//   - 추가로 방에 본인만 남아 있으면 leaveRoom이 deleteRoom 호출
+//
+// [V5-FIX-APP-2] 멀티플레이어 게임 종료 시 finalizeGame 트리거
+//   - 마지막 생존자가 결정되면 GameLayout이 게임오버 모달을 띄움
+//   - 모달 닫힘 시 finalizeGame 호출하면 레이팅 업데이트 + finished 표기
+//   - 5분 후 cleanupExpiredRooms가 자동으로 방 삭제
+
 import { useState, useEffect, useCallback } from "react";
 import styled, { keyframes } from "styled-components";
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
@@ -16,8 +27,6 @@ import { MultiplayerLobby } from "./components/Multiplayer/MultiplayerLobby";
 import { MapSelector } from "./components/UI/MapSelector";
 import { GameLayout } from "./components/GameLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-
-// ─── Styled Components ────────────────────────────────────────────────────────
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
 
@@ -63,8 +72,6 @@ const ProgressText = styled.p`
   margin: 0;
 `;
 
-// ─── [수정 1] 맵 배경 이미지 프리로드 헬퍼 ────────────────────────────────────
-
 function preloadMapBackground(mapId: string): Promise<void> {
   return new Promise((resolve) => {
     const map = getMapById(mapId);
@@ -76,20 +83,17 @@ function preloadMapBackground(mapId: string): Promise<void> {
     img.onload = () => resolve();
     img.onerror = () => {
       console.warn(`Map background image failed to load: ${map.backgroundImage}`);
-      resolve(); // 실패해도 게임 진행은 허용
+      resolve();
     };
     img.src = map.backgroundImage;
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isGamePreloading, setIsGamePreloading] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState({ loaded: 0, total: 1025 });
-  // [수정 1] 로딩 단계 텍스트 상태 추가
   const [loadingStage, setLoadingStage] = useState<'pokemon' | 'map' | 'done'>('pokemon');
 
   const navigate = useNavigate();
@@ -101,7 +105,6 @@ function App() {
       setUser(authedUser);
       setIsAuthLoading(false);
       if (authedUser) {
-        // 로그인 성공 시 DB 업적을 로컬과 병합 (나갔다 들어와도 업적 유지)
         saveService.syncAchievementsFromDB().catch(err =>
           console.warn('[App] Failed to sync achievements:', err)
         );
@@ -113,7 +116,6 @@ function App() {
     return unsubscribe;
   }, [navigate, location.pathname]);
 
-  // [수정 1] 맵 배경 이미지도 함께 프리로드 → 모두 완료 후 게임 화면 열기
   const handlePreloadAndNavigate = useCallback(
     async (mapId: string, gameMode: 'single' | 'multi') => {
       resetGame();
@@ -128,12 +130,10 @@ function App() {
       setLoadingStage('pokemon');
 
       try {
-        // 1단계: 포켓몬 데이터 프리로드
         await pokeAPI.preloadRarities((loaded, total) => {
           setPreloadProgress({ loaded, total });
         });
 
-        // 2단계: 맵 배경 이미지 프리로드
         setLoadingStage('map');
         await preloadMapBackground(mapId);
 
@@ -149,11 +149,24 @@ function App() {
     [resetGame, navigate]
   );
 
-  const handleLeaveGame = useCallback(() => {
+  /**
+   * [V5-FIX-APP-1] 게임에서 나갈 때 — 멀티는 leaveRoom 호출
+   *   leaveRoom이 자동으로:
+   *     - 본인을 players에서 제거
+   *     - 방장이 떠나면 비AI 우선 호스트 이전
+   *     - 본인이 마지막이면 방 삭제 (모든 관련 데이터 정리)
+   *   따라서 별도 cleanupGame 호출 불필요. 단, 게임이 finished 상태일 때만
+   *   서비스가 알아서 cleanupGame을 트리거.
+   */
+  const handleLeaveGame = useCallback(async () => {
     const multiRoomId = multiplayerService.getCurrentRoomId();
     resetGame();
     if (multiRoomId) {
-      multiplayerService.leaveRoom(multiRoomId);
+      try {
+        await multiplayerService.leaveRoom(multiRoomId);
+      } catch (err) {
+        console.warn('[App] leaveRoom failed:', err);
+      }
       multiplayerService.clearCurrentRoom();
       navigate('/lobby');
     } else {
@@ -176,7 +189,6 @@ function App() {
       ? Math.floor((preloadProgress.loaded / preloadProgress.total) * 100)
       : 0;
 
-    // [수정 1] 로딩 단계별 텍스트 표시
     const stageText = loadingStage === 'map'
       ? '맵 배경 로딩 중...'
       : pct >= 100
