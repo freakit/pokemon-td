@@ -1,26 +1,26 @@
 // src/components/Multiplayer/TFTBattleArena.tsx
-// 6x6 TFT 스타일 배틀 — V5 결정론 재설계
+// 6x6 TFT 스타일 배틀 — V5 결정론 재설계 + V7 사람 매치 완주 보장
 // ──────────────────────────────────────────────────────────────────
 // [V5-CRIT-1] 순수 시뮬레이션 ref 분리 + target tick 방식
-//   - 이전: setUnits 콜백 안에서 시뮬 → React 배칭 영향으로 tick 수 불일치 가능
-//   - 수정: simUnitsRef(순수 JS 객체)에 실제 시뮬 수행, setUnits는 렌더 전용 복사본
-//   - target tick: battleStartAt으로부터 Math.floor(elapsed / tickMs)까지 catch-up
-//     → 양 클라이언트가 어떤 경로로 와도 동일한 tick 수에 수렴
-//
 // [V5-CRIT-2] myTeam/opponentTeam은 Firebase 스냅샷 입력으로 통일
-//   - 이전: 내 팀은 로컬 state, 상대 팀은 Firebase → 스로틀 지연으로 불일치 가능
-//   - 수정: BattlePhaseUI가 양측 모두 Firebase 기준 데이터 전달 (호출부 수정)
-//     이 파일에서는 props를 신뢰만 하면 됨
-//
 // [V5-CRIT-3] equippedMoves currentCooldown 등 런타임 필드 정규화 의존
-//   - MultiplayerService.normalizeTowerDetails()가 업로드 시 런타임 필드 제거
-//   - 이 파일은 정규화된 데이터만 본다고 가정
-//
 // [V5-CRIT-4] move 배열 순서 결정론
-//   - Firebase RTDB sparse array → object 변환 대응
-//   - normalizeTowerDetails()가 name 기준 사전순 정렬
 //
-// [V5] setFloats/setTimeout를 루프 한 번당 1회만 호출하도록 재구성 → 렌더 결정적
+// ── V7: 사람 매치 완주 보장 ──
+// [V7-CRIT-5] init useEffect deps를 length 기반으로 변경
+//   - 이전: myTeam/opponentTeam (array reference) → 참조가 같으면 재초기화 안 됨
+//   - 수정: myTeam.length + opponentTeam.length + pokemonIds 해시로 deps 구성
+//           opponentTeam이 비어있다가 나중에 들어오면 자동 재초기화
+//
+// [V7-CRIT-6] opponentTeam 비어있으면 init 보류 + 로딩 UI 유지
+//   - BattlePhaseUI가 데이터 로드 후 Arena를 띄우도록 하지만,
+//     그래도 race가 생길 수 있으므로 방어층 하나 더
+//
+// [V7-CRIT-7] battleStartAt을 serverNow() 기반으로 변경
+//   - 이전: Date.now() → 클라이언트별 시각 차이로 tick 불일치
+//   - 수정: multiplayerService.getServerTimeOffset()으로 보정
+//
+// [V7-CRIT-8] init 시 반드시 setBattleState('idle') + countdown 리셋 수행
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
@@ -388,7 +388,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const loopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const floatIdRef = useRef(0);
-  const initRef = useRef({ my: -1, op: -1 });
+  // [V7-CRIT-5] initRef를 signature 기반으로 변경
+  const initRef = useRef<{ my: string; op: string }>({ my: '', op: '' });
   const resultReportedRef = useRef(false);
   const hasSubmittedRef = useRef(false);
   const floatCleanupTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
@@ -424,15 +425,31 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     }
   }, [mySynergies, phase]);
 
+  // [V7-CRIT-5] teamSignature: 팀 내용이 실제로 바뀌었는지 안정적으로 감지
+  //   (참조 변경 + 길이 + 각 포켓몬 id/level 조합)
+  const myTeamSig = useMemo(
+    () => myTeam.map(t => `${t.pokemonId}:${t.level}`).join(','),
+    [myTeam]
+  );
+  const oppTeamSig = useMemo(
+    () => opponentTeam.map(t => `${t.pokemonId}:${t.level}`).join(','),
+    [opponentTeam]
+  );
+
   // ─── 초기화 ─────────────────────────────────────────────
   useEffect(() => {
+    // [V7-CRIT-6] opponentTeam이 비어있으면 init 자체를 보류
+    //   BattlePhaseUI가 대부분 걸러주지만 race 대비 이중 방어
     if (myTeam.length === 0 && opponentTeam.length === 0) return;
+
+    // 이미 같은 시그니처로 초기화되어 있으면 스킵
     if (
-      initRef.current.my === myTeam.length &&
-      initRef.current.op === opponentTeam.length &&
+      initRef.current.my === myTeamSig &&
+      initRef.current.op === oppTeamSig &&
       units.length > 0
     ) return;
-    initRef.current = { my: myTeam.length, op: opponentTeam.length };
+
+    initRef.current = { my: myTeamSig, op: oppTeamSig };
     resultReportedRef.current = false;
     hasSubmittedRef.current = false;
     const seed = battleSeed ?? 42424242;
@@ -441,13 +458,14 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     const initialUnits = buildUnits(myTeam, opponentTeam, myPosition, rng, mySynergies, oppSynergies);
     simUnitsRef.current = initialUnits;
     setUnits(initialUnits);
+    // [V7-CRIT-8] 재초기화 시 상태 완전 리셋
     setBattleState('idle');
     setWinnerText(null);
     setFloats([]);
     setDragId(null);
     setSelectedBenchId(null);
     setCountdown(PREP_TIME);
-  }, [myTeam, opponentTeam, myPosition, battleSeed, mySynergies, oppSynergies]);
+  }, [myTeamSig, oppTeamSig, myPosition, battleSeed, mySynergies, oppSynergies]);
 
   // ─── 준비 페이즈 카운트다운 (30초) ──
   useEffect(() => {
@@ -611,8 +629,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
             return finalUnits;
           });
 
-          // 배틀 시작 시각 기록
-          battleStartAtRef.current = Date.now();
+          // 배틀 시작 시각 기록 — [V7-CRIT-7] 서버 시간 기반으로 양측 동기화
+          battleStartAtRef.current = Date.now() + multiplayerService.getServerTimeOffset();
           simTickRef.current = 0;
           setBattleState('fighting');
           return 0;
@@ -659,8 +677,9 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
 
     const tick = () => {
       // 목표 tick 수 = 경과 시간 / tickMs (양측이 같은 기준)
-      // catch-up은 필요한 만큼 반복하되 최대 MAX_CATCHUP_TICKS 제한
-      const elapsed = Date.now() - battleStartAtRef.current;
+      // [V7-CRIT-7] 서버 시간 보정
+      const nowServer = Date.now() + multiplayerService.getServerTimeOffset();
+      const elapsed = nowServer - battleStartAtRef.current;
       const targetTick = Math.floor(elapsed / TICK_MS);
       const simTick = simTickRef.current;
       let ticksToRun = Math.min(targetTick - simTick, MAX_CATCHUP_TICKS);

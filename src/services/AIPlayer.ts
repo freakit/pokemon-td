@@ -4,19 +4,14 @@
 // V5 — 서버 권위 기반 재설계
 //
 // [V5-FIX-AI-1] money, lives, isAlive 는 Firebase 서버 상태에서 읽음
-//   - 이전: onPhaseChange에서 델타(this.money += ...)로 누적 → 서버 트랜잭션과 불일치
-//   - 수정: gameStateSub 구독으로 Firebase → this.money/lives 단방향 동기화
-//     AI가 자체적으로 구매/보상 델타를 적용하지 않음 (서버가 이미 반영)
-//     단, 로컬 쇼핑 시에는 임시 차감 → 서버 실패 시 롤백
-//
 // [V5-FIX-AI-2] purchaseInterval 백그라운드 스로틀 방어
-//   - setInterval이 1초로 스로틀링되는 탭 환경에서도 시각 기반 체크
-//
-// [V5-FIX-AI-3] AI-host 이전 대응
-//   - stopAll() 후 GameLayout에서 다시 startAI() 호출 가능하도록 중복 시작 방지
-//
+// [V5-FIX-AI-3] AI-host 이전 대응 (중복 시작 방지)
 // [V5-FIX-AI-4] 배틀/Bye 보너스 로컬 누적 제거
-//   - Firebase에서 money/lives가 동기화되므로 lastAppliedRound 추적 불필요
+//
+// ── V7: fbSet 직접 호출 제거, 공식 API로 일원화 ──
+// [V7-FIX-AI-5] forcePushTowerDetails: multiplayerService.forcePushTowerDetailsFull 사용
+//   - 이전: fbSet(set)으로 직접 쓰기 → tftPlacements 등 sibling 필드 덮어쓸 위험
+//   - 수정: 공식 API (update + normalize) 경유 → 일관성 확보
 
 import { multiplayerService } from './MultiplayerService';
 import { pokeAPI } from '../api/pokeapi';
@@ -29,8 +24,6 @@ import {
 import { getMapById, MAPS } from '../data/maps';
 import { EVOLUTION_CHAINS, canMegaEvolve } from '../data/evolution';
 import { getTypeEffectiveness } from '../utils/typeEffectiveness';
-import { ref as fbRef, set as fbSet } from 'firebase/database';
-import { rtdb } from '../config/firebase';
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -769,8 +762,9 @@ export class AIPlayer {
       speed: t.speed,
       equippedMoves: t.equippedMoves,
     }));
-    const tRef = fbRef(rtdb, `towerDetails/${this.roomId}/${this.playerId}`);
-    fbSet(tRef, { towers: details, updatedAt: Date.now() }).catch(console.error);
+    // [V7-FIX-AI-5] 공식 API 사용 — set→update로 변경되어 tftPlacements 보존됨
+    multiplayerService.forcePushTowerDetailsFull(this.roomId, this.playerId, details)
+      .catch(err => console.error(`[AI:${this.playerId}] forcePush failed`, err));
   }
 }
 
