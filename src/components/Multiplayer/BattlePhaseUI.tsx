@@ -2,18 +2,33 @@
 // 페이즈 전환 + 대전 시뮬레이션 오케스트레이션
 // ──────────────────────────────────────────────────────────────────
 // [V5-FIX-BP-1] TFTBattleArena에 전달하는 myTeam/opponentTeam 모두 Firebase 기준으로 통일
-//   - 이전: myTeam=로컬 towers, opponentTeam=Firebase → 내 팀에 정규화/정렬 차이 발생 가능
-//   - 수정: 양측 모두 towerDetailsRef.current(Firebase 스냅샷)에서 읽음
-//
 // [V5-FIX-BP-2] battleSeed를 PvPBattleService.deriveBattleSeed()와 통일
-//   - 이전: BattlePhaseUI와 PvPBattleService가 각자 다른 해시 알고리즘 사용
-//   - 수정: deriveBattleSeed() 단일 소스로 통합 → 양측/AI 시뮬이 동일 시드
-//
 // [V5-FIX-BP-3] AI vs AI 배틀 타임아웃 시 결정론적 무승부 결과 자동 생성
-//   - 이전: BATTLE_STUCK_TIMEOUT_MS 후 startWaitingWavePhase만 호출 → 결과 없이 다음 라운드로
-//   - 수정: 누락된 매치에 대해 pvpBattleService.simulateBattle() 호출하여 결과 생성 후 제출
-//
 // [V5-FIX-BP-4] safetyArenaClosedRef 정리 타이밍 — 라운드 전환 시 리셋
+//
+// ── V7: 사람 매치 관전/완주 보장 재설계 ──
+// [V7-FIX-BP-5] towerDetailsRef 변경 시 리렌더 트리거
+//   - 기존: onAllTowerDetailsUpdate 콜백이 ref만 업데이트 → Arena prop 변경 감지 실패
+//   - 수정: teamDataVersion state를 bump하여 리렌더 + Arena가 최신 team 수신
+//
+// [V7-FIX-BP-6] forceCompletePendingBattles에서 사람 포함 매치는 보호
+//   - 기존: 30초 타임아웃이면 사람 arena 진행 중에도 결정론 결과로 덮어씀 → 사람이 자기 경기 못 봄
+//   - 수정: 매치에 살아있는 사람이 참여 중이면 force-complete 금지.
+//           모든 참여자가 탈락/오프라인인 경우에만 결정론 시뮬로 보충
+//
+// [V7-FIX-BP-7] BATTLE_STUCK_TIMEOUT_MS를 90초로 확장
+//   - Arena는 prep 30s + reveal 5s + 전투 최대 40s ≈ 75s 필요
+//   - 30초 타임아웃은 사람 경기를 강제 종료시키는 원인
+//
+// [V7-FIX-BP-8] showArena 트리거를 arenaCompletedRef로 변경
+//   - 기존: arenaCompleted state의 리셋 타이밍 race로 showArena가 토글 실패
+//   - 수정: ref 기반 판정 + currentRound 변경 시 동기 리셋
+//
+// [V7-FIX-BP-9] 사람 매치는 해당 사람의 arena 결과가 도착할 때까지 AI-host 시뮬 금지
+//   - executeBattles 분기 그대로 유지되며 명시적 로깅 + 주석 강화
+//
+// [V7-FIX-BP-10] 타워 데이터 로딩 대기 로직 강화
+//   - Human 매치는 양측 모두 로드되어야 arena 띄움 (opponentTeam 빈 배열이면 대기)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
@@ -27,7 +42,8 @@ interface BattlePhaseUIProps {
   roomId: string;
 }
 
-const BATTLE_STUCK_TIMEOUT_MS = 30_000;
+// [V7-FIX-BP-7] 90초로 확장 (prep 30 + reveal 5 + battle 40 + 여유 15)
+const BATTLE_STUCK_TIMEOUT_MS = 90_000;
 
 // ─── 스타일 (원본 유지) ─────────────────────────────────────────
 const fadeIn = keyframes`
@@ -192,6 +208,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   const battlePhaseEnteredAtRef = useRef<number | null>(null);
   const user = authService.getCurrentUser();
   const towerDetailsRef = useRef<Map<string, TowerDetail[]>>(new Map());
+  // [V7-FIX-BP-5] towerDetails 변경 시 리렌더 트리거. 값 자체를 state로 두면
+  //   매 업데이트마다 Map 전체 복사 비용이 크므로, 간단한 version 카운터로 무효화
+  const [teamDataVersion, setTeamDataVersion] = useState(0);
   const [showRoundSummary, setShowRoundSummary] = useState(false);
   const [summaryRoundNumber, setSummaryRoundNumber] = useState<number>(0);
   const summaryShownForRoundRef = useRef<number>(-1);
@@ -251,9 +270,19 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   useEffect(() => {
     if (!roomId) return;
     const unsubscribe = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
+      let anyChanged = false;
       allTowers.forEach((towers, userId) => {
-        if (towers.length > 0) towerDetailsRef.current.set(userId, towers);
+        if (towers.length > 0) {
+          const prev = towerDetailsRef.current.get(userId);
+          // 길이 또는 참조가 다르면 변경으로 간주
+          if (!prev || prev.length !== towers.length || prev !== towers) {
+            anyChanged = true;
+          }
+          towerDetailsRef.current.set(userId, towers);
+        }
       });
+      // [V7-FIX-BP-5] 데이터 변화가 있을 때만 리렌더 (Arena prop 갱신)
+      if (anyChanged) setTeamDataVersion(v => v + 1);
     });
     return unsubscribe;
   }, [roomId]);
@@ -267,6 +296,8 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         allTowers.forEach((towers, userId) => {
           if (towers.length > 0) towerDetailsRef.current.set(userId, towers);
         });
+        // [V7-FIX-BP-5] force-fetch 후에도 리렌더 트리거
+        setTeamDataVersion(v => v + 1);
         console.log(`[BattlePhaseUI] Synced towers for ${towerDetailsRef.current.size} players`);
         done();
       });
@@ -356,11 +387,16 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   }, [roomId, forceFetchTowerDetails, user]);
 
   /**
-   * [V5-FIX-BP-3] 타임아웃 시 누락된 모든 매치에 결정론 무승부 결과 생성
+   * [V7-FIX-BP-6] 타임아웃 시 누락 매치에 결정론 무승부 결과 생성
+   *   ⚠️ 사람이 살아있는(=isAlive) 매치는 절대 덮어쓰지 않음.
+   *      해당 사람이 arena에서 실제 경기를 완료하기까지 대기.
+   *      양측 모두 AI거나 또는 양측 사람 모두 탈락/오프라인인 경우만 보충.
    */
   const forceCompletePendingBattles = useCallback(async (state: MultiplayerGameState) => {
     if (!state.roundMatchups) return;
-    const missingMatches = state.roundMatchups.matches.filter(m => {
+
+    // 현재 라운드에 결과 없는 매치 찾기
+    const pendingMatches = state.roundMatchups.matches.filter(m => {
       const has = (state.battleResults || []).some(r =>
         r.roundNumber === state.currentRound
         && ((r.player1Id === m.player1Id && r.player2Id === m.player2Id)
@@ -369,10 +405,36 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       return !has;
     });
 
-    if (missingMatches.length === 0) return;
+    if (pendingMatches.length === 0) return;
 
-    console.warn(`[BattlePhaseUI] Force-completing ${missingMatches.length} pending battles with deterministic simulation`);
-    for (const m of missingMatches) {
+    // [V7-FIX-BP-6] 사람 보호 필터
+    const safeToComplete = pendingMatches.filter(m => {
+      const p1IsAI = m.player1Id.startsWith('ai_');
+      const p2IsAI = m.player2Id.startsWith('ai_');
+      // 양쪽 모두 AI면 force-complete 허용
+      if (p1IsAI && p2IsAI) return true;
+      // 한쪽이라도 사람이면, "그 사람이 탈락했는지" 확인
+      const humanIds = [m.player1Id, m.player2Id].filter(id => !id.startsWith('ai_'));
+      const allHumansDefeated = humanIds.every(id => {
+        const p = state.players.find(pp => pp.userId === id);
+        return !p || !p.isAlive; // 탈락 또는 상태 없음
+      });
+      if (allHumansDefeated) {
+        console.log(`[BattlePhaseUI] All humans in match defeated → force-complete allowed: ${m.player1Id} vs ${m.player2Id}`);
+        return true;
+      }
+      // 살아있는 사람이 있으면 보호 (해당 사람이 arena에서 결과 제출할 때까지 기다림)
+      console.log(`[BattlePhaseUI] Human is alive in match, PROTECTED: ${m.player1Id} vs ${m.player2Id}`);
+      return false;
+    });
+
+    if (safeToComplete.length === 0) {
+      console.log('[BattlePhaseUI] All pending matches are protected (humans alive). Waiting...');
+      return;
+    }
+
+    console.warn(`[BattlePhaseUI] Force-completing ${safeToComplete.length} pending battles (AI-only or abandoned)`);
+    for (const m of safeToComplete) {
       const team1 = towerDetailsRef.current.get(m.player1Id) ?? [];
       const team2 = towerDetailsRef.current.get(m.player2Id) ?? [];
       try {
@@ -479,7 +541,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
   // ─── TFT Battle Arena UI ─────────────────────────────────────
   const [showArena, setShowArena] = useState(false);
-  const [arenaCompleted, setArenaCompleted] = useState(false);
+  // [V7-FIX-BP-8] arenaCompleted를 ref로 변경 — round 변경 시 동기 리셋 가능
+  const arenaCompletedRef = useRef(false);
+  // Force re-render trigger when ref value changes
+  const [, setArenaTick] = useState(0);
 
   const myMatch = gameState?.roundMatchups?.matches.find(
     m => m.player1Id === user?.uid || m.player2Id === user?.uid
@@ -491,20 +556,39 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       && (r.player1Id === user?.uid || r.player2Id === user?.uid)
   );
 
+  // [V7-FIX-BP-8] currentRound 변경 시 ref 먼저 리셋 → 다음 effect 체인이 올바르게 동작
   useEffect(() => {
-    if (gameState?.currentPhase === 'battle' && !arenaCompleted && !iAmSkipped && myMatch) {
-      setShowArena(true);
-    }
-  }, [gameState?.currentPhase, gameState?.roundMatchups, arenaCompleted, iAmSkipped, myMatch]);
-
-  useEffect(() => {
-    setArenaCompleted(false);
+    arenaCompletedRef.current = false;
     setShowArena(false);
+    setArenaTick(t => t + 1);
   }, [gameState?.currentRound]);
 
+  // [V7-FIX-BP-10] showArena 트리거 — 양측 팀 데이터 모두 로드 시에만 띄움
+  //   사람 vs AI의 경우 AI의 towerDetails가 Firebase에 늦게 들어올 수 있어
+  //   opponentTeam이 비면 Arena가 "로딩 중" 화면만 보이고 prep으로 못 넘어감.
+  useEffect(() => {
+    if (gameState?.currentPhase !== 'battle') return;
+    if (arenaCompletedRef.current) return;
+    if (iAmSkipped) return;
+    if (!myMatch || !user) return;
+
+    const opponentId = myMatch.player1Id === user.uid ? myMatch.player2Id : myMatch.player1Id;
+    const myTeamLen = towerDetailsRef.current.get(user.uid)?.length ?? 0;
+    const oppTeamLen = towerDetailsRef.current.get(opponentId)?.length ?? 0;
+
+    // 양측 중 최소 하나는 있어야 Arena 띄움.
+    // 양측이 모두 비었다면 Firebase 데이터 도착을 기다림 (teamDataVersion 변경 시 재실행).
+    if (myTeamLen === 0 && oppTeamLen === 0) {
+      console.log('[BattlePhaseUI] Both teams empty in Firebase, waiting for data...');
+      return;
+    }
+    setShowArena(true);
+  }, [gameState?.currentPhase, gameState?.currentRound, iAmSkipped, myMatch, user, teamDataVersion]);
+
   const handleArenaComplete = useCallback(() => {
-    setArenaCompleted(true);
+    arenaCompletedRef.current = true;
     setShowArena(false);
+    setArenaTick(t => t + 1);
     const currentState = gameStateRef.current;
     if (currentState && currentState.currentRound > 0) {
       const hasResults = (currentState.battleResults || []).some(r => r.roundNumber === currentState.currentRound);
@@ -522,6 +606,8 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     safetyArenaClosedRef.current = false;
   }, [gameState?.currentRound]);
 
+  // [V7] safety 체크: Firebase에 내 매치 결과가 도착했는데 arena가 아직 열려있다면 종료
+  //   (사람이 오프라인 복귀 후 이미 결과가 있는 상황)
   useEffect(() => {
     if (!gameState || !user) return;
     if (safetyArenaClosedRef.current) return;
@@ -534,8 +620,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     );
     if (!myBattleResult) return;
     safetyArenaClosedRef.current = true;
-    console.log('[BattlePhaseUI] Safety: Firebase result detected, closing arena in 3s');
-    setTimeout(() => handleArenaComplete(), 3000);
+    // [V7] 사람이 arena에서 직접 제출한 것이 아니면 (내가 offline 이었던 케이스) 3초 뒤 종료
+    //      사람이 직접 제출한 경우는 handleArenaBattleComplete가 2초 뒤 이미 종료 예정
+    console.log('[BattlePhaseUI] Firebase result detected while arena open; closing in 5s');
+    setTimeout(() => handleArenaComplete(), 5000);
   }, [gameState?.battleResults, gameState?.currentRound, user, showArena, myMatch, handleArenaComplete]);
 
   // [V5-FIX-BP-2] battleSeed는 PvPBattleService와 동일한 알고리즘

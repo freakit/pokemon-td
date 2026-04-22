@@ -7,18 +7,20 @@
 // [V5-FIX-MS-3] cleanupGame(roomId): 게임 종료 직후 즉시 정리용 public 메서드
 // [V5-FIX-MS-4] leaveRoom: 호스트 이전 시 비AI 플레이어 우선 선택 (AI가 호스트 되는 상황 방지)
 // [V5-FIX-MS-5] submitBattleResult 내 _pendingElimination 경로 제거
-//   - 기존: 트랜잭션 외부 read + update 라 레이스 위험
-//   - 수정: 트랜잭션 내부에서 loser가 즉시 isAlive=false, placement 반영
-// [V5-FIX-MS-6] startBattlePhase: lastSkipPlayerId 결정론 전달 (player1Id 사전순 정렬된 값 사용)
+// [V5-FIX-MS-6] startBattlePhase: lastSkipPlayerId 결정론 전달
 // [V5-FIX-MS-7] updatePlayerTowerDetails 에 tftPlacements 보존 (set 대신 항상 update)
-//   + 배틀 페이즈가 아닌 구간에서 tftPlacements는 자동 정리
-// [V5-FIX-MS-8] updatePlayerState의 이중 경로 차단 — money/lives 는 이제 서버 전용 필드.
-//   클라이언트는 wave, towers(count), isAlive 만 업데이트 가능하도록 필터링.
-// [V5-FIX-MS-9] 서버 시간 동기는 firebase.ts의 전역 serverNow() 사용 (중복 구독 제거)
+// [V5-FIX-MS-8] updatePlayerState의 이중 경로 차단 (V6에서 money/lives 다시 허용됨)
+// [V5-FIX-MS-9] 서버 시간 동기는 firebase.ts의 전역 serverNow() 사용
 // [V5-FIX-MS-10] onGameStateUpdateWithPhase 구독에서 players의 배열/객체 정규화
-// [V5-FIX-MS-11] finalizeGame이 끝나면 1분 유예 후 cleanupGame 호출 (랭킹 확인 시간 확보)
+// [V5-FIX-MS-11] finalizeGame이 끝나면 1분 유예 후 cleanupGame 호출
 // [V5-FIX-MS-12] submitTFTPlacements: 플레이어 UID 검증 추가
-// [V5-FIX-MS-13] markWaveCompleted: 이미 완료된 플레이어는 재호출 금지(logical idempotence)
+// [V5-FIX-MS-13] markWaveCompleted: 이미 완료된 플레이어는 재호출 금지
+//
+// ── V7: 사람 매치 완주 보장 + Deadlock 방지 ──
+// [V7-FIX-MS-14] leaveRoom: 사람 0명 시 방 자동 삭제 (AI-only deadlock 방지)
+// [V7-FIX-MS-15] forcePushTowerDetailsFull 공식 API 추가
+//   - AIPlayer가 fbSet을 직접 호출하던 것을 일원화
+//   - throttle 무시 즉시 업로드 + tftPlacements 보존
 
 import {
   ref, set, onValue, push, update, remove, get, off,
@@ -271,6 +273,7 @@ class MultiplayerService {
 
   /**
    * [V5-FIX-MS-4] leaveRoom — 호스트 이전 시 비AI 플레이어 우선 선택
+   * [V7-FIX-MS-14] 사람이 한 명도 안 남으면 방 자동 삭제 (AI-only deadlock 방지)
    */
   async leaveRoom(roomId: string): Promise<void> {
     const user = authService.getCurrentUser();
@@ -287,12 +290,19 @@ class MultiplayerService {
         return room;
       }
 
+      // [V7-FIX-MS-14] 사람 0명이면 방 삭제
+      const humanRemaining = updatedPlayers.filter(p => !p.isAI);
+      if (humanRemaining.length === 0) {
+        console.log('[MS] No humans left in room; marking for deletion');
+        shouldDelete = true;
+        return room;
+      }
+
       let newHostId = room.hostId;
       let newHostName = room.hostName;
       if (room.hostId === user.uid) {
         // [V5-FIX-MS-4] 비AI 플레이어 우선 승격
-        const humanPlayers = updatedPlayers.filter(p => !p.isAI);
-        const nextHost = humanPlayers[0] ?? updatedPlayers[0];
+        const nextHost = humanRemaining[0];
         newHostId = nextHost.userId;
         newHostName = nextHost.userName;
       }
@@ -606,6 +616,30 @@ class MultiplayerService {
     });
     this.lastTowerUpdate.set(userId, Date.now());
     console.log(`[MS] flushTowerUpdate: ${towerDetails.length} towers for ${userId}`);
+  }
+
+  /**
+   * [V7-FIX-MS-15] throttle 무시 즉시 업로드 (AIPlayer.forcePushTowerDetails 대체)
+   *   AIPlayer가 fbSet을 직접 호출하던 것을 공식 API로 일원화.
+   *   - set이 아닌 update 사용 → tftPlacements 등 sibling 필드 보존
+   *   - normalizeTowerDetails() 경유 → 결정론 정렬 + 런타임 필드 제거
+   *   - 향후 Firebase Security Rules가 강화돼도 이 경로 하나만 점검하면 됨.
+   */
+  async forcePushTowerDetailsFull(
+    roomId: string,
+    userId: string,
+    towerDetails: TowerDetail[]
+  ): Promise<void> {
+    if (this.towerUpdateTimeouts.has(userId)) {
+      clearTimeout(this.towerUpdateTimeouts.get(userId)!);
+      this.towerUpdateTimeouts.delete(userId);
+    }
+    const tRef = ref(rtdb, `towerDetails/${roomId}/${userId}`);
+    await update(tRef, {
+      towers: this.normalizeTowerDetails(towerDetails),
+      updatedAt: this.now(),
+    });
+    this.lastTowerUpdate.set(userId, Date.now());
   }
 
   /**
