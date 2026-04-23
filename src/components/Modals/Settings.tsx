@@ -14,6 +14,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [sfxVolume, setSfxVolume]             = useState(saved.sfxVolume);
   const [showDamage, setShowDamage]           = useState(saved.showDamageNumbers);
   const [showGrid, setShowGrid]               = useState(saved.showGrid);
+  const [gameSpeed, setGameSpeed]             = useState(saved.gameSpeed || 1);
 
   const handleMusicVolume = (v: number) => {
     setMusicVolume(v);
@@ -35,6 +36,11 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const handleShowGrid = (v: boolean) => {
     setShowGrid(v);
     saveService.save({ settings: { ...saveService.load().settings, showGrid: v } });
+  };
+
+  const handleGameSpeed = (v: number) => {
+    setGameSpeed(v);
+    saveService.save({ settings: { ...saveService.load().settings, gameSpeed: v } });
   };
 
   return (
@@ -82,6 +88,18 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             >
               <option value="ko">한국어</option>
               <option value="en">English</option>
+            </Select>
+          </SettingItem>
+          <SettingItem>
+            <label>{t('settings.gameSpeed')}</label>
+            <Select 
+              value={gameSpeed} 
+              onChange={(e) => handleGameSpeed(parseFloat(e.target.value))}
+            >
+              <option value="1">1.0x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+              <option value="3">3.0x</option>
             </Select>
           </SettingItem>
           <DangerZone>

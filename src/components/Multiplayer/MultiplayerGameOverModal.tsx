@@ -15,7 +15,14 @@ export const MultiplayerGameOverModal = ({
   onClose
 }: MultiplayerGameOverModalProps) => {
   const { t } = useTranslation();
-  // 플레이어를 순위별로 정렬
+
+  /**
+   * [V8-FIX-13-2] 순위 결정 (Placement) 로직:
+   * 1. 생존자(isAlive: true)가 탈락자보다 높은 순위.
+   * 2. 탈락자들끼리는 탈락한 순서(placement 필드)대로 정렬.
+   *    (placement는 탈락 시점의 생존자 수로 기록됨)
+   * 3. 동일 조건일 경우 도달 웨이브(wave)가 높은 쪽이 우선.
+   */
   const sortedPlayers = [...players].sort((a, b) => {
     // 생존자가 먼저
     if (a.isAlive && !b.isAlive) return -1;

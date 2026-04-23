@@ -84,6 +84,9 @@ class AuthService {
   }
 
   async signOut(): Promise<void> {
+    // [V8-FIX-1-2] 로그아웃 시 방 정보 정리 — 재접속 시 stale room 참조 방지
+    // multiplayerService 직접 import는 순환 참조 위험이 있어 localStorage 직접 정리
+    localStorage.removeItem('currentRoomId');
     await signOut(auth);
     this.currentUser = null;
   }

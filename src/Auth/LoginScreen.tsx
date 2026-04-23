@@ -3,13 +3,22 @@ import styled from 'styled-components';
 import { authService } from '../services/AuthService';
 import { ShootingStarsBackground } from '../components/UI/ShootingStarsBackground';
 import { Settings } from '../components/Modals/Settings';
+import { useTranslation } from '../i18n';
 
 export const LoginScreen = () => {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [guestMode, setGuestMode] = useState(false);
   const [nickname, setNickname] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+
+  const getErrorMessage = (err: any) => {
+    const code = err?.code;
+    if (code === 'auth/popup-closed-by-user') return t('login.errPopupClosed');
+    if (code === 'auth/network-request-failed') return t('login.errNetwork');
+    return err?.message || t('login.errDefault');
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -17,7 +26,7 @@ export const LoginScreen = () => {
     try {
       await authService.signInWithGoogle();
     } catch (err: any) {
-      setError(err.message || '로그인에 실패했습니다');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -25,16 +34,16 @@ export const LoginScreen = () => {
 
   const handleGuestLogin = async () => {
     const trimmed = nickname.trim();
-    if (!trimmed) { setError('닉네임을 입력해주세요'); return; }
+    if (!trimmed) { setError(t('login.errEmpty')); return; }
     if (trimmed.length < 2 || trimmed.length > 12) {
-      setError('닉네임은 2~12자 사이여야 합니다'); return;
+      setError(t('login.errLength')); return;
     }
     setLoading(true);
     setError('');
     try {
       await authService.signInAsGuest(trimmed);
     } catch (err: any) {
-      setError(err.message || '게스트 로그인에 실패했습니다');
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -44,30 +53,30 @@ export const LoginScreen = () => {
     <>
       <ShootingStarsBackground />
       <Container>
-        <SettingsBtn onClick={() => setShowSettings(true)}>⚙️ 설정</SettingsBtn>
+        <SettingsBtn onClick={() => setShowSettings(true)}>⚙️ {t('nav.settings')}</SettingsBtn>
         <Content>
           <Logo>
           <img src="/images/pokemon-aegis.png" alt="Pokemon Aegis"
             style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         </Logo>
-        <Subtitle>Pokemon X Tower Defense X TFT</Subtitle>
+        <Subtitle>{t('login.title')}</Subtitle>
 
         <LoginButton onClick={handleGoogleLogin} disabled={loading}>
           <GoogleIcon>G</GoogleIcon>
-          {loading && !guestMode ? '로그인 중...' : 'Google로 로그인'}
+          {loading && !guestMode ? t('login.loggingIn') : t('login.google')}
         </LoginButton>
 
-        <Divider><span>또는</span></Divider>
+        <Divider><span>{t('login.or')}</span></Divider>
 
         {!guestMode ? (
           <GuestButton onClick={() => { setGuestMode(true); setError(''); }} disabled={loading}>
-            👤 게스트로 플레이
+            {t('login.guestBtn')}
           </GuestButton>
         ) : (
           <GuestForm>
             <NicknameInput
               type="text"
-              placeholder="닉네임 입력 (2~12자)"
+              placeholder={t('login.guestPlaceholder')}
               value={nickname}
               onChange={e => setNickname(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleGuestLogin()}
@@ -75,10 +84,10 @@ export const LoginScreen = () => {
               autoFocus
             />
             <GuestConfirmButton onClick={handleGuestLogin} disabled={loading}>
-              {loading && guestMode ? '입장 중...' : '게스트로 입장'}
+              {loading && guestMode ? t('login.guestEntering') : t('login.guestEnter')}
             </GuestConfirmButton>
             <CancelText onClick={() => { setGuestMode(false); setError(''); setNickname(''); }}>
-              취소
+              {t('login.cancel')}
             </CancelText>
           </GuestForm>
         )}
@@ -86,10 +95,8 @@ export const LoginScreen = () => {
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
         <Notice>
-          {guestMode
-            ? '※ 게스트는 랭킹/업적이 저장되지 않을 수 있습니다'
-            : '※ Google 로그인 또는 게스트로 플레이할 수 있습니다'}
-          </Notice>
+          {guestMode ? t('login.noticeGuest') : t('login.noticeDefault')}
+        </Notice>
         </Content>
       </Container>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}

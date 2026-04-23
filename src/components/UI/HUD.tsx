@@ -20,17 +20,17 @@ const formatTime = (ms: number) => {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-const getPhaseText = (phase: GamePhase, round: number, countdown: number | null): string => {
+const getPhaseText = (phase: GamePhase, round: number, countdown: number | null, t: (key: string, options?: any) => string): string => {
   switch (phase) {
-    case 'loading': return '⏳ 리소스 로딩 중...';
-    case 'shopping': return '🛒 쇼핑 중';
+    case 'loading': return t('multiplayer.phase.loading');
+    case 'shopping': return t('multiplayer.phase.shopping');
     case 'waiting_wave':
       return round === 0
-        ? `⏳ 게임 시작: ${countdown ?? 0}초`
-        : `⏳ 다음 웨이브: ${countdown ?? 0}초`;
-    case 'wave': return `🌊 웨이브 ${round} 진행 중`;
-    case 'waiting_battle': return `⚔️ 대전 준비: ${countdown ?? 0}초`;
-    case 'battle': return '🔥 대전 진행 중!';
+        ? t('multiplayer.phase.waitingWaveStart', { countdown: countdown ?? 0 })
+        : t('multiplayer.phase.waitingWaveNext', { countdown: countdown ?? 0 });
+    case 'wave': return t('multiplayer.phase.wave', { round });
+    case 'waiting_battle': return t('multiplayer.phase.waitingBattle', { countdown: countdown ?? 0 });
+    case 'battle': return t('multiplayer.phase.battle');
     default: return '';
   }
 };
@@ -114,7 +114,7 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
       <CenterSection>
         {isMultiplayer ? (
           <PhaseDisplay $phase={multiPhase}>
-            {getPhaseText(multiPhase, multiRound, multiCountdown)}
+            {getPhaseText(multiPhase, multiRound, multiCountdown, t)}
           </PhaseDisplay>
         ) : (
           <TimerDisplay>⏰ {formatTime(gameTime)}</TimerDisplay>

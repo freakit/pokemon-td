@@ -75,9 +75,13 @@ async function runWithConcurrencyLimit<T>(
 }
 
 class PokeAPIService {
-  private pokemonCache = new Map<number, PokemonData>();
-  private statCache = new Map<number, StatOnlyData>();   // 경량 스탯 전용 캐시
+  // [V8-FIX-5-1] 캐시 키에 언어 포함 → 언어 전환 시 자동 invalidate
+  //   pokemonCache: `${lang}:${id}` (예: 'ko:1', 'en:1')
+  //   moveCache: `${lang}:${name}` (예: 'ko:tackle', 'en:tackle')
+  private pokemonCache = new Map<string, PokemonData>();
+  private statCache = new Map<number, StatOnlyData>();   // 경량 스탯 전용 캐시 (언어 무관)
   private moveCache = new Map<string, MoveData>();
+  private learnableMovesCache = new Map<string, string[]>(); // [V8-FIX-5-2] 레벨별 학습 기술 캐시 (id:level)
   private rarityCache = new Map<number, Rarity>();
   private weightedPokemonList: Array<{ id: number; weight: number }> = [];
   private preloadPromise: Promise<void> | null = null;
@@ -145,9 +149,9 @@ class PokeAPIService {
 
   // ─── 전체 포켓몬 데이터 조회 (게임 배치용) ───────────────────────
   async getPokemon(id: number): Promise<PokemonData> {
-    if (this.pokemonCache.has(id)) return this.pokemonCache.get(id)!;
-
     const lang = getCurrentLanguage();
+    const cacheKey = `${lang}:${id}`;
+    if (this.pokemonCache.has(cacheKey)) return this.pokemonCache.get(cacheKey)!;
 
     const res = await axios.get(`${API_BASE}/pokemon/${id}`);
     const d = res.data;
@@ -215,14 +219,14 @@ class PokeAPIService {
       abilities,
     };
 
-    this.pokemonCache.set(id, pokemon);
+    this.pokemonCache.set(cacheKey, pokemon);
     return pokemon;
   }
 
   async getMove(name: string): Promise<MoveData> {
-    if (this.moveCache.has(name)) return this.moveCache.get(name)!;
-
     const lang = getCurrentLanguage();
+    const moveCacheKey = `${lang}:${name}`;
+    if (this.moveCache.has(moveCacheKey)) return this.moveCache.get(moveCacheKey)!;
     const res = await axios.get(`${API_BASE}/move/${name}`);
     const d = res.data;
 
@@ -249,7 +253,7 @@ class PokeAPIService {
       target: d.target.name,
       effectEntries,
     };
-    this.moveCache.set(name, move);
+    this.moveCache.set(moveCacheKey, move);
     return move;
   }
 
@@ -388,24 +392,11 @@ class PokeAPIService {
 
   async getLearnableMoves(pokemonId: number, level: number): Promise<GameMove[]> {
     try {
-      // 캐시에 이미 있으면 재사용
-      const cached = this.pokemonCache.get(pokemonId);
+      const levelKey = `${pokemonId}:${level}`;
       let moveNames: string[];
 
-      if (cached) {
-        // 레벨업 기술은 캐시 없이 API 필요 (레벨 정보 포함)
-        const res = await axios.get(`${API_BASE}/pokemon/${pokemonId}`);
-        const d = res.data;
-        moveNames = d.moves
-          .filter((m: any) =>
-            m.version_group_details.some(
-              (vg: any) =>
-                vg.move_learn_method.name === 'level-up' &&
-                vg.level_learned_at === level
-            )
-          )
-          .map((m: any) => m.move.name)
-          .slice(0, 5);
+      if (this.learnableMovesCache.has(levelKey)) {
+        moveNames = this.learnableMovesCache.get(levelKey)!;
       } else {
         const res = await axios.get(`${API_BASE}/pokemon/${pokemonId}`);
         const d = res.data;
@@ -419,6 +410,8 @@ class PokeAPIService {
           )
           .map((m: any) => m.move.name)
           .slice(0, 5);
+        
+        this.learnableMovesCache.set(levelKey, moveNames);
       }
 
       if (moveNames.length === 0) return [];

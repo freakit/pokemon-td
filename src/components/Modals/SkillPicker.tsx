@@ -78,7 +78,7 @@ export const SkillPicker: React.FC = () => {
           </SkillStats>
           {currentMove.effect.statusInflict && currentMove.effect.statusChance != null && currentMove.effect.statusChance > 0 && (
             <EffectBadge $type="status">
-              💫 {t('skillPicker.statusEffect', { status: currentMove.effect.statusInflict, chance: currentMove.effect.statusChance })}
+              💫 {t('skillPicker.statusEffect', { status: t(`status.${currentMove.effect.statusInflict}`), chance: currentMove.effect.statusChance })}
             </EffectBadge>
           )}
           {currentMove.effect.drainPercent && (
@@ -117,7 +117,7 @@ export const SkillPicker: React.FC = () => {
           </SkillStats>
           {newMove.effect.statusInflict && newMove.effect.statusChance != null && newMove.effect.statusChance > 0 && (
             <EffectBadge $type="status">
-              💫 {t('skillPicker.statusEffect', { status: newMove.effect.statusInflict, chance: newMove.effect.statusChance })}
+              💫 {t('skillPicker.statusEffect', { status: t(`status.${newMove.effect.statusInflict}`), chance: newMove.effect.statusChance })}
             </EffectBadge>
           )}
           {newMove.effect.drainPercent && (

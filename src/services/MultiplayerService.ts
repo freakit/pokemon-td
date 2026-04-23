@@ -268,6 +268,19 @@ class MultiplayerService {
       this.clearCurrentRoom();
       return { room: null as any, canRejoin: false };
     }
+
+    // [V8-FIX-11-4] 게임 진행 중인 방에 재접속 시 gameState 데이터가 실제로 존재하는지 검증
+    // Firebase 함수 에러나 네트워크 문제로 방은 playing인데 gameState가 없는 유령 방(Ghost Room) 상태 방지
+    if (room.status === 'playing' || room.status === 'starting') {
+      const gsSnap = await get(ref(rtdb, `gameStates/${roomId}`));
+      if (!gsSnap.exists()) {
+        console.warn(`[MultiplayerService] Rejoin failed: Room ${roomId} is playing but gameStates missing. Cleaning up.`);
+        await this.deleteRoom(roomId);
+        this.clearCurrentRoom();
+        return { room: null as any, canRejoin: false };
+      }
+    }
+
     this.setCurrentRoom(roomId);
     return { room, canRejoin: true };
   }
@@ -705,6 +718,7 @@ class MultiplayerService {
 
   /**
    * [V5-FIX-MS-6] startBattlePhase — lastSkipPlayerId 결정론 전달
+   * [V8-FIX-3-1] battleStartTime 서버 시각 기록 → 양측 tick 동기화
    */
   async startBattlePhase(roomId: string): Promise<RoundMatchup | null> {
     const gsRef = ref(rtdb, `gameStates/${roomId}`);
@@ -728,13 +742,22 @@ class MultiplayerService {
       resultMatchup = matchups;
 
       // [V6-FIX] Bye 보너스는 클라이언트가 자체 반영 (skipPlayerId 필드로 감지)
-      // 서버는 matchups만 기록
+      // [V8-FIX-1-5] AI 플레이어는 클라이언트가 없으므로 서버 트랜잭션에서 부전승 보상 직접 적용
+      const updatedPlayers = gs.players.map(p => {
+        if (p.userId === matchups.skipPlayerId && p.userId.startsWith('ai_')) {
+          return { ...p, money: (p.money ?? 0) + 50 };
+        }
+        return p;
+      });
 
+      // [V8-FIX-3-1] battleStartTime: 서버 시각 기록 (this.now() = Firebase 서버 시각 오프셋 적용)
       return {
         ...gs,
+        players: updatedPlayers,
         currentPhase: 'battle' as GamePhase,
         roundMatchups: matchups,
         phaseEndTime: null,
+        battleStartTime: this.now(),
       };
     });
 
@@ -813,9 +836,19 @@ class MultiplayerService {
         );
         if (p.userId === result.player1Id) rewardP1 = { gold: goldDelta, lives: livesDelta };
         if (p.userId === result.player2Id) rewardP2 = { gold: goldDelta, lives: livesDelta };
+        
+        // [V8-FIX-1-5] AI 플레이어 생명력/골드 직접 갱신 (클라이언트가 없으므로 서버 트랜잭션에서 처리)
+        let newLives = p.lives;
+        let newMoney = p.money;
+        if (p.userId.startsWith('ai_')) {
+          newLives = Math.max(0, (p.lives ?? 0) + livesDelta);
+          newMoney = (p.money ?? 0) + goldDelta;
+        }
+
         return {
           ...p,
-          // money/lives/isAlive 는 그대로 유지 (클라이언트가 자체 반영)
+          lives: newLives,
+          money: newMoney,
           battleRecord: {
             wins: isWinner ? (p.battleRecord?.wins ?? 0) + 1 : (p.battleRecord?.wins ?? 0),
             losses: isLoser ? (p.battleRecord?.losses ?? 0) + 1 : (p.battleRecord?.losses ?? 0),
@@ -859,8 +892,26 @@ class MultiplayerService {
       const recentResults = (gs.battleResults || []).filter(
         r => r.roundNumber >= currentRound - 2
       );
+
+      // [V8-FIX-1-5] AI 플레이어 탈락 판정
+      // 라운드 종료 시 생명력이 0 이하인 AI가 있다면 호스트 권한(트랜잭션)으로 탈락 처리
+      let rankings = [...(gs.rankings || [])];
+      const alivePlayersCount = gs.players.filter(p => p.isAlive).length;
+      let eliminatedThisRound = 0;
+
+      const updatedPlayers = gs.players.map(p => {
+        if (p.isAlive && p.userId.startsWith('ai_') && p.lives <= 0) {
+          eliminatedThisRound++;
+          rankings.push(p.userId);
+          return { ...p, isAlive: false, placement: alivePlayersCount - eliminatedThisRound + 1 };
+        }
+        return p;
+      });
+
       return {
         ...gs,
+        players: updatedPlayers,
+        rankings,
         currentPhase: 'waiting_wave' as GamePhase,
         phaseEndTime: this.now() + PHASE_COUNTDOWN_SECONDS * 1000,
         battleResults: recentResults,
@@ -895,26 +946,36 @@ class MultiplayerService {
     await this.cleanupGame(roomId, false).catch(() => {});
   }
 
+  /**
+   * [V8-FIX-13-1] updateRatings 개선
+   *   - AI 플레이어를 대전 상대 상정 계산에서도 제외 (AI 대전 승리로 레이팅 팽쌍 방지)
+   *   - 각 플레이어의 ratingChange를 Firebase gameState에 기록 (UI 표시용)
+   */
   private async updateRatings(gs: MultiplayerGameState): Promise<void> {
-    const players = gs.players;
+    const humanPlayers = gs.players.filter(p => !p.userId.startsWith('ai_'));
     const currentUser = authService.getCurrentUser();
-    for (let i = 0; i < players.length; i++) {
-      const player = players[i];
-      if (player.userId.startsWith('ai_')) continue; // AI는 레이팅 저장 안 함
+
+    for (let i = 0; i < humanPlayers.length; i++) {
+      const player = humanPlayers[i];
       let ratingChange = 0;
-      for (let j = 0; j < players.length; j++) {
+
+      // [V8-FIX-13-1] AI를 제외한 포티션을 기준으로 ELO 계산
+      for (let j = 0; j < humanPlayers.length; j++) {
         if (i === j) continue;
-        const opponent = players[j];
+        const opponent = humanPlayers[j];
         const expectedScore = 1 / (1 + Math.pow(10, (opponent.rating - player.rating) / 400));
-        const actualScore = (player.placement ?? players.length) < (opponent.placement ?? players.length) ? 1 : 0;
+        const actualScore =
+          (player.placement ?? humanPlayers.length) < (opponent.placement ?? humanPlayers.length) ? 1 : 0;
         ratingChange += Math.round(32 * (actualScore - expectedScore));
       }
+
       const newRating = Math.max(0, player.rating + ratingChange);
       try {
         await databaseService.updateUserRating(player.userId, newRating);
       } catch (err) {
         console.warn('[MS] rating update failed:', err);
       }
+
       if (currentUser && player.userId === currentUser.uid) {
         achievementService.onRatingUpdate(newRating);
       }

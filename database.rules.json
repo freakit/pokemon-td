@@ -17,9 +17,10 @@
     "towerDetails": {
       "$roomId": {
         ".read": "auth != null",
+        ".write": "auth != null",
         "$userId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.uid === $userId || $userId.beginsWith('ai_'))"
+          ".write": "auth != null && (auth.uid === $userId || $userId.matches(/^ai_/))"
         }
       }
     },
@@ -31,6 +32,8 @@
     },
     "debuffs": {
       "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
         "$userId": {
           ".read": "auth != null && auth.uid === $userId",
           ".write": "auth != null"
@@ -40,9 +43,10 @@
     "presence": {
       "$roomId": {
         ".read": "auth != null",
+        ".write": "auth != null",
         "$userId": {
           ".read": "auth != null",
-          ".write": "auth != null && (auth.uid === $userId || $userId.beginsWith('ai_'))"
+          ".write": "auth != null && (auth.uid === $userId || $userId.matches(/^ai_/))"
         }
       }
     }

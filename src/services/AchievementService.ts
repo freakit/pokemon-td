@@ -24,7 +24,7 @@ class AchievementService {
 
   // ─── 전투 업적 ────────────────────────────────────────────────────────
 
-  onKill(isBoss: boolean) {
+  onKill(pokemonName: string = '', isBoss: boolean = false) {
     const stats = saveService.load().stats;
     const kills = stats.enemiesKilled; // killEnemy에서 이미 +1된 값
 
@@ -41,6 +41,11 @@ class AchievementService {
       for (const t of bossThresholds) {
         if (bosses >= t) saveService.updateAchievement(`boss${t}`, bosses);
       }
+    }
+    
+    // 특정 포켓몬 처치 업적 등 추후 확장을 위해 pokemonName 파라미터 사용 가능
+    if (pokemonName === 'Mewtwo') {
+      // 추후 뮤츠 처치 시 히든 업적 등
     }
   }
 
@@ -186,6 +191,8 @@ class AchievementService {
     if (cur >= 1)  saveService.updateAchievement('multi_first_win', cur);
     if (cur >= 5)  saveService.updateAchievement('multi_5wins', cur);
     if (cur >= 20) saveService.updateAchievement('multi_20wins', cur);
+    // [V8-FIX-6-3] multi_50wins 누락 추가
+    if (cur >= 50) saveService.updateAchievement('multi_50wins', cur);
 
     // 레이팅 업적은 현재 레이팅 기준으로도 체크 (임시값)
     this.onRatingUpdate(currentRating);
@@ -193,8 +200,11 @@ class AchievementService {
 
   /** 레이팅 확정 후 정확한 레이팅 업적 체크 */
   onRatingUpdate(newRating: number) {
+    // [V8-FIX-6-2] rating1000/1800 누락 추가
+    if (newRating >= 1000) saveService.updateAchievement('rating1000', newRating);
     if (newRating >= 1200) saveService.updateAchievement('rating1200', newRating);
     if (newRating >= 1500) saveService.updateAchievement('rating1500', newRating);
+    if (newRating >= 1800) saveService.updateAchievement('rating1800', newRating);
   }
 
   // ─── 세션 리셋 (게임 재시작 시 localStorage 카운터는 유지) ────────────

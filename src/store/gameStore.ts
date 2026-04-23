@@ -15,8 +15,11 @@ import { calculateActiveSynergies } from '../utils/synergyManager';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { achievementService } from '../services/AchievementService';
 
+// [V8-FIX-1-7] MAX_LIVES_CAP: 라이프 상한 (addLives에서 사용)
+// INITIAL_LIVES_SINGLE과 값이 같지만 의미를 명확히 분리
+export const MAX_LIVES_CAP = 50;
 // 싱글플레이 초기 라이프 (업적 체크 기준값으로 사용)
-export const INITIAL_LIVES_SINGLE = 50;
+export const INITIAL_LIVES_SINGLE = MAX_LIVES_CAP;
 
 interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
@@ -83,7 +86,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   availableItems: [],
   currentMap: 'beginner',
   difficulty: 'normal',
-  gameSpeed: 1,
+  gameSpeed: saveService.load().settings.gameSpeed || 1,
   combo: 0,
   gameTime: 0,
   isSpawning: false,
@@ -165,7 +168,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return false;
   },
 
-  addLives: (amount) => set(state => ({ lives: Math.min(INITIAL_LIVES_SINGLE, state.lives + amount) })),
+  // [V8-FIX-1-7] MAX_LIVES_CAP 사용 — 상한 의미 명확화
+  addLives: (amount) => set(state => ({ lives: Math.min(MAX_LIVES_CAP, state.lives + amount) })),
   spendLives: (amount) => {
     set(state => ({ lives: Math.max(0, state.lives - amount) }));
     return true;
@@ -175,7 +179,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // ─── 설정 ─────────────────────────────────────────────────────────
   setMap: (mapId) => set({ currentMap: mapId }),
   setDifficulty: (difficulty) => set({ difficulty }),
-  setGameSpeed: (speed) => set({ gameSpeed: speed }),
+  setGameSpeed: (speed) => {
+    set({ gameSpeed: speed });
+    saveService.save({ settings: { ...saveService.load().settings, gameSpeed: speed } });
+  },
 
   nextWave: () => {
     const newWave = get().wave + 1;
@@ -458,14 +465,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
       // 각 레벨업마다 배울 수 있는 기술 체크
       try {
-        const _pokeAPI = pokeAPI;
-
-        
-        // 순차적으로 기술 학습 팝업을 띄우기 위해 개별 레벨마다 호출
+        // [V8-FIX-12-1] _pokeAPI alias 제거 → pokeAPI 직접 사용
+        // [V8-FIX-12-1] rejectedMoves 필터 — 이미 거절한 기술은 다시 제안하지 않음
         levelUps.forEach(lvl => {
-          _pokeAPI.getLearnableMoves(tower.pokemonId, lvl).then((newMoves: any[]) => {
-            if (newMoves.length > 0) {
-              addSkillChoice({ towerId, newMoves });
+          pokeAPI.getLearnableMoves(tower.pokemonId, lvl).then((newMoves: any[]) => {
+            const rejectedMoves: string[] = tower.rejectedMoves ?? [];
+            const filtered = newMoves.filter(m => !rejectedMoves.includes(m.name));
+            if (filtered.length > 0) {
+              addSkillChoice({ towerId, newMoves: filtered });
             }
           }).catch(() => {});
         });
