@@ -6,7 +6,7 @@ import { saveService } from '../../services/SaveService';
 import { soundService } from '../../services/SoundService';
 
 export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
 
   // defaultValue 대신 useState로 관리 → 변경 즉시 저장
   const saved = saveService.load().settings;
@@ -74,6 +74,16 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               onChange={(e) => handleShowGrid(e.target.checked)}
             />
           </SettingItem>
+          <SettingItem>
+            <label>{t('settings.language')}</label>
+            <Select 
+              value={language} 
+              onChange={(e) => setLanguage(e.target.value as 'en' | 'ko')}
+            >
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+            </Select>
+          </SettingItem>
           <DangerZone>
             <DangerButton onClick={() => {
               if (confirm(t('alerts.confirmReset'))) {
@@ -137,6 +147,22 @@ const DangerZone = styled.div`
   margin-top: 24px;
   padding-top: 24px;
   border-top: 2px solid #e74c3c;
+`;
+
+const Select = styled.select`
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: #fff;
+  color: #333;
+  outline: none;
+
+  &:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
 `;
 
 const DangerButton = styled.button`

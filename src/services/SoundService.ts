@@ -1,6 +1,7 @@
 // src/services/SoundService.ts
 
 import { Howl, Howler } from 'howler';
+import { saveService } from './SaveService';
 
 class SoundService {
   private static instance: SoundService;
@@ -18,7 +19,11 @@ class SoundService {
   };
 
   private constructor() {
-    Howler.volume(0.7);
+    const settings = saveService.load().settings;
+    this.musicVolume = settings.musicVolume;
+    this.sfxVolume = settings.sfxVolume;
+    
+    Howler.volume(1.0);
     this.playBGM();
   }
   

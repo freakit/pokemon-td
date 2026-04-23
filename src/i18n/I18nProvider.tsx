@@ -18,7 +18,9 @@ const translations = { ko, en };
 export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('language');
-    return (saved === 'en' || saved === 'ko') ? saved : 'ko';
+    if (saved === 'en' || saved === 'ko') return saved;
+    const browserLang = navigator.language || (navigator as any).userLanguage;
+    return browserLang && browserLang.toLowerCase().startsWith('ko') ? 'ko' : 'en';
   });
 
   useEffect(() => {

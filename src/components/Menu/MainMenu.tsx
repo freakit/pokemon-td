@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
+import { useTranslation } from '../../i18n';
 
 
 import { AchievementsPanel } from '../Modals/Achievements';
@@ -14,17 +15,18 @@ import {
   hasTowerTutorialSeen,
   hasMultiTutorialSeen,
 } from '../Modals/TutorialModal';
-import { Settings } from '../Modals/Settings';
+
 
 export const MainMenu = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const { t } = useTranslation();
 
 
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame,   setShowHallOfFame]   = useState(false);
   const [showRankings,     setShowRankings]     = useState(false);
-  const [showSettings,     setShowSettings]     = useState(false);
+
 
   // 튜토리얼: 'tower' | 'multi' | null
   const [tutorial, setTutorial] = useState<'tower' | 'multi' | null>(null);
@@ -32,7 +34,7 @@ export const MainMenu = () => {
   const [pendingNav, setPendingNav] = useState<string | null>(null);
 
   const handleSignOut = async () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
+    if (confirm(t('mainMenu.signOutConfirm'))) {
       await authService.signOut();
     }
   };
@@ -84,10 +86,10 @@ export const MainMenu = () => {
                 }}
               />
               <UserName>{user?.displayName}</UserName>
-              <Rating>⭐ Rating: {user?.rating}</Rating>
+              <Rating>{t('mainMenu.ratingLabel', { rating: user?.rating ?? 0 })}</Rating>
             </UserInfo>
             <RightButtons>
-              <SignOutButton onClick={handleSignOut}>로그아웃</SignOutButton>
+              <SignOutButton onClick={handleSignOut}>{t('mainMenu.signOut')}</SignOutButton>
             </RightButtons>
           </Header>
 
@@ -97,44 +99,44 @@ export const MainMenu = () => {
               alt="Pokemon Aegis Logo"
               style={{ width: '80px', objectFit: 'contain', marginRight: '16px' }}
             />
-            포켓몬 아이기스
+            {t('mainMenu.gameTitle')}
           </Title>
 
           <MenuSection>
-            <SectionTitle>게임 모드</SectionTitle>
+            <SectionTitle>{t('mainMenu.gameMode')}</SectionTitle>
             <GameModeButtons>
               <ModeButton onClick={handleSinglePlay}>
                 <ModeIcon>👤</ModeIcon>
-                <ModeTitle>싱글 플레이</ModeTitle>
-                <ModeDesc>혼자서 즐기는 타워 디펜스</ModeDesc>
+                <ModeTitle>{t('mainMenu.singlePlay')}</ModeTitle>
+                <ModeDesc>{t('mainMenu.singlePlayDesc')}</ModeDesc>
               </ModeButton>
 
               <ModeButton onClick={handleMultiPlay}>
                 <ModeIcon>👥</ModeIcon>
-                <ModeTitle>멀티 플레이</ModeTitle>
-                <ModeDesc>최대 8인 PvP 배틀</ModeDesc>
+                <ModeTitle>{t('mainMenu.multiPlay')}</ModeTitle>
+                <ModeDesc>{t('mainMenu.multiPlayDesc')}</ModeDesc>
 
               </ModeButton>
             </GameModeButtons>
           </MenuSection>
 
           <MenuSection>
-            <SectionTitle>내 정보</SectionTitle>
+            <SectionTitle>{t('mainMenu.myInfo')}</SectionTitle>
             <BottomButtons>
-              <BottomButton onClick={() => setShowAchievements(true)}>🏆 업적</BottomButton>
-              <BottomButton onClick={() => setShowHallOfFame(true)}>🎖️ 전당</BottomButton>
-              <BottomButton onClick={() => setShowRankings(true)}>📊 랭킹</BottomButton>
-              <BottomButton onClick={() => setShowSettings(true)}>⚙️ 설정</BottomButton>
+              <BottomButton onClick={() => setShowAchievements(true)}>{t('mainMenu.achievements')}</BottomButton>
+              <BottomButton onClick={() => setShowHallOfFame(true)}>{t('mainMenu.hallOfFame')}</BottomButton>
+              <BottomButton onClick={() => setShowRankings(true)}>{t('mainMenu.rankings')}</BottomButton>
+
             </BottomButtons>
           </MenuSection>
 
           {/* 도움말 버튼 — 언제든 다시 볼 수 있음 */}
           <HelpRow>
             <HelpButton onClick={() => { setPendingNav(null); setTutorial('tower'); }}>
-              ❓ 싱글 플레이 가이드
+              {t('mainMenu.helpSingle')}
             </HelpButton>
             <HelpButton onClick={() => { setPendingNav(null); setTutorial('multi'); }}>
-              ❓ 멀티 플레이 가이드
+              {t('mainMenu.helpMulti')}
             </HelpButton>
           </HelpRow>
         </Container>
@@ -145,7 +147,7 @@ export const MainMenu = () => {
       {showAchievements && <AchievementsPanel  onClose={() => setShowAchievements(false)} />}
       {showHallOfFame   && <HallOfFame         onClose={() => setShowHallOfFame(false)} />}
       {showRankings     && <Rankings           onClose={() => setShowRankings(false)} />}
-      {showSettings     && <Settings           onClose={() => setShowSettings(false)} />}
+
 
       {/* 튜토리얼 모달 */}
       {tutorial && (

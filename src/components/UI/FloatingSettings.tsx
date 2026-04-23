@@ -1,0 +1,43 @@
+import React, { useState } from 'react';
+import styled from 'styled-components';
+import { Settings } from '../Modals/Settings';
+
+const FloatingBtn = styled.button`
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+`;
+
+export const FloatingSettings: React.FC = () => {
+  const [show, setShow] = useState(false);
+  
+  return (
+    <>
+      <FloatingBtn onClick={() => setShow(true)} title="설정 (Settings)">
+        ⚙️
+      </FloatingBtn>
+      {show && <Settings onClose={() => setShow(false)} />}
+    </>
+  );
+};

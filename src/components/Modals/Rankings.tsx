@@ -50,13 +50,13 @@ export const Rankings = ({ onClose }: RankingsProps) => {
     <Overlay onClick={onClose}>
       <Container onClick={(e) => e.stopPropagation()}>
         <Header>
-          <Title>📊 랭킹</Title>
+          <Title>{t('rankings.title')}</Title>
           <CloseButton onClick={onClose}>✕</CloseButton>
         </Header>
 
         <Controls>
           <MapSelector>
-            <Label>맵 선택:</Label>
+            <Label>{t('rankings.mapLabel')}</Label>
             <Select value={selectedMap} onChange={(e) => setSelectedMap(e.target.value)}>
               {MAPS.map(map => (
                 <option key={map.id} value={map.id}>
@@ -71,36 +71,36 @@ export const Rankings = ({ onClose }: RankingsProps) => {
               active={sortBy === 'clearTime'}
               onClick={() => setSortBy('clearTime')}
             >
-              ⏱️ 최단 클리어
+              ⏱️ {t('rankings.tabClearTime')}
             </TabButton>
             <TabButton
               active={sortBy === 'highestWave'}
               onClick={() => setSortBy('highestWave')}
             >
-              🏆 최고 Wave
+              🏆 {t('rankings.tabHighestWave')}
             </TabButton>
           </SortSelector>
         </Controls>
 
         {myRank && (
           <MyRank>
-            내 순위: {myRank}위
+            {t('rankings.myRank', { rank: myRank })}
           </MyRank>
         )}
 
         {loading ? (
-          <Loading>로딩 중...</Loading>
+          <Loading>{t('rankings.loading')}</Loading>
         ) : rankings.length === 0 ? (
           <EmptyMessage>
-            아직 랭킹 데이터가 없습니다
+            {t('rankings.empty')}
           </EmptyMessage>
         ) : (
           <RankingList>
             <RankingHeader>
-              <Rank>순위</Rank>
-              <PlayerName>플레이어</PlayerName>
-              <Rating>레이팅</Rating>
-              <Score>{sortBy === 'clearTime' ? '클리어 시간' : '최고 Wave'}</Score>
+              <Rank>{t('rankings.colRank')}</Rank>
+              <PlayerName>{t('rankings.colPlayer')}</PlayerName>
+              <Rating>{t('rankings.colRating')}</Rating>
+              <Score>{sortBy === 'clearTime' ? t('rankings.colClearTime') : t('rankings.colHighestWave')}</Score>
             </RankingHeader>
             
             {rankings.map((entry, index) => (
@@ -109,14 +109,14 @@ export const Rankings = ({ onClose }: RankingsProps) => {
                   {index === 0 && '🥇'}
                   {index === 1 && '🥈'}
                   {index === 2 && '🥉'}
-                  {index > 2 && `${index + 1}위`}
+                  {index > 2 && t('rankings.rankSuffix', { rank: index + 1 })}
                 </Rank>
                 <PlayerName>{entry.userName}</PlayerName>
                 <Rating>⭐ {entry.rating}</Rating>
                 <Score>
-                  {sortBy === 'clearTime' 
-                    ? formatTime(entry.clearTime) 
-                    : `Wave ${entry.highestWave}`}
+                  {sortBy === 'clearTime'
+                    ? formatTime(entry.clearTime)
+                    : t('rankings.waveSuffix', { wave: entry.highestWave })}
                 </Score>
               </RankingRow>
             ))}

@@ -1,0 +1,50 @@
+{
+  "rules": {
+    "rooms": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['id','hostId','createdAt']) || !newData.exists()"
+      }
+    },
+    "gameStates": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "towerDetails": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$userId": {
+          ".read": "auth != null",
+          ".write": "auth != null && (auth.uid === $userId || $userId.beginsWith('ai_'))"
+        }
+      }
+    },
+    "battleResults": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "debuffs": {
+      "$roomId": {
+        "$userId": {
+          ".read": "auth != null && auth.uid === $userId",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "presence": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$userId": {
+          ".read": "auth != null",
+          ".write": "auth != null && (auth.uid === $userId || $userId.beginsWith('ai_'))"
+        }
+      }
+    }
+  }
+}

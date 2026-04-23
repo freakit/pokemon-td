@@ -141,7 +141,8 @@ class MultiplayerService {
           await remove(ref(rtdb, `battleResults/${id}`)).catch(() => {});
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.message?.includes('Permission denied')) return;
       console.error('Failed to cleanup expired rooms:', error);
     }
   }

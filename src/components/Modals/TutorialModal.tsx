@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { useTranslation } from '../../i18n';
 
 // ─── localStorage 헬퍼 ───────────────────────────────────────────────────────
 const KEYS = {
@@ -122,8 +123,6 @@ const MULTI_SLIDES: Slide[] = [
 type TutorialMode = 'tower' | 'multi';
 
 const MODES: Record<TutorialMode, {
-  slides: Slide[];
-  label: string;
   accent: string;
   accentBg: string;
   accentBorder: string;
@@ -131,8 +130,6 @@ const MODES: Record<TutorialMode, {
   btnShadow: string;
 }> = {
   tower: {
-    slides: TOWER_SLIDES,
-    label: '🏰 싱글 플레이',
     accent: '#4fc3f7',
     accentBg: 'rgba(79,195,247,0.1)',
     accentBorder: 'rgba(79,195,247,0.25)',
@@ -140,8 +137,6 @@ const MODES: Record<TutorialMode, {
     btnShadow: 'rgba(14,165,233,0.45)',
   },
   multi: {
-    slides: MULTI_SLIDES,
-    label: '👥 멀티 플레이',
     accent: '#34d399',
     accentBg: 'rgba(52,211,153,0.1)',
     accentBorder: 'rgba(52,211,153,0.25)',
@@ -159,8 +154,26 @@ interface TutorialModalProps {
 
 // ─── 컴포넌트 ─────────────────────────────────────────────────────────────────
 export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onProceed }) => {
+  const { t } = useTranslation();
   const cfg = MODES[mode];
-  const slides = cfg.slides;
+
+  // 슬라이드를 번역 키에서 동적으로 빌드
+  const SLIDE_ICONS = { tower: ['🏰','🛒','⚡','🎁'], multi: ['👥','🔄','💥','🎮'] };
+  type SlideKey = 'slide0' | 'slide1' | 'slide2' | 'slide3';
+  const slides: Slide[] = [0, 1, 2, 3].map(i => {
+    const k = `slide${i}` as SlideKey;
+    const base = t(`tutorial.${mode}.${k}.title`);
+    return {
+      icon: SLIDE_ICONS[mode][i],
+      title: base !== `tutorial.${mode}.${k}.title` ? base : (mode === 'tower' ? TOWER_SLIDES[i].title : MULTI_SLIDES[i].title),
+      desc: (() => { const v = t(`tutorial.${mode}.${k}.desc`); return v !== `tutorial.${mode}.${k}.desc` ? v : (mode === 'tower' ? TOWER_SLIDES[i].desc : MULTI_SLIDES[i].desc); })(),
+      details: [
+        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[0].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d0`); return v !== `tutorial.${mode}.${k}.d0` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[0].text; })() },
+        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[1].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d1`); return v !== `tutorial.${mode}.${k}.d1` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[1].text; })() },
+        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[2].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d2`); return v !== `tutorial.${mode}.${k}.d2` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[2].text; })() },
+      ],
+    };
+  });
 
   const [page, setPage]         = useState(0);
   const [dontShow, setDontShow] = useState(false);
@@ -193,7 +206,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
 
         <Header>
           <ModeTag $bg={cfg.accentBg} $border={cfg.accentBorder} $color={cfg.accent}>
-            {cfg.label}
+          {t(`tutorial.${mode}.label`)}
           </ModeTag>
           <PageInfo $color={cfg.accent}>{page + 1} / {slides.length}</PageInfo>
           <CloseX onClick={() => dismiss(false)} aria-label="닫기">✕</CloseX>
@@ -227,12 +240,12 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
               checked={dontShow}
               onChange={e => setDontShow(e.target.checked)}
             />
-            <label htmlFor={`dontShow-${mode}`}>다시 보지 않기</label>
+            <label htmlFor={`dontShow-${mode}`}>{t('tutorial.dontShowAgain')}</label>
           </DontShowRow>
           <NavButtons>
-            {page > 0 && <PrevBtn onClick={goPrev}>← 이전</PrevBtn>}
+            {page > 0 && <PrevBtn onClick={goPrev}>{t('tutorial.prev')}</PrevBtn>}
             <NextBtn $grad={cfg.btnGrad} $shadow={cfg.btnShadow} $isLast={isLast} onClick={goNext}>
-              {isLast ? '시작하기 🚀' : '다음 →'}
+              {isLast ? t('tutorial.start') : t('tutorial.next')}
             </NextBtn>
           </NavButtons>
         </Footer>

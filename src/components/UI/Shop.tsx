@@ -239,7 +239,7 @@ export const Shop: React.FC = () => {
           $isUsable={isUsable}
           onClick={() => handleBuyEvolutionItem(item)}
         >
-          {isUsable && <UsableBadge>✨ 지금 사용 가능!</UsableBadge>}
+          {isUsable && <UsableBadge>{t('shop.badgeUsableNow')}</UsableBadge>}
           <EvoItemName $isUsable={isUsable}>{t(`items.${item.id}.name`)}</EvoItemName>
           <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
           <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
