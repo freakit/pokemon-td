@@ -37,6 +37,7 @@ import { MultiplayerGameState, TowerDetail, PvPBattleResult } from '../../types/
 import { authService } from '../../services/AuthService';
 import { pvpBattleService, deriveBattleSeed } from '../../services/PvPBattleService';
 import { TFTBattleArena, TFTBattleResult } from './TFTBattleArena';
+import { useTranslation } from '../../i18n';
 
 interface BattlePhaseUIProps {
   roomId: string;
@@ -116,6 +117,7 @@ interface RoundSummaryModalProps {
 }
 
 const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUserId, roundNumber, onClose }) => {
+  const { t } = useTranslation();
   const roundResults = (gameState.battleResults || []).filter(r => r.roundNumber === roundNumber);
   const myResult = roundResults.find(r => r.player1Id === myUserId || r.player2Id === myUserId);
   const skipPlayerId = gameState.roundMatchups?.skipPlayerId ?? null;
@@ -130,26 +132,26 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
     <SummaryOverlay onClick={onClose}>
       <SummaryContainer onClick={e => e.stopPropagation()}>
         <SummaryHeader>
-          <SummaryRound>Round {roundNumber} · 전투 결과</SummaryRound>
-          <SummaryTitle>⚔️ 배틀 요약</SummaryTitle>
+          <SummaryRound>{t('battle.summaryRound', { round: roundNumber })}</SummaryRound>
+          <SummaryTitle>{t('battle.summaryTitle')}</SummaryTitle>
         </SummaryHeader>
 
         {iAmSkipped ? (
           <MyResultBanner $win={true}>
             <MyResultIcon>😴</MyResultIcon>
-            <MyResultText $win={true}>휴식 턴</MyResultText>
-            <MyResultSub>이번 라운드 전투 없이 패스</MyResultSub>
+            <MyResultText $win={true}>{t('battle.summaryByeTurn')}</MyResultText>
+            <MyResultSub>{t('battle.summaryByeDesc')}</MyResultSub>
           </MyResultBanner>
         ) : myResult ? (
           <MyResultBanner $win={myResult.winnerId === myUserId}>
             <MyResultIcon>{myResult.winnerId === myUserId ? '🏆' : '💀'}</MyResultIcon>
             <MyResultText $win={myResult.winnerId === myUserId}>
-              {myResult.winnerId === myUserId ? '승리!' : '패배'}
+              {myResult.winnerId === myUserId ? t('battle.summaryWin') : t('battle.summaryLose')}
             </MyResultText>
             <MyResultSub>
               {myResult.winnerId === myUserId
-                ? `생존 포켓몬: ${myResult.winnerId === myResult.player1Id ? myResult.player1RemainingPokemon : myResult.player2RemainingPokemon}마리`
-                : `라이프 ${myResult.lifeLost} 감소`}
+                ? t('battle.summaryWinDetail', { count: myResult.winnerId === myResult.player1Id ? myResult.player1RemainingPokemon : myResult.player2RemainingPokemon })
+                : t('battle.summaryLoseDetail', { lost: myResult.lifeLost })}
             </MyResultSub>
           </MyResultBanner>
         ) : null}
@@ -172,18 +174,18 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
           {skipPlayerId && (
             <ByeCard>
               <span>😴</span>
-              <span>{getPlayerName(skipPlayerId)}의 휴식 턴 (전투 없음)</span>
+              <span>{t('battle.byeTurnLabel', { name: getPlayerName(skipPlayerId) })}</span>
             </ByeCard>
           )}
         </SummaryMatchList>
 
         <SummaryStandings>
-          <StandingsTitle>📊 현재 순위</StandingsTitle>
+          <StandingsTitle>{t('battle.standingsTitle')}</StandingsTitle>
           {sortedPlayers.map((player, idx) => (
             <StandingRow key={player.userId} $isMe={player.userId === myUserId}>
               <StandingRank>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</StandingRank>
               <StandingName $isMe={player.userId === myUserId}>
-                {player.userName}{player.userId === myUserId ? ' (나)' : ''}{!player.isAlive ? ' 💀' : ''}
+                {player.userName}{player.userId === myUserId ? t('battle.meBracket') : ''}{!player.isAlive ? ' 💀' : ''}
               </StandingName>
               <StandingLives>❤️ {player.lives}</StandingLives>
               <StandingGold>💰 {player.money}G</StandingGold>
@@ -191,7 +193,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
           ))}
         </SummaryStandings>
 
-        <SummaryCloseBtn onClick={onClose}>다음 라운드로 →</SummaryCloseBtn>
+        <SummaryCloseBtn onClick={onClose}>{t('battle.nextRound')}</SummaryCloseBtn>
       </SummaryContainer>
     </SummaryOverlay>
   );
@@ -199,6 +201,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
 
 // ─── 메인 BattlePhaseUI 컴포넌트 ────────────────────────────────
 export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
+  const { t } = useTranslation();
   const [gameState, setGameState] = useState<MultiplayerGameState | null>(null);
   const gameStateRef = useRef<MultiplayerGameState | null>(null);
   const transitionTriggeredRef = useRef<boolean>(false);
@@ -689,10 +692,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
         <ByeOverlay>
           <ByeContainer>
             <ByeIcon>😴</ByeIcon>
-            <ByeTitle>휴식 턴!</ByeTitle>
-            <ByeSubtitle>이번 라운드는 홀수 플레이어로 인해<br />전투 없이 패스됩니다.<br />다음 라운드를 준비하세요!</ByeSubtitle>
-            <ByeBonusBox>💰 휴식 보너스 +50G 지급</ByeBonusBox>
-            <ByeCountdown>배틀이 끝나면 자동으로 다음 페이즈로 넘어갑니다</ByeCountdown>
+            <ByeTitle>{t('battle.byeTitle')}</ByeTitle>
+            <ByeSubtitle>{t('battle.byeSubtitle').split('\n').map((line, i) => <React.Fragment key={i}>{line}{i < 2 && <br />}</React.Fragment>)}</ByeSubtitle>
+            <ByeBonusBox>{t('battle.byeBonus')}</ByeBonusBox>
+            <ByeCountdown>{t('battle.byeCountdown')}</ByeCountdown>
           </ByeContainer>
         </ByeOverlay>
         {showRoundSummary && gameState && (
@@ -737,10 +740,10 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
           />
           <ArenaFooter>
             <RoundInfo>
-              ⚔️ ROUND {gameState?.currentRound}
+              ⚔️ {t('battle.roundLabel', { round: gameState?.currentRound })}
               {battleResult && (
                 <ResultBadge $win={battleResult.winnerId === user?.uid}>
-                  {battleResult.winnerId === user?.uid ? '🏆 승리!' : '💀 패배'}
+                  {battleResult.winnerId === user?.uid ? t('battle.winKo') : t('battle.loseKo')}
                 </ResultBadge>
               )}
             </RoundInfo>
@@ -763,16 +766,16 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       <BattleOverlay>
         <BattleContainer>
           <VSHeader>
-            <RoundText>ROUND {gameState.currentRound}</RoundText>
-            <BattleTitle>PvP BATTLE</BattleTitle>
+            <RoundText>{t('battle.roundLabel', { round: gameState.currentRound })}</RoundText>
+            <BattleTitle>{t('battle.pvpBattle')}</BattleTitle>
           </VSHeader>
           <MatchupContainer>
             <PlayerCard $isMe>
               <PlayerAvatar>{user?.displayName?.slice(0, 1) || 'Me'}</PlayerAvatar>
-              <PlayerName>{user?.displayName} (나)</PlayerName>
+              <PlayerName>{user?.displayName}{t('battle.meSuffix') ? ` (${t('battle.meSuffix')})` : ''}</PlayerName>
               {battleResult && (
                 <ResultText $win={battleResult.winnerId === user?.uid}>
-                  {battleResult.winnerId === user?.uid ? 'WIN' : 'LOSE'}
+                  {battleResult.winnerId === user?.uid ? t('battle.win') : t('battle.lose')}
                 </ResultText>
               )}
             </PlayerCard>
@@ -782,14 +785,14 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
               <PlayerName>{opponent?.userName}</PlayerName>
               {battleResult && (
                 <ResultText $win={battleResult.winnerId === opponentId}>
-                  {battleResult.winnerId === opponentId ? 'WIN' : 'LOSE'}
+                  {battleResult.winnerId === opponentId ? t('battle.win') : t('battle.lose')}
                 </ResultText>
               )}
             </PlayerCard>
           </MatchupContainer>
           {battleResult
-            ? <StatusMessage>전투 종료! 다음 라운드 준비 중...</StatusMessage>
-            : <StatusMessage>⚔️ 전투 중...</StatusMessage>}
+            ? <StatusMessage>{t('battle.finished')}</StatusMessage>
+            : <StatusMessage>{t('battle.fighting')}</StatusMessage>}
         </BattleContainer>
       </BattleOverlay>
       {showRoundSummary && gameState && (

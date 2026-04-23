@@ -16,16 +16,16 @@ interface HallOfFameProps {
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
-const formatTime = (ms: number | undefined) => {
+const formatTime = (ms: number | undefined, t: (k: string, p?: Record<string, string | number>) => string) => {
   if (!ms) return '-';
   const s = Math.floor(ms / 1000);
   const m = Math.floor(s / 60);
   const sec = s % 60;
-  return `${m}분 ${sec.toString().padStart(2, '0')}초`;
+  return t('hallOfFame.minuteSecond', { m, s: sec.toString().padStart(2, '0') });
 };
 
-const formatDate = (ts: number) =>
-  new Date(ts).toLocaleDateString('ko-KR', {
+const formatDate = (ts: number, lang: string) =>
+  new Date(ts).toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -73,20 +73,20 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
         {/* ── 헤더 ── */}
         <Header>
           <TitleRow>
-            <Title>👑 전당등록</Title>
+            <Title>{t('hallOfFame.title')}</Title>
             <CloseBtn onClick={onClose}>✕</CloseBtn>
           </TitleRow>
 
           {/* ── 탭 ── */}
           <TabRow>
             <Tab $active={tab === 'global_clear'} onClick={() => setTab('global_clear')}>
-              ⏱️ 최단 클리어
+              {t('hallOfFame.tabClear')}
             </Tab>
             <Tab $active={tab === 'global_wave'} onClick={() => setTab('global_wave')}>
-              🏔️ 최고 웨이브
+              {t('hallOfFame.tabWave')}
             </Tab>
             <Tab $active={tab === 'mine'} onClick={() => setTab('mine')}>
-              👤 내 기록
+              {t('hallOfFame.tabMine')}
             </Tab>
           </TabRow>
 
@@ -94,7 +94,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
           {tab !== 'mine' && (
             <MapFilterRow>
               <FilterChip $active={mapFilter === 'all'} onClick={() => setMapFilter('all')}>
-                전체 맵
+                {t('hallOfFame.mapAll')}
               </FilterChip>
               {MAPS.map(m => (
                 <FilterChip
@@ -112,7 +112,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
         {/* ── 콘텐츠 ── */}
         <Body>
           {loading ? (
-            <CenterMsg>⏳ 로딩 중...</CenterMsg>
+            <CenterMsg>{t('hallOfFame.loading')}</CenterMsg>
           ) : tab === 'global_clear' ? (
             <GlobalClearList entries={globalClearEntries} myUid={user?.uid} />
           ) : tab === 'global_wave' ? (
@@ -132,34 +132,34 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
 const GlobalClearList = ({
   entries, myUid,
 }: { entries: HallOfFameEntry[]; myUid?: string }) => {
-  const { t } = useTranslation();
-  if (entries.length === 0) return <EmptyMsg>🏜️ 아직 클리어 기록이 없습니다.</EmptyMsg>;
+  const { t, language } = useTranslation();
+  if (entries.length === 0) return <EmptyMsg>{t('hallOfFame.emptyClear')}</EmptyMsg>;
 
   return (
     <Table>
       <thead>
         <tr>
-          <Th>순위</Th>
-          <Th>플레이어</Th>
-          <Th>맵</Th>
-          <Th>⏱️ 클리어 시간</Th>
-          <Th>포켓몬</Th>
-          <Th>날짜</Th>
+          <Th>{t('hallOfFame.colRank')}</Th>
+          <Th>{t('hallOfFame.colPlayer')}</Th>
+          <Th>{t('hallOfFame.colMap')}</Th>
+          <Th>{t('hallOfFame.colClearTime')}</Th>
+          <Th>{t('hallOfFame.colPokemon')}</Th>
+          <Th>{t('hallOfFame.colDate')}</Th>
         </tr>
       </thead>
       <tbody>
         {entries.map((e, i) => (
           <Tr key={e.id} $isMe={e.userId === myUid} $rank={i}>
-            <Td $center>{MEDAL[i] ?? `${i + 1}위`}</Td>
+            <Td $center>{MEDAL[i] ?? t('hallOfFame.rankSuffix', { rank: i + 1 })}</Td>
             <Td $bold>{e.userName}</Td>
             <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapName}</Td>
-            <Td $bold $accent>{formatTime(e.clearTime)}</Td>
+            <Td $bold $accent>{formatTime(e.clearTime, t)}</Td>
             <PokemonCell>
               {e.pokemonUsed.slice(0, 6).map((name, j) => (
                 <PokemonTag key={j}>{name}</PokemonTag>
               ))}
             </PokemonCell>
-            <Td $small>{formatDate(e.timestamp)}</Td>
+            <Td $small>{formatDate(e.timestamp, language)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -173,28 +173,28 @@ const GlobalWaveList = ({
   entries, myUid,
 }: { entries: LeaderboardEntry[]; myUid?: string }) => {
   const { t } = useTranslation();
-  if (entries.length === 0) return <EmptyMsg>🏜️ 아직 기록이 없습니다.</EmptyMsg>;
+  if (entries.length === 0) return <EmptyMsg>{t('hallOfFame.emptyWave')}</EmptyMsg>;
 
   return (
     <Table>
       <thead>
         <tr>
-          <Th>순위</Th>
-          <Th>플레이어</Th>
-          <Th>맵</Th>
-          <Th>🌊 최고 웨이브</Th>
-          <Th>⏱️ 클리어 시간</Th>
-          <Th>⭐ 레이팅</Th>
+          <Th>{t('hallOfFame.colRank')}</Th>
+          <Th>{t('hallOfFame.colPlayer')}</Th>
+          <Th>{t('hallOfFame.colMap')}</Th>
+          <Th>{t('hallOfFame.colHighestWave')}</Th>
+          <Th>{t('hallOfFame.colTimeClear')}</Th>
+          <Th>{t('hallOfFame.colRating')}</Th>
         </tr>
       </thead>
       <tbody>
         {entries.map((e, i) => (
           <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={i}>
-            <Td $center>{MEDAL[i] ?? `${i + 1}위`}</Td>
+            <Td $center>{MEDAL[i] ?? t('hallOfFame.rankSuffix', { rank: i + 1 })}</Td>
             <Td $bold>{e.userName}</Td>
             <Td>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapId}</Td>
             <WaveCell>{e.highestWave}</WaveCell>
-            <Td>{formatTime(e.clearTime)}</Td>
+            <Td>{formatTime(e.clearTime, t)}</Td>
             <Td>{e.rating}</Td>
           </Tr>
         ))}
@@ -206,12 +206,11 @@ const GlobalWaveList = ({
 // ─── 내 기록 ─────────────────────────────────────────────────────────────────
 
 const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   if (entries.length === 0)
     return (
       <EmptyMsg>
-        아직 클리어 기록이 없습니다.<br />
-        웨이브 50을 클리어하면 이곳에 기록됩니다! 👑
+        {t('hallOfFame.emptyMine').split('\n').map((line, i) => <span key={i}>{line}{i === 0 && <br />}</span>)}
       </EmptyMsg>
     );
 
@@ -223,16 +222,16 @@ const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
             <MapBadge>{t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name` ? t(`mapData.${e.mapId}.name`) : e.mapName}</MapBadge>
             <WaveBadge>Wave {e.wave}</WaveBadge>
           </CardTop>
-          <TimeRow>⏱️ {formatTime(e.clearTime)}</TimeRow>
+          <TimeRow>⏱️ {formatTime(e.clearTime, t)}</TimeRow>
           <PokemonSection>
-            <SectionLabel>사용한 포켓몬</SectionLabel>
+            <SectionLabel>{t('hallOfFame.pokemonUsed')}</SectionLabel>
             <PokemonGrid>
               {e.pokemonUsed.map((name, i) => (
                 <PokemonTag key={i}>{name}</PokemonTag>
               ))}
             </PokemonGrid>
           </PokemonSection>
-          <DateRow>{formatDate(e.timestamp)}</DateRow>
+          <DateRow>{formatDate(e.timestamp, language)}</DateRow>
         </RecordCard>
       ))}
     </CardGrid>

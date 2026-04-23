@@ -169,7 +169,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   };
 
   if (isCheckingRejoin) {
-    return <Overlay><Container><LoadingText>재접속 확인 중...</LoadingText></Container></Overlay>;
+    return <Overlay><Container><LoadingText>{t('lobby.checkingRejoin')}</LoadingText></Container></Overlay>;
   }
 
   if (rejoinableRoom) {
@@ -188,28 +188,28 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         <Overlay>
           <Container>
             <Header>
-              <Title>멀티플레이어 로비</Title>
-              <BackButton onClick={onBack}>← 뒤로가기</BackButton>
+              <Title>{t('lobby.title')}</Title>
+              <BackButton onClick={onBack}>← {t('lobby.back')}</BackButton>
             </Header>
 
             <ButtonRow>
               <CreateRoomButton onClick={() => setView('create')}>
-                ➕ 방 만들기
+                ➕ {t('lobby.createRoom')}
               </CreateRoomButton>
             </ButtonRow>
 
             <RoomList>
               {rooms.length === 0 ? (
-                <EmptyMessage>생성된 방이 없습니다</EmptyMessage>
+                <EmptyMessage>{t('lobby.emptyList')}</EmptyMessage>
               ) : (
                 rooms.map(room => (
                   <RoomCard key={room.id}>
                     <RoomInfo>
                       <RoomName>{room.name}</RoomName>
                       <RoomDetails>
-                        맵: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name`
+                        {t('lobby.map')}: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name`
                           ? t(`mapData.${room.mapId}.name`)
-                          : room.mapName} | 호스트: {room.hostName}
+                          : room.mapName} | {t('lobby.host')}: {room.hostName}
                       </RoomDetails>
                     </RoomInfo>
                     <RoomPlayers>{room.players.length} / {room.maxPlayers}</RoomPlayers>
@@ -217,7 +217,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       onClick={() => handleJoinRoom(room.id)}
                       disabled={room.players.length >= room.maxPlayers}
                     >
-                      참가
+                      {t('lobby.join')}
                     </JoinButton>
                   </RoomCard>
                 ))
@@ -239,12 +239,12 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         <Overlay>
           <Container>
             <Header>
-              <Title>방 만들기</Title>
-              <BackButton onClick={() => setView('list')}>← 뒤로가기</BackButton>
+              <Title>{t('lobby.createTitle')}</Title>
+              <BackButton onClick={() => setView('list')}>← {t('lobby.back')}</BackButton>
             </Header>
 
             <Section>
-              <SectionTitle>맵 선택</SectionTitle>
+              <SectionTitle>{t('lobby.selectMap')}</SectionTitle>
               <MapGrid>
                 {MAPS.map(map => (
                   <MapCard
@@ -257,13 +257,13 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                         ? t(`mapData.${map.id}.name`)
                         : map.name}
                     </MapName>
-                    <MapDifficulty>난이도: {map.difficulty}</MapDifficulty>
+                    <MapDifficulty>{t('lobby.difficulty')}: {map.difficulty}</MapDifficulty>
                   </MapCard>
                 ))}
               </MapGrid>
             </Section>
 
-            <CreateButton onClick={handleCreateRoom}>방 만들기</CreateButton>
+            <CreateButton onClick={handleCreateRoom}>{t('lobby.createRoomAction')}</CreateButton>
           </Container>
         </Overlay>
 
@@ -285,12 +285,12 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           <Container>
             <Header>
               <Title>{currentRoom.name}</Title>
-              <BackButton onClick={handleLeaveRoomRequest}>← 나가기</BackButton>
+              <BackButton onClick={handleLeaveRoomRequest}>← {t('lobby.leave')}</BackButton>
             </Header>
 
             <Section>
               <SectionTitle>
-                맵: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name`
+                {t('lobby.map')}: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name`
                   ? t(`mapData.${currentRoom.mapId}.name`)
                   : currentRoom.mapName}
               </SectionTitle>
@@ -298,7 +298,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
             <Section>
               <SectionTitle>
-                플레이어 ({currentRoom.players.length}/{currentRoom.maxPlayers})
+                {t('lobby.players')} ({currentRoom.players.length}/{currentRoom.maxPlayers})
               </SectionTitle>
               <PlayerList>
                 {currentRoom.players.map(player => (
@@ -310,7 +310,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                     </PlayerName>
                     <PlayerRating>Rating: {player.rating}</PlayerRating>
                     <PlayerStatus $ready={player.isReady}>
-                      {player.isReady ? '✓ 준비완료' : '대기중'}
+                      {player.isReady ? `✓ ${t('lobby.readyOn')}` : t('lobby.readyWait')}
                     </PlayerStatus>
                   </PlayerCard>
                 ))}
@@ -319,7 +319,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
             {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
               <Section>
-                <SectionTitle>AI 추가</SectionTitle>
+                <SectionTitle>{t('lobby.addAI')}</SectionTitle>
                 <AIButtons>
                   <AIButton onClick={() => handleAddAI('easy')}>Easy AI</AIButton>
                   <AIButton onClick={() => handleAddAI('normal')}>Normal AI</AIButton>
@@ -334,7 +334,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   onClick={handleToggleReady}
                   $ready={currentPlayer?.isReady || false}
                 >
-                  {currentPlayer?.isReady ? '준비 취소' : '준비'}
+                  {currentPlayer?.isReady ? t('lobby.btnReadyCancel') : t('lobby.btnReady')}
                 </ReadyButton>
               )}
 
@@ -343,7 +343,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   onClick={handleStartGame}
                   disabled={!allReady || currentRoom.players.length < 2}
                 >
-                  게임 시작
+                  {t('lobby.btnStart')}
                 </StartButton>
               )}
             </ButtonRow>
@@ -354,14 +354,14 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         {leaveConfirmOpen && (
           <ConfirmOverlay onClick={() => setLeaveConfirmOpen(false)}>
             <ConfirmContainer onClick={e => e.stopPropagation()}>
-              <ConfirmTitle>방 나가기</ConfirmTitle>
+              <ConfirmTitle>{t('lobby.confirmLeaveTitle')}</ConfirmTitle>
               <ConfirmText>
-                정말로 방을 나가시겠습니까?<br />
-                {isHost && '방장이 나가면 다른 플레이어에게 자동으로 호스트가 이전됩니다.'}
+                {t('lobby.confirmLeaveMsg')}<br />
+                {isHost && t('lobby.confirmLeaveHostMsg')}
               </ConfirmText>
               <ConfirmButtons>
-                <CancelButton onClick={() => setLeaveConfirmOpen(false)}>취소</CancelButton>
-                <ConfirmLeaveButton onClick={handleLeaveRoomConfirmed}>나가기</ConfirmLeaveButton>
+                <CancelButton onClick={() => setLeaveConfirmOpen(false)}>{t('lobby.btnCancel')}</CancelButton>
+                <ConfirmLeaveButton onClick={handleLeaveRoomConfirmed}>{t('lobby.btnLeave')}</ConfirmLeaveButton>
               </ConfirmButtons>
             </ConfirmContainer>
           </ConfirmOverlay>
@@ -708,17 +708,22 @@ interface RejoinPromptProps {
 }
 
 const RejoinPrompt: React.FC<RejoinPromptProps> = ({ roomName, onRejoin, onAbandon }) => {
+  const { t } = useTranslation();
   return (
     <PromptOverlay>
       <PromptContainer>
-        <PromptTitle>진행 중인 게임 발견</PromptTitle>
+        <PromptTitle>{t('lobby.rejoinTitle')}</PromptTitle>
         <PromptText>
-          '{roomName}' 방에 참여 중인 기록이 있습니다.<br />
-          이어서 플레이하시겠습니까?
+          {t('lobby.rejoinMsg', { name: roomName }).split('\n').map((line, i) => (
+            <span key={i}>
+              {line}
+              {i === 0 && <br />}
+            </span>
+          ))}
         </PromptText>
         <PromptButtonRow>
-          <AbandonButton onClick={onAbandon}>아니오 (방 나가기)</AbandonButton>
-          <RejoinButton onClick={onRejoin}>예 (다시 참가)</RejoinButton>
+          <AbandonButton onClick={onAbandon}>{t('lobby.rejoinNo')}</AbandonButton>
+          <RejoinButton onClick={onRejoin}>{t('lobby.rejoinYes')}</RejoinButton>
         </PromptButtonRow>
       </PromptContainer>
     </PromptOverlay>

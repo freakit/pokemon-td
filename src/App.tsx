@@ -27,6 +27,7 @@ import { MultiplayerLobby } from "./components/Multiplayer/MultiplayerLobby";
 import { MapSelector } from "./components/UI/MapSelector";
 import { GameLayout } from "./components/GameLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { FloatingSettings } from "./components/UI/FloatingSettings";
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
 
@@ -211,6 +212,7 @@ function App() {
   }
 
   return (
+    <>
     <Routes>
       <Route path="/login" element={<LoginScreen />} />
 
@@ -249,6 +251,8 @@ function App() {
 
       <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
     </Routes>
+    <FloatingSettings />
+    </>
   );
 }
 

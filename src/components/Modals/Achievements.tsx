@@ -11,6 +11,56 @@ import {
 import { databaseService, APRankingEntry } from '../../services/DatabaseService';
 import { saveService } from '../../services/SaveService';
 import { Achievement, AchievementTier, TIER_POINTS } from '../../types/game';
+import { useTranslation } from '../../i18n';
+
+// ─── 번역 헬퍼 ───────────────────────────────────────────────────────────────
+const GEN_NAMES: Record<number, string> = {
+  1:'관동', 2:'성도', 3:'호연', 4:'신오', 5:'하나', 6:'칼로스', 7:'알로라', 8:'가라르', 9:'팔데아',
+};
+
+function getAchName(ach: AchievementWithCategory, t: (k: string, p?: Record<string, string | number>) => string): string {
+  const direct = t(`achData.${ach.id}.name`);
+  if (direct !== `achData.${ach.id}.name`) return direct;
+
+  const id = ach.id;
+  if (id.startsWith('syn_type_')) {
+    const parts = id.split('_'); // ['syn','type',typeKey,count]
+    const typeKey = parts[2];
+    const count = parts[3];
+    const typeName = t(`types.${typeKey}`);
+    return t(`achData.pat_type_${count}.name`, { typeName });
+  }
+  if (id.startsWith('syn_gen_')) {
+    const parts = id.split('_'); // ['syn','gen',genNum,count]
+    const genNum = Number(parts[2]);
+    const count = parts[3];
+    const genName = `${genNum}세대(${GEN_NAMES[genNum] ?? ''})`.trim();
+    return t(`achData.pat_gen_${count}.name`, { genName, genNum });
+  }
+  return ach.name;
+}
+
+function getAchDesc(ach: AchievementWithCategory, t: (k: string, p?: Record<string, string | number>) => string): string {
+  const direct = t(`achData.${ach.id}.description`);
+  if (direct !== `achData.${ach.id}.description`) return direct;
+
+  const id = ach.id;
+  if (id.startsWith('syn_type_')) {
+    const parts = id.split('_');
+    const typeKey = parts[2];
+    const count = parts[3];
+    const typeName = t(`types.${typeKey}`);
+    return t(`achData.pat_type_${count}.description`, { typeName });
+  }
+  if (id.startsWith('syn_gen_')) {
+    const parts = id.split('_');
+    const genNum = Number(parts[2]);
+    const count = parts[3];
+    const genName = `${genNum}세대(${GEN_NAMES[genNum] ?? ''})`.trim();
+    return t(`achData.pat_gen_${count}.description`, { genName, genNum });
+  }
+  return ach.description;
+}
 
 type TabKey = 'all' | AchievementCategory;
 type SubTab = 'achievements' | 'ranking';
@@ -19,6 +69,7 @@ const TIER_ORDER: AchievementTier[] = ['legendary', 'diamond', 'gold', 'silver',
 
 // ─── 메인 패널 ───────────────────────────────────────────────────────────────
 export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { t } = useTranslation();
   const [subTab, setSubTab] = useState<SubTab>('achievements');
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [showHidden, setShowHidden] = useState(false);
@@ -106,12 +157,12 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
         <ModalHeader>
           <HeaderTop>
             <TitleArea>
-              <ModalTitle>🏆 업적</ModalTitle>
-              <APBadge>⚡ {myAP.toLocaleString()} AP</APBadge>
+              <ModalTitle>{t('achievementsPanel.title')}</ModalTitle>
+              <APBadge>{t('achievementsPanel.apBadge', { ap: myAP.toLocaleString() })}</APBadge>
             </TitleArea>
             <HeaderActions>
               <HiddenToggle onClick={() => setShowHidden(v => !v)}>
-                {showHidden ? '🙈 히든 숨기기' : '👁 히든 보기'}
+                {showHidden ? t('achievementsPanel.hideHidden') : t('achievementsPanel.showHidden')}
               </HiddenToggle>
               <CloseBtn onClick={onClose}>✕</CloseBtn>
             </HeaderActions>
@@ -120,8 +171,8 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
           {/* 전체 진행 바 */}
           <ProgressArea>
             <ProgressStats>
-              <span>{unlockedCount} / {totalCount} 달성</span>
-              <span>총 {totalCompletions}회 달성</span>
+              <span>{t('achievementsPanel.progressStats', { unlocked: unlockedCount, total: totalCount })}</span>
+              <span>{t('achievementsPanel.progressTotalCompletions', { count: totalCompletions })}</span>
               <span>{pct}%</span>
             </ProgressStats>
             <ProgressBarOuter>
@@ -132,10 +183,10 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
           {/* 서브탭 (업적 / 랭킹) */}
           <SubTabRow>
             <SubTabBtn $active={subTab === 'achievements'} onClick={() => setSubTab('achievements')}>
-              🎯 업적
+              {t('achievementsPanel.tabAchievements')}
             </SubTabBtn>
             <SubTabBtn $active={subTab === 'ranking'} onClick={() => setSubTab('ranking')}>
-              🏅 AP 랭킹 {myRank !== null && <RankBadge>#{myRank}</RankBadge>}
+              {t('achievementsPanel.tabRanking')} {myRank !== null && <RankBadge>{t('achievementsPanel.myRankBadge', { rank: myRank })}</RankBadge>}
             </SubTabBtn>
           </SubTabRow>
         </ModalHeader>
@@ -146,7 +197,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
             {/* 카테고리 탭 */}
             <CategoryTabRow>
               <CatTab $active={activeTab === 'all'} onClick={() => setActiveTab('all')}>
-                📋 전체 <TabBadge>{unlockedCount}/{totalCount}</TabBadge>
+                {t('achievementsPanel.catAll')} <TabBadge>{unlockedCount}/{totalCount}</TabBadge>
               </CatTab>
               {(Object.keys(ACHIEVEMENT_CATEGORIES) as AchievementCategory[]).map(cat => {
                 const { done, total } = categoryStats(cat);
@@ -162,9 +213,9 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
             {/* 업적 목록 */}
             <AchievementScroll>
               {loading ? (
-                <LoadingMsg>불러오는 중...</LoadingMsg>
+                <LoadingMsg>{t('achievementsPanel.loading')}</LoadingMsg>
               ) : groupedByTier.length === 0 ? (
-                <EmptyMsg>표시할 업적이 없습니다.</EmptyMsg>
+                <EmptyMsg>{t('achievementsPanel.empty')}</EmptyMsg>
               ) : (
                 groupedByTier.map(({ tier, achs }) => {
                   const meta = TIER_META[tier];
@@ -172,7 +223,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                     <TierSection key={tier}>
                       <TierHeader $color={meta.color}>
                         <TierLabel>{meta.label}</TierLabel>
-                        <TierPts>{TIER_POINTS[tier as AchievementTier]}AP / 달성</TierPts>
+                        <TierPts>{t('achievementsPanel.apPerCompletion', { pts: TIER_POINTS[tier as AchievementTier] })}</TierPts>
                       </TierHeader>
                       <TierGrid>
                         {achs.map(ach => {
@@ -197,7 +248,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                               <CardBody>
                                 <CardNameRow>
                                   <CardName $unlocked={isUnlocked} $color={meta.color}>
-                                    {ach.hidden && !isUnlocked ? '???' : ach.name}
+                                    {ach.hidden && !isUnlocked ? '???' : getAchName(ach, t)}
                                   </CardName>
                                   {isUnlocked && completions > 1 && (
                                     <CompletionBadge $color={meta.color}>×{completions}</CompletionBadge>
@@ -205,7 +256,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                                   {isUnlocked && <UnlockedMark $color={meta.color}>✓</UnlockedMark>}
                                 </CardNameRow>
                                 <CardDesc>
-                                  {ach.hidden && !isUnlocked ? '숨겨진 업적입니다.' : ach.description}
+                                  {ach.hidden && !isUnlocked ? t('achievementsPanel.hiddenDesc') : getAchDesc(ach, t)}
                                 </CardDesc>
                                 <CardBottom>
                                   {!isUnlocked ? (
@@ -219,7 +270,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                                     </>
                                   ) : (
                                     <APEarned $color={meta.color}>
-                                      ⚡ {totalPoints.toLocaleString()} AP 획득
+                                      {t('achievementsPanel.apEarned', { pts: totalPoints.toLocaleString() })}
                                     </APEarned>
                                   )}
                                 </CardBottom>
@@ -240,16 +291,16 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
         {subTab === 'ranking' && (
           <RankingScroll>
             {rankLoading ? (
-              <LoadingMsg>랭킹 불러오는 중...</LoadingMsg>
+              <LoadingMsg>{t('achievementsPanel.rankingLoading')}</LoadingMsg>
             ) : ranking.length === 0 ? (
-              <EmptyMsg>랭킹 데이터가 없습니다.</EmptyMsg>
+              <EmptyMsg>{t('achievementsPanel.rankingEmpty')}</EmptyMsg>
             ) : (
               <>
                 <RankingHeader>
-                  <span>순위</span>
-                  <span>트레이너</span>
-                  <span>달성 횟수</span>
-                  <span>AP</span>
+                  <span>{t('achievementsPanel.rankingColRank')}</span>
+                  <span>{t('achievementsPanel.rankingColTrainer')}</span>
+                  <span>{t('achievementsPanel.rankingColCount')}</span>
+                  <span>{t('achievementsPanel.rankingColAP')}</span>
                 </RankingHeader>
                 {ranking.map((entry, idx) => {
                   const rank = idx + 1;
@@ -259,10 +310,10 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                     <RankRow key={entry.userId} $isMe={isMe} $rank={rank}>
                       <RankNum $rank={rank}>{medal ?? `#${rank}`}</RankNum>
                       <RankName $isMe={isMe}>
-                        {entry.userName ?? '트레이너'}
-                        {isMe && <MeTag>나</MeTag>}
+                        {entry.userName ?? t('achievementsPanel.rankingColTrainer')}
+                        {isMe && <MeTag>{t('achievementsPanel.rankingMe')}</MeTag>}
                       </RankName>
-                      <RankStat>{entry.achievementCount.toLocaleString()}회</RankStat>
+                      <RankStat>{t('achievementsPanel.rankingCountSuffix', { count: entry.achievementCount.toLocaleString() })}</RankStat>
                       <RankAP>⚡ {entry.totalAP.toLocaleString()}</RankAP>
                     </RankRow>
                   );

@@ -1,6 +1,7 @@
 // src/components/Multiplayer/MultiplayerGameOverModal.tsx
 import styled from 'styled-components';
 import { PlayerGameState } from '../../types/multiplayer';
+import { useTranslation } from '../../i18n';
 
 interface MultiplayerGameOverModalProps {
   players: PlayerGameState[];
@@ -8,11 +9,12 @@ interface MultiplayerGameOverModalProps {
   onClose: () => void;
 }
 
-export const MultiplayerGameOverModal = ({ 
-  players, 
-  myUserId, 
-  onClose 
+export const MultiplayerGameOverModal = ({
+  players,
+  myUserId,
+  onClose
 }: MultiplayerGameOverModalProps) => {
+  const { t } = useTranslation();
   // 플레이어를 순위별로 정렬
   const sortedPlayers = [...players].sort((a, b) => {
     // 생존자가 먼저
@@ -33,20 +35,20 @@ export const MultiplayerGameOverModal = ({
     <Overlay>
       <Modal>
         <Header>
-          <Title>게임 종료!</Title>
+          <Title>{t('multiGameOver.title')}</Title>
           <MyPlacement placement={myPlacement}>
             {myPlacement === 1 ? '🏆' : myPlacement === 2 ? '🥈' : myPlacement === 3 ? '🥉' : '📊'} 
-            {myPlacement}등
+            {t('multiGameOver.placement', { rank: myPlacement })}
           </MyPlacement>
         </Header>
 
         <ResultsTable>
           <TableHeader>
-            <HeaderCell>순위</HeaderCell>
-            <HeaderCell>플레이어</HeaderCell>
-            <HeaderCell>웨이브</HeaderCell>
-            <HeaderCell>레이팅</HeaderCell>
-            <HeaderCell>변화</HeaderCell>
+            <HeaderCell>{t('multiGameOver.colRank')}</HeaderCell>
+            <HeaderCell>{t('multiGameOver.colPlayer')}</HeaderCell>
+            <HeaderCell>{t('multiGameOver.colWave')}</HeaderCell>
+            <HeaderCell>{t('multiGameOver.colRating')}</HeaderCell>
+            <HeaderCell>{t('multiGameOver.colChange')}</HeaderCell>
           </TableHeader>
 
           {sortedPlayers.map((player, index) => {
@@ -58,14 +60,14 @@ export const MultiplayerGameOverModal = ({
               <PlayerRow key={player.userId} isMe={isMe}>
                 <Cell>
                   <Rank placement={placement}>
-                    {placement === 1 ? '🏆' : placement === 2 ? '🥈' : placement === 3 ? '🥉' : `${placement}위`}
+                  {placement === 1 ? '🏆' : placement === 2 ? '🥈' : placement === 3 ? '🥉' : t('multiGameOver.rankSuffix', { rank: placement })}
                   </Rank>
                 </Cell>
                 <Cell>
                   <PlayerName>{player.userName}</PlayerName>
                 </Cell>
                 <Cell>
-                  <Wave>{player.wave} 웨이브</Wave>
+                  <Wave>{t('multiGameOver.waveLabel', { wave: player.wave })}</Wave>
                 </Cell>
                 <Cell>
                   <Rating>{player.rating}</Rating>
@@ -82,22 +84,22 @@ export const MultiplayerGameOverModal = ({
 
         {myPlayer && (
           <Summary>
-            <SummaryTitle>내 전적</SummaryTitle>
+            <SummaryTitle>{t('multiGameOver.myStats')}</SummaryTitle>
             <SummaryStats>
               <SummaryStat>
-                <StatLabel>최종 웨이브</StatLabel>
+                <StatLabel>{t('multiGameOver.finalWave')}</StatLabel>
                 <StatValue>{myPlayer.wave}</StatValue>
               </SummaryStat>
               <SummaryStat>
-                <StatLabel>남은 라이프</StatLabel>
+                <StatLabel>{t('multiGameOver.livesLeft')}</StatLabel>
                 <StatValue>{myPlayer.lives}</StatValue>
               </SummaryStat>
               <SummaryStat>
-                <StatLabel>배치 타워</StatLabel>
+                <StatLabel>{t('multiGameOver.towersPlaced')}</StatLabel>
                 <StatValue>{myPlayer.towers}</StatValue>
               </SummaryStat>
               <SummaryStat>
-                <StatLabel>남은 골드</StatLabel>
+                <StatLabel>{t('multiGameOver.goldLeft')}</StatLabel>
                 <StatValue>{myPlayer.money}</StatValue>
               </SummaryStat>
             </SummaryStats>
@@ -106,7 +108,7 @@ export const MultiplayerGameOverModal = ({
 
         <ButtonRow>
           <BackButton onClick={onClose}>
-            메인 메뉴로
+            {t('multiGameOver.backToMenu')}
           </BackButton>
         </ButtonRow>
       </Modal>

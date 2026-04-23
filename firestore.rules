@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── 유저 프로필 ─────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ─── 전당등록 ────────────────────────────────────────
+    match /hallOfFame/{entry} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+      // 본인 기록만 수정 가능 (악용 방지)
+      allow update, delete: if request.auth != null
+                            && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── 리더보드 ────────────────────────────────────────
+    match /leaderboards/{entry} {
+      allow read: if request.auth != null;
+      // 문서 ID 형식: ${userId}_${mapId}
+      // 본인 ID로 시작하는 문서만 쓰기 가능
+      allow create, update: if request.auth != null
+                            && request.resource.data.userId == request.auth.uid
+                            && entry.matches(request.auth.uid + '_.*');
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── 업적 ────────────────────────────────────────────
+    match /achievements/{docId} {
+      allow read: if request.auth != null
+                  && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && docId.matches(request.auth.uid + '_.*');
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // ─── AP 랭킹 ────────────────────────────────────────
+    match /apRankings/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ─── 그 외 모든 경로 차단 ────────────────────────────
+    // (rooms는 RTDB에 있으므로 Firestore에는 더 이상 정의하지 않음)
+    // (pokedex는 사용처가 없으므로 제거됨)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

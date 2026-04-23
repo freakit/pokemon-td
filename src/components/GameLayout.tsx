@@ -30,7 +30,6 @@ import { PokemonManager } from "./UI/PokemonManager";
 import { Shop } from "./UI/Shop";
 
 import { AchievementsPanel } from "./Modals/Achievements";
-import { Settings } from "./Modals/Settings";
 import { HallOfFame } from "./Modals/HallOfFame";
 import { Rankings } from "./Modals/Rankings";
 import { useGameStore } from "../store/gameStore";
@@ -45,7 +44,7 @@ import { Wave50ClearModal } from './Modals/Wave50ClearModal';
 import { EvolutionConfirmModal } from './Modals/EvolutionConfirmModal';
 import { SynergyTracker } from './UI/SynergyTracker';
 import { SynergyDetails } from './UI/SynergyDetails';
-import GlobalLanguageSwitcher from './UI/GlobalLanguageSwitcher';
+
 import { authService } from '../services/AuthService';
 import { PlayerGameState, TowerDetail } from '../types/multiplayer';
 import { aiPlayerManager } from '../services/AIPlayer';
@@ -60,7 +59,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [showPokemonManager, setShowPokemonManager] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
   const [showMultiView, setShowMultiView] = useState(false);
@@ -240,7 +238,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   }));
 
   const handleOpenPicker = () => {
-    if (!spendMoney(20)) { alert(t('alerts.notEnoughMoneyPicker')); return; }
+    if (!spendMoney(20)) { alert(t('gameLayout.notEnoughMoneyPicker')); return; }
     setShowPicker(true);
   };
   const handleStartWave = () => {
@@ -496,10 +494,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <MultiLoadingOverlay>
           <MultiLoadingBox>
             <LoadingSpinner />
-            <LoadingTitle>🎮 게임 준비 중...</LoadingTitle>
+            <LoadingTitle>{t('gameLayout.loadingTitle')}</LoadingTitle>
             <LoadingDesc>
-              모든 플레이어의 리소스 로딩이 완료될 때까지 기다려주세요.<br/>
-              완료되면 동시에 1분 타이머가 시작됩니다.
+              {t('gameLayout.loadingDesc1')}<br/>
+              {t('gameLayout.loadingDesc2')}
             </LoadingDesc>
             <LoadingDots><span /><span /><span /></LoadingDots>
           </MultiLoadingBox>
@@ -507,7 +505,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
 
       <GameLayoutContainer>
-        {isWaveActive && <GlobalLanguageSwitcher />}
         <CanvasContainer><GameCanvas /></CanvasContainer>
         {multiRoomId && <BattlePhaseUI roomId={multiRoomId} />}
         <BottomPanel>
@@ -517,12 +514,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             onManagePokemon={() => setShowPokemonManager(true)}
           />
           <ExtraButtons>
-            <BottomBtn onClick={() => setShowAchievements(true)}>{t('nav.achievements')}</BottomBtn>
-            <BottomBtn onClick={() => setShowHallOfFame(true)}>전당등록</BottomBtn>
-            <BottomBtn onClick={() => setShowRankings(true)}>랭킹</BottomBtn>
-            <BottomBtn onClick={() => setShowSettings(true)}>{t('nav.settings')}</BottomBtn>
-            {multiRoomId && <BottomBtn onClick={() => setShowMultiView(true)}>👥 멀티뷰</BottomBtn>}
-            <BottomBtn onClick={handleResetAndLeave}>🏠 메인메뉴</BottomBtn>
+            <BottomBtn onClick={() => setShowAchievements(true)}>{t('gameLayout.navAchievements')}</BottomBtn>
+            <BottomBtn onClick={() => setShowHallOfFame(true)}>{t('gameLayout.navHallOfFame')}</BottomBtn>
+            <BottomBtn onClick={() => setShowRankings(true)}>{t('gameLayout.navRankings')}</BottomBtn>
+            {multiRoomId && <BottomBtn onClick={() => setShowMultiView(true)}>{t('gameLayout.navMultiView')}</BottomBtn>}
+            <BottomBtn onClick={handleResetAndLeave}>{t('gameLayout.navMainMenu')}</BottomBtn>
           </ExtraButtons>
         </BottomPanel>
         <Shop />
@@ -531,7 +527,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       {showPicker && <PokemonPicker onClose={() => setShowPicker(false)} />}
       {showPokemonManager && <PokemonManager onClose={() => setShowPokemonManager(false)} />}
       {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
-      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
       {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
       {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
       {showMultiView && multiRoomId && <MultiplayerView roomId={multiRoomId} onClose={() => setShowMultiView(false)} />}
@@ -558,9 +553,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       {gameOver && !isMultiplayer && (
         <GameOverOverlay>
           <GameOverModal>
-            <GameOverTitle>{t('game.gameOver')}</GameOverTitle>
-            <p>{t('game.waveReached', { wave: useGameStore.getState().wave })}</p>
-            <RestartBtn onClick={handleResetAndLeave}>{t('game.restart')}</RestartBtn>
+            <GameOverTitle>{t('gameLayout.gameOverTitle')}</GameOverTitle>
+            <p>{t('gameLayout.waveReached', { wave: useGameStore.getState().wave })}</p>
+            <RestartBtn onClick={handleResetAndLeave}>{t('gameLayout.restartBtn')}</RestartBtn>
           </GameOverModal>
         </GameOverOverlay>
       )}
@@ -571,15 +566,15 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <BattleResultToast $won={battleResultToast.won}>
           <ToastIcon>{battleResultToast.won ? '🏆' : '💔'}</ToastIcon>
           <ToastBody>
-            <ToastTitle>{battleResultToast.won ? '배틀 승리!' : '배틀 패배'}</ToastTitle>
+            <ToastTitle>{battleResultToast.won ? t('gameLayout.toastWin') : t('gameLayout.toastLose')}</ToastTitle>
             <ToastDetails>
               {battleResultToast.won ? (
-                <ToastLine $positive>+{battleResultToast.goldDelta}G 획득</ToastLine>
+                <ToastLine $positive>{t('gameLayout.toastGoldEarned', { gold: battleResultToast.goldDelta })}</ToastLine>
               ) : (
                 <>
-                  <ToastLine $positive={false}>❤️ {battleResultToast.livesDelta} 라이프</ToastLine>
+                  <ToastLine $positive={false}>{t('gameLayout.toastLivesLost', { lives: battleResultToast.livesDelta })}</ToastLine>
                   {battleResultToast.goldDelta > 0 && (
-                    <ToastLine $positive>+{battleResultToast.goldDelta}G 위로금</ToastLine>
+                    <ToastLine $positive>{t('gameLayout.toastConsolation', { gold: battleResultToast.goldDelta })}</ToastLine>
                   )}
                 </>
               )}
@@ -604,6 +599,7 @@ const GameOverTitle = styled.h2`font-size:32px;color:#ff6464;margin-bottom:16px;
 const RestartBtn = styled.button`margin-top:20px;padding:12px 32px;font-size:16px;cursor:pointer;border-radius:12px;border:2px solid rgba(76,175,255,0.5);background:rgba(76,175,255,0.2);color:#4cafff;font-weight:bold;transition:all 0.3s ease;&:hover{background:rgba(76,175,255,0.35);transform:translateY(-2px);}`;
 
 const AchievementToastDisplay: React.FC = () => {
+  const { t } = useTranslation();
   const achievementToast = useGameStore(s => s.achievementToast);
   if (!achievementToast) return null;
   const ap = achievementToast.earnedAP ?? 3;
@@ -614,7 +610,7 @@ const AchievementToastDisplay: React.FC = () => {
       <AchToastLeft><AchToastTrophyIcon>🏆</AchToastTrophyIcon></AchToastLeft>
       <AchToastContent>
         <AchToastTopRow>
-          <AchToastLabel $color={tierColor}>업적 달성{achievementToast.isFirstTime ? ' (첫 달성!)' : ''}</AchToastLabel>
+          <AchToastLabel $color={tierColor}>{t('gameLayout.achUnlocked')}{achievementToast.isFirstTime ? t('gameLayout.achFirstTime') : ''}</AchToastLabel>
           <AchToastTier $color={tierColor}>{tierLabel}</AchToastTier>
         </AchToastTopRow>
         <AchToastName $color={tierColor}>{achievementToast.name}</AchToastName>
