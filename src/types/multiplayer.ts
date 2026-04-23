@@ -133,6 +133,7 @@ export interface MultiplayerGameState {
   battleResults: PvPBattleResult[];
   phaseEndTime?: number | null;
   loadingReady?: Record<string, boolean>;
+  battleStartTime?: number | null;  // [V8] TFT Arena fighting 시작 서버 시각 (양측 동기화용)
 }
 
 export interface TowerDetail {

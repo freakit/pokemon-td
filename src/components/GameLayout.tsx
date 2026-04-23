@@ -1,24 +1,26 @@
 // src/components/GameLayout.tsx
 // ──────────────────────────────────────────────────────────────────
-// V5 — 멀티플레이어 동기화 재설계
+// V6 — 로컀 권위 스테이트 관리 + 서버 보상 델타 시스템
 //
-// [V5-FIX-GL-1] 로컬 addMoney/addLives 제거 — 서버 권위로 전환
-//   - 배틀 보상, Bye 보너스는 서버 트랜잭션이 이미 반영
-//   - 로컬 gameStore.money/lives는 Firebase 플레이어 상태와 동기화
+// [V6-FIX-GL-1] 로컀이 money/lives 포함 주담 — Firebase는 보상 델타만 성성
+//   - 배틀 보상, Bye 보너스는 Firebase battleResults.rewardP1/P2 필드로 전달
+//   - 로컀 gameStore.money/lives가 실제 값, Firebase는 입력 전용
 //
-// [V5-FIX-GL-2] updatePlayerState 호출에서 money/lives/isAlive 제외
-//   - MultiplayerService가 이제 이들 필드를 클라이언트 쓰기 거부
+// [V6-FIX-GL-2] Firebase → 로컀 던어쓰기 제거 (보상 델타 제외)
+//   - Firebase 구독이 로컀 money를 뒘어쓰는 버그 해결
+//   - 탈락 판정만 Firebase 기준으로 유지
 //
-// [V5-FIX-GL-3] 멀티 모드에서 Firebase 플레이어 상태 → 로컬 gameStore 단방향 동기화
-//   - Firebase에서 money/lives/wave 변경 시 로컬 gameStore 업데이트
-//   - 기존에 로컬→Firebase 업로드하던 코드는 wave, towers, isAlive만 유지
+// [V6-FIX-GL-3] 보상 델타 일괄 적용: battleResults에서 rewardP1/P2 필드
+//   읽어 로컀 addMoney/spendLives 직접 호출
 //
-// [V5-FIX-GL-4] 재접속 시 lastAppliedRoundRef를 currentRound로 초기화
+// [V6-FIX-GL-4] 재접속 시 lastAppliedRoundRef를 currentRound로 초기화
 //   - 이중 보상 방지
 //
-// [V5-FIX-GL-5] Bye 보너스 토스트만 표시, 실제 금액은 서버에서 반영
+// [V6-FIX-GL-5] Bye 보너스 토스트만 표시, 실제 금액은 서버에서 반영
 //
-// [V5-FIX-GL-6] 탈락 판정은 Firebase의 isAlive 기준 — 로컬 lives만 보고 playerDefeated 호출 X
+// [V6-FIX-GL-6] 탈락 판정은 Firebase의 isAlive 기준 — 로컀 lives만 보고 playerDefeated 호출 X
+//
+// [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컀 gameOver 상태 동기화 (UI에 탈락 화면 표시)
 
 import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes } from "styled-components";
@@ -189,15 +191,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               console.log(`[GameLayout] Restored ${restoredTowers.length} towers from Firebase`);
 
               // 복원된 타워를 즉시 Firebase에 재업로드
-              const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
-              const restoredDetails: TowerDetail[] = restored.towerDetails.map((td: any) => scrub({
-                pokemonId: td.pokemonId, name: td.name, level: td.level, sprite: td.sprite,
-                position: td.position, currentHp: td.currentHp, maxHp: td.maxHp,
-                isFainted: td.isFainted, attack: td.attack, defense: td.defense,
-                specialAttack: td.specialAttack, specialDefense: td.specialDefense,
-                speed: td.speed, types: td.types, equippedMoves: td.equippedMoves ?? [],
-                lifesteal: td.lifesteal ?? 0, aoeBonus: td.aoeBonus ?? 0,
-              }));
+              const restoredDetails = buildTowerDetails(restored.towerDetails);
               await multiplayerService.flushTowerUpdate(multiRoomId, user.uid, restoredDetails);
               console.log(`[GameLayout] Re-uploaded ${restoredDetails.length} towers after rejoin`);
             }
@@ -275,20 +269,23 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return unsubscribe;
   }, [multiRoomId, user]);
 
-  // [V6-FIX-GL-2] Firebase → 로컬 동기화 제거
-  //   이전 버전에서 Firebase 구독이 로컬 money를 덮어써서 구매 직후 500원으로 돌아오는 버그 발생.
-  //   현재는 로컬이 주인이므로 Firebase → 로컬 덮어쓰기는 하지 않음.
+  // [V6-FIX-GL-2] Firebase → 로컀 던어쓰기 제거
+  //   이전 버전에서 Firebase 구독이 로컀 money를 던어쓰서 구매 직후 500원으로 돌아오는 버그 발생.
+  //   현재는 로컀이 주인이므로 Firebase → 로컀 던어쓰기는 하지 않음.
   //   탈락 판정만 Firebase 기준으로 유지.
   useEffect(() => {
     if (!multiRoomId || !user) return;
     const unsubscribe = multiplayerService.onGameStateUpdate(multiRoomId, (players) => {
       const me = players.find(p => p.userId === user.uid);
       if (!me) return;
-      // 다른 플레이어의 isAlive가 false로 바뀌었을 때 나 자신이 탈락 판정된 경우만 반영
-      // (서버 트랜잭션이 탈락 시 isAlive=false 설정 가능성 대비)
+      // [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컀 gameOver 상태 동기화
+      //   defeatedRef만 업데이트하면 UI에 탈락 화면이 표시되지 않아
+      //   gameStore.gameOver를 true로 설정해 게임오버 UI 표시
       if (!me.isAlive && !defeatedRef.current) {
         defeatedRef.current = true;
-        console.log('[GameLayout] Player defeated (from Firebase)');
+        console.log('[GameLayout] Player defeated (from Firebase isAlive=false)');
+        // [V8-FIX-1-3] 로컀 gameStore를 통해 스키트에 탈락 화면 표시
+        useGameStore.setState({ gameOver: true });
       }
     });
     return unsubscribe;
@@ -298,15 +295,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   useEffect(() => {
     if (!multiRoomId || !user || !syncReadyRef.current) return;
     if (towers.length === 0) return;
-    const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
-    const towerDetails: TowerDetail[] = towers.map(t => scrub({
-      pokemonId: t.pokemonId, name: t.displayName, level: t.level, sprite: t.sprite,
-      position: t.position, currentHp: t.currentHp, maxHp: t.maxHp,
-      isFainted: t.isFainted, attack: t.attack, defense: t.defense,
-      specialAttack: t.specialAttack, specialDefense: t.specialDefense,
-      speed: t.speed, types: t.types,
-      equippedMoves: t.equippedMoves, lifesteal: t.lifesteal, aoeBonus: t.aoeBonus,
-    }));
+    const towerDetails = buildTowerDetails(towers);
     multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
   }, [multiRoomId, user, towers]);
 
@@ -333,16 +322,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       if (defeatedRef.current) return;
       if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
         console.log('[GameLayout] Wave completed, flushing tower data');
-        const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
         const currentTowers = useGameStore.getState().towers;
-        const towerDetails: TowerDetail[] = currentTowers.map(t => scrub({
-          pokemonId: t.pokemonId, name: t.displayName, level: t.level, sprite: t.sprite,
-          position: t.position, currentHp: t.currentHp, maxHp: t.maxHp,
-          isFainted: t.isFainted, attack: t.attack, defense: t.defense,
-          specialAttack: t.specialAttack, specialDefense: t.specialDefense,
-          speed: t.speed, types: t.types,
-          equippedMoves: t.equippedMoves, lifesteal: t.lifesteal, aoeBonus: t.aoeBonus,
-        }));
+        const towerDetails = buildTowerDetails(currentTowers);
         multiplayerService.flushTowerUpdate(multiRoomId, user.uid, towerDetails)
           .then(() => multiplayerService.markWaveCompleted(multiRoomId, user.uid))
           .catch(err => {
@@ -584,6 +565,19 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
     </AppContainer>
   );
+};
+
+// ─── Helpers ──────────────────────────────────────────────────
+const buildTowerDetails = (towers: any[]): TowerDetail[] => {
+  const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
+  return towers.map(t => scrub({
+    pokemonId: t.pokemonId, name: t.displayName || t.name, level: t.level, sprite: t.sprite,
+    position: t.position, currentHp: t.currentHp, maxHp: t.maxHp,
+    isFainted: !!t.isFainted, attack: t.attack, defense: t.defense,
+    specialAttack: t.specialAttack, specialDefense: t.specialDefense,
+    speed: t.speed, types: t.types,
+    equippedMoves: t.equippedMoves, lifesteal: t.lifesteal, aoeBonus: t.aoeBonus,
+  }));
 };
 
 // ─── Styled Components (원본 유지) ────────────────────────────────

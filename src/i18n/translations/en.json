@@ -115,7 +115,7 @@
     "targetItem": "Click an ally to use the {name}.",
     "fainted": "Fainted",
     "cost": "{cost}G",
-    "costLevelChange": "{cost}G (Lv.{from}→{to})",
+    "costLevelChange": "{cost}G (Lv.{from} → {to})",
     "canEvolve": "Can Evolve!",
     "cancelRefund": "Cancel (Refund)",
     "title": "Shop",
@@ -146,7 +146,7 @@
     "categoryOthers": "Other Items",
     "categorySpecial": "Special Items",
     "itemCost": "{cost}G",
-    "badgeUsableNow": "✨ Usable Now!"
+    "badgeUsableNow": " Usable Now!"
   },
   "skillPicker": {
     "levelUpName": "{name} Leveled Up!",
@@ -178,7 +178,8 @@
     "megaStoneName": "{name}'s Mega Stone",
     "megaStoneDesc": "Mega Evolves {name}",
     "gigaMushroomName": "{name}'s Max Mushroom",
-    "gigaMushroomDesc": "Gigantamaxes {name}"
+    "gigaMushroomDesc": "Gigantamaxes {name}",
+    "evolveTargetNotFound": "No eligible target found for this item!"
   },
   "waveClear": {
     "title": "Congratulations!",
@@ -202,11 +203,11 @@
   "achievements": {
     "title": "Achievements",
     "loading": "Loading achievements...",
-    "unlocked": "Unlocked! 🏆",
+    "unlocked": "Unlocked! ",
     "progress": "Progress: {progress}/{target}"
   },
   "achievement": {
-    "unlocked": "Achievement Unlocked: {name} 🏆"
+    "unlocked": "Achievement Unlocked: {name} "
   },
   "settings": {
     "title": "Settings",
@@ -215,7 +216,8 @@
     "showDamage": "Show Damage Numbers",
     "showGrid": "Show Grid",
     "resetData": "Reset Data",
-    "language": "Language (언어)"
+    "language": "Language (언어)",
+    "gameSpeed": "Game Speed"
   },
   "game": {
     "gameOver": "GAME OVER",
@@ -243,6 +245,23 @@
     "genDesc6": "(6) Stats 1.3x",
     "genDesc4": "(4) Stats 1.2x",
     "genDesc2": "(2) Stats 1.1x"
+  },
+  "status": {
+    "burn": "Burn",
+    "paralysis": "Paralysis",
+    "poison": "Poison",
+    "sleep": "Sleep",
+    "freeze": "Freeze",
+    "confusion": "Confusion"
+  },
+  "arena": {
+    "readyWait": "Waiting for opponent...",
+    "loadingPokemon": "Loading Pokémon data...",
+    "prepPhase": "Prep",
+    "revealPhase": "Reveal",
+    "battlePhase": "Battle",
+    "myTeam": "My Team",
+    "opponentTeam": "Opponent Team"
   },
   "types": {
     "normal": "Normal",
@@ -400,13 +419,13 @@
   },
   "multiplayer": {
     "phase": {
-      "loading": "⏳ Loading resources...",
-      "shopping": "🛒 Shopping",
-      "waitingWave": "⏳ Next Wave: {countdown}s",
-      "waitingWaveFirst": "⏳ Starting: {countdown}s",
-      "wave": "🌊 Wave {round}",
-      "waitingBattle": "⚔️ Battle Prep: {countdown}s",
-      "battle": "🔥 Battle!"
+      "loading": " Loading resources...",
+      "shopping": " Shopping",
+      "waitingWave": " Next Wave: {countdown}s",
+      "waitingWaveFirst": " Starting: {countdown}s",
+      "wave": " Wave {round}",
+      "waitingBattle": " Battle Prep: {countdown}s",
+      "battle": " Battle!"
     }
   },
   "items": {
@@ -451,21 +470,21 @@
     "dark-scroll":          { "name": "Scroll of Darkness",   "description": "Evolves Kubfu into Urshifu (Single Strike)." }
   },
   "achievementsPanel": {
-    "title": "🏆 Achievements",
-    "apBadge": "⚡ {ap} AP",
-    "showHidden": "👁 Show Hidden",
-    "hideHidden": "🙈 Hide Hidden",
+    "title": " Achievements",
+    "apBadge": " {ap} AP",
+    "showHidden": " Show Hidden",
+    "hideHidden": " Hide Hidden",
     "progressStats": "{unlocked} / {total} Unlocked",
     "progressTotalCompletions": "Total {count} completions",
-    "tabAchievements": "🎯 Achievements",
-    "tabRanking": "🏅 AP Ranking",
+    "tabAchievements": " Achievements",
+    "tabRanking": " AP Ranking",
     "myRankBadge": "#{rank}",
-    "catAll": "📋 All",
+    "catAll": " All",
     "loading": "Loading...",
     "empty": "No achievements to display.",
     "apPerCompletion": "{pts}AP / completion",
     "hiddenDesc": "This is a hidden achievement.",
-    "apEarned": "⚡ {pts} AP earned",
+    "apEarned": " {pts} AP earned",
     "rankingLoading": "Loading ranking...",
     "rankingEmpty": "No ranking data available.",
     "rankingColRank": "Rank",
@@ -476,10 +495,10 @@
     "rankingCountSuffix": "{count}x"
   },
   "rankings": {
-    "title": "📊 Rankings",
+    "title": " Rankings",
     "mapLabel": "Map:",
-    "tabClearTime": "⏱️ Fastest Clear",
-    "tabHighestWave": "🏆 Highest Wave",
+    "tabClearTime": " Fastest Clear",
+    "tabHighestWave": " Highest Wave",
     "myRank": "My Rank: #{rank}",
     "loading": "Loading...",
     "empty": "No ranking data yet",
@@ -492,24 +511,24 @@
     "waveSuffix": "Wave {wave}"
   },
   "hallOfFame": {
-    "title": "👑 Hall of Fame",
-    "tabClear": "⏱️ Fastest Clear",
-    "tabWave": "🏔️ Highest Wave",
-    "tabMine": "👤 My Records",
+    "title": " Hall of Fame",
+    "tabClear": " Fastest Clear",
+    "tabWave": " Highest Wave",
+    "tabMine": " My Records",
     "mapAll": "All Maps",
-    "loading": "⏳ Loading...",
-    "emptyClear": "🏜️ No clear records yet.",
-    "emptyWave": "🏜️ No records yet.",
-    "emptyMine": "No clear records yet.\nClear Wave 50 to register here! 👑",
+    "loading": " Loading...",
+    "emptyClear": " No clear records yet.",
+    "emptyWave": " No records yet.",
+    "emptyMine": "No clear records yet.\nClear Wave 50 to register here! ",
     "colRank": "Rank",
     "colPlayer": "Player",
     "colMap": "Map",
-    "colClearTime": "⏱️ Clear Time",
+    "colClearTime": " Clear Time",
     "colPokemon": "Pokémon",
     "colDate": "Date",
-    "colHighestWave": "🌊 Highest Wave",
-    "colTimeClear": "⏱️ Clear Time",
-    "colRating": "⭐ Rating",
+    "colHighestWave": " Highest Wave",
+    "colTimeClear": " Clear Time",
+    "colRating": " Rating",
     "rankSuffix": "#{rank}",
     "minuteSecond": "{m}m {s}s",
     "pokemonUsed": "Pokémon Used"
@@ -536,14 +555,14 @@
     "btnReady": "Ready",
     "btnStart": "Start Game",
     "rejoinTitle": "Active Game Found",
-    "rejoinText": "You were in room '{roomName}'.\nDo you want to rejoin?",
+    "rejoinMsg": "You were in room '{name}'.\nDo you want to rejoin?",
     "rejoinYes": "Yes (Rejoin)",
     "rejoinNo": "No (Leave Room)",
-    "leaveConfirmTitle": "Leave Room",
-    "leaveConfirmText": "Are you sure you want to leave?",
-    "leaveConfirmHostNote": "Host will be transferred to another player.",
-    "leaveConfirmCancel": "Cancel",
-    "leaveConfirmOk": "Leave"
+    "confirmLeaveTitle": "Leave Room",
+    "confirmLeaveMsg": "Are you sure you want to leave?",
+    "confirmLeaveHostMsg": "Host will be transferred to another player.",
+    "btnCancel": "Cancel",
+    "btnLeave": "Leave"
   },
   "battle": {
     "roundLabel": "ROUND {round}",
@@ -551,45 +570,63 @@
     "meSuffix": "(Me)",
     "win": "WIN",
     "lose": "LOSE",
-    "winKo": "🏆 Victory!",
-    "loseKo": "💀 Defeat",
-    "fighting": "⚔️ Battle in progress...",
+    "winKo": "Victory!",
+    "loseKo": "Defeat",
+    "fighting": "Battle in progress...",
     "finished": "Battle over! Preparing next round...",
+    "opponentTowers": "Opponent Towers ({name})",
     "byeTitle": "Bye Round!",
     "byeSubtitle": "You get a bye this round due to an odd number of players.\nPrepare for the next round!",
-    "byeBonus": "💰 Bye Bonus: +50G",
+    "byeBonus": " Bye Bonus: +50G",
     "byeCountdown": "You will advance automatically when battles finish",
-    "summaryRound": "Round {round} · Battle Results",
-    "summaryTitle": "⚔️ Battle Summary",
+    "summaryRound": "Round {round}  Battle Results",
+    "summaryTitle": "Battle Summary",
     "summaryByeTurn": "Bye Round",
     "summaryByeDesc": "No battle this round",
     "summaryWin": "Victory!",
     "summaryLose": "Defeat",
     "summaryWinDetail": "Surviving Pokémon: {count}",
     "summaryLoseDetail": "Lives lost: {lost}",
-    "standingsTitle": "📊 Current Standings",
+    "standingsTitle": "Current Standings",
     "byeTurnLabel": "{name}'s bye round (no battle)",
-    "nextRound": "Next Round →",
-    "meBracket": " (Me)"
+    "nextRound": "Next Round",
+    "arenaTitle": "⚔️ TFT Battle Arena",
+    "activeSynergies": "💎 Active Synergies",
+    "noSynergies": "No active synergies",
+    "meBracket": " (Me)",
+    "myZone": "MY ZONE",
+    "opponentZone": "OPP ZONE",
+    "waitingOpponent": "Waiting for opponent...",
+    "startIn": "Battle starts in {countdown}s",
+    "winMsg": "🏆 Your team won!",
+    "loseMsg": "💀 {name} won!",
+    "opponentTowersCount": "📡 Opponent Towers ({count})",
+    "myBenchCount": "📦 My Tower Bench ({count})",
+    "placedCount": "🟢 Placed: {count}",
+    "allPlaced": "✅ All units placed",
+    "placementHint": "Click → Place on board<br />Right-click on board → Return",
+    "prepTime": "Prep Time",
+    "you": "YOU",
+    "vs": "VS"
   },
   "tutorial": {
     "dontShowAgain": "Don't show again",
     "prev": "← Prev",
     "next": "Next →",
-    "start": "Let's Go! 🚀",
+    "start": "Let's Go!",
     "tower": {
-      "label": "🏰 Single Player",
+      "label": "Single Player",
       "slide0": { "title": "Pokémon Tower Defense", "desc": "Place Pokémon to stop the incoming enemies!\nSurvive until Wave 50 before your lives run out.", "d0": "Lives: decrease by 1 each time an enemy breaks through", "d1": "Gold: earned by defeating enemies and clearing waves", "d2": "Goal: Clear all 50 waves!" },
       "slide1": { "title": "Buy & Place Pokémon", "desc": "Use the button on the bottom-right to buy Pokémon,\nthen click a green grid tile to place them.", "d0": "Entry fee 20G + Pokémon cost deducted", "d1": "Cannot place on path tiles (dark tiles)", "d2": "Freely reposition after each wave" },
-      "slide2": { "title": "Type Matchups & Synergies", "desc": "Exploit type weaknesses for bonus damage!\nGroup same-type or same-generation Pokémon for synergy buffs!", "d0": "Attacking a weakness deals up to 2× damage", "d1": "2/4/6 same-type Pokémon → stat buffs", "d2": "Evolve & Mega Evolve for even more power" },
+      "slide2": { "title": "Type Matchups & Synergies", "desc": "Exploit type weaknesses for bonus damage!\nGroup same-type or same-generation Pokémon for synergy buffs!", "d0": "Attacking a weakness deals up to 2× damage", "d1": "2/4/6 same-type Pokémon  stat buffs", "d2": "Evolve & Mega Evolve for even more power" },
       "slide3": { "title": "Wave Rewards", "desc": "Choose a reward item after clearing each wave.", "d0": "Rare Candy: level up one Pokémon", "d1": "Ether: revive a fainted Pokémon at 50% HP", "d2": "Mega Stone/Max Soup: Mega Evolve or Gigantamax" }
     },
     "multi": {
-      "label": "👥 Multiplayer",
+      "label": " Multiplayer",
       "slide0": { "title": "Multiplayer Mode", "desc": "Up to 8 players compete in tower defense simultaneously\nin a PvP battle mode!", "d0": "Create a room or join an existing one", "d1": "Fill slots with AI bots", "d2": "Game starts when all players are ready" },
-      "slide1": { "title": "Phase Flow", "desc": "Shop → Wave → Battle repeats every round.", "d0": "Shop: buy, place, and upgrade Pokémon", "d1": "Wave: all players run tower defense simultaneously", "d2": "Battle: auto-battle your team vs a random opponent" },
-      "slide2": { "title": "Battle & Lives", "desc": "Losing a battle costs lives equal to the opponent's surviving Pokémon.\nReach 0 lives and you're eliminated!", "d0": "Start with 50 lives — reduced each battle loss", "d1": "Last player with lives remaining wins", "d2": "Rating changes based on wins and losses" },
-      "slide3": { "title": "TFT Battle Arena", "desc": "During the battle phase, Pokémon move and fight on a 7×4 board in real time!", "d0": "Top 2 rows: opponent's team / Bottom 2 rows: your team", "d1": "Reposition Pokémon during prep time before battle", "d2": "Type matchups and stats apply — synergies matter!" }
+      "slide1": { "title": "Phase Flow", "desc": "Shop  Wave  Battle repeats every round.", "d0": "Shop: buy, place, and upgrade Pokémon", "d1": "Wave: all players run tower defense simultaneously", "d2": "Battle: auto-battle your team vs a random opponent" },
+      "slide2": { "title": "Battle & Lives", "desc": "Losing a battle costs lives equal to the opponent's surviving Pokémon.\nReach 0 lives and you're eliminated!", "d0": "Start with 50 lives  reduced each battle loss", "d1": "Last player with lives remaining wins", "d2": "Rating changes based on wins and losses" },
+      "slide3": { "title": "TFT Battle Arena", "desc": "During the battle phase, Pokémon move and fight on a 7×4 board in real time!", "d0": "Top 2 rows: opponent's team / Bottom 2 rows: your team", "d1": "Reposition Pokémon during prep time before battle", "d2": "Type matchups and stats apply  synergies matter!" }
     }
   },
   "mainMenu": {
@@ -601,12 +638,12 @@
     "multiPlay": "Multiplayer",
     "multiPlayDesc": "PvP battle for up to 8 players",
     "myInfo": "My Info",
-    "achievements": "🏆 Achievements",
-    "hallOfFame": "🎖️ Hall of Fame",
-    "rankings": "📊 Rankings",
-    "settings": "⚙️ Settings",
-    "helpSingle": "❓ Single Player Guide",
-    "helpMulti": "❓ Multiplayer Guide",
+    "achievements": "Achievements",
+    "hallOfFame": "Hall of Fame",
+    "rankings": "Rankings",
+    "settings": "Settings",
+    "helpSingle": "Single Player Guide",
+    "helpMulti": "Multiplayer Guide",
     "gameTitle": "Pokémon Aegis",
     "ratingLabel": "⭐ Rating: {rating}"
   },
@@ -632,9 +669,9 @@
     "navHallOfFame": "Hall of Fame",
     "navRankings": "Rankings",
     "navSettings": "Settings",
-    "navMultiView": "👥 Multi View",
-    "navMainMenu": "🏠 Main Menu",
-    "loadingTitle": "🎮 Game is Starting...",
+    "navMultiView": " Multi View",
+    "navMainMenu": "Main Menu",
+    "loadingTitle": "Game is Starting...",
     "loadingDesc1": "Please wait until all players have loaded resources.",
     "loadingDesc2": "Once everyone is ready, a 1-minute timer will begin.",
     "gameOverTitle": "GAME OVER",
@@ -643,10 +680,30 @@
     "toastWin": "Battle Won!",
     "toastLose": "Battle Lost",
     "toastGoldEarned": "+{gold}G Earned",
-    "toastLivesLost": "❤️ -{lives} Lives",
+    "toastLivesLost": " -{lives} Lives",
     "toastConsolation": "+{gold}G Consolation",
     "achUnlocked": "Achievement Unlocked",
     "achFirstTime": " (First Time!)",
     "notEnoughMoneyPicker": "Not enough gold!"
+  },
+  "login": {
+    "title": "Pokemon X Tower Defense X TFT",
+    "google": "Login with Google",
+    "loggingIn": "Logging in...",
+    "or": "OR",
+    "guestBtn": "Play as Guest",
+    "guestPlaceholder": "Nickname (2-12 chars)",
+    "guestEnter": "Enter as Guest",
+    "guestEntering": "Entering...",
+    "cancel": "Cancel",
+    "noticeGuest": " Guest data (rankings/achievements) may not be saved.",
+    "noticeDefault": " Login with Google to save progress across devices.",
+    "errEmpty": "Please enter a nickname.",
+    "errLength": "Nickname must be 2-12 characters long.",
+    "errDefault": "Login failed.",
+    "errPopupClosed": "Login window was closed.",
+    "errNetwork": "A network error occurred.",
+    "errCancelled": "Login was cancelled.",
+    "errNotAllowed": "This login method is not allowed."
   }
 }

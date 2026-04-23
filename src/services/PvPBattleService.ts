@@ -54,6 +54,18 @@ export function deriveBattleSeed(roundNumber: number, p1: string, p2: string): n
   return djb2(`${roundNumber}-${a}-${b}`);
 }
 
+/**
+ * [V8-FIX-3-4] 결정론적 matchId 생성 헬퍼
+ *   BattlePhaseUI와 PvPBattleService가 동일한 포맷을 사용하도록 export.
+ *   p1/p2 순서에 무관하게 항상 같은 ID를 반환 (djb2 해시 min/max 정렬).
+ */
+export function buildMatchId(roundNumber: number, p1: string, p2: string): string {
+  const h1 = djb2(p1);
+  const h2 = djb2(p2);
+  const [a, b] = h1 <= h2 ? [h1, h2] : [h2, h1];
+  return `${roundNumber}-${a}-${b}`;
+}
+
 class PvPBattleService {
   /**
    * [V5-FIX-PVP-3] 풀리그 방식 매칭 (결정론 강화)
@@ -254,8 +266,8 @@ class PvPBattleService {
     }
 
     return {
-      // [V5] matchId에서 Date.now() 제거 → 결정론적 ID
-      matchId: `${roundNumber}-${Math.min(...[player1Id, player2Id].map(id => djb2(id)))}-${Math.max(...[player1Id, player2Id].map(id => djb2(id)))}`,
+      // [V8-FIX-3-4] buildMatchId 헬퍼 사용 (BattlePhaseUI와 동일 포맷)
+      matchId: buildMatchId(roundNumber, player1Id, player2Id),
       roundNumber,
       player1Id,
       player2Id,

@@ -23,15 +23,16 @@ export const WaveEndPicker: React.FC = () => {
   const handleSelect = (item: Item) => {
     if ((item.type === 'mega-stone' || item.type === 'max-mushroom') && item.targetPokemonId) {
       const targetTower = towers.find(t => t.pokemonId === item.targetPokemonId);
-      if (targetTower) {
-        // ✅ 수정: 메가스톤과 거다이맥스 모두 item.id를 그대로 전달
-        // - 메가스톤: 'mega_stone_venusaurite' 형태 → gameStore에서 item.startsWith('mega_stone_') 체크
-        // - 거다이맥스: 'max_mushroom_${pokemonId}' 형태 → gameStore에서 item.startsWith('max_mushroom') 체크
-        // 이전 버그: 거다이맥스에서 'max-mushroom'(하이픈)을 전달했는데
-        //           gameStore는 'max_mushroom'(언더바)으로 체크 → 조건 불일치로 진화 실패
-        const evolutionItem = item.id;
-        useGameStore.getState().evolvePokemon(targetTower.id, evolutionItem);
+      if (!targetTower) {
+        // [V8-FIX-8-4] 대상 포켓몬 없으면 조용히 넘어가지 않고 상태 정리
+        console.warn(`[WaveEndPicker] targetPokemonId ${item.targetPokemonId} not found in towers`);
+        setWaveEndItemPick(null);
+        useGameStore.setState({ isPaused: false });
+        return;
       }
+      // ✅ 수정: 메가스톤과 거다이맥스 모두 item.id를 그대로 전달
+      const evolutionItem = item.id;
+      useGameStore.getState().evolvePokemon(targetTower.id, evolutionItem);
       setWaveEndItemPick(null);
       useGameStore.setState({ isPaused: false });
       return;
@@ -39,6 +40,7 @@ export const WaveEndPicker: React.FC = () => {
 
     setSelectedItem(item);
   };
+
 
   const handleTargetSelect = (towerId: string) => {
     if (!selectedItem) return;

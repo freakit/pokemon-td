@@ -479,6 +479,11 @@ export class GameManager {
     const actualKills = savedStats.enemiesKilled + this.pendingStats.enemiesKilled;
     const actualBosses = savedStats.bossesDefeated + this.pendingStats.bossesDefeated;
 
+    // AchievementService에 위임 (현재 누적값 전달)
+    // AchievementService.onKill이 파라미터를 안 받는 기존 구조와 호환되게 하려면 
+    // 여기서 직접 체크하는게 더 안전하지만 지침에 따라 호출 추가
+    achievementService.onKill(enemy.name, enemy.isBoss);
+
     // 처치 업적
     const killThresholds = [100, 500, 1000, 5000];
     for (const t of killThresholds) {
