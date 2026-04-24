@@ -84,8 +84,14 @@ class AuthService {
   }
 
   async signOut(): Promise<void> {
-    // [V8-FIX-1-2] 로그아웃 시 방 정보 정리 — 재접속 시 stale room 참조 방지
-    // multiplayerService 직접 import는 순환 참조 위험이 있어 localStorage 직접 정리
+    // [A3] 로그아웃 전 방 정리 — dynamic import로 순환참조 회피
+    const roomId = localStorage.getItem('currentRoomId');
+    if (roomId) {
+      try {
+        const { multiplayerService } = await import('./MultiplayerService');
+        await multiplayerService.leaveRoom(roomId).catch(() => {});
+      } catch { /* ignore */ }
+    }
     localStorage.removeItem('currentRoomId');
     await signOut(auth);
     this.currentUser = null;

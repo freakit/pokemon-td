@@ -277,8 +277,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       allTowers.forEach((towers, userId) => {
         if (towers.length > 0) {
           const prev = towerDetailsRef.current.get(userId);
-          // 길이 또는 참조가 다르면 변경으로 간주
-          if (!prev || prev.length !== towers.length || prev !== towers) {
+          // [T15] towers 배열 내용 변화만 감지 (length + 첫 item 참조 대조)
+          //   tftPlacements-only 업데이트는 towers 자체를 바꾸지 않으므로 걸러짐
+          if (!prev || prev.length !== towers.length || prev[0] !== towers[0]) {
             anyChanged = true;
           }
           towerDetailsRef.current.set(userId, towers);
@@ -677,8 +678,15 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
           handleArenaComplete();
           return;
         }
-        console.warn('[BattlePhaseUI] player2 fallback: submitting self');
-        try { await multiplayerService.submitBattleResult(roomId, buildResult()); } catch (e) { console.error(e); }
+        // [T9] fallback 발동 시 상세 로그 — 결정론 검증용
+        const fallbackResult = buildResult();
+        console.warn('[BattlePhaseUI] player2 fallback: submitting self result', {
+          round: currentRound,
+          winnerId: fallbackResult.winnerId,
+          player1Remaining: fallbackResult.player1RemainingPokemon,
+          player2Remaining: fallbackResult.player2RemainingPokemon,
+        });
+        try { await multiplayerService.submitBattleResult(roomId, fallbackResult); } catch (e) { console.error(e); }
         handleArenaComplete();
       }, 5000);
     }

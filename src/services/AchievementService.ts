@@ -24,9 +24,15 @@ class AchievementService {
 
   // ─── 전투 업적 ────────────────────────────────────────────────────────
 
-  onKill(pokemonName: string = '', isBoss: boolean = false) {
+  /**
+   * @param killOverride  GameManager에서 pendingStats 포함 누적값 전달 시 사용.
+   *                      localStorage flush 딜레이(500ms)로 인한 stale read 방지.
+   * @param bossOverride  보스 처치 수 누적값 오버라이드.
+   */
+  onKill(pokemonName: string = '', isBoss: boolean = false, killOverride?: number, bossOverride?: number) {
     const stats = saveService.load().stats;
-    const kills = stats.enemiesKilled; // killEnemy에서 이미 +1된 값
+    // [A2-FIX] pendingStats가 flush 전이면 killOverride로 정확한 누적값 사용
+    const kills = killOverride ?? stats.enemiesKilled;
 
     // 일반 처치 업적
     const killThresholds = [100, 500, 1000, 5000];
@@ -36,7 +42,7 @@ class AchievementService {
 
     // 보스 처치 업적
     if (isBoss) {
-      const bosses = stats.bossesDefeated;
+      const bosses = bossOverride ?? stats.bossesDefeated;
       const bossThresholds = [5, 20, 50];
       for (const t of bossThresholds) {
         if (bosses >= t) saveService.updateAchievement(`boss${t}`, bosses);

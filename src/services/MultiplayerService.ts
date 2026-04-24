@@ -947,38 +947,45 @@ class MultiplayerService {
   }
 
   /**
-   * [V8-FIX-13-1] updateRatings 개선
-   *   - AI 플레이어를 대전 상대 상정 계산에서도 제외 (AI 대전 승리로 레이팅 팽쌍 방지)
-   *   - 각 플레이어의 ratingChange를 Firebase gameState에 기록 (UI 표시용)
+   * [A1] updateRatings 전면 교체
+   *   - AI 플레이어를 ELO 계산에서 제외 (AI 대전 승리로 레이팅 팽창 방지)
+   *   - 각 플레이어의 ratingChange를 Firebase gameState.players에 기록 (모달 UI 표시용)
    */
   private async updateRatings(gs: MultiplayerGameState): Promise<void> {
     const humanPlayers = gs.players.filter(p => !p.userId.startsWith('ai_'));
     const currentUser = authService.getCurrentUser();
+    const updates: Array<{ userId: string; newRating: number; ratingChange: number }> = [];
 
     for (let i = 0; i < humanPlayers.length; i++) {
       const player = humanPlayers[i];
       let ratingChange = 0;
-
-      // [V8-FIX-13-1] AI를 제외한 포티션을 기준으로 ELO 계산
       for (let j = 0; j < humanPlayers.length; j++) {
         if (i === j) continue;
-        const opponent = humanPlayers[j];
-        const expectedScore = 1 / (1 + Math.pow(10, (opponent.rating - player.rating) / 400));
-        const actualScore =
-          (player.placement ?? humanPlayers.length) < (opponent.placement ?? humanPlayers.length) ? 1 : 0;
-        ratingChange += Math.round(32 * (actualScore - expectedScore));
+        const opp = humanPlayers[j];
+        const expected = 1 / (1 + Math.pow(10, (opp.rating - player.rating) / 400));
+        const actual = (player.placement ?? humanPlayers.length) < (opp.placement ?? humanPlayers.length) ? 1 : 0;
+        ratingChange += Math.round(32 * (actual - expected));
       }
-
       const newRating = Math.max(0, player.rating + ratingChange);
-      try {
-        await databaseService.updateUserRating(player.userId, newRating);
-      } catch (err) {
-        console.warn('[MS] rating update failed:', err);
-      }
-
+      updates.push({ userId: player.userId, newRating, ratingChange });
+      try { await databaseService.updateUserRating(player.userId, newRating); }
+      catch (err) { console.warn('[MS] rating update failed:', err); }
       if (currentUser && player.userId === currentUser.uid) {
         achievementService.onRatingUpdate(newRating);
       }
+    }
+
+    // [A1] gameState.players[i].ratingChange 기록 — MultiplayerGameOverModal 표시용
+    if (updates.length > 0) {
+      const gsRef = ref(rtdb, `gameStates/${gs.roomId}`);
+      await runTransaction(gsRef, (state: MultiplayerGameState | null) => {
+        if (!state) return state;
+        const updatedPlayers = state.players.map(p => {
+          const u = updates.find(x => x.userId === p.userId);
+          return u ? { ...p, rating: u.newRating, ratingChange: u.ratingChange } : p;
+        });
+        return { ...state, players: updatedPlayers };
+      }).catch(err => console.warn('[MS] gameState ratingChange write failed:', err));
     }
   }
 
