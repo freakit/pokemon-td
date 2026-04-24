@@ -21,11 +21,10 @@ const getGenderColor = (gender: Gender) => {
 
 export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
-  const { towers, sellTower, fusePokemon, spendMoney, money } = useGameStore(state => ({
+  const { towers, sellTower, fusePokemon, money } = useGameStore(state => ({
     towers: state.towers,
     sellTower: state.sellTower,
     fusePokemon: state.fusePokemon,
-    spendMoney: state.spendMoney,
     money: state.money,
   }));
   const [fusionMode, setFusionMode] = useState(false);
@@ -85,18 +84,14 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         return;
       }
 
-      const fusionCost = 500;
+      const fusionCost = 1000; // gameStore.fusePokemon이 실제로 차감하는 금액
+
       const confirmed = window.confirm(
         t('alerts.confirmFusion', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
       );
       
       if (confirmed) {
-        if (!spendMoney(fusionCost)) {
-          alert(t('alerts.notEnoughMoneyWithCost', { cost: fusionCost }));
-          setSelectedBase(null);
-          return;
-        }
-
+        // [FIX-2] spendMoney는 gameStore.fusePokemon 내부에서 처리 — 여기서 이중 차감하지 않음
         fusePokemon(selectedBase, towerId, 'dna-splicers').then(success => {
           if (success) {
             alert(t('alerts.fusionSuccess'));
