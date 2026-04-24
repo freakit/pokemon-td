@@ -481,12 +481,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             onStartWave={handleStartWave}
             onAddPokemon={handleOpenPicker}
             onManagePokemon={() => setShowPokemonManager(true)}
+            onShowRival={multiRoomId ? () => setShowMultiView(true) : undefined}
           />
           <ExtraButtons>
             <BottomBtn onClick={() => setShowAchievements(true)}>{t('gameLayout.navAchievements')}</BottomBtn>
             <BottomBtn onClick={() => setShowHallOfFame(true)}>{t('gameLayout.navHallOfFame')}</BottomBtn>
             <BottomBtn onClick={() => setShowRankings(true)}>{t('gameLayout.navRankings')}</BottomBtn>
-            {multiRoomId && <BottomBtn onClick={() => setShowMultiView(true)}>{t('gameLayout.navMultiView')}</BottomBtn>}
             <BottomBtn onClick={handleResetAndLeave}>{t('gameLayout.navMainMenu')}</BottomBtn>
           </ExtraButtons>
         </BottomPanel>
@@ -529,7 +529,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         </GameOverOverlay>
       )}
 
-      <AchievementToastDisplay />
+
 
       {battleResultToast && isMultiplayer && (
         <BattleResultToast $won={battleResultToast.won}>
@@ -580,39 +580,7 @@ const GameOverModal = styled.div`background:linear-gradient(135deg,#1a2332,#0f14
 const GameOverTitle = styled.h2`font-size:32px;color:#ff6464;margin-bottom:16px;`;
 const RestartBtn = styled.button`margin-top:20px;padding:12px 32px;font-size:16px;cursor:pointer;border-radius:12px;border:2px solid rgba(76,175,255,0.5);background:rgba(76,175,255,0.2);color:#4cafff;font-weight:bold;transition:all 0.3s ease;&:hover{background:rgba(76,175,255,0.35);transform:translateY(-2px);}`;
 
-const AchievementToastDisplay: React.FC = () => {
-  const { t } = useTranslation();
-  const achievementToast = useGameStore(s => s.achievementToast);
-  if (!achievementToast) return null;
-  const ap = achievementToast.earnedAP ?? 3;
-  const tierColor = ap >= 100 ? '#ff80ff' : ap >= 50 ? '#b9f2ff' : ap >= 25 ? '#FFD700' : ap >= 10 ? '#c0c0c0' : '#cd7f32';
-  const tierLabel = ap >= 100 ? '👑 Legendary' : ap >= 50 ? '💎 Diamond' : ap >= 25 ? '🥇 Gold' : ap >= 10 ? '🥈 Silver' : '🥉 Bronze';
-  return (
-    <AchievementToastCard key={achievementToast.timestamp} $color={tierColor}>
-      <AchToastLeft><AchToastTrophyIcon>🏆</AchToastTrophyIcon></AchToastLeft>
-      <AchToastContent>
-        <AchToastTopRow>
-          <AchToastLabel $color={tierColor}>{t('gameLayout.achUnlocked')}{achievementToast.isFirstTime ? t('gameLayout.achFirstTime') : ''}</AchToastLabel>
-          <AchToastTier $color={tierColor}>{tierLabel}</AchToastTier>
-        </AchToastTopRow>
-        <AchToastName $color={tierColor}>{achievementToast.name}</AchToastName>
-        <AchToastAP $color={tierColor}>+{ap} AP ⚡</AchToastAP>
-      </AchToastContent>
-    </AchievementToastCard>
-  );
-};
 
-const achSlideIn = keyframes`0%{opacity:0;transform:translateX(120px) scale(0.88);}15%{opacity:1;transform:translateX(0) scale(1.03);}22%{transform:scale(1);}76%{opacity:1;transform:translateX(0);}100%{opacity:0;transform:translateX(80px);}`;
-const achPulse = keyframes`0%,100%{box-shadow:0 0 16px rgba(255,215,0,0.35),0 8px 32px rgba(0,0,0,0.5);}50%{box-shadow:0 0 28px rgba(255,215,0,0.65),0 8px 32px rgba(0,0,0,0.5);}`;
-const AchievementToastCard = styled.div<{ $color: string }>`position:fixed;bottom:100px;right:24px;z-index:9998;display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:16px;min-width:260px;max-width:340px;background:linear-gradient(135deg,rgba(12,10,4,0.97) 0%,rgba(28,22,6,0.97) 60%,rgba(12,10,4,0.97) 100%);border:1.5px solid ${p => p.$color}88;animation:${achSlideIn} 5s ease forwards,${achPulse} 2s ease-in-out 0.3s infinite;pointer-events:none;`;
-const AchToastLeft = styled.div`flex-shrink:0;`;
-const AchToastTrophyIcon = styled.div`font-size:34px;line-height:1;filter:drop-shadow(0 0 10px rgba(255,215,0,0.6));`;
-const AchToastContent = styled.div`display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;`;
-const AchToastTopRow = styled.div`display:flex;align-items:center;justify-content:space-between;gap:6px;`;
-const AchToastLabel = styled.div<{ $color: string }>`font-size:10px;font-weight:700;color:${p => p.$color}BB;letter-spacing:0.04em;text-transform:uppercase;`;
-const AchToastTier = styled.div<{ $color: string }>`font-size:10px;font-weight:700;color:${p => p.$color};padding:1px 6px;border-radius:8px;background:${p => p.$color}18;border:1px solid ${p => p.$color}33;`;
-const AchToastName = styled.div<{ $color: string }>`font-size:16px;font-weight:800;color:${p => p.$color};text-shadow:0 0 14px ${p => p.$color}55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-const AchToastAP = styled.div<{ $color: string }>`font-size:12px;font-weight:700;color:${p => p.$color}CC;margin-top:1px;`;
 
 const MultiLoadingOverlay = styled.div`position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);display:flex;justify-content:center;align-items:center;z-index:99999;backdrop-filter:blur(6px);`;
 const MultiLoadingBox = styled.div`display:flex;flex-direction:column;align-items:center;gap:16px;background:linear-gradient(145deg,#1a1a2e,#16213e);border:2px solid rgba(76,175,255,0.4);border-radius:24px;padding:48px 64px;box-shadow:0 0 40px rgba(76,175,255,0.2);`;

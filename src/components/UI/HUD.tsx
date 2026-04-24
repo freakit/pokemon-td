@@ -11,6 +11,7 @@ interface Props {
   onStartWave: () => void;
   onAddPokemon: () => void;
   onManagePokemon: () => void;
+  onShowRival?: () => void;
 }
 
 const formatTime = (ms: number) => {
@@ -35,7 +36,7 @@ const getPhaseText = (phase: GamePhase, round: number, countdown: number | null,
   }
 };
 
-export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon }) => {
+export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemon, onShowRival }) => {
   const { t } = useTranslation();
   const { wave, money, lives, isWaveActive, gameSpeed, towers, timeOfDay, gameTime } = useGameStore();
   const setSpeed = useGameStore(s => s.setGameSpeed);
@@ -133,6 +134,11 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
         <Btn $variant="manage" onClick={onManagePokemon}>
           🎒 {t('hud.managePokemon')} ({towers.length}/6)
         </Btn>
+        {isMultiplayer && onShowRival && (
+          <Btn $variant="rival" onClick={onShowRival}>
+            👁 {t('hud.rival')}
+          </Btn>
+        )}
         {!isMultiplayer && (
           <Btn
             $variant="speed"
@@ -286,7 +292,7 @@ const ButtonSection = styled.div`
   }
 `;
 
-const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed'; $pulse?: boolean }>`
+const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' | 'rival'; $pulse?: boolean }>`
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
@@ -321,6 +327,12 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed'; $
         background: rgba(52, 152, 219, 0.2);
         color: #3498db;
         &:hover { background: rgba(52, 152, 219, 0.35); transform: translateY(-1px); }
+      `;
+      case 'rival': return `
+        border: 2px solid rgba(231, 76, 60, 0.5);
+        background: rgba(231, 76, 60, 0.2);
+        color: #e74c3c;
+        &:hover { background: rgba(231, 76, 60, 0.35); transform: translateY(-1px); }
       `;
     }
   }}

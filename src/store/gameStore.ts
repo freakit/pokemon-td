@@ -131,9 +131,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   sellTower: (id) => {
     const tower = get().towers.find(t => t.id === id);
     if (!tower) return false;
-    const baseSellPrice = tower.level * 20;
-    const costBasedPrice = tower.sellValue > 0 ? Math.floor(tower.sellValue * 0.6) : 0;
-    const sellPrice = Math.max(baseSellPrice, costBasedPrice);
+    const sellPrice = tower.level * 20;
     get().addMoney(sellPrice);
     get().removeTower(id);
     achievementService.onSell();

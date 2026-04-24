@@ -176,7 +176,7 @@ function buildUnits(
       team: 'my',
       x: -1,  // 벤치 (prep 중 플레이어가 배치)
       y: i,
-      hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
+      hp: d.maxHp > 0 ? d.maxHp : 100,   // [FIX] 항상 풀HP로 시작 (기력의조각 회복 포함)
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
       atkCd: initialAtkCd(i),
       fainted: false,  // [T11-FIX] TFT는 항상 풀팀으로 시작 (기절 포켓몬도 부활)
@@ -195,7 +195,7 @@ function buildUnits(
       team: 'opp',
       x: -2,  // 숨김 (prep 중 보이면 안 됨 — reveal 직전에 배치 확정)
       y: i,
-      hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
+      hp: d.maxHp > 0 ? d.maxHp : 100,   // [FIX] 항상 풀HP로 시작
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
       atkCd: initialAtkCd(i),
       fainted: false,  // [T11-FIX] TFT는 항상 풀팀으로 시작
@@ -347,6 +347,11 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const initRef = useRef<{ my: string; op: string }>({ my: '', op: '' });
   const resultReportedRef = useRef(false);
   const hasSubmittedRef = useRef(false);
+
+  // [FIX-JITTER-1] onBattleComplete을 ref로 관리 — 부모 리렌더마다 새 함수 참조가 들어와도
+  // fighting useEffect의 dependency로 쓰이지 않으므로 setInterval이 재시작되지 않음
+  const onBattleCompleteRef = useRef(onBattleComplete);
+  useEffect(() => { onBattleCompleteRef.current = onBattleComplete; }, [onBattleComplete]);
 
   const [remotePlacements, setRemotePlacements] = useState<Map<string, { id: string, x: number, y: number }[]>>(new Map());
 
@@ -621,13 +626,16 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
           resultReportedRef.current = true;
           const p1Alive = current.filter(u => ((myPosition === 'L' && u.team === 'my') || (myPosition === 'R' && u.team === 'opp')) && alive(u)).length;
           const p2Alive = current.filter(u => ((myPosition === 'R' && u.team === 'my') || (myPosition === 'L' && u.team === 'opp')) && alive(u)).length;
-          onBattleComplete?.({ winner: p1Alive > 0 ? 'player1' : 'player2', player1Remaining: p1Alive, player2Remaining: p2Alive });
+          // [FIX-JITTER-1] ref를 통해 호출 — dependency에서 제거해 interval 재시작 방지
+          onBattleCompleteRef.current?.({ winner: p1Alive > 0 ? 'player1' : 'player2', player1Remaining: p1Alive, player2Remaining: p2Alive });
         }
       }
     };
     loopRef.current = setInterval(tick, TICK_MS);
     return () => { if (loopRef.current) clearInterval(loopRef.current); };
-  }, [battleState, opponentName, onBattleComplete, myPosition]);
+  // [FIX-JITTER-1] onBattleComplete 제거 — ref로 최신값 참조, interval 재시작 방지
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battleState, opponentName, myPosition]);
 
   const handleBenchClick = (id: string) => {
     if (battleState !== 'idle' || phase !== 'prep') return;
@@ -742,7 +750,6 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                 onClick={() => handleCellClick(c, r)}
               />
             )))}
-            <VertDivider style={{ left: '33.33%' }} /><VertDivider style={{ left: '66.66%' }} />
             <ZoneLbl style={{ left: '2%', top: '2%' }}>{myPosition === 'L' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
             <ZoneLbl style={{ right: '2%', top: '2%' }}>{myPosition === 'R' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
             {units.filter(u => u.x >= 0).map(u => (
@@ -759,6 +766,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
             {floats.map(f => <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>)}
             {isReveal && <RevealOverlay><RevealText>{!isOpponentReady ? t('battle.waitingOpponent') : t('battle.startIn', { countdown })}</RevealText></RevealOverlay>}
             {battleState === 'done' && <RevealOverlay style={{ background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }}><div style={{ textAlign: 'center' }}><RevealText style={{ fontSize: '42px', marginBottom: '10px' }}>{winnerText}</RevealText></div></RevealOverlay>}
+            <AchievementToastDisplay />
           </Board>
         </CenterArea>
 
@@ -788,6 +796,20 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       </MainGrid>
     </Wrap>
 
+  );
+};
+const AchievementToastDisplay: React.FC = () => {
+  const achievementToast = useGameStore(s => s.achievementToast);
+  if (!achievementToast) return null;
+  const ap = achievementToast.earnedAP ?? 3;
+  const tierColor = ap >= 100 ? '#ff80ff' : ap >= 50 ? '#b9f2ff' : ap >= 25 ? '#FFD700' : ap >= 10 ? '#c0c0c0' : '#cd7f32';
+  const isFirst = achievementToast.isFirstTime;
+  return (
+    <AchievementToastPill key={achievementToast.timestamp} $color={tierColor} $first={isFirst}>
+      {isFirst ? '🏆 ' : '✓ '}
+      <AchPillName $first={isFirst}>{achievementToast.name}</AchPillName>
+      {isFirst && <AchPillAP $color={tierColor}> +{ap}AP</AchPillAP>}
+    </AchievementToastPill>
   );
 };
 
@@ -827,11 +849,10 @@ const CardTypes = styled.div`display:flex;gap:4px;`;
 
 const OpponentInfoPanel = styled.div`flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;`;
 
-const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.15);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.25;pointer-events:none;z-index:0;}`;
+const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.05);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.60;pointer-events:none;z-index:0;}`;
 const Cell = styled.div<{ $col: number; $row: number; $isMy: boolean; $isTarget: boolean }>`position:absolute;left:${p => p.$col * CELL}px;top:${p => p.$row * CELL}px;width:${CELL}px;height:${CELL}px;border:1px solid rgba(255,255,255,0.03);background:${p => p.$isTarget ? 'rgba(74,222,128,0.1)' : (p.$isMy ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.01)')};&:hover{background:${p => p.$isTarget ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.03)'};}`;
-const VertDivider = styled.div`position:absolute;top:0;bottom:0;width:2px;background:rgba(255,255,255,0.05);pointer-events:none;z-index:2;`;
 const ZoneLbl = styled.div`position:absolute;font-size:10px;font-weight:800;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:1px;pointer-events:none;z-index:3;`;
-const UnitWrap = styled.div<{ $team: 'my' | 'opp'; $fainted: boolean; $hit: boolean; $atk: boolean; $sel: boolean }>`position:absolute;display:flex;flex-direction:column;align-items:center;z-index:${p => p.$sel ? 20 : 10};opacity:${p => p.$fainted ? 0.25 : 1};${p => p.$hit && css`animation:${hitFlash} 0.35s ease;`}${p => p.$atk && css`animation:${atkBounce} 0.3s ease;`}${p => p.$sel && css`filter:drop-shadow(0 0 12px #4ade80);`}`;
+const UnitWrap = styled.div<{ $team: 'my' | 'opp'; $fainted: boolean; $hit: boolean; $atk: boolean; $sel: boolean }>`position:absolute;display:flex;flex-direction:column;align-items:center;z-index:${p => p.$sel ? 20 : 10};opacity:${p => p.$fainted ? 0.25 : 1};${p => (!p.$hit && !p.$atk) ? css`transition:left ${TICK_MS}ms linear,top ${TICK_MS}ms linear;` : ''}${p => p.$hit ? css`animation:${hitFlash} 0.35s ease;` : p.$atk ? css`animation:${atkBounce} 0.3s ease;` : ''}${p => p.$sel ? 'filter:drop-shadow(0 0 12px #4ade80);' : ''}`;
 const HpBg = styled.div`width:90%;height:4px;border-radius:2px;background:rgba(0,0,0,0.6);overflow:hidden;margin-bottom:2px;`;
 const HpFill = styled.div`height:100%;border-radius:2px;transition:width 0.2s cubic-bezier(0.4, 0, 0.2, 1);`;
 const Sprite = styled.img<{ $fainted: boolean; $flip: boolean }>`width:60px;height:60px;image-rendering:pixelated;${p => p.$fainted && 'filter:grayscale(1) brightness(0.5);'}${p => p.$flip && 'transform:scaleX(-1);'}`;
@@ -855,3 +876,31 @@ function getTypeColor(type?: string) {
   };
   return colors[type?.toLowerCase() || ''] || 'rgba(255,255,255,0.1)';
 }
+
+// 최초 달성: 2.5s 슬라이드인→유지→페이드아웃 (작고 빠름)
+const achSlideIn = keyframes`0%{opacity:0;transform:translateX(40px);}12%{opacity:1;transform:translateX(0);}72%{opacity:1;transform:translateX(0);}100%{opacity:0;transform:translateX(20px);}`;
+// 반복 달성: 1.5s 빠른 페이드
+const achSlideInRepeat = keyframes`0%{opacity:0;transform:translateX(16px);}12%{opacity:0.6;transform:translateX(0);}72%{opacity:0.6;}100%{opacity:0;}`;
+
+const AchievementToastPill = styled.div<{ $color: string; $first: boolean }>`
+  position: absolute; top: 10px; right: 10px; z-index: 1002;
+  display: flex; align-items: center; gap: 6px;
+  padding: ${p => p.$first ? '7px 14px' : '5px 11px'};
+  border-radius: 20px;
+  background: rgba(55,55,70,0.92);
+  border: 1px solid ${p => p.$color}${p => p.$first ? '99' : '55'};
+  font-size: ${p => p.$first ? '12px' : '11px'};
+  font-weight: 700;
+  color: rgba(255,255,255,${p => p.$first ? '0.92' : '0.65'});
+  animation: ${p => p.$first ? achSlideIn : achSlideInRepeat} ${p => p.$first ? '2.5s' : '1.5s'} ease forwards;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+`;
+
+const AchPillName = styled.span<{ $first: boolean }>`color:rgba(255,255,255,${p => p.$first ? '0.88' : '0.55'});overflow:hidden;text-overflow:ellipsis;`;
+const AchPillAP = styled.span<{ $color: string }>`color:${p => p.$color};font-size:10px;font-weight:700;flex-shrink:0;opacity:0.85;`;

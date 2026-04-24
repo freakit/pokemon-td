@@ -48,6 +48,9 @@ export class WaveSystem {
   // [FIX] 비동기 스폰 중인 적 수 추적 (async spawnEnemy가 addEnemy 호출 전까지 카운트)
   private _pendingSpawnCount = 0;
 
+  // [FIX-RACE] 스폰 epoch: cancelPendingSpawns 시 증가 → 이전 async 스폰이 addEnemy 호출 차단
+  private _spawnEpoch = 0;
+
   static getInstance() {
     if (!WaveSystem.instance) {
       WaveSystem.instance = new WaveSystem();
@@ -71,6 +74,8 @@ export class WaveSystem {
     this.activeTimers = [];
     this._bossSpawnPending = false;
     this._pendingSpawnCount = 0;
+    // [FIX-RACE] epoch 증가 → 진행 중인 async spawnEnemy가 addEnemy 호출을 건너뜀
+    this._spawnEpoch++;
   }
 
   startWave(wave: number) {
@@ -160,9 +165,14 @@ export class WaveSystem {
     mult: any,
     addEnemy: (enemy: Enemy) => void
   ) {
+    // [FIX-RACE] 스폰 시작 시 epoch를 캡처 — await 후 epoch가 바뀌면 웨이브가 취소된 것
+    const epochAtStart = this._spawnEpoch;
     try {
       const pokemonId = this.getEnemyPokemonId(wave);
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
+
+      // [FIX-RACE] await 복귀 후 epoch 검증 — 바뀌었으면 새 웨이브가 시작된 것이므로 스폰 중단
+      if (this._spawnEpoch !== epochAtStart) return;
 
       // 지수적 스케일링 (1.08^(wave-1) 으로 조금 완화)
       const waveMultiplier = Math.pow(1.08, wave - 1);
@@ -204,6 +214,8 @@ export class WaveSystem {
       addEnemy(enemy);
     } catch (e) {
       console.error('Failed to spawn enemy pokemon:', e);
+      // [FIX-RACE] fallback도 취소된 웨이브면 스폰 안 함
+      if (this._spawnEpoch !== epochAtStart) return;
       this.spawnFallbackEnemy(wave, path, isBoss, mult, addEnemy);
     }
   }

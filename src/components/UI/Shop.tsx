@@ -79,6 +79,11 @@ export const Shop: React.FC = () => {
       alert(t('alerts.notEnoughMoney'));
       return;
     }
+    // [FIX-1] 선택 즉시 비용 차감 (취소 시 handleCancel에서 환불)
+    if (!useGameStore.getState().spendMoney(item.price)) {
+      alert(t('alerts.notEnoughMoney'));
+      return;
+    }
     setItemMode(item.id);
   };
 
@@ -98,10 +103,13 @@ export const Shop: React.FC = () => {
         else if (itemMode === 'candy') cost = tower.level * 25;
         else if (itemMode === 'revive') cost = tower.level * 10;
         else if (itemMode === 'exp_candy') {
+          // [FIX-3] store와 동일한 로직: 타겟 레벨보다 높은 첫 번째 레벨 기준
           const aliveTowers = towers.filter(t => !t.isFainted);
-          const sortedTowers = [...aliveTowers].sort((a, b) => a.level - b.level);
-          const secondLowestLevel = sortedTowers[1]?.level ?? tower.level;
-          cost = secondLowestLevel * 50;
+          const higherLevels = [...new Set(aliveTowers.map(t => t.level))]
+            .filter(lvl => lvl > tower.level)
+            .sort((a, b) => a - b);
+          const nextTargetLevel = higherLevels[0];
+          cost = nextTargetLevel !== undefined ? nextTargetLevel * 50 : 0;
         }
 
         if (money < cost) {
@@ -120,6 +128,9 @@ export const Shop: React.FC = () => {
       if (success) {
         alert(t('alerts.evolutionSuccess'));
       } else {
+        // [FIX-1] 진화 실패 시 미리 차감된 비용 환불
+        const item = Object.values(EVOLUTION_ITEMS_BY_CATEGORY).flat().find(i => i.id === itemMode);
+        if (item) useGameStore.getState().addMoney(item.price);
         alert(t('alerts.cannotEvolveWithItem'));
       }
     }
@@ -128,6 +139,13 @@ export const Shop: React.FC = () => {
   };
 
   const handleCancel = () => {
+    // [FIX-1] 진화 아이템 모드였다면 차감된 비용 환불
+    if (itemMode !== 'none' &&
+      itemMode !== 'potion' && itemMode !== 'potion_good' && itemMode !== 'potion_super' &&
+      itemMode !== 'candy' && itemMode !== 'revive' && itemMode !== 'exp_candy') {
+      const item = Object.values(EVOLUTION_ITEMS_BY_CATEGORY).flat().find(i => i.id === itemMode);
+      if (item) useGameStore.getState().addMoney(item.price);
+    }
     setItemMode('none');
   };
 

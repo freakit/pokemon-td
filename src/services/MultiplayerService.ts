@@ -771,22 +771,26 @@ class MultiplayerService {
     oppRemaining: number
   ): { goldDelta: number; livesDelta: number } {
     if (isWinner) {
-      let gold = 80;
+      // [FIX] 승리 골드 감소 (기존 80 → 40 기본)
+      let gold = 40;
       const winStreak = (player.battleRecord?.wins ?? 0) + 1;
-      if (winStreak >= 4) gold += 80;
-      else if (winStreak >= 3) gold += 50;
-      else if (winStreak >= 2) gold += 30;
-      if (myRemaining >= 3) gold += 50;
+      if (winStreak >= 4) gold += 50;
+      else if (winStreak >= 3) gold += 30;
+      else if (winStreak >= 2) gold += 15;
+      if (myRemaining >= 3) gold += 20;
       return { goldDelta: gold, livesDelta: 0 };
     } else {
-      const livesLost = 2 + oppRemaining;
+      // [FIX] lives 감소: 2+상대생존 → 3+상대생존
+      const livesLost = 3 + oppRemaining;
+      // [FIX] 연패 위로금 대폭 증가
       let consolation = 0;
       const loseStreak = (player.battleRecord?.losses ?? 0) + 1;
-      if (loseStreak >= 4) consolation = 80;
-      else if (loseStreak >= 3) consolation = 50;
-      else if (loseStreak >= 2) consolation = 30;
-      if (player.lives <= 10) consolation += 40;
-      else if (player.lives <= 20) consolation += 20;
+      if (loseStreak >= 5) consolation = 200;
+      else if (loseStreak >= 4) consolation = 150;
+      else if (loseStreak >= 3) consolation = 100;
+      else if (loseStreak >= 2) consolation = 60;
+      if (player.lives <= 10) consolation += 60;
+      else if (player.lives <= 20) consolation += 30;
       return { goldDelta: consolation, livesDelta: -livesLost };
     }
   }

@@ -11,7 +11,7 @@ import {
   Image as KonvaImage,
 } from "react-konva";
 import Konva from "konva";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
@@ -420,6 +420,21 @@ const HPBar: React.FC<{
   );
 };
 
+const AchievementToastDisplay: React.FC = () => {
+  const achievementToast = useGameStore(s => s.achievementToast);
+  if (!achievementToast) return null;
+  const ap = achievementToast.earnedAP ?? 3;
+  const tierColor = ap >= 100 ? '#ff80ff' : ap >= 50 ? '#b9f2ff' : ap >= 25 ? '#FFD700' : ap >= 10 ? '#c0c0c0' : '#cd7f32';
+  const isFirst = achievementToast.isFirstTime;
+  return (
+    <AchievementToastPill key={achievementToast.timestamp} $color={tierColor} $first={isFirst}>
+      {isFirst ? '🏆 ' : '✓ '}
+      <AchPillName $first={isFirst}>{achievementToast.name}</AchPillName>
+      {isFirst && <AchPillAP $color={tierColor}> +{ap}AP</AchPillAP>}
+    </AchievementToastPill>
+  );
+};
+
 export const GameCanvas: React.FC = () => {
   const { t } = useTranslation();
   const {
@@ -708,6 +723,8 @@ export const GameCanvas: React.FC = () => {
         </EvolutionToast>
       )}
 
+
+
       {hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
         <Tooltip style={{ left: `${mousePos.x * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }}>
           <TooltipTitle>{hoveredTower.displayName} (Lv.{hoveredTower.level})</TooltipTitle>
@@ -828,6 +845,7 @@ export const GameCanvas: React.FC = () => {
             )}
           </Layer>
         </Stage>
+        <AchievementToastDisplay />
       </StageWrapper>
 
       {/* [수정②] 보스 글로우 pulse — 완화된 Canvas 2D 오버레이 */}
@@ -890,7 +908,36 @@ const TooltipStatRow = styled.div``;
 const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${media.mobile} { font-size: 8px; }`;
 
 const StageWrapper = styled.div`
+  position: relative;
   border: 2px solid #1a242f; border-radius: 8px; overflow: hidden;
   box-shadow: 0 8px 16px rgba(0,0,0,0.2); transform-origin: center; transition: transform 0.3s ease;
   ${media.mobile} { border: 1px solid #1a242f; border-radius: 4px; }
 `;
+
+// 최초 달성: 2.5s 슬라이드인→유지→페이드아웃 (작고 빠름)
+const achSlideIn = keyframes`0%{opacity:0;transform:translateX(40px);}12%{opacity:1;transform:translateX(0);}72%{opacity:1;transform:translateX(0);}100%{opacity:0;transform:translateX(20px);}`;
+// 반복 달성: 1.5s 빠른 페이드
+const achSlideInRepeat = keyframes`0%{opacity:0;transform:translateX(16px);}12%{opacity:0.6;transform:translateX(0);}72%{opacity:0.6;}100%{opacity:0;}`;
+
+const AchievementToastPill = styled.div<{ $color: string; $first: boolean }>`
+  position: absolute; top: 10px; right: 10px; z-index: 1002;
+  display: flex; align-items: center; gap: 6px;
+  padding: ${p => p.$first ? '7px 14px' : '5px 11px'};
+  border-radius: 20px;
+  background: rgba(55,55,70,0.92);
+  border: 1px solid ${p => p.$color}${p => p.$first ? '99' : '55'};
+  font-size: ${p => p.$first ? '12px' : '11px'};
+  font-weight: 700;
+  color: rgba(255,255,255,${p => p.$first ? '0.92' : '0.65'});
+  animation: ${p => p.$first ? achSlideIn : achSlideInRepeat} ${p => p.$first ? '2.5s' : '1.5s'} ease forwards;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+`;
+
+const AchPillName = styled.span<{ $first: boolean }>`color:rgba(255,255,255,${p => p.$first ? '0.88' : '0.55'});overflow:hidden;text-overflow:ellipsis;`;
+const AchPillAP = styled.span<{ $color: string }>`color:${p => p.$color};font-size:10px;font-weight:700;flex-shrink:0;opacity:0.85;`;

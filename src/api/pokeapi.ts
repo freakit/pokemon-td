@@ -198,6 +198,22 @@ class PokeAPIService {
       });
     }
 
+      // [FIX] 레벨업 기술을 앞에 배치 → PokemonPicker가 TM보다 고유 기술을 우선 채용
+      const levelUpMoves = d.moves
+        .filter((m: any) =>
+          m.version_group_details.some(
+            (vgd: any) => vgd.move_learn_method?.name === 'level-up'
+          )
+        )
+        .map((m: any) => m.move.name as string);
+      const otherMoves = d.moves
+        .filter((m: any) =>
+          !m.version_group_details.some(
+            (vgd: any) => vgd.move_learn_method?.name === 'level-up'
+          )
+        )
+        .map((m: any) => m.move.name as string);
+
     const pokemon: PokemonData = {
       id: d.id,
       name: d.name,
@@ -215,7 +231,7 @@ class PokeAPIService {
         d.sprites.front_default ||
         d.sprites.other?.['official-artwork']?.front_default ||
         '',
-      moves: d.moves.map((m: any) => m.move.name).slice(0, 20),
+      moves: [...levelUpMoves, ...otherMoves].slice(0, 20),
       abilities,
     };
 
