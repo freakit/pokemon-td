@@ -102,20 +102,20 @@ function calcDmg(a: Unit, d: Unit, rng: () => number): number {
   const types = a.detail.types ?? [];
   const dTypes = d.detail.types ?? [];
 
+  // [T6] RNG 소비 고정: 모든 경로에서 정확히 2회 선소비 + randomFactor 1회 = 총 3회
+  const r1 = rng();
+  const r2 = rng();
+
   let power = 50 + a.detail.level;
   const moves = a.detail.equippedMoves;
   if (moves && moves.length > 0) {
-    const r1 = rng();
     if (r1 < 0.3) {
       power = Math.max(...moves.map(m => m.power || 0));
     } else {
-      const idx = Math.floor(rng() * moves.length);
+      const idx = Math.floor(r2 * moves.length);
       power = moves[idx]?.power || power;
     }
     power = Math.max(30, power);
-  } else {
-    rng();
-    rng();
   }
 
   const lvl = a.detail.level;
@@ -166,7 +166,9 @@ function buildUnits(
   const sortedOpp = sortTeamDeterministic(oppTeam).slice(0, 6);
 
   sortedMy.forEach((d, i) => {
-    const p = d as unknown as GamePokemon;
+    // [T11-FIX] 기절 포켓몬도 TFT에서는 풀팀으로 시작.
+    //   isFainted:false로 cast해야 getBuffedStats에서 early-return 없이 버프가 정상 적용됨.
+    const p = { ...d, isFainted: false } as unknown as GamePokemon;
     const buffed = getBuffedStats(p, mySynergies);
     units.push({
       id: `my-${i}`,
@@ -177,14 +179,15 @@ function buildUnits(
       hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
       atkCd: initialAtkCd(i),
-      fainted: !!d.isFainted,
+      fainted: false,  // [T11-FIX] TFT는 항상 풀팀으로 시작 (기절 포켓몬도 부활)
       isAtk: false,
       isHit: false,
     });
   });
 
   sortedOpp.forEach((d, i) => {
-    const p = d as unknown as GamePokemon;
+    // [T11-FIX] 상대방도 동일하게 기절 포켓몬 포함 풀팀으로 시작
+    const p = { ...d, isFainted: false } as unknown as GamePokemon;
     const buffed = getBuffedStats(p, oppSynergies);
     units.push({
       id: `op-${i}`,
@@ -195,7 +198,7 @@ function buildUnits(
       hp: d.currentHp > 0 ? d.currentHp : d.maxHp,
       maxHp: d.maxHp > 0 ? d.maxHp : 100,
       atkCd: initialAtkCd(i),
-      fainted: !!d.isFainted,
+      fainted: false,  // [T11-FIX] TFT는 항상 풀팀으로 시작
       isAtk: false,
       isHit: false,
     });
@@ -360,11 +363,15 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const benchUnits = units.filter(u => u.team === 'my' && u.x === -1 && !u.fainted);
 
   const mySynergies = useMemo(
-    () => calculateActiveSynergies(sortTeamDeterministic(myTeam) as unknown as GamePokemon[]),
+    () => calculateActiveSynergies(
+      sortTeamDeterministic(myTeam).filter(t => !t.isFainted) as unknown as GamePokemon[]
+    ),
     [myTeam],
   );
   const oppSynergies = useMemo(
-    () => calculateActiveSynergies(sortTeamDeterministic(opponentTeam) as unknown as GamePokemon[]),
+    () => calculateActiveSynergies(
+      sortTeamDeterministic(opponentTeam).filter(t => !t.isFainted) as unknown as GamePokemon[]
+    ),
     [opponentTeam],
   );
 
@@ -381,11 +388,11 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   }, [mySynergies, phase]);
 
   const myTeamSig = useMemo(
-    () => (myTeam || []).map(t => `${t.pokemonId}:${t.level}`).join(','),
+    () => (myTeam || []).map(t => `${t.pokemonId}:${t.level}:${t.currentHp}:${t.isFainted ? 1 : 0}`).join(','),
     [myTeam]
   );
   const oppTeamSig = useMemo(
-    () => (opponentTeam || []).map(t => `${t.pokemonId}:${t.level}`).join(','),
+    () => (opponentTeam || []).map(t => `${t.pokemonId}:${t.level}:${t.currentHp}:${t.isFainted ? 1 : 0}`).join(','),
     [opponentTeam]
   );
 
@@ -418,7 +425,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       }
       const now = Date.now() + multiplayerService.getServerTimeOffset();
       const elapsed = Math.floor((now - startTime) / 1000);
-      const remaining = Math.max(0, PREP_TIME - elapsed);
+      // [T3] clamp: 0 ≤ remaining ≤ PREP_TIME (clock skew 방어)
+      const remaining = Math.max(0, Math.min(PREP_TIME, PREP_TIME - elapsed));
       setCountdown(prev => prev !== remaining ? remaining : prev);
       if (remaining <= 0) {
         autoPlaceRemainingUnits();
@@ -542,7 +550,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     const updateReveal = () => {
       const now = Date.now() + multiplayerService.getServerTimeOffset();
       const elapsed = Math.floor((now - revealBase) / 1000);
-      const remaining = Math.max(0, REVEAL_TIME - elapsed);
+      // [T3] clamp: 0 ≤ remaining ≤ REVEAL_TIME (clock skew 방어)
+      const remaining = Math.max(0, Math.min(REVEAL_TIME, REVEAL_TIME - elapsed));
       setCountdown(remaining);
       if (remaining <= 0) {
         if (timerId) { clearInterval(timerId); timerId = null; }
@@ -557,18 +566,20 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleState, isOpponentReady, battleStartTime, battleSeed, isOpponentAI, myPosition]);
 
-  useEffect(() => {
-    if (phase === 'battle' && battleState === 'idle') {
-      autoPlaceRemainingUnits();
-      setBattleState('reveal');
-    }
-  }, [phase, battleState, autoPlaceRemainingUnits]);
+  // [T2] phase === 'battle' 분기 삭제 — BattlePhaseUI가 arenaPhase='prep'|'result'만 전달하므로
+  //   이 useEffect는 절대 실행되지 않는 dead code였음.
 
   useEffect(() => {
     if (!battleResultProp) return;
     if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
-    if (battleState !== 'done') setBattleState('done');
-  }, [battleResultProp, battleState]);
+    if (battleState !== 'done') {
+      // [T7] 서버 결과 기반 winnerText 동기화 — done 오버레이에 정확한 텍스트 표시
+      const myUserIdSafe = myUserId ?? '';
+      const myWon = battleResultProp.winnerId === myUserIdSafe;
+      setWinnerText(myWon ? t('battle.winMsg') : t('battle.loseMsg', { name: opponentName }));
+      setBattleState('done');
+    }
+  }, [battleResultProp, battleState, myUserId, opponentName, t]);
 
   useEffect(() => {
     if (battleState !== 'fighting') return;
@@ -626,32 +637,49 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
 
   const handleCellClick = (col: number, row: number) => {
     if (phase !== 'prep' || battleState !== 'idle' || !myCols.includes(col)) return;
-    if (selectedBenchId) {
-      setUnits(prev => {
-        const next = [...prev];
-        const unit = next.find(u => u.id === selectedBenchId);
-        if (unit) { unit.x = col; unit.y = row; simUnitsRef.current = next; }
-        return next;
-      });
-      setSelectedBenchId(null);
-    } else if (dragId) {
-      setUnits(prev => {
-        const next = [...prev];
-        const unit = next.find(u => u.id === dragId);
-        if (unit) { unit.x = col; unit.y = row; simUnitsRef.current = next; }
-        return next;
-      });
-      setDragId(null);
-    }
+    const movingId = selectedBenchId ?? dragId;
+    if (!movingId) return;
+
+    setUnits(prev => {
+      const next = prev.map(u => ({ ...u }));
+      const moving = next.find(u => u.id === movingId);
+      if (!moving) return prev;
+
+      // [T4] 같은 셀에 내 유닛이 있으면 swap
+      const occupant = next.find(u =>
+        u.team === 'my' && u.id !== movingId && u.x === col && u.y === row
+      );
+      if (occupant) {
+        occupant.x = moving.x;
+        occupant.y = moving.y;
+      }
+      moving.x = col;
+      moving.y = row;
+      simUnitsRef.current = next;
+      return next;
+    });
+    setSelectedBenchId(null);
+    setDragId(null);
   };
 
   const handleReturnToBench = (id: string) => {
     if (phase !== 'prep' || battleState !== 'idle') return;
     setUnits(prev => {
-      const next = [...prev];
-      const unit = next.find(u => u.id === id);
-      if (unit) { unit.x = -1; simUnitsRef.current = next; }
+      const next = prev.map(u => {
+        if (u.id !== id) return u;
+        const idx = parseInt(u.id.split('-')[1]);
+        // [T14] y도 bench index로 복원 — 재배치 시 이상 위치 방지
+        return { ...u, x: -1, y: idx };
+      });
       return next;
+    });
+    // [T12] setter 외부에서 ref 동기화 — React 18 Strict Mode 안전
+    queueMicrotask(() => {
+      simUnitsRef.current = simUnitsRef.current.map(u => {
+        if (u.id !== id) return u;
+        const idx = parseInt(u.id.split('-')[1]);
+        return { ...u, x: -1, y: idx };
+      });
     });
     setDragId(null);
   };

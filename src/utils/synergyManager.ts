@@ -571,5 +571,8 @@ export const getBuffedStats = (pokemon: GamePokemon, activeSynergies: Synergy[])
   stats.specialAttack = Math.floor(stats.specialAttack * finalMultiplier);
   stats.specialDefense = Math.floor(stats.specialDefense * finalMultiplier);
 
+  // [T1] 시너지 버프는 공격/방어 스탯에만 적용. HP는 원본 유지 (싱글 TD와 일관성 유지).
+  //   TFT buildUnits에서도 동일하게 currentHp/maxHp는 원본 값 사용.
+
   return stats;
 };

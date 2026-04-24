@@ -407,6 +407,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   healAllTowers: () => {
     const { towers, updateTower } = get();
     towers.forEach(t => {
+      // [T11-REVERTED] isFainted 부활은 여기서 하지 않음.
+      // 이유: healAllTowers는 WaveEndPicker 표시 직전에 호출됨 →
+      //   전원 부활하면 revive 아이템의 유효 대상이 사라져 선택 불가 UX 버그 발생.
+      // TFT 페어니스(기절 포켓몬 포함 전투)는 buildUnits에서 fainted:false로 처리.
       if (!t.isFainted) {
         updateTower(t.id, { currentHp: t.maxHp });
       }

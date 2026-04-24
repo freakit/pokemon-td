@@ -135,13 +135,10 @@ class SaveService {
 
 
 
-      // 토스트 알림
-      try {
-        const { useGameStore } = require('../store/gameStore');
-        useGameStore.getState().showAchievementToast(achievement.name, earnedAP, isFirstTime);
-      } catch {
-        // 스토어 없는 경우 무시
-      }
+      // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
+      import('../store/gameStore')
+        .then(m => m.useGameStore.getState().showAchievementToast(achievement.name, earnedAP, isFirstTime))
+        .catch(() => {});
     } else {
       // 미달성 — progress만 업데이트 (prevProgress보다 높은 경우만)
       achievement.progress = Math.max(prevProgress, progress);
@@ -149,21 +146,20 @@ class SaveService {
 
     this.save(data);
 
-    // Firebase DB 동기화
-    try {
-      const { authService } = require('./AuthService');
-      if (authService.getCurrentUser()) {
-        databaseService
-          .updateUserAchievement(achievement, data.totalAP)
-          .catch((err: any) => {
-            if (err?.code !== 'permission-denied') {
-              console.warn('[SaveService] Failed to persist achievement to DB:', err);
-            }
-          });
-      }
-    } catch {
-      // 무시
-    }
+    // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
+    import('./AuthService')
+      .then(({ authService }) => {
+        if (authService.getCurrentUser()) {
+          databaseService
+            .updateUserAchievement(achievement!, data.totalAP)
+            .catch((err: any) => {
+              if (err?.code !== 'permission-denied') {
+                console.warn('[SaveService] Failed to persist achievement to DB:', err);
+              }
+            });
+        }
+      })
+      .catch(() => {});
   }
 
   // ─── 총 AP 조회 ──────────────────────────────────────────────────────────

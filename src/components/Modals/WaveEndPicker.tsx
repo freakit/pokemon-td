@@ -24,8 +24,9 @@ export const WaveEndPicker: React.FC = () => {
     if ((item.type === 'mega-stone' || item.type === 'max-mushroom') && item.targetPokemonId) {
       const targetTower = towers.find(t => t.pokemonId === item.targetPokemonId);
       if (!targetTower) {
-        // [V8-FIX-8-4] 대상 포켓몬 없으면 조용히 넘어가지 않고 상태 정리
+        // [A4] 대상 포켓몬 없으면 UI 피드백 후 정리
         console.warn(`[WaveEndPicker] targetPokemonId ${item.targetPokemonId} not found in towers`);
+        alert(t('waveEnd.evolveTargetNotFound'));
         setWaveEndItemPick(null);
         useGameStore.setState({ isPaused: false });
         return;

@@ -1,26 +1,14 @@
 // src/components/GameLayout.tsx
 // ──────────────────────────────────────────────────────────────────
-// V6 — 로컀 권위 스테이트 관리 + 서버 보상 델타 시스템
+// V6 — 로컬 권위 + 서버 트랜잭션 보상
 //
-// [V6-FIX-GL-1] 로컀이 money/lives 포함 주담 — Firebase는 보상 델타만 성성
-//   - 배틀 보상, Bye 보너스는 Firebase battleResults.rewardP1/P2 필드로 전달
-//   - 로컀 gameStore.money/lives가 실제 값, Firebase는 입력 전용
-//
-// [V6-FIX-GL-2] Firebase → 로컀 던어쓰기 제거 (보상 델타 제외)
-//   - Firebase 구독이 로컀 money를 뒘어쓰는 버그 해결
-//   - 탈락 판정만 Firebase 기준으로 유지
-//
-// [V6-FIX-GL-3] 보상 델타 일괄 적용: battleResults에서 rewardP1/P2 필드
-//   읽어 로컀 addMoney/spendLives 직접 호출
-//
-// [V6-FIX-GL-4] 재접속 시 lastAppliedRoundRef를 currentRound로 초기화
-//   - 이중 보상 방지
-//
-// [V6-FIX-GL-5] Bye 보너스 토스트만 표시, 실제 금액은 서버에서 반영
-//
-// [V6-FIX-GL-6] 탈락 판정은 Firebase의 isAlive 기준 — 로컀 lives만 보고 playerDefeated 호출 X
-//
-// [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컀 gameOver 상태 동기화 (UI에 탈락 화면 표시)
+// [V6-FIX-GL-1] 로컬 gameStore가 money/lives의 주인. Firebase는 보상 델타만 제공.
+// [V6-FIX-GL-2] Firebase → 로컬 덮어쓰기 제거 (탈락 판정만 Firebase 기준).
+// [V6-FIX-GL-3] 배틀 보상은 battleResults.rewardP1/P2 델타를 로컬 addMoney/addLives로 적용.
+// [V6-FIX-GL-4] 재접속 시 lastAppliedRoundRef를 currentRound로 초기화 (이중 보상 방지).
+// [V6-FIX-GL-5] Bye 보너스 로컬 반영 + 토스트.
+// [V6-FIX-GL-6] 탈락 판정: 로컬 lives=0 즉시 + Firebase isAlive=false 방어층.
+// [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컬 gameOver 동기화.
 
 import React, { useState, useEffect, useRef } from "react";
 import styled, { keyframes } from "styled-components";
@@ -269,22 +257,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return unsubscribe;
   }, [multiRoomId, user]);
 
-  // [V6-FIX-GL-2] Firebase → 로컀 던어쓰기 제거
-  //   이전 버전에서 Firebase 구독이 로컀 money를 던어쓰서 구매 직후 500원으로 돌아오는 버그 발생.
-  //   현재는 로컀이 주인이므로 Firebase → 로컀 던어쓰기는 하지 않음.
+  // [V6-FIX-GL-2] Firebase → 로컬 덮어쓰기 제거
+  //   이전 버전에서 Firebase 구독이 로컬 money를 덮어써서 구매 직후 500원으로 돌아오는 버그 발생.
+  //   현재는 로컬이 주인이므로 Firebase → 로컬 덮어쓰기는 하지 않음.
   //   탈락 판정만 Firebase 기준으로 유지.
   useEffect(() => {
     if (!multiRoomId || !user) return;
     const unsubscribe = multiplayerService.onGameStateUpdate(multiRoomId, (players) => {
       const me = players.find(p => p.userId === user.uid);
       if (!me) return;
-      // [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컀 gameOver 상태 동기화
+      // [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컬 gameOver 상태 동기화
       //   defeatedRef만 업데이트하면 UI에 탈락 화면이 표시되지 않아
       //   gameStore.gameOver를 true로 설정해 게임오버 UI 표시
       if (!me.isAlive && !defeatedRef.current) {
         defeatedRef.current = true;
         console.log('[GameLayout] Player defeated (from Firebase isAlive=false)');
-        // [V8-FIX-1-3] 로컀 gameStore를 통해 스키트에 탈락 화면 표시
+        // [V8-FIX-1-3] 로컬 gameStore를 통해 스토어에 탈락 화면 표시
         useGameStore.setState({ gameOver: true });
       }
     });

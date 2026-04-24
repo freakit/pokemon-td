@@ -473,30 +473,12 @@ export class GameManager {
     if (enemy.isBoss) this.pendingStats.bossesDefeated++;
     this.flushStats();
 
-    // [수정 5] 업적 체크: flushStats는 0.5초 딜레이이므로 pendingStats 미반영분을 직접 합산
-    // → 현재 localStorage 값 + 아직 flush되지 않은 pendingStats를 합쳐서 체크
+    // [A2-FIX] pendingStats flush 딜레이(500ms)로 인해 localStorage가 stale일 수 있음.
+    //   저장값 + 미flush 누적값 합산 → 정확한 현재 처치 수를 onKill에 직접 전달.
     const savedStats = saveService.load().stats;
-    const actualKills = savedStats.enemiesKilled + this.pendingStats.enemiesKilled;
-    const actualBosses = savedStats.bossesDefeated + this.pendingStats.bossesDefeated;
-
-    // AchievementService에 위임 (현재 누적값 전달)
-    // AchievementService.onKill이 파라미터를 안 받는 기존 구조와 호환되게 하려면 
-    // 여기서 직접 체크하는게 더 안전하지만 지침에 따라 호출 추가
-    achievementService.onKill(enemy.name, enemy.isBoss);
-
-    // 처치 업적
-    const killThresholds = [100, 500, 1000, 5000];
-    for (const t of killThresholds) {
-      if (actualKills >= t) saveService.updateAchievement(`kill${t}`, actualKills);
-    }
-
-    // 보스 처치 업적
-    if (enemy.isBoss) {
-      const bossThresholds = [5, 20, 50];
-      for (const bt of bossThresholds) {
-        if (actualBosses >= bt) saveService.updateAchievement(`boss${bt}`, actualBosses);
-      }
-    }
+    const accumulatedKills = savedStats.enemiesKilled + this.pendingStats.enemiesKilled;
+    const accumulatedBosses = savedStats.bossesDefeated + this.pendingStats.bossesDefeated;
+    achievementService.onKill(enemy.name, enemy.isBoss, accumulatedKills, accumulatedBosses);
 
     // 웨이브 종료 후 killedEnemyIds 정리
     setTimeout(() => this.killedEnemyIds.delete(id), 5000);
