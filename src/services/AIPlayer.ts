@@ -157,6 +157,7 @@ function runWaveSim(towers: GamePokemon[], wave: number, difficulty: string): Wa
 // ─── AIPlayer ────────────────────────────────────────────────
 export class AIPlayer {
   private isRunning = false;
+  private isShopping = false; // [BUG-1 FIX] doShoppingTurn 동시 실행 방지
   private purchaseInterval: ReturnType<typeof setInterval> | null = null;
   private lastPurchaseCheck = 0;
   private gameStateSub: (() => void) | null = null;
@@ -387,16 +388,22 @@ export class AIPlayer {
 
   private async postWaveProcessing(wave: number) {
     this.towers = this.towers.map(t => ({ ...t, currentHp: t.maxHp, isFainted: false }));
-    if (Math.random() < this.cfg.levelUpChance) this.levelUpBestTower();
+    if (Math.random() < this.cfg.levelUpChance) this.levelUpAllTowers();
     if (Math.random() < this.cfg.evolvePriority) await this.tryEvolve();
     if (this.difficulty === 'hard' && wave % 5 === 0) await this.tryMegaEvolve();
   }
 
   private async doShoppingTurn() {
-    if (!this.isAlive) return;
-    this.healFainted();
-    if (this.towers.length < MAX_TOWERS) await this.buyPokemon();
-    if (this.cfg.upgradeTeam && this.towers.length === MAX_TOWERS) await this.upgradeWeakest();
+    // [BUG-1 FIX] 동시 실행 방지 — setInterval + onPhaseChange가 동시에 호출될 수 있음
+    if (!this.isAlive || this.isShopping) return;
+    this.isShopping = true;
+    try {
+      this.healFainted();
+      if (this.towers.length < MAX_TOWERS) await this.buyPokemon();
+      if (this.cfg.upgradeTeam && this.towers.length === MAX_TOWERS) await this.upgradeWeakest();
+    } finally {
+      this.isShopping = false;
+    }
   }
 
   private async buyPokemon() {
@@ -419,7 +426,9 @@ export class AIPlayer {
       const move = await this.pickMove(data.moves, data.types);
       const tower = this.makeTower(data, pos, move, picked.rarity);
 
-      // [V6-FIX] money 차감도 updatePlayerState로 일원화
+      // [BUG-1 FIX] PokeAPI 비동기 대기 중 다른 구매가 완료되어 이미 MAX_TOWERS에 도달했을 수 있음
+      if (this.towers.length >= MAX_TOWERS) return;
+
       this.money = newMoney;
       this.towers.push(tower);
 
@@ -563,33 +572,32 @@ export class AIPlayer {
     };
   }
 
-  private levelUpBestTower() {
-    const alive = this.towers.filter(t => !t.isFainted && t.level < 100);
-    if (alive.length === 0) return;
-    let target: GamePokemon;
-    if (this.difficulty === 'easy') {
-      target = alive[Math.floor(Math.random() * alive.length)];
-    } else {
-      target = alive.sort((a, b) =>
-        (b.level * RARITY_SCORE[b.rarity || 'Bronze']) -
-        (a.level * RARITY_SCORE[a.rarity || 'Bronze'])
-      )[0];
-    }
-    const idx = this.towers.indexOf(target);
-    if (idx === -1) return;
-    const M = 1.05;
-    this.towers[idx] = {
-      ...target,
-      level: target.level + 1,
-      experience: target.level * 100,
-      maxHp:          Math.floor(target.maxHp          * M),
-      currentHp:      Math.floor(target.currentHp      * M),
-      attack:         Math.floor(target.attack          * M),
-      baseAttack:     Math.floor(target.baseAttack      * M),
-      defense:        Math.floor(target.defense         * M),
-      specialAttack:  Math.floor(target.specialAttack   * M),
-      specialDefense: Math.floor(target.specialDefense  * M),
-    };
+  // [BUG-2 FIX] 전 포켓몬 균등 레벨업 — 싱글플레이의 addXpToTower와 동일한 성장 방식
+  // 이전: 가장 강한 포켓몬 1마리만 레벨업 → 격차 심화
+  // 변경: 살아있는 전 포켓몬을 동일하게 1레벨씩 성장
+  private levelUpAllTowers() {
+    this.towers = this.towers.map(t => {
+      if (t.isFainted || t.level >= 100) return t;
+      // 싱글플레이 addXpToTower와 동일한 성장률
+      const hpIncrease    = Math.floor(t.maxHp          * 0.1);
+      const atkIncrease   = Math.floor(t.attack         * 0.05);
+      const defIncrease   = Math.floor(t.defense        * 0.05);
+      const spDefIncrease = Math.floor(t.specialDefense * 0.05);
+      const spdIncrease   = Math.floor(t.speed          * 0.03);
+      return {
+        ...t,
+        level:          t.level + 1,
+        experience:     t.level * 100,
+        maxHp:          t.maxHp          + hpIncrease,
+        currentHp:      t.currentHp      + hpIncrease,
+        attack:         t.attack         + atkIncrease,
+        baseAttack:     t.baseAttack     + atkIncrease,
+        specialAttack:  t.specialAttack  + atkIncrease,
+        defense:        t.defense        + defIncrease,
+        specialDefense: t.specialDefense + spDefIncrease,
+        speed:          t.speed          + spdIncrease,
+      };
+    });
   }
 
   private async tryEvolve() {
