@@ -118,6 +118,10 @@ export interface PlayerGameState {
   battleRecord?: {
     wins: number;
     losses: number;
+    // [NEW-3 FIX] 실제 연속 승/패 수 — 승리 시 currentWinStreak++/currentLoseStreak 리셋,
+    // 패배 시 currentLoseStreak++/currentWinStreak 리셋
+    currentWinStreak: number;
+    currentLoseStreak: number;
   };
 }
 

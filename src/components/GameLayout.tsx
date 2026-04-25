@@ -361,6 +361,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       if (currentPhase === 'wave' && lastPhase !== 'wave') {
         console.log('[GameLayout] Phase changed to wave:', currentRound);
         if (defeatedRef.current) { lastPhase = currentPhase; return; }
+        // [NEW-4 FIX] 새 웨이브 시작 시 미선택 아이템 보상 UI 강제 클리어
+        // 기존: waveEndItemPick이 남아있으면 웨이브 진행 중에 아이템 선택 UI가 겹쳐 표시됨
+        useGameStore.setState({ waveEndItemPick: null });
         const gs = useGameStore.getState();
         if (!gs.isWaveActive) {
           useGameStore.setState({ wave: currentRound, isWaveActive: true, isPaused: false });
@@ -377,6 +380,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             WaveSystem.getInstance().startWave(currentRound);
           }
         }
+      }
+
+      // [NEW-4 FIX] battle 페이즈 진입 시 미선택 아이템 보상 UI 강제 클리어
+      // WaveEndPicker(z:1001)가 BattlePhaseUI(z:1000) 위에 남아 배틀 화면을 덮는 것을 방지
+      if (currentPhase === 'battle' && lastPhase !== 'battle') {
+        useGameStore.setState({ waveEndItemPick: null });
       }
 
       // [V6-FIX-GL-4] Bye 보너스 로컬 적용 — 서버는 더 이상 money를 변경하지 않으므로
@@ -503,7 +512,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <MultiplayerGameOverModal
           players={finalPlayers}
           myUserId={user.uid}
-          onClose={() => { setShowGameOverModal(false); handleResetAndLeave(); }}
+          onClose={() => {
+            setShowGameOverModal(false);
+            // [NEW-1 FIX] finalizeGame 호출 — 레이팅 업데이트 + 방 finished 마킹
+            // 기존: finalizeGame이 주석에만 언급되고 실제로는 절대 호출되지 않아 레이팅이 갱신되지 않음
+            if (multiRoomId) {
+              multiplayerService.finalizeGame(multiRoomId).catch(err =>
+                console.warn('[GameLayout] finalizeGame failed:', err)
+              );
+            }
+            handleResetAndLeave();
+          }}
         />
       )}
 
