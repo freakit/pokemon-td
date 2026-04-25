@@ -363,8 +363,8 @@ function simulateTick(
     // ── [FIX-5] 얼음/잠듦: 행동 불가 ──
     if (unit.statusEffect?.type === 'freeze' || unit.statusEffect?.type === 'sleep') {
       // 얼음: 매 틱 20% 확률로 해제 (RNG 소비 없음 — 결정론 유지용 단순 틱 기반)
-      if (unit.statusEffect.type === 'freeze' && unit.statusEffect.turnsLeft % 6 === 0) {
-        unit.statusEffect = undefined; // 약 0.2초마다 해제 판정
+      if (unit.statusEffect.type === 'freeze' && unit.statusEffect.turnsLeft % 6 === 1) { // 초기값(90)이 6의 배수라 0이면 첫 틱 즉시 해제됨 → 1로 수정
+        unit.statusEffect = undefined;
       }
       // 쿨다운만 감소, 공격 스킵
       unit.atkCd = Math.max(0, unit.atkCd - (1 / FPS));
