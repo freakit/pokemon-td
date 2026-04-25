@@ -822,13 +822,30 @@ export const GameCanvas: React.FC = () => {
             ))}
 
             {/* 데미지 숫자 */}
-            {damageNumbers.map((dmg) => (
-              <Text key={dmg.id} x={dmg.position.x-20} y={dmg.position.y-30}
-                text={dmg.isMiss ? "MISS" : dmg.value.toString()}
-                fontSize={dmg.isMiss ? 22 : dmg.isCrit ? 26 : 20}
-                fill={dmg.isMiss ? "#95a5a6" : dmg.isCrit ? "#f39c12" : "#fff"}
-                fontStyle="bold" stroke="#000" strokeWidth={2} shadowColor="#000" shadowBlur={5} shadowOpacity={0.8} />
-            ))}
+            {damageNumbers.map((dmg) => {
+              const eff = dmg.effectiveness ?? 1;
+              const fill =
+                dmg.isMiss                        ? '#95a5a6' : // MISS: 회색
+                dmg.isCrit && eff >= 2            ? '#ff2200' : // 크리티컬 + 약점: 진빨강
+                dmg.isCrit                        ? '#f39c12' : // 크리티컬: 골드
+                eff >= 4                          ? '#e74c3c' : // 4배 약점: 빨강
+                eff >= 2                          ? '#e67e22' : // 2배 약점: 주황
+                eff <= 0.15                       ? '#7f8c8d' : // 무효(×0.1): 진한 회색
+                eff <= 0.5                        ? '#5dade2' : // 반감(×0.5): 파랑
+                                                   '#ffffff';   // 보통: 흰색
+              const fontSize =
+                dmg.isMiss ? 22 :
+                dmg.isCrit ? 26 :
+                eff >= 2   ? 24 : 20;
+              return (
+                <Text key={dmg.id} x={dmg.position.x - 20} y={dmg.position.y - 30}
+                  text={dmg.isMiss ? 'MISS' : dmg.value.toString()}
+                  fontSize={fontSize}
+                  fill={fill}
+                  fontStyle="bold" stroke="#000" strokeWidth={2}
+                  shadowColor="#000" shadowBlur={5} shadowOpacity={0.8} />
+              );
+            })}
 
             {/* 배치 모드 */}
             {pokemonToPlace && (

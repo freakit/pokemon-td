@@ -39,6 +39,7 @@ import { authService } from '../services/AuthService';
 import { PlayerGameState, TowerDetail } from '../types/multiplayer';
 import { aiPlayerManager } from '../services/AIPlayer';
 import { media } from '../utils/responsive.utils';
+import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -577,14 +578,36 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 // ─── Helpers ──────────────────────────────────────────────────
 const buildTowerDetails = (towers: any[]): TowerDetail[] => {
   const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
-  return towers.map(t => scrub({
-    pokemonId: t.pokemonId, name: t.displayName || t.name, level: t.level, sprite: t.sprite,
-    position: t.position, currentHp: t.currentHp, maxHp: t.maxHp,
-    isFainted: !!t.isFainted, attack: t.attack, defense: t.defense,
-    specialAttack: t.specialAttack, specialDefense: t.specialDefense,
-    speed: t.speed, types: t.types,
-    equippedMoves: t.equippedMoves, lifesteal: t.lifesteal, aoeBonus: t.aoeBonus,
-  }));
+  return towers.map(t => {
+    const ability = t.ability;
+
+    // [FIX] ability에서 critChance 파생 (싱글플레이 getCriticalChance와 동일 로직)
+    const critChance = getCriticalChance(ability);
+
+    // [FIX] AOE: 장착 기술 중 isAOE가 있을 때만 활성화,
+    //       ability AOE 배율을 곱해 splash 비율 결정 (기본 50% × 배율)
+    const hasAOEMove = (t.equippedMoves || []).some((m: any) => m.isAOE);
+    const aoeMultiplier = getAOEDamageMultiplier(ability); // 1.0 or 1.2
+    const aoeBonus = hasAOEMove ? 0.5 * aoeMultiplier : 0;
+
+    // [FIX] lifesteal: 싱글플레이는 move.effect.drainPercent에서 처리하므로
+    //       여기서는 0으로 세팅. TFT calcDmg가 선택된 move의 drainPercent를 직접 적용.
+    //       (ability의 lifesteal 효과는 싱글에서도 미사용 — 일관성 유지)
+    const lifesteal = 0;
+
+    return scrub({
+      pokemonId: t.pokemonId, name: t.displayName || t.name, level: t.level, sprite: t.sprite,
+      position: t.position, currentHp: t.currentHp, maxHp: t.maxHp,
+      isFainted: !!t.isFainted,
+      attack: t.attack, defense: t.defense,
+      specialAttack: t.specialAttack, specialDefense: t.specialDefense,
+      speed: t.speed, types: t.types,
+      equippedMoves: t.equippedMoves,
+      critChance,
+      aoeBonus,
+      lifesteal,
+    });
+  });
 };
 
 // ─── Styled Components (원본 유지) ────────────────────────────────

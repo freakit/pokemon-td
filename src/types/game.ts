@@ -178,6 +178,7 @@ export interface DamageNumber {
   position: Position;
   isCrit: boolean;
   isMiss?: boolean;
+  effectiveness?: number;  // 타입 상성 배율 (0.1 / 0.5 / 1 / 2 / 4)
   lifetime: number;
 }
 

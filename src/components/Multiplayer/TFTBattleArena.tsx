@@ -56,6 +56,11 @@ interface Unit {
   fainted: boolean;
   isAtk: boolean;
   isHit: boolean;
+  // [FIX-5] 상태이상 지원
+  statusEffect?: {
+    type: 'burn' | 'poison' | 'paralysis' | 'freeze' | 'sleep';
+    turnsLeft: number;   // 남은 지속 틱 수
+  };
 }
 
 interface FloatTxt {
@@ -96,32 +101,135 @@ const R_POS = [
   { x: 4, y: 3 }, { x: 5, y: 4 }, { x: 4, y: 5 },
 ];
 
-function calcDmg(a: Unit, d: Unit, rng: () => number): number {
-  const atk = a.detail.attack ?? a.detail.level * 10;
-  const def = d.detail.defense ?? d.detail.level * 5;
-  const types = a.detail.types ?? [];
-  const dTypes = d.detail.types ?? [];
+// ─── [FIX-5] 배틀 데미지 계산 결과 타입 ──────────────────────────────────────
+interface DmgResult {
+  damage: number;
+  isCrit: boolean;
+  isStab: boolean;
+  effectiveness: number;  // 타입 상성 배율 (0.1/0.5/1/2/4)
+  statusInflicted?: 'burn' | 'poison' | 'paralysis' | 'freeze' | 'sleep';
+  isMiss: boolean;        // 명중 실패 여부 (accuracy 판정)
+  isAOE: boolean;         // 선택된 기술이 광역 기술인지
+  drainPercent?: number;  // 기술의 흡혈 비율 (move.effect.drainPercent)
+}
 
-  // [T6] RNG 소비 고정: 모든 경로에서 정확히 2회 선소비 + randomFactor 1회 = 총 3회
+/**
+ * [FIX-5 FINAL] calcDmg — 싱글플레이와 완전 동일한 로직
+ *   STAB · 물리/특수 구분 · 타입상성 · 크리티컬 · 명중률 · 상태이상 · 흡혈 · AOE
+ *
+ * RNG 소비 순서 (결정론 보장 — 항상 정확히 6회 소비):
+ *   r1 → 기술 선택 방식 (최강 vs 랜덤)
+ *   r2 → 랜덤 기술 인덱스
+ *   r3 → 크리티컬 판정
+ *   r4 → 데미지 난수 (0.85~1.0)
+ *   r5 → 상태이상 부여 판정
+ *   r6 → 명중률 판정 (accuracy)
+ *
+ * ※ miss 시에도 r1~r5 소비 후 r6에서 판정 → 양측 RNG 시퀀스 일치 보장
+ */
+function calcDmg(a: Unit, d: Unit, rng: () => number): DmgResult {
   const r1 = rng();
   const r2 = rng();
+  const r3 = rng();
+  const r4 = rng();
+  const r5 = rng();
+  const r6 = rng();
+
+  const attackerTypes = a.detail.types ?? [];
+  const defenderTypes = d.detail.types ?? [];
+
+  // 데미지가 있는 기술만 (status 기술 제외)
+  const damageMoves = (a.detail.equippedMoves ?? []).filter(
+    m => m.damageClass !== 'status' && (m.power ?? 0) > 0
+  );
 
   let power = 50 + a.detail.level;
-  const moves = a.detail.equippedMoves;
-  if (moves && moves.length > 0) {
+  let moveType: string = attackerTypes[0] ?? 'normal';
+  let damageClass: 'physical' | 'special' = 'physical';
+  let moveEffect: { statusInflict?: string; statusChance?: number | null; drainPercent?: number } | null = null;
+  let accuracy = 100; // 기술 명중률 (기본 100%)
+  let isAOE = false;
+
+  if (damageMoves.length > 0) {
+    let idx: number;
     if (r1 < 0.3) {
-      power = Math.max(...moves.map(m => m.power || 0));
+      // 30% 확률: 위력이 가장 높은 기술 사용
+      const maxPower = Math.max(...damageMoves.map(m => m.power ?? 0));
+      idx = damageMoves.findIndex(m => (m.power ?? 0) === maxPower);
+      if (idx < 0) idx = 0;
     } else {
-      const idx = Math.floor(r2 * moves.length);
-      power = moves[idx]?.power || power;
+      // 70% 확률: 랜덤 기술 사용
+      idx = Math.floor(r2 * damageMoves.length) % damageMoves.length;
     }
-    power = Math.max(30, power);
+    const sel = damageMoves[idx];
+    power      = Math.max(30, sel.power ?? power);
+    moveType   = sel.type || moveType;
+    damageClass = sel.damageClass === 'special' ? 'special' : 'physical';
+    moveEffect = sel.effect ?? null;
+    accuracy   = sel.accuracy ?? 100;   // [FIX] 기술 명중률 반영
+    isAOE      = sel.isAOE ?? false;    // [FIX] 기술 AOE 여부 반영
   }
 
+  // [FIX] 명중률 판정 (싱글플레이 hitChance = m.accuracy / 100 와 동일)
+  // r6를 항상 소비하므로 miss여도 r1~r5 계산은 완료된 뒤 판정
+  const isMiss = r6 > (accuracy / 100);
+  if (isMiss) {
+    return { damage: 0, isCrit: false, isStab: false, effectiveness: 1, isMiss: true, isAOE: false };
+  }
+
+  // 물리/특수 구분: 기술의 damageClass에 따라 공/방 스탯 선택
+  const atkStat = damageClass === 'special'
+    ? (a.detail.specialAttack ?? a.detail.attack ?? a.detail.level * 10)
+    : (a.detail.attack ?? a.detail.level * 10);
+  const defStat = damageClass === 'special'
+    ? (d.detail.specialDefense ?? d.detail.defense ?? d.detail.level * 5)
+    : (d.detail.defense ?? d.detail.level * 5);
+
+  // 타입 상성: 기술 타입 기준
+  const eff = getTypeEffectiveness(moveType, defenderTypes);
+
+  // 자속 보정 (STAB)
+  const isStab = attackerTypes.includes(moveType);
+
+  // 크리티컬
+  const critRate = a.detail.critChance ?? 0.0625;
+  const isCrit = r3 < critRate;
+
+  // 번 상태이상: 물리 공격력 절반
+  const burnPenalty = (a.statusEffect?.type === 'burn' && damageClass === 'physical') ? 0.5 : 1.0;
+
+  // 포켓몬 본가 데미지 공식
   const lvl = a.detail.level;
-  const eff = getTypeEffectiveness(types[0] ?? 'normal', dTypes);
-  const base = ((2 * lvl / 5 + 2) * power * atk / Math.max(def, 1)) / 50 + 2;
-  return Math.max(1, Math.floor(base * eff * (0.85 + rng() * 0.15)));
+  const base = ((2 * lvl / 5 + 2) * power * atkStat / Math.max(defStat, 1)) / 50 + 2;
+  const randomFactor = 0.85 + r4 * 0.15;
+  let dmg = base * eff * randomFactor * burnPenalty;
+  if (isStab) dmg *= 1.5;
+  if (isCrit) dmg *= 1.5;
+
+  // 상태이상 부여: 이미 상태이상이 없는 경우만
+  let statusInflicted: DmgResult['statusInflicted'];
+  if (!d.statusEffect && moveEffect?.statusInflict && moveEffect.statusChance != null) {
+    if (r5 * 100 < (moveEffect.statusChance ?? 0)) {
+      const s = moveEffect.statusInflict as string;
+      if (s === 'burn' || s === 'poison' || s === 'paralysis' || s === 'freeze' || s === 'sleep') {
+        statusInflicted = s;
+      }
+    }
+  }
+
+  // [FIX] drainPercent: move.effect.drainPercent (흡혈 기술, 싱글플레이와 동일)
+  const drainPercent = moveEffect?.drainPercent;
+
+  return {
+    damage: Math.max(1, Math.floor(dmg)),
+    isCrit,
+    isStab,
+    effectiveness: eff,
+    statusInflicted,
+    isMiss: false,
+    isAOE,
+    drainPercent,
+  };
 }
 
 function dst(a: Unit, b: Unit) {
@@ -224,96 +332,199 @@ function simulateTick(
   const floats: FloatTxt[] = [];
   let floatSeq = 0;
 
+  // ── [FIX-5] 상태이상 틱 처리 (매 틱마다 적용) ──────────────────
+  for (const unit of next) {
+    if (!alive(unit) || !unit.statusEffect) continue;
+    const se = unit.statusEffect;
+
+    // 독/번 틱 데미지
+    if (se.type === 'burn' || se.type === 'poison') {
+      const tickDmg = se.type === 'burn'
+        ? Math.max(1, Math.floor(unit.maxHp / 16 / FPS))   // 번: 1/16 HP/초
+        : Math.max(1, Math.floor(unit.maxHp / 8 / FPS));   // 독: 1/8 HP/초
+      unit.hp = Math.max(0, unit.hp - tickDmg);
+      if (unit.hp <= 0) unit.fainted = true;
+    }
+
+    // 지속 시간 감소
+    unit.statusEffect = {
+      ...se,
+      turnsLeft: se.turnsLeft - 1,
+    };
+    if (unit.statusEffect.turnsLeft <= 0) {
+      unit.statusEffect = undefined;
+    }
+  }
+
   for (const unitRef of canonicalOrder) {
     const unit = next.find(u => u.id === unitRef.id)!;
     if (!alive(unit)) continue;
+
+    // ── [FIX-5] 얼음/잠듦: 행동 불가 ──
+    if (unit.statusEffect?.type === 'freeze' || unit.statusEffect?.type === 'sleep') {
+      // 얼음: 매 틱 20% 확률로 해제 (RNG 소비 없음 — 결정론 유지용 단순 틱 기반)
+      if (unit.statusEffect.type === 'freeze' && unit.statusEffect.turnsLeft % 6 === 0) {
+        unit.statusEffect = undefined; // 약 0.2초마다 해제 판정
+      }
+      // 쿨다운만 감소, 공격 스킵
+      unit.atkCd = Math.max(0, unit.atkCd - (1 / FPS));
+      continue;
+    }
 
     const enemies = unit.team === 'my'
       ? next.filter(u => u.team === 'opp' && alive(u))
       : next.filter(u => u.team === 'my' && alive(u));
     if (!enemies.length) continue;
 
+    // 가장 가까운 적 타겟
     let target = enemies[0];
     let minD = Infinity;
     for (const e of enemies) {
       const d = dst(unit, e);
-      if (d < minD - 1e-9) {
-        minD = d;
-        target = e;
-      } else if (Math.abs(d - minD) < 1e-9 && e.id.localeCompare(target.id) < 0) {
-        target = e;
-      }
+      if (d < minD - 1e-9) { minD = d; target = e; }
+      else if (Math.abs(d - minD) < 1e-9 && e.id.localeCompare(target.id) < 0) { target = e; }
     }
 
     unit.atkCd = Math.max(0, unit.atkCd - (1 / FPS));
 
     if (minD <= ATTACK_RANGE) {
       if (unit.atkCd <= 0) {
-        unit.isAtk = true;
-        unit.atkCd = ATK_COOLDOWN;
-        const t2 = next.find(u => u.id === target.id);
-        if (t2 && alive(t2)) {
-          const dmg = calcDmg(unit, t2, rng);
+        // ── [FIX-5] 마비: 25% 확률로 행동 불가 (결정론: 틱 번호 기반) ──
+        // RNG를 추가 소비하지 않고 unit.id 해시 + 틱으로 대체해 결정론 유지
+        const paraSkip = unit.statusEffect?.type === 'paralysis' &&
+          ((parseInt(unit.id.replace(/\D/g, ''), 10) + Math.floor(unit.atkCd * 1000)) % 4 === 0);
 
-          const aoeRatio = unit.detail.aoeBonus || 0;
-          if (aoeRatio > 0 && enemies.length > 1) {
-            const splashRange = 1.6;
-            const splashDmg = Math.floor(dmg * aoeRatio);
-            const splashTargets = enemies
-              .filter(e => e.id !== t2.id && dst(t2, e) <= splashRange)
-              .sort((a, b) => a.id.localeCompare(b.id));
-            for (const e of splashTargets) {
-              const spTarget = next.find(u => u.id === e.id);
-              if (spTarget && alive(spTarget)) {
-                spTarget.hp = Math.max(0, spTarget.hp - splashDmg);
-                spTarget.isHit = true;
-                if (spTarget.hp <= 0) spTarget.fainted = true;
+        if (!paraSkip) {
+          unit.isAtk = true;
+
+          // [FIX-5] 스피드 기반 공격 쿨다운 (speed가 높을수록 빠른 공격)
+          const spd = unit.detail.speed ?? 50;
+          const speedMult = Math.max(0.4, 1.0 - spd / 400);
+          unit.atkCd = ATK_COOLDOWN * speedMult;
+
+          const t2 = next.find(u => u.id === target.id);
+          if (t2 && alive(t2)) {
+            const result = calcDmg(unit, t2, rng);
+            const {
+              damage: dmg, isCrit, effectiveness: eff, statusInflicted,
+              isMiss, isAOE, drainPercent,
+            } = result;
+
+            // ── 명중 실패 (accuracy) ─────────────────────────────────
+            if (isMiss) {
+              floats.push({
+                id: ++floatSeq, text: 'MISS',
+                x: t2.x * CELL + CELL / 2, y: t2.y * CELL,
+                color: '#aaaaaa',
+              });
+            } else {
+              // ── AOE: 이번 턴에 선택된 기술이 isAOE인 경우만 스플래시 ──
+              // aoeBonus = ability AOE 배율 (buildTowerDetails에서 계산)
+              if (isAOE && enemies.length > 1) {
+                const splashRange = 1.6;
+                // aoeBonus: ability AOE 배율(buildTowerDetails에서 계산), 없으면 1.0 기본
+                const aoeBonus = (unit.detail.aoeBonus ?? 0) > 0 ? (unit.detail.aoeBonus ?? 1.0) : 1.0;
+                const splashDmg = Math.floor(dmg * 0.5 * aoeBonus);
+                const splashTargets = enemies
+                  .filter(e => e.id !== t2.id && dst(t2, e) <= splashRange)
+                  .sort((a, b) => a.id.localeCompare(b.id));
+                for (const e of splashTargets) {
+                  const spTarget = next.find(u => u.id === e.id);
+                  if (spTarget && alive(spTarget)) {
+                    spTarget.hp = Math.max(0, spTarget.hp - splashDmg);
+                    spTarget.isHit = true;
+                    if (spTarget.hp <= 0) spTarget.fainted = true;
+                    floats.push({
+                      id: ++floatSeq,
+                      text: `-${splashDmg}`,
+                      x: spTarget.x * CELL + CELL / 2 + 10,
+                      y: spTarget.y * CELL - 10,
+                      color: '#e67e22',
+                    });
+                  }
+                }
+              }
+
+              // ── 메인 타겟 데미지 ──────────────────────────────────
+              t2.hp = Math.max(0, t2.hp - dmg);
+              t2.isHit = true;
+              if (t2.hp <= 0) t2.fainted = true;
+
+              // 플로트 텍스트: 색상으로만 상성 표현 (텍스트 멘트 없음)
+              // 크리티컬 + 약점 > 크리티컬 > 4배 > 2배 > 반감 > 무효 > 보통(팀 기준)
+              let floatColor: string;
+              if (isCrit && eff >= 2)       floatColor = '#ff2200';  // 크리티컬 + 약점: 진빨강
+              else if (isCrit)              floatColor = '#f39c12';  // 크리티컬: 골드
+              else if (eff >= 4)            floatColor = '#e74c3c';  // 4배: 빨강
+              else if (eff >= 2)            floatColor = '#e67e22';  // 2배: 주황
+              else if (eff <= 0.15)         floatColor = '#7f8c8d';  // 무효(×0.1): 진회색
+              else if (eff <= 0.5)          floatColor = '#5dade2';  // 반감(×0.5): 파랑
+              else floatColor = t2.team === 'my' ? '#ff6b6b' : '#ffd93d'; // 보통: 팀색
+
+              const floatText = isCrit ? `💥${dmg}` : `-${dmg}`;
+
+              floats.push({
+                id: ++floatSeq, text: floatText,
+                x: t2.x * CELL + CELL / 2, y: t2.y * CELL,
+                color: floatColor,
+              });
+
+              // ── 흡혈: drainPercent(기술 효과) 우선, 없으면 lifesteal 필드 ──
+              // 싱글플레이와 동일: proj.effect.drainPercent 기반
+              const healRatio = drainPercent ?? (unit.detail.lifesteal || 0);
+              if (healRatio > 0 && dmg > 0) {
+                const healAmount = Math.floor(dmg * healRatio);
+                if (healAmount > 0 && unit.hp < unit.maxHp) {
+                  unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
+                  floats.push({
+                    id: ++floatSeq, text: `+${healAmount}`,
+                    x: unit.x * CELL + CELL / 2, y: unit.y * CELL - 15,
+                    color: '#2ecc71',
+                  });
+                }
+              }
+
+              // ── 상태이상 부여 ─────────────────────────────────────
+              if (statusInflicted && !t2.fainted) {
+                const DURATION: Record<string, number> = {
+                  burn: FPS * 5, poison: FPS * 5, paralysis: FPS * 4,
+                  freeze: FPS * 3, sleep: FPS * 2,
+                };
+                t2.statusEffect = {
+                  type: statusInflicted,
+                  turnsLeft: DURATION[statusInflicted] ?? FPS * 3,
+                };
+                const SE_ICONS: Record<string, string> = {
+                  burn: '🔥', poison: '☠️', paralysis: '⚡', freeze: '❄️', sleep: '💤',
+                };
                 floats.push({
                   id: ++floatSeq,
-                  text: `-${splashDmg}`,
-                  x: spTarget.x * CELL + CELL / 2 + 10,
-                  y: spTarget.y * CELL - 10,
-                  color: '#e67e22',
+                  text: SE_ICONS[statusInflicted] ?? '❓',
+                  x: t2.x * CELL + CELL / 2 + 20,
+                  y: t2.y * CELL - 10,
+                  color: '#fff',
                 });
               }
-            }
+            } // end !isMiss
           }
-
-          t2.hp = Math.max(0, t2.hp - dmg);
-          t2.isHit = true;
-          if (t2.hp <= 0) t2.fainted = true;
-          floats.push({
-            id: ++floatSeq,
-            text: `-${dmg}`,
-            x: t2.x * CELL + CELL / 2,
-            y: t2.y * CELL,
-            color: t2.team === 'my' ? '#ff6b6b' : '#ffd93d',
-          });
-
-          const lsRatio = unit.detail.lifesteal || 0;
-          if (lsRatio > 0) {
-            const healAmount = Math.floor(dmg * lsRatio);
-            if (healAmount > 0 && unit.hp < unit.maxHp) {
-              unit.hp = Math.min(unit.maxHp, unit.hp + healAmount);
-              floats.push({
-                id: ++floatSeq,
-                text: `+${healAmount}`,
-                x: unit.x * CELL + CELL / 2,
-                y: unit.y * CELL - 15,
-                color: '#2ecc71',
-              });
-            }
-          }
+        } else {
+          // 마비로 행동 불가
+          unit.atkCd = ATK_COOLDOWN * 0.5; // 짧은 페널티
         }
       }
     } else {
+      // 이동
       unit.isAtk = false;
       const dx = target.x - unit.x;
       const dy = target.y - unit.y;
       const len = Math.sqrt(dx * dx + dy * dy);
+      // [FIX-5] 스피드 기반 이동 속도 (마비 시 절반)
+      const spd = unit.detail.speed ?? 50;
+      const moveSpeedFinal = MOVE_SPEED * (1 + spd / 200) *
+        (unit.statusEffect?.type === 'paralysis' ? 0.5 : 1.0);
       if (len > 0.01) {
-        unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * MOVE_SPEED * (1 / FPS)));
-        unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * MOVE_SPEED * (1 / FPS)));
+        unit.x = Math.max(0, Math.min(COLS - 1, unit.x + (dx / len) * moveSpeedFinal * (1 / FPS)));
+        unit.y = Math.max(0, Math.min(ROWS - 1, unit.y + (dy / len) * moveSpeedFinal * (1 / FPS)));
       }
     }
   }
@@ -716,83 +927,98 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
       </Header>
 
       <MainGrid>
-        <LeftSidebar>
-          <BenchArea>
-            <PanelTitle>{t('battle.myBenchCount', { count: benchUnits.length })}</PanelTitle>
-            <BenchGrid>
-              {benchUnits.map(u => (
-                <TowerCard key={u.id} $selected={selectedBenchId === u.id} onClick={() => handleBenchClick(u.id)}>
-                  {u.detail.sprite ? <CardSprite src={u.detail.sprite} /> : <CardFallback>{u.detail.name?.slice(0, 2)}</CardFallback>}
-                  <CardInfo>
-                    <CardNameRow>
-                      <CardName>{u.detail.name}</CardName>
-                      <CardLevel>Lv.{u.detail.level}</CardLevel>
-                    </CardNameRow>
-                    {u.detail.types && (
-                      <CardTypes>
-                        {u.detail.types.map(type => <TypeBadge key={type} $type={type}>{type}</TypeBadge>)}
-                      </CardTypes>
-                    )}
-                  </CardInfo>
-                </TowerCard>
-              ))}
-              {benchUnits.length === 0 && <EmptyMsg>{t('battle.allPlaced')}</EmptyMsg>}
-            </BenchGrid>
-            <Hint dangerouslySetInnerHTML={{ __html: t('battle.placementHint') }} />
-          </BenchArea>
-        </LeftSidebar>
+        {/* myPosition에 따라 벤치와 상대 패널 좌우 스왑 */}
+        {(() => {
+          const myBenchPanel = (
+            <BenchArea>
+              <PanelTitle>{t('battle.myBenchCount', { count: benchUnits.length })}</PanelTitle>
+              <BenchGrid>
+                {benchUnits.map(u => (
+                  <TowerCard key={u.id} $selected={selectedBenchId === u.id} onClick={() => handleBenchClick(u.id)}>
+                    {u.detail.sprite ? <CardSprite src={u.detail.sprite} /> : <CardFallback>{u.detail.name?.slice(0, 2)}</CardFallback>}
+                    <CardInfo>
+                      <CardNameRow>
+                        <CardName>{u.detail.name}</CardName>
+                        <CardLevel>Lv.{u.detail.level}</CardLevel>
+                      </CardNameRow>
+                      {u.detail.types && (
+                        <CardTypes>
+                          {u.detail.types.map(type => <TypeBadge key={type} $type={type}>{type}</TypeBadge>)}
+                        </CardTypes>
+                      )}
+                    </CardInfo>
+                  </TowerCard>
+                ))}
+                {benchUnits.length === 0 && <EmptyMsg>{t('battle.allPlaced')}</EmptyMsg>}
+              </BenchGrid>
+              <Hint dangerouslySetInnerHTML={{ __html: t('battle.placementHint') }} />
+            </BenchArea>
+          );
 
-        <CenterArea>
-          <Board $isPrep={isPrep}>
-            {[...Array(ROWS)].map((_, r) => [...Array(COLS)].map((_, c) => (
-              <Cell key={`${r}-${c}`} $col={c} $row={r} $isMy={myCols.includes(c)}
-                $isTarget={!!(selectedBenchId || dragId) && myCols.includes(c)}
-                onClick={() => handleCellClick(c, r)}
-              />
-            )))}
-            <ZoneLbl style={{ left: '2%', top: '2%' }}>{myPosition === 'L' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
-            <ZoneLbl style={{ right: '2%', top: '2%' }}>{myPosition === 'R' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
-            {units.filter(u => u.x >= 0).map(u => (
-              <UnitWrap key={u.id} $team={u.team} $fainted={u.fainted} $hit={u.isHit} $atk={u.isAtk} $sel={dragId === u.id}
-                style={{ left: u.x * CELL + CELL / 2, top: u.y * CELL + CELL / 2, transform: 'translate(-50%, -50%)' }}
-                onMouseDown={() => isPrep && u.team === 'my' && setDragId(u.id)}
-                onContextMenu={(e) => { e.preventDefault(); handleReturnToBench(u.id); }}
-              >
-                {!u.fainted && <HpBg><HpFill style={{ width: `${(u.hp / u.maxHp) * 100}%`, background: u.team === 'my' ? '#4ade80' : '#f87171' }} /></HpBg>}
-                {u.detail.sprite ? <Sprite src={u.detail.sprite} $fainted={u.fainted} $flip={myPosition === 'R' ? u.team === 'my' : u.team === 'opp'} /> : <Fallback $team={u.team}>{u.detail.name?.slice(0, 2)}</Fallback>}
-                <UnitName>{u.detail.name}</UnitName>
-              </UnitWrap>
-            ))}
-            {floats.map(f => <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>)}
-            {isReveal && <RevealOverlay><RevealText>{!isOpponentReady ? t('battle.waitingOpponent') : t('battle.startIn', { countdown })}</RevealText></RevealOverlay>}
-            {battleState === 'done' && <RevealOverlay style={{ background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }}><div style={{ textAlign: 'center' }}><RevealText style={{ fontSize: '42px', marginBottom: '10px' }}>{winnerText}</RevealText></div></RevealOverlay>}
-            <AchievementToastDisplay />
-          </Board>
-        </CenterArea>
+          const opponentPanel = (
+            <OpponentInfoPanel>
+              <PanelTitle>{t('battle.opponentTowersCount', { count: opponentTeam.length })}</PanelTitle>
+              <BenchGrid>
+                {sortTeamDeterministic(opponentTeam).map((t, i) => (
+                  <TowerCard key={i}>
+                    {t.sprite ? <CardSprite src={t.sprite} alt={t.name} /> : <CardFallback>{t.name?.slice(0, 2)}</CardFallback>}
+                    <CardInfo>
+                      <CardNameRow>
+                        <CardName>{t.name}</CardName>
+                        <CardLevel>Lv.{t.level}</CardLevel>
+                      </CardNameRow>
+                      {t.types && (
+                        <CardTypes>
+                          {t.types.map(type => <TypeBadge key={type} $type={type}>{type}</TypeBadge>)}
+                        </CardTypes>
+                      )}
+                    </CardInfo>
+                  </TowerCard>
+                ))}
+              </BenchGrid>
+            </OpponentInfoPanel>
+          );
 
-        <RightSidebar>
-          <OpponentInfoPanel>
-            <PanelTitle>{t('battle.opponentTowersCount', { count: opponentTeam.length })}</PanelTitle>
-            <BenchGrid>
-              {sortTeamDeterministic(opponentTeam).map((t, i) => (
-                <TowerCard key={i}>
-                  {t.sprite ? <CardSprite src={t.sprite} alt={t.name} /> : <CardFallback>{t.name?.slice(0, 2)}</CardFallback>}
-                  <CardInfo>
-                    <CardNameRow>
-                      <CardName>{t.name}</CardName>
-                      <CardLevel>Lv.{t.level}</CardLevel>
-                    </CardNameRow>
-                    {t.types && (
-                      <CardTypes>
-                        {t.types.map(type => <TypeBadge key={type} $type={type}>{type}</TypeBadge>)}
-                      </CardTypes>
-                    )}
-                  </CardInfo>
-                </TowerCard>
-              ))}
-            </BenchGrid>
-          </OpponentInfoPanel>
-        </RightSidebar>
+          return (
+            <>
+              <LeftSidebar>
+                {myPosition === 'L' ? myBenchPanel : opponentPanel}
+              </LeftSidebar>
+
+              <CenterArea>
+                <Board $isPrep={isPrep}>
+                  {[...Array(ROWS)].map((_, r) => [...Array(COLS)].map((_, c) => (
+                    <Cell key={`${r}-${c}`} $col={c} $row={r} $isMy={myCols.includes(c)}
+                      $isTarget={!!(selectedBenchId || dragId) && myCols.includes(c)}
+                      onClick={() => handleCellClick(c, r)}
+                    />
+                  )))}
+                  <ZoneLbl style={{ left: '2%', top: '2%' }}>{myPosition === 'L' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
+                  <ZoneLbl style={{ right: '2%', top: '2%' }}>{myPosition === 'R' ? t('battle.myZone') : t('battle.opponentZone')}</ZoneLbl>
+                  {units.filter(u => u.x >= 0).map(u => (
+                    <UnitWrap key={u.id} $team={u.team} $fainted={u.fainted} $hit={u.isHit} $atk={u.isAtk} $sel={dragId === u.id}
+                      style={{ left: u.x * CELL + CELL / 2, top: u.y * CELL + CELL / 2, transform: 'translate(-50%, -50%)' }}
+                      onMouseDown={() => isPrep && u.team === 'my' && setDragId(u.id)}
+                      onContextMenu={(e) => { e.preventDefault(); handleReturnToBench(u.id); }}
+                    >
+                      {!u.fainted && <HpBg><HpFill style={{ width: `${(u.hp / u.maxHp) * 100}%`, background: u.team === 'my' ? '#4ade80' : '#f87171' }} /></HpBg>}
+                      {u.detail.sprite ? <Sprite src={u.detail.sprite} $fainted={u.fainted} $flip={myPosition === 'R' ? u.team === 'my' : u.team === 'opp'} /> : <Fallback $team={u.team}>{u.detail.name?.slice(0, 2)}</Fallback>}
+                      <UnitName>{u.detail.name}</UnitName>
+                    </UnitWrap>
+                  ))}
+                  {floats.map(f => <FloatEl key={f.id} style={{ left: f.x, top: f.y, color: f.color }}>{f.text}</FloatEl>)}
+                  {isReveal && <RevealOverlay><RevealText>{!isOpponentReady ? t('battle.waitingOpponent') : t('battle.startIn', { countdown })}</RevealText></RevealOverlay>}
+                  {battleState === 'done' && <RevealOverlay style={{ background: 'rgba(0,0,0,0.6)', pointerEvents: 'auto' }}><div style={{ textAlign: 'center' }}><RevealText style={{ fontSize: '42px', marginBottom: '10px' }}>{winnerText}</RevealText></div></RevealOverlay>}
+                  <AchievementToastDisplay />
+                </Board>
+              </CenterArea>
+
+              <RightSidebar>
+                {myPosition === 'R' ? myBenchPanel : opponentPanel}
+              </RightSidebar>
+            </>
+          );
+        })()}
       </MainGrid>
     </Wrap>
 

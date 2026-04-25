@@ -224,10 +224,11 @@ class PvPBattleService {
 
     if (team1Remaining > 0 && team2Remaining === 0) {
       winnerId = player1Id;
-      lifeLost = team1Remaining;
+      // [FIX-2] lifeLost = 3 + 승자 생존 수 (calcBattleRewards와 일치)
+      lifeLost = 3 + team1Remaining;
     } else if (team2Remaining > 0 && team1Remaining === 0) {
       winnerId = player2Id;
-      lifeLost = team2Remaining;
+      lifeLost = 3 + team2Remaining;
     } else {
       // [V5-FIX-PVP-2] 동점/시간초과 — 결정론적 tiebreaker
       const t1HpSum = team1Battle.reduce((s, p) => s + Math.max(0, p.currentHp), 0);
@@ -238,22 +239,23 @@ class PvPBattleService {
       const t1Ratio = t1HpSum / t1HpMax;
       const t2Ratio = t2HpSum / t2HpMax;
 
+      // 타이브레이커: 최소 3 라이프 손실 보장
       if (t1Ratio > t2Ratio) {
-        winnerId = player1Id; lifeLost = 1;
+        winnerId = player1Id; lifeLost = 3;
       } else if (t2Ratio > t1Ratio) {
-        winnerId = player2Id; lifeLost = 1;
+        winnerId = player2Id; lifeLost = 3;
       } else if (t1HpSum !== t2HpSum) {
-        winnerId = t1HpSum > t2HpSum ? player1Id : player2Id; lifeLost = 1;
+        winnerId = t1HpSum > t2HpSum ? player1Id : player2Id; lifeLost = 3;
       } else {
         // Speed 합 tiebreaker
         const t1Spd = team1Battle.reduce((s, p) => s + (p.speed ?? 0), 0);
         const t2Spd = team2Battle.reduce((s, p) => s + (p.speed ?? 0), 0);
         if (t1Spd !== t2Spd) {
-          winnerId = t1Spd > t2Spd ? player1Id : player2Id; lifeLost = 1;
+          winnerId = t1Spd > t2Spd ? player1Id : player2Id; lifeLost = 3;
         } else {
           // 최종: 시드 기반 RNG (양측이 동일한 seed를 쓰므로 동일 결과)
           winnerId = rng() < 0.5 ? player1Id : player2Id;
-          lifeLost = 1;
+          lifeLost = 3;
         }
       }
     }
@@ -312,7 +314,7 @@ class PvPBattleService {
         return p.battleId.localeCompare(best.battleId) < 0 ? p : best;
       });
 
-      const damage = this.calculateBattleDamage(attacker, target, rng);
+      const { damage, isCrit, moveName } = this.calculateBattleDamage(attacker, target, rng);
       target.currentHp -= damage;
 
       const isFainted = target.currentHp <= 0;
@@ -323,41 +325,100 @@ class PvPBattleService {
         targetId: target.battleId,
         action: 'attack',
         damage,
-        isCrit: false,
+        isCrit,
         isMiss: false,
         isFainted,
-        moveName: 'Attack',
+        moveName: moveName ?? 'Attack',
         timestamp: turn, // [V5] Date.now() 대신 turn 번호 (결정론)
       });
     }
   }
 
   /**
-   * 대전 데미지 계산 — Math.random → rng
+  /**
+   * [FIX-5 FINAL] 대전 데미지 계산 — STAB·물리/특수 구분·크리티컬·타입상성·명중률 완전 적용
+   *
+   * RNG 소비 순서 (결정론 보장 — 항상 정확히 5회):
+   *   r1 → 기술 선택 방식 (최강 vs 랜덤)
+   *   r2 → 랜덤 기술 인덱스
+   *   r3 → 크리티컬 판정
+   *   r4 → 데미지 난수 (0.85~1.0)
+   *   r5 → 명중률 판정 (accuracy)
    */
   private calculateBattleDamage(
     attacker: TowerDetail,
     defender: TowerDetail,
     rng: () => number
-  ): number {
-    const attackStat = attacker.attack ?? attacker.level * 10;
-    const defenseStat = defender.defense ?? defender.level * 5;
+  ): { damage: number; isCrit: boolean; moveName?: string } {
+    const r1 = rng();
+    const r2 = rng();
+    const r3 = rng();
+    const r4 = rng();
+    const r5 = rng();
+
     const attackerTypes = attacker.types ?? [];
     const defenderTypes = defender.types ?? [];
 
-    const basePower = 50 + attacker.level;
+    // 데미지가 있는 기술만 (status 기술 제외)
+    const damageMoves = (attacker.equippedMoves ?? []).filter(
+      m => m.damageClass !== 'status' && (m.power ?? 0) > 0
+    );
+
+    let power = 50 + attacker.level;
+    let moveType: string = attackerTypes[0] ?? 'normal';
+    let damageClass: 'physical' | 'special' = 'physical';
+    let moveName: string | undefined;
+    let accuracy = 100;
+
+    if (damageMoves.length > 0) {
+      let idx: number;
+      if (r1 < 0.3) {
+        const maxP = Math.max(...damageMoves.map(m => m.power ?? 0));
+        idx = damageMoves.findIndex(m => (m.power ?? 0) === maxP);
+        if (idx < 0) idx = 0;
+      } else {
+        idx = Math.floor(r2 * damageMoves.length) % damageMoves.length;
+      }
+      const sel = damageMoves[idx];
+      power    = Math.max(30, sel.power ?? power);
+      moveType = sel.type || moveType;
+      damageClass = sel.damageClass === 'special' ? 'special' : 'physical';
+      moveName = sel.displayName || sel.name;
+      accuracy = sel.accuracy ?? 100;
+    }
+
+    // 명중률 판정 (싱글플레이와 동일: hitChance = accuracy / 100)
+    const isMiss = r5 > (accuracy / 100);
+    if (isMiss) {
+      return { damage: 0, isCrit: false, moveName };
+    }
+
+    // 물리/특수 구분: damageClass에 따라 공/방 스탯 선택
+    const atkStat = damageClass === 'special'
+      ? (attacker.specialAttack ?? attacker.attack ?? attacker.level * 10)
+      : (attacker.attack ?? attacker.level * 10);
+    const defStat = damageClass === 'special'
+      ? (defender.specialDefense ?? defender.defense ?? defender.level * 5)
+      : (defender.defense ?? defender.level * 5);
+
+    // 타입 상성: 기술 타입 기준
+    const typeEff = getTypeEffectiveness(moveType, defenderTypes);
+
+    // 자속 보정 (STAB): 공격자 타입과 기술 타입 일치 시 1.5배
+    const isStab = attackerTypes.includes(moveType);
+
+    // 크리티컬 (기본 6.25%)
+    const critRate = attacker.critChance ?? 0.0625;
+    const isCrit = r3 < critRate;
+
     const level = attacker.level;
+    const base = ((2 * level / 5 + 2) * power * atkStat / Math.max(1, defStat) / 50 + 2);
+    const randomFactor = 0.85 + r4 * 0.15;
+    let damage = base * typeEff * randomFactor;
+    if (isStab) damage *= 1.5;
+    if (isCrit) damage *= 1.5;
 
-    const attackType = attackerTypes[0] ?? 'normal';
-    const typeEff = getTypeEffectiveness(attackType, defenderTypes);
-
-    const base = ((2 * level / 5 + 2) * basePower * attackStat / Math.max(1, defenseStat) / 50 + 2);
-    const damage = base * typeEff;
-
-    // [V5-FIX-PVP-1] 시드 RNG
-    const randomFactor = 0.85 + rng() * 0.15;
-
-    return Math.max(1, Math.floor(damage * randomFactor));
+    return { damage: Math.max(1, Math.floor(damage)), isCrit, moveName };
   }
 }
 
