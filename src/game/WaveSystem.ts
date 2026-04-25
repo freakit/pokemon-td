@@ -1,18 +1,19 @@
 // src/game/WaveSystem.ts
 import { useGameStore } from "../store/gameStore";
-import { Enemy, Difficulty } from "../types/game";
+import { Enemy } from "../types/game";
 import { getMapById } from "../data/maps";
 import { pokeAPI } from "../api/pokeapi";
 
 const DIFFICULTY_MULTIPLIERS: Record<
-  Difficulty,
+  string,
   { hp: number; attack: number; reward: number }
 > = {
-  easiest: { hp: 0.1, attack: 0.1, reward: 1.0 },
-  easy:    { hp: 0.7, attack: 0.7, reward: 1.0 },
-  normal:  { hp: 0.9, attack: 0.9, reward: 1.0 },
-  hard:    { hp: 1.05, attack: 1.05, reward: 1.0 },
-  expert:  { hp: 1.2, attack: 1.2, reward: 1.0 },
+  easiest: { hp: 0.1,  attack: 0.1,  reward: 1.0 },
+  easy:    { hp: 0.6,  attack: 0.6,  reward: 1.0 },
+  medium:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // maps.ts 'medium' 대응
+  normal:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // gameStore 기본값 대응
+  hard:    { hp: 1.0,  attack: 1.0,  reward: 1.0 },
+  expert:  { hp: 1.2,  attack: 1.2,  reward: 1.0 },
 };
 
 // 웨이브별 종족값 범위 (스폰 포켓몬 강도 조절)
@@ -51,6 +52,10 @@ export class WaveSystem {
   // [FIX-RACE] 스폰 epoch: cancelPendingSpawns 시 증가 → 이전 async 스폰이 addEnemy 호출 차단
   private _spawnEpoch = 0;
 
+  // [FIX-7] 모든 스폰 타이머가 완료(스케줄링 끝) 되었는지 여부
+  // setSpawning(false)는 스케줄 완료 + pendingSpawnCount=0 이 모두 충족될 때만 호출
+  private _schedulingComplete = false;
+
   static getInstance() {
     if (!WaveSystem.instance) {
       WaveSystem.instance = new WaveSystem();
@@ -74,6 +79,7 @@ export class WaveSystem {
     this.activeTimers = [];
     this._bossSpawnPending = false;
     this._pendingSpawnCount = 0;
+    this._schedulingComplete = false;
     // [FIX-RACE] epoch 증가 → 진행 중인 async spawnEnemy가 addEnemy 호출을 건너뜀
     this._spawnEpoch++;
   }
@@ -81,14 +87,16 @@ export class WaveSystem {
   startWave(wave: number) {
     this.cancelPendingSpawns();
 
-    const { currentMap, difficulty, addEnemy, setSpawning } = useGameStore.getState();
+    const { currentMap, addEnemy, setSpawning } = useGameStore.getState();
     const map = getMapById(currentMap);
     if (!map || map.paths.length === 0) return;
 
     setSpawning(true);
 
+    // 난이도는 항상 선택된 맵의 difficulty 기준 (싱글/멀티 공통)
+    // maps.ts의 'medium'과 gameStore Difficulty 타입의 'normal'을 모두 지원
+    const mult = DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal'];
     const count = this.getEnemyCount(wave);
-    const mult = DIFFICULTY_MULTIPLIERS[difficulty];
     const pathsToUse = map.paths;
 
     // [수정①] 3의 배수 웨이브마다 보스 스폰 (기존 5의 배수 → 3의 배수)
@@ -122,7 +130,13 @@ export class WaveSystem {
         // [FIX] async 스폰 추적: 시작 시 증가, 완료(성공/실패 불문) 시 감소
         this._pendingSpawnCount++;
         this.spawnEnemy(wave, currentPath, false, mult, addEnemy)
-          .finally(() => { this._pendingSpawnCount--; });
+          .finally(() => {
+            this._pendingSpawnCount--;
+            // [FIX-7] 스케줄 완료 후 마지막 async 스폰이 끝나면 isSpawning 해제
+            if (this._pendingSpawnCount === 0 && this._schedulingComplete && !this._bossSpawnPending) {
+              useGameStore.getState().setSpawning(false);
+            }
+          });
       }, spawnDelay);
       this.activeTimers.push(timer);
       lastSpawnTime = spawnDelay;
@@ -140,6 +154,10 @@ export class WaveSystem {
         } finally {
           this._pendingSpawnCount--;
           this._bossSpawnPending = false;
+          // [FIX-7] 보스가 마지막 async 스폰인 경우 isSpawning 해제
+          if (this._pendingSpawnCount === 0 && this._schedulingComplete) {
+            useGameStore.getState().setSpawning(false);
+          }
         }
       }, bossSpawnTime);
       this.activeTimers.push(bossTimer);
@@ -147,9 +165,14 @@ export class WaveSystem {
     }
 
     const endTimer = setTimeout(() => {
-      setSpawning(false);
-      // activeTimers에서 완료된 것들 정리
+      // [FIX-7] 스케줄링 완료 표시. setSpawning(false)는 async 스폰이
+      // 모두 끝난 후에만 호출 — 느린 네트워크에서 조기 완료 방지
+      this._schedulingComplete = true;
       this.activeTimers = [];
+      if (this._pendingSpawnCount === 0) {
+        setSpawning(false);
+      }
+      // pendingSpawnCount > 0 이면 각 spawnEnemy.finally()에서 호출
     }, lastSpawnTime + 500);
     this.activeTimers.push(endTimer);
   }
@@ -230,11 +253,11 @@ export class WaveSystem {
   }
 
   spawnDebuffBoss(wave: number) {
-    const { currentMap, difficulty, addEnemy } = useGameStore.getState();
+    const { currentMap, addEnemy } = useGameStore.getState();
     const map = getMapById(currentMap);
     if (!map || map.paths.length === 0) return;
 
-    const mult = DIFFICULTY_MULTIPLIERS[difficulty];
+    const mult = DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal'];
     this.spawnEnemy(wave + 5, map.paths[0], true, mult, addEnemy);
   }
 

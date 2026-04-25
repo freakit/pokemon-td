@@ -159,4 +159,5 @@ export interface TowerDetail {
   equippedMoves?: GameMove[];
   lifesteal?: number;
   aoeBonus?: number;
+  critChance?: number;
 }

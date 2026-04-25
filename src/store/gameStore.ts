@@ -231,6 +231,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       activeSynergies: [],
       hoveredSynergy: null,
       isPreloading: false,
+      isShopDisabled: false,
     }),
 
   incrementGameTime: (dt) =>
@@ -430,6 +431,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let currentBaseAttack = tower.baseAttack;
     let currentSpecialAttack = tower.specialAttack;
     let currentHp = tower.currentHp;
+    // [FIX] 방어·특방·스피드도 레벨업 시 성장
+    let currentDefense = tower.defense;
+    let currentSpecialDefense = tower.specialDefense;
+    let currentSpeed = tower.speed;
 
     const levelUps: number[] = [];
 
@@ -440,14 +445,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
         currentLevel++;
         levelUps.push(currentLevel);
 
-        const hpIncrease = Math.floor(currentMaxHp * 0.1);
-        const atkIncrease = Math.floor(currentAttack * 0.05);
-        
-        currentMaxHp += hpIncrease;
-        currentHp += hpIncrease;
-        currentAttack += atkIncrease;
-        currentBaseAttack += atkIncrease;
-        currentSpecialAttack += atkIncrease;
+        const hpIncrease     = Math.floor(currentMaxHp * 0.1);
+        const atkIncrease    = Math.floor(currentAttack * 0.05);
+        const defIncrease    = Math.floor(currentDefense * 0.05);
+        const spDefIncrease  = Math.floor(currentSpecialDefense * 0.05);
+        const spdIncrease    = Math.floor(currentSpeed * 0.03); // 스피드는 소폭 성장
+
+        currentMaxHp           += hpIncrease;
+        currentHp              += hpIncrease;
+        currentAttack          += atkIncrease;
+        currentBaseAttack      += atkIncrease;
+        currentSpecialAttack   += atkIncrease;
+        currentDefense         += defIncrease;
+        currentSpecialDefense  += spDefIncrease;
+        currentSpeed           += spdIncrease;
       } else {
         break;
       }
@@ -461,6 +472,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
       attack: currentAttack,
       baseAttack: currentBaseAttack,
       specialAttack: currentSpecialAttack,
+      defense: currentDefense,
+      specialDefense: currentSpecialDefense,
+      speed: currentSpeed,
     });
 
     if (levelUps.length > 0) {

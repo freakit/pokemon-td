@@ -422,6 +422,7 @@ export class GameManager {
       value: dmg,
       position: { ...enemy.position },
       isCrit,
+      effectiveness: eff,
       lifetime: 1.0,
     });
 
@@ -479,9 +480,8 @@ export class GameManager {
     const accumulatedKills = savedStats.enemiesKilled + this.pendingStats.enemiesKilled;
     const accumulatedBosses = savedStats.bossesDefeated + this.pendingStats.bossesDefeated;
     achievementService.onKill(enemy.name, enemy.isBoss, accumulatedKills, accumulatedBosses);
-
-    // 웨이브 종료 후 killedEnemyIds 정리
-    setTimeout(() => this.killedEnemyIds.delete(id), 5000);
+    // [FIX-6] setTimeout 5초 딜레이 클리어 제거 — checkWaveComplete.finally에서
+    // killedEnemyIds.clear()가 일괄 처리하므로 개별 setTimeout 불필요 (타이밍 중복 방지)
   }
 
   private updateDamageNumbers(dt: number) {
@@ -501,21 +501,26 @@ export class GameManager {
   // [수정] 멀티플레이에서 isPaused: true 설정 안 함 (BattlePhaseUI가 페이즈 전환 담당)
   // [FIX] 보스뿐 아니라 일반 적의 async 스폰도 완료될 때까지 웨이브 종료 방지
   private async checkWaveComplete() {
-    const { enemies, isWaveActive, isSpawning } = useGameStore.getState();
+    const { enemies, isWaveActive, isSpawning, lives } = useGameStore.getState();
 
     // [FIX] hasPendingSpawns: 보스 + 일반 적의 async 스폰 모두 체크
     const waveSystem = WaveSystem.getInstance();
     if (!isWaveActive || isSpawning || enemies.length !== 0 || waveSystem.hasPendingSpawns) return;
     if (this.isCompletingWave) return;
 
+    // [FIX-3] 멀티플레이에서 라이프가 0이 된 경우(탈락 상태) 웨이브 완료 처리 방지
+    // GameLayout의 defeatedRef 구독이 처리하기 전에 markWaveCompleted가 호출되는
+    // 레이스 컨디션을 방지. 탈락자가 아직 살아있는 것으로 카운트되면 안 됨.
+    const multiRoomId = multiplayerService.getCurrentRoomId();
+    if (multiRoomId && lives <= 0) return;
+
     this.isCompletingWave = true;
 
     try {
-      const { healAllTowers, setWaveEndItemPick, towers, wave, gameTime, currentMap, lives, difficulty } =
+      const { healAllTowers, setWaveEndItemPick, towers, wave, gameTime, currentMap, lives: currentLives, difficulty } =
         useGameStore.getState();
 
-      const multiRoomId = multiplayerService.getCurrentRoomId();
-      const isMultiplayer = !!multiRoomId;
+      const isMultiplayer = !!multiRoomId; // 위에서 선언한 multiRoomId 재사용
 
       // 웨이브 종료 처리
       // 멀티플레이: isPaused 설정 안 함 (BattlePhaseUI가 카운트다운 관리)
@@ -556,7 +561,7 @@ export class GameManager {
       if (!isMultiplayer) {
         try {
           // 도전 업적 (퍼펙트/스피드런/불패/난이도/속도) → AchievementService 위임
-          achievementService.onWaveComplete(wave, lives, 50, gameTime, difficulty, towers);
+          achievementService.onWaveComplete(wave, currentLives, 50, gameTime, difficulty, towers);
 
           // 전설 포켓몬 수집 업적
           for (const tower of towers) {

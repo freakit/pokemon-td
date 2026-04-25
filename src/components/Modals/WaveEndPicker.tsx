@@ -6,6 +6,14 @@ import styled, { css, keyframes } from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
+import { multiplayerService } from '../../services/MultiplayerService';
+
+// 싱글플레이에서만 isPaused:false 해제 (멀티플레이는 BattlePhaseUI가 관리)
+function resumeSingleOnly() {
+  if (!multiplayerService.getCurrentRoomId()) {
+    useGameStore.setState({ isPaused: false });
+  }
+}
 
 export const WaveEndPicker: React.FC = () => {
   const { t } = useTranslation();
@@ -28,14 +36,14 @@ export const WaveEndPicker: React.FC = () => {
         console.warn(`[WaveEndPicker] targetPokemonId ${item.targetPokemonId} not found in towers`);
         alert(t('waveEnd.evolveTargetNotFound'));
         setWaveEndItemPick(null);
-        useGameStore.setState({ isPaused: false });
+        resumeSingleOnly();
         return;
       }
       // ✅ 수정: 메가스톤과 거다이맥스 모두 item.id를 그대로 전달
       const evolutionItem = item.id;
       useGameStore.getState().evolvePokemon(targetTower.id, evolutionItem);
       setWaveEndItemPick(null);
-      useGameStore.setState({ isPaused: false });
+      resumeSingleOnly();
       return;
     }
 
@@ -60,7 +68,7 @@ export const WaveEndPicker: React.FC = () => {
 
     setSelectedItem(null);
     setWaveEndItemPick(null);
-    useGameStore.setState({ isPaused: false });
+    resumeSingleOnly();
   };
 
   const handleCancelTarget = () => setSelectedItem(null);
@@ -68,7 +76,7 @@ export const WaveEndPicker: React.FC = () => {
   const handleSkip = () => {
     setSelectedItem(null);
     setWaveEndItemPick(null);
-    useGameStore.setState({ isPaused: false });
+    resumeSingleOnly();
   };
 
   const getItemName = (item: Item) => {
