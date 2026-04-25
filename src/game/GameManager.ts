@@ -245,7 +245,7 @@ export class GameManager {
       }
     }
 
-    const dmg = calculateDamage(enemy.attack, buffedStats.defense, 20, eff, false);
+    const dmg = calculateDamage(enemy.attack, buffedStats.defense, 40, eff, false);
     const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier));
     const newHp = Math.max(0, tower.currentHp - finalDmg);
 
