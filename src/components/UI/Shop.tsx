@@ -70,7 +70,21 @@ export const Shop: React.FC = () => {
   const handleBuyRevive = () => {
     setItemMode('revive');
   };
+  // [BUG-4 FIX] exp_candy 사용 가능 여부 사전 검사
+  // 기존: 모든 포켓몬이 같은 레벨일 때도 버튼 클릭 가능 → 타겟 선택 후 "사용 불가" 알림
+  // 수정: 버튼 클릭 시점에 사용 불가 조건 확인 → 즉시 안내 후 모드 진입 차단
   const handleBuyExpCandy = () => {
+    const aliveTowers = towers.filter(t => !t.isFainted);
+    if (aliveTowers.length < 2) {
+      alert(t('alerts.cannotUseItem'));
+      return;
+    }
+    const minLevel = Math.min(...aliveTowers.map(t => t.level));
+    const hasHigher = aliveTowers.some(t => t.level > minLevel);
+    if (!hasHigher) {
+      alert(t('alerts.cannotUseItem'));
+      return;
+    }
     setItemMode('exp_candy');
   };
 
@@ -160,12 +174,12 @@ export const Shop: React.FC = () => {
         <TargetModal>
           <TargetTitle>🎯 {t('shop.targetTitle')}</TargetTitle>
           <TargetSubtitle>
-            {itemMode === 'potion'      && t('shop.targetPotion')}
+            {itemMode === 'potion' && t('shop.targetPotion')}
             {itemMode === 'potion_good' && t('shop.targetPotionGood')}
-            {itemMode === 'potion_super'&& t('shop.targetPotionSuper')}
-            {itemMode === 'candy'       && t('shop.targetCandy')}
-            {itemMode === 'revive'      && t('shop.targetRevive')}
-            {itemMode === 'exp_candy'   && t('shop.targetExpCandy')}
+            {itemMode === 'potion_super' && t('shop.targetPotionSuper')}
+            {itemMode === 'candy' && t('shop.targetCandy')}
+            {itemMode === 'revive' && t('shop.targetRevive')}
+            {itemMode === 'exp_candy' && t('shop.targetExpCandy')}
             {itemMode !== 'none' &&
               itemMode !== 'potion' && itemMode !== 'potion_good' && itemMode !== 'potion_super' &&
               itemMode !== 'candy' && itemMode !== 'revive' && itemMode !== 'exp_candy' &&
@@ -467,9 +481,9 @@ const PriceLabel = styled.p<{ $type: 'candy' | 'revive' | 'exp' | 'evolve' }>`
   font-size: 12px;
   margin-top: 8px;
   color: ${props => {
-    if (props.$type === 'candy')  return '#f39c12';
+    if (props.$type === 'candy') return '#f39c12';
     if (props.$type === 'revive') return '#e74c3c';
-    if (props.$type === 'exp')    return '#9b59b6';
+    if (props.$type === 'exp') return '#9b59b6';
     if (props.$type === 'evolve') return '#2ecc71';
     return '#fff';
   }};

@@ -15,12 +15,17 @@
  */
 
 import { saveService } from './SaveService';
+import { authService } from './AuthService';
 
 class AchievementService {
 
-  // ─── 누적 카운터 (게임 세션 내) ───────────────────────────────────────
-  // 이 값들은 gameStore.stats가 아닌 SaveService를 통해 로컬스토리지에 영속 저장됨
-  // (이미 saveService.updateStats로 저장 중 → 여기서는 업적 체크만)
+  // ─── [BUG-3 FIX] 유저별 localStorage 키 생성 ───────────────────────────
+  // 기존: 고정 키('ach_sell_count' 등) → 같은 기기에서 계정 전환 시 카운터 공유
+  // 수정: uid를 키에 포함 → 계정별 독립적인 카운터 유지
+  private getUserKey(baseKey: string): string {
+    const uid = authService.getCurrentUser()?.uid;
+    return uid ? `${baseKey}_${uid}` : baseKey;
+  }
 
   // ─── 전투 업적 ────────────────────────────────────────────────────────
 
@@ -34,21 +39,23 @@ class AchievementService {
     // [A2-FIX] pendingStats가 flush 전이면 killOverride로 정확한 누적값 사용
     const kills = killOverride ?? stats.enemiesKilled;
 
-    // 일반 처치 업적
-    const killThresholds = [100, 500, 1000, 5000];
+    // [BUG-2 FIX] 처치 업적 임계값 — achievements.ts의 kill50/100/300/500/1000에 맞춤
+    // 기존: [100, 500, 1000, 5000] → kill50·kill300 달성 불가, kill5000은 없는 업적
+    const killThresholds = [50, 100, 300, 500, 1000];
     for (const t of killThresholds) {
       if (kills >= t) saveService.updateAchievement(`kill${t}`, kills);
     }
 
-    // 보스 처치 업적
+    // [BUG-2 FIX] 보스 처치 업적 임계값 — achievements.ts의 boss1/5/15/30에 맞춤
+    // 기존: [5, 20, 50] → boss1·boss15·boss30 달성 불가, boss20·boss50은 없는 업적
     if (isBoss) {
       const bosses = bossOverride ?? stats.bossesDefeated;
-      const bossThresholds = [5, 20, 50];
+      const bossThresholds = [1, 5, 15, 30];
       for (const t of bossThresholds) {
         if (bosses >= t) saveService.updateAchievement(`boss${t}`, bosses);
       }
     }
-    
+
     // 특정 포켓몬 처치 업적 등 추후 확장을 위해 pokemonName 파라미터 사용 가능
     if (pokemonName === 'Mewtwo') {
       // 추후 뮤츠 처치 시 히든 업적 등
@@ -57,37 +64,45 @@ class AchievementService {
 
   // ─── 경제 업적 ────────────────────────────────────────────────────────
 
+  // [BUG-2 FIX] 골드 업적 ID — achievements.ts의 money5k/20k/50k에 맞춤
+  // 기존: [10000, 100000, 500000] → money10k/100k/500k (없는 ID), money5k/20k/50k 달성 불가
   onMoneyEarned(totalEarned: number) {
-    const thresholds = [10000, 100000, 500000];
-    for (const t of thresholds) {
-      if (totalEarned >= t) saveService.updateAchievement(`money${t >= 500000 ? '500k' : t >= 100000 ? '100k' : '10k'}`, totalEarned);
-    }
+    if (totalEarned >= 5000)  saveService.updateAchievement('money5k',  totalEarned);
+    if (totalEarned >= 20000) saveService.updateAchievement('money20k', totalEarned);
+    if (totalEarned >= 50000) saveService.updateAchievement('money50k', totalEarned);
   }
 
+  // [BUG-2 FIX] 판매 업적 임계값 — achievements.ts의 sell5/20/50에 맞춤
+  // 기존: [10, 50] → sell5·sell20 달성 불가, sell10은 없는 업적
+  // [BUG-3 FIX] getUserKey() 사용 → 계정별 독립 카운터
   onSell() {
-    const key = 'ach_sell_count';
+    const key = this.getUserKey('ach_sell_count');
     const cur = parseInt(localStorage.getItem(key) || '0', 10) + 1;
     localStorage.setItem(key, String(cur));
 
-    if (cur >= 10) saveService.updateAchievement('sell10', cur);
+    if (cur >= 5)  saveService.updateAchievement('sell5',  cur);
+    if (cur >= 20) saveService.updateAchievement('sell20', cur);
     if (cur >= 50) saveService.updateAchievement('sell50', cur);
   }
 
   // ─── 성장 업적 ────────────────────────────────────────────────────────
 
+  // [BUG-2 FIX] 진화 업적 임계값 — achievements.ts의 evolve1/5/20/50에 맞춤
+  // 기존: [1, 10, 50] → evolve5·evolve20 달성 불가, evolve10은 없는 업적
+  // [BUG-3 FIX] getUserKey() 사용 → 계정별 독립 카운터 (mega)
   onEvolve(type: 'normal' | 'mega' | 'gigamax' | 'fusion') {
     const stats = saveService.load().stats;
     const evoCount = stats.evolutionsAchieved; // evolvePokemon에서 이미 +1
 
     if (type === 'normal') {
-      const thresholds = [1, 10, 50];
+      const thresholds = [1, 5, 20, 50];
       for (const t of thresholds) {
         if (evoCount >= t) saveService.updateAchievement(`evolve${t}`, evoCount);
       }
     }
 
     if (type === 'mega') {
-      const key = 'ach_mega_count';
+      const key = this.getUserKey('ach_mega_count');
       const cur = parseInt(localStorage.getItem(key) || '0', 10) + 1;
       localStorage.setItem(key, String(cur));
       if (cur >= 1) saveService.updateAchievement('mega1', cur);
@@ -146,9 +161,10 @@ class AchievementService {
 
   // ─── 도전 업적 ────────────────────────────────────────────────────────
 
+  // [BUG-2 FIX] 웨이브 업적 임계값 — achievements.ts의 wave3/5/10/20/30/40/50에 맞춤
+  // 기존: [5, 10, 20, 30, 50] → wave3·wave40 달성 불가
   onWaveComplete(wave: number, lives: number, initialLives: number, gameTime: number, difficulty: string, towers: Array<{ isFainted: boolean }>) {
-    // [수정] wave 업적: 항상 현재 진행도를 업데이트 (프로그레스 바 표시)
-    const waveThresholds = [5, 10, 20, 30, 50];
+    const waveThresholds = [3, 5, 10, 20, 30, 40, 50];
     for (const threshold of waveThresholds) {
       saveService.updateAchievement(`wave${threshold}`, wave);
     }
@@ -188,16 +204,16 @@ class AchievementService {
 
   // ─── 멀티플레이 업적 ──────────────────────────────────────────────────
 
+  // [BUG-3 FIX] getUserKey() 사용 → 계정별 독립 카운터
   /** 배틀 매치 1승 획득 시 호출 */
   onMultiWin(currentRating: number) {
-    const key = 'ach_multi_wins';
+    const key = this.getUserKey('ach_multi_wins');
     const cur = parseInt(localStorage.getItem(key) || '0', 10) + 1;
     localStorage.setItem(key, String(cur));
 
     if (cur >= 1)  saveService.updateAchievement('multi_first_win', cur);
     if (cur >= 5)  saveService.updateAchievement('multi_5wins', cur);
     if (cur >= 20) saveService.updateAchievement('multi_20wins', cur);
-    // [V8-FIX-6-3] multi_50wins 누락 추가
     if (cur >= 50) saveService.updateAchievement('multi_50wins', cur);
 
     // 레이팅 업적은 현재 레이팅 기준으로도 체크 (임시값)
@@ -206,7 +222,6 @@ class AchievementService {
 
   /** 레이팅 확정 후 정확한 레이팅 업적 체크 */
   onRatingUpdate(newRating: number) {
-    // [V8-FIX-6-2] rating1000/1800 누락 추가
     if (newRating >= 1000) saveService.updateAchievement('rating1000', newRating);
     if (newRating >= 1200) saveService.updateAchievement('rating1200', newRating);
     if (newRating >= 1500) saveService.updateAchievement('rating1500', newRating);
@@ -214,7 +229,6 @@ class AchievementService {
   }
 
   // ─── 세션 리셋 (게임 재시작 시 localStorage 카운터는 유지) ────────────
-
 
   // sell/mega/multi 카운터는 localStorage에 영속 저장되므로 별도 리셋 불필요
 }

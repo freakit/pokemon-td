@@ -32,8 +32,9 @@ service cloud.firestore {
 
     // ─── 업적 ────────────────────────────────────────────
     match /achievements/{docId} {
+      // 문서가 없는 경우(resource == null)도 본인 UID 패턴이면 읽기 허용
       allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
+                  && (resource == null || resource.data.userId == request.auth.uid);
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid
                     && docId.matches(request.auth.uid + '_.*');

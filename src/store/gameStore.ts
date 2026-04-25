@@ -166,8 +166,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return false;
   },
 
-  // [V8-FIX-1-7] MAX_LIVES_CAP 사용 — 상한 의미 명확화
-  addLives: (amount) => set(state => ({ lives: Math.min(MAX_LIVES_CAP, state.lives + amount) })),
+  // [BUG-1 FIX] Math.max(0, ...) 추가 — 음수 livesDelta(패배 시)가 전달돼도
+  // lives가 0 미만이 되지 않도록 보호. 상한(MAX_LIVES_CAP)과 하한(0) 모두 보장.
+  addLives: (amount) => set(state => ({
+    lives: Math.max(0, Math.min(MAX_LIVES_CAP, state.lives + amount)),
+  })),
   spendLives: (amount) => {
     set(state => ({ lives: Math.max(0, state.lives - amount) }));
     return true;
