@@ -400,7 +400,7 @@ class MultiplayerService {
         wave: 0, lives: 50, money: 500, towers: 0,
         isAlive: true, rating: p.rating,
         waveCompleted: false,
-        battleRecord: { wins: 0, losses: 0 },
+        battleRecord: { wins: 0, losses: 0, currentWinStreak: 0, currentLoseStreak: 0 },
       })),
       startTime: this.now(),
       rankings: [],
@@ -773,7 +773,9 @@ class MultiplayerService {
     if (isWinner) {
       // [FIX] 승리 골드 감소 (기존 80 → 40 기본)
       let gold = 40;
-      const winStreak = (player.battleRecord?.wins ?? 0) + 1;
+      // [NEW-3 FIX] 실제 연속 승리 수(currentWinStreak)를 사용
+      // 기존: battleRecord.wins(누적 총 승수)를 streak으로 잘못 사용
+      const winStreak = (player.battleRecord?.currentWinStreak ?? 0) + 1;
       if (winStreak >= 4) gold += 50;
       else if (winStreak >= 3) gold += 30;
       else if (winStreak >= 2) gold += 15;
@@ -782,9 +784,10 @@ class MultiplayerService {
     } else {
       // [FIX] lives 감소: 2+상대생존 → 3+상대생존
       const livesLost = 3 + oppRemaining;
-      // [FIX] 연패 위로금 대폭 증가
+      // [NEW-3 FIX] 실제 연속 패배 수(currentLoseStreak)를 사용
+      // 기존: battleRecord.losses(누적 총 패수)를 streak으로 잘못 사용
       let consolation = 0;
-      const loseStreak = (player.battleRecord?.losses ?? 0) + 1;
+      const loseStreak = (player.battleRecord?.currentLoseStreak ?? 0) + 1;
       if (loseStreak >= 5) consolation = 200;
       else if (loseStreak >= 4) consolation = 150;
       else if (loseStreak >= 3) consolation = 100;
@@ -856,6 +859,9 @@ class MultiplayerService {
           battleRecord: {
             wins: isWinner ? (p.battleRecord?.wins ?? 0) + 1 : (p.battleRecord?.wins ?? 0),
             losses: isLoser ? (p.battleRecord?.losses ?? 0) + 1 : (p.battleRecord?.losses ?? 0),
+            // [NEW-3 FIX] 연속 streak: 승리 시 winStreak++/loseStreak 리셋, 패배 시 반대
+            currentWinStreak: isWinner ? (p.battleRecord?.currentWinStreak ?? 0) + 1 : 0,
+            currentLoseStreak: isLoser ? (p.battleRecord?.currentLoseStreak ?? 0) + 1 : 0,
           },
         };
       });

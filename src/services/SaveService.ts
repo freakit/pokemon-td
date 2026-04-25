@@ -126,7 +126,9 @@ class SaveService {
       // progress 리셋 (다음 달성 준비 — 단 일회성 업적은 리셋 안 함)
       // target이 1 이하인 업적(일회성) vs 반복 가능한 업적 구분
       // 반복 가능: kills, boss, money, sell, evolve, wave, combo 등 누적형
-      const repeatable = ['kills', 'boss', 'money', 'sell', 'evolve', 'wave', 'combo', 'multi_win', 'collect'].some(
+      // [NEW-2 FIX] 'wave' 제거 — wave 업적은 게임당 1회만 달성해야 함
+      // 기존: 'wave'가 repeatable에 포함 → 웨이브 50 클리어 시 wave3 업적이 48번 달성되어 ~30배 AP 인플레이션
+      const repeatable = ['kills', 'boss', 'money', 'sell', 'evolve', 'combo', 'multi_win', 'collect'].some(
         c => achievement!.condition.includes(c)
       );
       if (repeatable) {
