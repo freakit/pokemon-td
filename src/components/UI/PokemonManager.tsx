@@ -314,11 +314,11 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   border-radius: 8px;
   color: #fff;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: filter 0.2s;
   background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #1c3bb6 0%, #020842 100%)'};
 
-  &:hover {
-    filter: brightness(1.2);
+  @media (hover: hover) {
+    &:hover { filter: brightness(1.2); }
   }
   ${media.mobile} {
     font-size: 13px;
@@ -378,9 +378,12 @@ const Card = styled.div<{ $isSelected: boolean, $fusionMode: boolean }>`
   border-radius: 15px;
   padding: 15px;
   border: 2px solid ${props => props.$isSelected ? '#667eea' : 'rgba(255, 255, 255, 0.1)'};
-  transition: all 0.3s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease;
   cursor: ${props => props.$fusionMode ? 'pointer' : 'default'};
-  transform: ${props => props.$isSelected ? 'scale(1.05)' : 'scale(1)'};
+  transform: ${props => props.$isSelected ? 'scale(1.02)' : 'scale(1)'};
+  ${media.mobile} {
+    padding: 10px;
+  }
 `;
 
 const CardHeader = styled.div`
@@ -393,6 +396,10 @@ const Sprite = styled.img`
   width: 100px;
   height: 100px;
   image-rendering: pixelated;
+  ${media.mobile} {
+    width: 72px;
+    height: 72px;
+  }
 `;
 
 const FaintedBadge = styled.div`
@@ -463,9 +470,15 @@ const SellBtn = styled.button`
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease;
 
-  &:hover {
-    background: linear-gradient(135deg, #c0392b, #a93226);
+  @media (hover: hover) {
+    &:hover {
+      background: linear-gradient(135deg, #c0392b, #a93226);
+    }
+  }
+  ${media.mobile} {
+    padding: 10px;
+    font-size: 14px;
   }
 `;

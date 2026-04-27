@@ -73,12 +73,13 @@ const Container = styled.div`
   z-index: 2999;
   animation: fadeIn 0.2s ease-out;
   ${media.mobile} {
-    left: 208px;
+    left: 142px;
     top: 4px;
-    width: calc(100vw - 212px);
+    width: calc(100vw - 146px);
+    max-width: 200px;
     max-height: 40vh;
-    padding: 10px;
-    border-radius: 12px;
+    padding: 8px;
+    border-radius: 10px;
     border-width: 2px;
   }
 `;

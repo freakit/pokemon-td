@@ -108,11 +108,16 @@ export const LoginScreen = () => {
 // ─── Styled Components ────────────────────────────────────────────────────────
 
 const Container = styled.div`
-  width: 100vw; height: 100vh;
+  width: 100vw; min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
   position: relative;
   z-index: 10;
   background-color: transparent;
+  padding: 20px 0;
+  ${media.mobile} {
+    align-items: flex-start;
+    padding: 16px 0;
+  }
 `;
 
 const SettingsBtn = styled.button`

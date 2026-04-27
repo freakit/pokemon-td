@@ -160,11 +160,14 @@ const Container = styled.div`
   z-index: 1000;
   animation: slideInLeft 0.3s ease-out;
   ${media.mobile} {
-    width: 92vw;
-    max-width: 300px;
+    width: 88vw;
+    max-width: 320px;
     left: 50%;
-    transform: translateX(-50%) translateY(-50%);
+    top: 50%;
+    transform: translate(-50%, -50%);
     padding: 12px;
+    max-height: 85vh;
+    border-width: 2px;
   }
 `;
 

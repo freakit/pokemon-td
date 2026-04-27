@@ -1056,7 +1056,7 @@ const PosLabel = styled.div<{ $isMe: boolean }>`font-size:14px;font-weight:800;c
 const MainGrid = styled.div`display:flex;flex:1;gap:24px;justify-content:center;align-items:stretch;min-height:0;${media.tablet}{gap:0;}`;
 
 const LeftSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
-const CenterArea = styled.div`display:flex;flex-direction:column;align-items:center;${media.mobile}{transform:scale(0.83);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.83)) * -1);}`;
+const CenterArea = styled.div`display:flex;flex-direction:column;align-items:center;${media.tablet}{transform:scale(0.83);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.83)) * -1);}${media.mobile}{transform:scale(0.65);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.65)) * -1);}`;
 const RightSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
 
 const PanelTitle = styled.div`font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1.5px;padding-left:4px;`;
@@ -1065,7 +1065,26 @@ const PanelTitle = styled.div`font-size:11px;font-weight:800;color:rgba(255,255,
 const BenchArea = styled.div`flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;`;
 const BenchGrid = styled.div`flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:4px;`;
 
-const TowerCard = styled.div<{ $selected?: boolean }>`display:flex;align-items:center;padding:8px 12px;border-radius:12px;background:${p => p.$selected ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)'};border:1.5px solid ${p => p.$selected ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)'};gap:12px;cursor:pointer;transition:all 0.2s;${p => p.$selected && css`animation:${benchPulse} 2s infinite;`}&:hover{background:rgba(255,255,255,0.08);transform:translateX(4px);}`;
+const TowerCard = styled.div<{ $selected?: boolean }>`
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: ${p => p.$selected ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.04)'};
+  border: 1.5px solid ${p => p.$selected ? 'rgba(74,222,128,0.4)' : 'rgba(255,255,255,0.08)'};
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  ${p => p.$selected ? css`animation: ${benchPulse} 2s infinite;` : ''}
+
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+      transform: translateX(4px);
+    }
+  }
+`;
+
 const CardSprite = styled.img`width:36px;height:36px;image-rendering:pixelated;`;
 const CardFallback = styled.div`width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);border-radius:8px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);`;
 const CardInfo = styled.div`flex:1;min-width:0;`;
@@ -1077,9 +1096,20 @@ const CardTypes = styled.div`display:flex;gap:4px;`;
 const OpponentInfoPanel = styled.div`flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;`;
 
 const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.05);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.60;pointer-events:none;z-index:0;}`;
-const Cell = styled.div<{ $col: number; $row: number; $isMy: boolean; $isTarget: boolean }>`position:absolute;left:${p => p.$col * CELL}px;top:${p => p.$row * CELL}px;width:${CELL}px;height:${CELL}px;border:1px solid rgba(255,255,255,0.03);background:${p => p.$isTarget ? 'rgba(74,222,128,0.1)' : (p.$isMy ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.01)')};&:hover{background:${p => p.$isTarget ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.03)'};}`;
+const Cell = styled.div<{ $col: number; $row: number; $isMy: boolean; $isTarget: boolean }>`position:absolute;left:${p => p.$col * CELL}px;top:${p => p.$row * CELL}px;width:${CELL}px;height:${CELL}px;border:1px solid rgba(255,255,255,0.03);background:${p => p.$isTarget ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.01)'};@media (hover: hover){&:hover{background:${p => p.$isTarget ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.03)'};}}`;
 const ZoneLbl = styled.div`position:absolute;font-size:10px;font-weight:800;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:1px;pointer-events:none;z-index:3;`;
-const UnitWrap = styled.div<{ $team: 'my' | 'opp'; $fainted: boolean; $hit: boolean; $atk: boolean; $sel: boolean }>`position:absolute;display:flex;flex-direction:column;align-items:center;z-index:${p => p.$sel ? 20 : 10};opacity:${p => p.$fainted ? 0.25 : 1};${p => (!p.$hit && !p.$atk) ? css`transition:left ${TICK_MS}ms linear,top ${TICK_MS}ms linear;` : ''}${p => p.$hit ? css`animation:${hitFlash} 0.35s ease;` : p.$atk ? css`animation:${atkBounce} 0.3s ease;` : ''}${p => p.$sel ? 'filter:drop-shadow(0 0 12px #4ade80);' : ''}`;
+const UnitWrap = styled.div<{ $team: 'my' | 'opp'; $fainted: boolean; $hit: boolean; $atk: boolean; $sel: boolean }>`
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: ${p => p.$sel ? 20 : 10};
+  opacity: ${p => p.$fainted ? 0.25 : 1};
+  ${p => (!p.$hit && !p.$atk) ? css`transition: left ${TICK_MS}ms linear, top ${TICK_MS}ms linear;` : ''}
+  ${p => p.$hit ? css`animation: ${hitFlash} 0.35s ease;` : p.$atk ? css`animation: ${atkBounce} 0.3s ease;` : ''}
+  ${p => p.$sel ? 'filter: drop-shadow(0 0 12px #4ade80);' : ''}
+`;
+
 const HpBg = styled.div`width:90%;height:4px;border-radius:2px;background:rgba(0,0,0,0.6);overflow:hidden;margin-bottom:2px;`;
 const HpFill = styled.div`height:100%;border-radius:2px;transition:width 0.2s cubic-bezier(0.4, 0, 0.2, 1);`;
 const Sprite = styled.img<{ $fainted: boolean; $flip: boolean }>`width:60px;height:60px;image-rendering:pixelated;${p => p.$fainted && 'filter:grayscale(1) brightness(0.5);'}${p => p.$flip && 'transform:scaleX(-1);'}`;
