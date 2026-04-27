@@ -298,9 +298,10 @@ const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
     border-radius: 12px;
   }
   ${media.mobile} {
-    padding: 8px 12px;
+    padding: 7px 10px;
     font-size: 12px;
     border-radius: 10px;
+    border-width: 1px;
   }
 `;
 
@@ -326,16 +327,18 @@ const Card = styled.div<{ $hoverGlow: string }>`
   overflow: hidden;
   backdrop-filter: blur(10px);
 
-  &:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
+    }
+  }
+  &:active {
+    transform: scale(0.98);
   }
   ${media.mobile} {
     padding: 10px 16px;
     border-radius: 16px;
-    &:hover {
-      transform: translateY(-4px) scale(1.01);
-    }
   }
 `;
 

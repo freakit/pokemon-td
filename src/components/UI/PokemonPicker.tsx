@@ -357,9 +357,10 @@ const Modal = styled.div`
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
   ${media.mobile} {
-    padding: 16px;
+    padding: 12px;
     border-radius: 12px;
     width: 98%;
+    max-height: 95vh;
   }
 `;
 
@@ -428,9 +429,16 @@ const Card = styled.div<{ $rarityColor: string }>`
   transition: all 0.3s ease;
   border: 4px solid ${props => props.$rarityColor};
   
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px ${props => props.$rarityColor}60;
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px ${props => props.$rarityColor}60;
+    }
+  }
+  ${media.mobile} {
+    padding: 8px;
+    border-width: 3px;
+    border-radius: 10px;
   }
 `;
 
@@ -440,6 +448,10 @@ const Sprite = styled.img`
   margin: 0 auto;
   display: block;
   image-rendering: pixelated;
+  ${media.mobile} {
+    width: 72px;
+    height: 72px;
+  }
 `;
 
 const Info = styled.div`
@@ -490,6 +502,11 @@ const Stats = styled.div`
   gap: 5px;
   margin-bottom: 10px;
   color: #ddd;
+  ${media.mobile} {
+    font-size: 10px;
+    gap: 3px;
+    margin-bottom: 6px;
+  }
 `;
 
 const TotalStats = styled.div`

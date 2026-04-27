@@ -387,6 +387,12 @@ const Overlay = styled.div`
   display: flex; align-items: center; justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(5px);
+  overflow-y: auto;
+  padding: 16px 0;
+  ${media.mobile} {
+    align-items: flex-start;
+    padding: 8px 0;
+  }
 `;
 
 const Container = styled.div`
@@ -395,7 +401,7 @@ const Container = styled.div`
   border-radius: 12px;
   max-width: 900px;
   width: 90%;
-  max-height: 90vh;
+  max-height: 92vh;
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 48px rgba(0,0,0,0.4);
@@ -406,6 +412,7 @@ const Container = styled.div`
     padding: 1rem;
     width: 95%;
     border-radius: 8px;
+    max-height: 96vh;
   }
 `;
 
@@ -512,13 +519,22 @@ const JoinButton = styled.button`
   &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
 `;
 
-const Section = styled.div`margin-bottom: 2rem;`;
+const Section = styled.div`
+  margin-bottom: 2rem;
+  ${media.mobile} {
+    margin-bottom: 1.25rem;
+  }
+`;
 const SectionTitle = styled.h3`font-size: 1.1rem;color: #e0e0e0;margin-bottom: 1rem;font-weight: 500;`;
 
 const MapGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
+  ${media.mobile} {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.6rem;
+  }
 `;
 
 const MapCard = styled.div<{ $selected: boolean }>`
@@ -553,6 +569,10 @@ const PlayerList = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
+  ${media.mobile} {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
 `;
 
 const PlayerCard = styled.div`

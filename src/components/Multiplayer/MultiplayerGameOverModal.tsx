@@ -257,10 +257,12 @@ const PlayerRow = styled.div<{ isMe: boolean }>`
   background: ${props => props.isMe ? 'linear-gradient(90deg, rgba(76, 175, 255, 0.2), rgba(76, 175, 255, 0.05))' : 'rgba(255,255,255,0.02)'};
   border: 2px solid ${props => props.isMe ? 'rgba(76, 175, 255, 0.4)' : 'rgba(255,255,255,0.1)'};
   border-top: none;
-  transition: all 0.3s;
+  transition: background 0.2s;
 
-  &:hover {
-    background: ${props => props.isMe ? 'linear-gradient(90deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1))' : 'rgba(255,255,255,0.05)'};
+  @media (hover: hover) {
+    &:hover {
+      background: ${props => props.isMe ? 'linear-gradient(90deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1))' : 'rgba(255,255,255,0.05)'};
+    }
   }
 
   &:last-child {
@@ -390,11 +392,13 @@ const BackButton = styled.button`
   cursor: pointer;
   font-weight: bold;
   box-shadow: 0 8px 32px rgba(46, 204, 113, 0.5);
-  transition: all 0.3s;
+  transition: background 0.2s;
 
-  &:hover {
-    background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(46, 204, 113, 0.6);
+  @media (hover: hover) {
+    &:hover {
+      background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(46, 204, 113, 0.6);
+    }
   }
 `;

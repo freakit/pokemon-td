@@ -897,7 +897,7 @@ const EvolutionToastButton = styled.button`
   width: 20px; height: 20px; color: #fff; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: bold; padding: 0; transition: background 0.2s;
-  &:hover { background: rgba(255,255,255,0.3); }
+  @media (hover: hover) { &:hover { background: rgba(255,255,255,0.3); } }
   ${media.mobile} { width: 18px; height: 18px; font-size: 10px; }
 `;
 

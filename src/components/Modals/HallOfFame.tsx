@@ -285,7 +285,7 @@ const CloseBtn = styled.button`
   background: rgba(255,255,255,0.1); color: white;
   border: none; border-radius: 50%; cursor: pointer;
   font-size: 1.2rem; transition: background 0.2s;
-  &:hover { background: rgba(255,255,255,0.2); }
+  @media (hover: hover) { &:hover { background: rgba(255,255,255,0.2); } }
 `;
 
 const TabRow = styled.div`
@@ -295,11 +295,11 @@ const TabRow = styled.div`
 const Tab = styled.button<{ $active: boolean }>`
   padding: 8px 18px; font-size: 14px; font-weight: bold;
   border: none; border-radius: 10px 10px 0 0; cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
   background: ${p => p.$active ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.06)'};
   color: ${p => p.$active ? '#FFD700' : 'rgba(255,255,255,0.5)'};
   border-bottom: ${p => p.$active ? '2px solid #FFD700' : '2px solid transparent'};
-  &:hover { background: rgba(255,215,0,0.12); color: #FFD700; }
+  @media (hover: hover) { &:hover { background: rgba(255,215,0,0.12); color: #FFD700; } }
 `;
 
 const MapFilterRow = styled.div`
@@ -311,8 +311,8 @@ const FilterChip = styled.button<{ $active: boolean }>`
   border: 1px solid ${p => p.$active ? '#FFD700' : 'rgba(255,255,255,0.2)'};
   background: ${p => p.$active ? 'rgba(255,215,0,0.18)' : 'rgba(255,255,255,0.05)'};
   color: ${p => p.$active ? '#FFD700' : 'rgba(255,255,255,0.6)'};
-  transition: all 0.2s;
-  &:hover { border-color: #FFD700; color: #FFD700; }
+  transition: border-color 0.2s, color 0.2s;
+  @media (hover: hover) { &:hover { border-color: #FFD700; color: #FFD700; } }
 `;
 
 const Body = styled.div`
@@ -350,7 +350,7 @@ const Tr = styled.tr<{ $isMe?: boolean; $rank?: number }>`
     p.$rank === 1 ? 'rgba(192,192,192,0.05)' :
     p.$rank === 2 ? 'rgba(205,127,50,0.05)' : 'transparent'};
   transition: background 0.15s;
-  &:hover { background: rgba(255,255,255,0.06); }
+  @media (hover: hover) { &:hover { background: rgba(255,255,255,0.06); } }
 `;
 
 const Td = styled.td<{ $center?: boolean; $bold?: boolean; $accent?: boolean; $small?: boolean }>`
@@ -383,6 +383,7 @@ const PokemonTag = styled.span`
 const CardGrid = styled.div`
   display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+  ${media.mobile} { grid-template-columns: 1fr; gap: 10px; }
 `;
 
 const RecordCard = styled.div`
@@ -390,7 +391,7 @@ const RecordCard = styled.div`
   border: 1px solid rgba(255,215,0,0.2);
   border-radius: 14px; padding: 16px;
   transition: transform 0.2s, box-shadow 0.2s;
-  &:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(255,215,0,0.15); }
+  @media (hover: hover) { &:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(255,215,0,0.15); } }
 `;
 
 const CardTop = styled.div`

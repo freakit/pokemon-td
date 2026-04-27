@@ -313,7 +313,8 @@ const ModeButton = styled.button`
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:hover { background: #2a2d36; }
+  @media (hover: hover) { &:hover { background: #2a2d36; } }
+  &:active { background: #2a2d36; }
   ${media.mobile} {
     padding: 1rem;
     flex-direction: row;
@@ -357,7 +358,8 @@ const BottomButton = styled.button`
   font-size: 0.9rem;
   color: #e0e0e0;
   transition: background 0.2s;
-  &:hover { background: #2a2d36; }
+  @media (hover: hover) { &:hover { background: #2a2d36; } }
+  &:active { background: #2a2d36; }
   ${media.mobile} {
     padding: 0.7rem 0.5rem;
     font-size: 0.8rem;

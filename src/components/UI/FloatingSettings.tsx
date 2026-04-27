@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { Settings } from '../Modals/Settings';
 
 const FloatingBtn = styled.button`
@@ -19,13 +20,23 @@ const FloatingBtn = styled.button`
   align-items: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
-  transition: all 0.2s;
+  transition: background 0.2s, border-color 0.2s;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  touch-action: manipulation;
   
-  &:hover {
-    background: rgba(0, 0, 0, 0.8);
-    transform: scale(1.1);
-    border-color: rgba(255, 255, 255, 0.6);
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(0, 0, 0, 0.8);
+      transform: scale(1.1);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+  }
+  ${media.mobile} {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    bottom: 8px;
+    right: 8px;
   }
 `;
 

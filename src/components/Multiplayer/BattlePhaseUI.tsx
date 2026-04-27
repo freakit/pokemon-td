@@ -102,7 +102,7 @@ const StandingRank = styled.div`color:rgba(255,255,255,0.3);font-size:13px;font-
 const StandingName = styled.div<{ $isMe?: boolean }>`flex:1;font-size:13px;font-weight:600;color:${p => p.$isMe ? '#a78bfa' : 'rgba(255,255,255,0.8)'};`;
 const StandingLives = styled.div`color:#f87171;font-size:13px;font-weight:600;`;
 const StandingGold = styled.div`color:#fbbf24;font-size:13px;font-weight:600;`;
-const SummaryCloseBtn = styled.button`width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:16px;font-weight:700;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;transition:all 0.2s;&:hover{background:linear-gradient(135deg,#5a52f0,#8b47f8);transform:translateY(-1px);box-shadow:0 8px 24px rgba(79,70,229,0.4);}`;
+const SummaryCloseBtn = styled.button`width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:16px;font-weight:700;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;transition:background 0.2s;@media(hover:hover){&:hover{background:linear-gradient(135deg,#5a52f0,#8b47f8);transform:translateY(-1px);box-shadow:0 8px 24px rgba(79,70,229,0.4);}}`;
 
 const MyResultBanner = styled.div<{ $win: boolean }>`text-align:center;margin-bottom:20px;padding:16px;border-radius:12px;background:${p => p.$win ? 'linear-gradient(135deg,rgba(74,222,128,0.15),rgba(16,185,129,0.08))' : 'linear-gradient(135deg,rgba(248,113,113,0.15),rgba(239,68,68,0.08))'};border:1px solid ${p => p.$win ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};`;
 const MyResultIcon = styled.div`font-size:36px;margin-bottom:4px;`;

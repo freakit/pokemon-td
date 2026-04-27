@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { media, isMobileOrTablet } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
@@ -48,7 +48,7 @@ export const SynergyTracker: React.FC = () => {
     setHoveredSynergy: state.setHoveredSynergy,
   }));
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => isMobileOrTablet());
 
   if (!activeSynergies || activeSynergies.length === 0) {
     return null;
@@ -121,11 +121,13 @@ const Container = styled.div<{ $isCollapsed: boolean }>`
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: slideInLeft 0.3s ease-out;
   ${media.mobile} {
-    width: 200px;
+    width: 130px;
     left: 4px;
     top: 4px;
-    padding: 8px;
-    max-height: ${props => props.$isCollapsed ? '38px' : '40vh'};
+    padding: 6px;
+    max-height: ${props => props.$isCollapsed ? '34px' : '40vh'};
+    border-width: 2px;
+    border-radius: 10px;
   }
 `;
 
@@ -142,8 +144,13 @@ const Title = styled.h3`
   cursor: pointer;
   user-select: none;
   
-  &:hover {
-    color: #8ccfff;
+  @media (hover: hover) {
+    &:hover { color: #8ccfff; }
+  }
+
+  ${media.mobile} {
+    font-size: 11px;
+    padding-bottom: 4px;
   }
 `;
 

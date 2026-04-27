@@ -106,6 +106,7 @@ const Sprite = styled.img`
   display: block;
   margin: 0 auto 15px;
   image-rendering: pixelated;
+  ${media.mobile} { width: 80px; height: 80px; margin-bottom: 10px; }
 `;
 
 const Message = styled.p`

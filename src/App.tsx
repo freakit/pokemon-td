@@ -57,6 +57,7 @@ const ProgressBarOuter = styled.div`
   background: rgba(255,255,255,0.15);
   border-radius: 6px;
   overflow: hidden;
+  max-width: 90vw;
 `;
 
 const ProgressBarInner = styled.div<{ $pct: number }>`

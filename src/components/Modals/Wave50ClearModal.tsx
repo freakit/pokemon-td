@@ -130,8 +130,12 @@ const BaseButton = styled.button`
   transition: all 0.3s ease;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 
-  &:hover {
-    transform: translateY(-2px);
+  @media (hover: hover) {
+    &:hover { transform: translateY(-2px); }
+  }
+  ${media.mobile} {
+    padding: 14px 20px;
+    font-size: 16px;
   }
 `;
 

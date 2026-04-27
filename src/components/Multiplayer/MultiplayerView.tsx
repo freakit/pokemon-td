@@ -230,15 +230,15 @@ const RefreshInfo = styled.span<{ $refreshing: boolean }>`
 const ManualRefreshBtn = styled.button`
   background:rgba(255,255,255,0.1);border:none;
   color:#fff;width:32px;height:32px;border-radius:50%;
-  cursor:pointer;font-size:14px;transition:all 0.2s;
-  &:hover:not(:disabled){background:rgba(79,195,247,0.3);}
+  cursor:pointer;font-size:14px;transition:background 0.2s;
+  @media(hover:hover){&:hover:not(:disabled){background:rgba(79,195,247,0.3);}}
   &:disabled{opacity:0.4;cursor:not-allowed;}
 `;
 const CloseButton = styled.button`
   background:rgba(255,255,255,0.1);border:none;color:#fff;
   width:36px;height:36px;border-radius:50%;cursor:pointer;
-  font-size:1.2rem;transition:all 0.2s;
-  &:hover{background:rgba(255,107,107,0.3);}
+  font-size:1.2rem;transition:background 0.2s;
+  @media(hover:hover){&:hover{background:rgba(255,107,107,0.3);}}
 `;
 const PlayerList = styled.div`display:flex;flex-direction:column;gap:0.75rem;`;
 const PlayerRow = styled.div<{ $isMe:boolean;$isDead:boolean }>`

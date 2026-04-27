@@ -180,8 +180,13 @@ const Container = styled.div`
   gap: 8px;
 
   ${media.mobile} {
-    flex-wrap: wrap;
-    padding: 4px 8px;
+    flex-wrap: nowrap;
+    padding: 3px 6px;
+    gap: 4px;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 `;
 
@@ -196,7 +201,7 @@ const StatGroup = styled.div`
   gap: 12px;
 
   ${media.mobile} {
-    gap: 8px;
+    gap: 6px;
   }
 `;
 
@@ -234,8 +239,7 @@ const TimeIndicator = styled.div`
   }
 
   ${media.mobile} {
-    font-size: 12px;
-    padding: 3px 8px;
+    display: none;
   }
 `;
 
@@ -285,10 +289,10 @@ const ButtonSection = styled.div`
   display: flex;
   gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 
   ${media.mobile} {
-    gap: 4px;
+    gap: 3px;
   }
 `;
 
@@ -307,32 +311,32 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' | 
         border: 2px solid rgba(46, 204, 113, 0.5);
         background: rgba(46, 204, 113, 0.2);
         color: #2ecc71;
-        &:hover:not(:disabled) { background: rgba(46, 204, 113, 0.35); transform: translateY(-1px); }
+        @media (hover: hover) { &:hover:not(:disabled) { background: rgba(46, 204, 113, 0.35); transform: translateY(-1px); } }
         &:disabled { opacity: 0.4; cursor: not-allowed; }
       `;
       case 'pokemon': return `
         border: 2px solid rgba(243, 156, 18, 0.5);
         background: rgba(243, 156, 18, 0.2);
         color: #f39c12;
-        &:hover { background: rgba(243, 156, 18, 0.35); transform: translateY(-1px); }
+        @media (hover: hover) { &:hover { background: rgba(243, 156, 18, 0.35); transform: translateY(-1px); } }
       `;
       case 'manage': return `
         border: 2px solid rgba(155, 89, 182, 0.5);
         background: rgba(155, 89, 182, 0.2);
         color: #9b59b6;
-        &:hover { background: rgba(155, 89, 182, 0.35); transform: translateY(-1px); }
+        @media (hover: hover) { &:hover { background: rgba(155, 89, 182, 0.35); transform: translateY(-1px); } }
       `;
       case 'speed': return `
         border: 2px solid rgba(52, 152, 219, 0.5);
         background: rgba(52, 152, 219, 0.2);
         color: #3498db;
-        &:hover { background: rgba(52, 152, 219, 0.35); transform: translateY(-1px); }
+        @media (hover: hover) { &:hover { background: rgba(52, 152, 219, 0.35); transform: translateY(-1px); } }
       `;
       case 'rival': return `
         border: 2px solid rgba(231, 76, 60, 0.5);
         background: rgba(231, 76, 60, 0.2);
         color: #e74c3c;
-        &:hover { background: rgba(231, 76, 60, 0.35); transform: translateY(-1px); }
+        @media (hover: hover) { &:hover { background: rgba(231, 76, 60, 0.35); transform: translateY(-1px); } }
       `;
     }
   }}
@@ -350,7 +354,9 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' | 
   `}
 
   ${media.mobile} {
-    padding: 5px 10px;
-    font-size: 11px;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 7px;
+    border-width: 1px;
   }
 `;

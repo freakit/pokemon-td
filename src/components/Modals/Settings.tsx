@@ -117,7 +117,10 @@ const Modal = styled.div`
   border-radius: 16px;
   padding: 32px;
   max-width: 600px;
-  ${media.mobile} { padding: 16px; border-radius: 10px; }
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  ${media.mobile} { padding: 16px; border-radius: 10px; width: 95%; }
   color: #333;
 
   h2 {
@@ -138,9 +141,28 @@ const SettingItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 
   label {
     font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    max-width: 200px;
+  }
+
+  ${media.mobile} {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+
+    input[type="range"] {
+      max-width: 100%;
+      width: 100%;
+    }
   }
 `;
 

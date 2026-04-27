@@ -320,7 +320,11 @@ const CloseX = styled.button`
 const SlideArea = styled.div<{ $dir:'fwd'|'bck' }>`
   padding:18px 26px 6px;
   display:flex;flex-direction:column;align-items:center;text-align:center;
+  overflow-y: auto;
   animation:${p => p.$dir === 'fwd' ? css`${slideFwd} .22s ease` : css`${slideBck} .22s ease`};
+  ${media.mobile} {
+    padding: 12px 14px 4px;
+  }
 `;
 
 const SlideIcon = styled.div`
@@ -379,8 +383,10 @@ const PrevBtn = styled.button`
   flex:0 0 auto;padding:10px 16px;
   background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
   border-radius:11px;color:rgba(255,255,255,.55);
-  font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;
-  &:hover{background:rgba(255,255,255,.11);color:#fff;transform:translateY(-1px)}
+  font-size:13px;font-weight:600;cursor:pointer;transition:background .18s, color .18s;
+  @media (hover: hover) {
+    &:hover{background:rgba(255,255,255,.11);color:#fff;transform:translateY(-1px)}
+  }
 `;
 
 const NextBtn = styled.button<{ $grad:string;$shadow:string;$isLast:boolean }>`
@@ -391,10 +397,12 @@ const NextBtn = styled.button<{ $grad:string;$shadow:string;$isLast:boolean }>`
   color:${p => p.$isLast ? '#fff' : 'rgba(255,255,255,.75)'};
   font-size:13.5px;font-weight:700;cursor:pointer;
   box-shadow:${p => p.$isLast ? `0 4px 18px ${p.$shadow}` : 'none'};
-  transition:all .18s;
-  &:hover{
-    transform:translateY(-1px);
-    box-shadow:${p => p.$isLast ? `0 6px 22px ${p.$shadow}` : '0 3px 10px rgba(0,0,0,.25)'};
-    filter:brightness(1.08);
+  transition:box-shadow .18s, filter .18s;
+  @media (hover: hover) {
+    &:hover{
+      transform:translateY(-1px);
+      box-shadow:${p => p.$isLast ? `0 6px 22px ${p.$shadow}` : '0 3px 10px rgba(0,0,0,.25)'};
+      filter:brightness(1.08);
+    }
   }
 `;

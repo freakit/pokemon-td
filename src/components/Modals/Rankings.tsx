@@ -190,11 +190,13 @@ const CloseButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
   }
 `;
 
@@ -235,8 +237,8 @@ const Select = styled.select`
   outline: none;
   transition: border-color 0.2s;
 
-  &:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+  @media (hover: hover) {
+    &:hover { border-color: rgba(255, 255, 255, 0.2); }
   }
   ${media.mobile} {
     width: 100%;
@@ -258,12 +260,14 @@ const TabButton = styled.button<{ active: boolean }>`
   border: 1px solid ${props => props.active ? 'rgba(102, 126, 234, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, color 0.2s;
   font-size: 0.95rem;
 
-  &:hover {
-    background: ${props => props.active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.08)'};
-    color: ${props => props.active ? '#8a9cff' : '#fff'};
+  @media (hover: hover) {
+    &:hover {
+      background: ${props => props.active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.08)'};
+      color: ${props => props.active ? '#8a9cff' : '#fff'};
+    }
   }
 `;
 
@@ -334,11 +338,11 @@ const RankingRow = styled.div`
   gap: 1rem;
   padding: 0.8rem 1.2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  transition: all 0.2s;
+  transition: background 0.2s;
   align-items: center;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.02);
+  @media (hover: hover) {
+    &:hover { background: rgba(255, 255, 255, 0.02); }
   }
 
   &:last-child {

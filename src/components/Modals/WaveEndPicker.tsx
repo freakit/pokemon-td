@@ -222,7 +222,11 @@ const Card = styled.div<{ $isSpecial: boolean }>`
   border-radius: 20px; padding: 28px 20px; cursor: pointer;
   transition: transform 0.3s; text-align: center; position: relative; overflow: hidden;
   box-shadow: ${p => p.$isSpecial ? '0 0 30px rgba(224,64,251,0.8)' : '0 8px 32px rgba(0,0,0,0.4)'};
-  &:hover { transform: translateY(-4px); }
+  @media (hover: hover) { &:hover { transform: translateY(-4px); } }
+  ${media.mobile} {
+    flex: 1 1 140px; min-width: 130px; max-width: 180px;
+    padding: 16px 10px; border-radius: 14px;
+  }
 `;
 
 const CardGlow = styled.div`
@@ -235,10 +239,12 @@ const ItemName = styled.h3<{ $isSpecial: boolean }>`
   font-size: 22px; font-weight: 700; margin-bottom: 12px; position: relative; z-index:1;
   color: ${p => p.$isSpecial ? '#e040fb' : '#2ecc71'};
   text-shadow: ${p => p.$isSpecial ? '0 0 20px rgba(224,64,251,0.8)' : '0 0 15px rgba(46,204,113,0.6)'};
+  ${media.mobile} { font-size: 16px; margin-bottom: 8px; }
 `;
 
 const ItemEffect = styled.p`
   font-size: 14px; color: #a8b8c8; line-height: 1.6; position: relative; z-index:1;
+  ${media.mobile} { font-size: 12px; line-height: 1.4; }
 `;
 
 const TowerGrid = styled.div`
