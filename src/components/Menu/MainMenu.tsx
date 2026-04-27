@@ -1,6 +1,7 @@
 // src/components/Menu/MainMenu.tsx
 import { useState } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
@@ -170,6 +171,9 @@ const Overlay = styled.div`
   justify-content: center;
   align-items: flex-start;
   padding: 2rem 1rem;
+  ${media.mobile} {
+    padding: 1rem 0.5rem;
+  }
 `;
 
 const Container = styled.div`
@@ -181,6 +185,10 @@ const Container = styled.div`
   max-width: 600px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  ${media.mobile} {
+    padding: 1rem;
+    border-radius: 8px;
+  }
 `;
 
 const Header = styled.div`
@@ -190,6 +198,11 @@ const Header = styled.div`
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  ${media.mobile} {
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
 `;
 
 const UserInfo = styled.div`
@@ -206,7 +219,14 @@ const Avatar = styled.img`
   background-color: #0f1015;
 `;
 
-const UserName = styled.span`color: white; font-weight: 500; font-size: 1.05rem;`;
+const UserName = styled.span`
+  color: white;
+  font-weight: 500;
+  font-size: 1.05rem;
+  ${media.mobile} {
+    font-size: 0.9rem;
+  }
+`;
 
 const Rating = styled.span`
   background: rgba(255, 255, 255, 0.05);
@@ -215,6 +235,9 @@ const Rating = styled.span`
   color: #a0a0a0;
   font-size: 0.85rem;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  ${media.mobile} {
+    display: none;
+  }
 `;
 
 const SignOutButton = styled.button`
@@ -227,6 +250,10 @@ const SignOutButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
+  ${media.mobile} {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.8rem;
+  }
 `;
 
 const RightButtons = styled.div`
@@ -245,9 +272,18 @@ const Title = styled.h1`
   color: white;
   text-align: center;
   margin-bottom: 1.5rem;
+  ${media.mobile} {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
 `;
 
-const MenuSection = styled.div`margin-bottom: 2.5rem;`;
+const MenuSection = styled.div`
+  margin-bottom: 2.5rem;
+  ${media.mobile} {
+    margin-bottom: 1.5rem;
+  }
+`;
 
 const SectionTitle = styled.h2`
   font-size: 1.1rem;
@@ -260,6 +296,10 @@ const GameModeButtons = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  ${media.mobile} {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 `;
 
 const ModeButton = styled.button`
@@ -274,9 +314,23 @@ const ModeButton = styled.button`
   flex-direction: column;
   align-items: flex-start;
   &:hover { background: #2a2d36; }
+  ${media.mobile} {
+    padding: 1rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+  }
 `;
 
-const ModeIcon  = styled.div`font-size: 2rem; margin-bottom: 0.75rem;`;
+const ModeIcon  = styled.div`
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  flex-shrink: 0;
+  ${media.mobile} {
+    font-size: 1.5rem;
+    margin-bottom: 0;
+  }
+`;
 const ModeTitle = styled.div`font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 0.25rem;`;
 const ModeDesc  = styled.div`font-size: 0.85rem; color: #888;`;
 
@@ -284,6 +338,13 @@ const BottomButtons = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
+  ${media.tablet} {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  ${media.mobile} {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
 `;
 
 const BottomButton = styled.button`
@@ -297,6 +358,10 @@ const BottomButton = styled.button`
   color: #e0e0e0;
   transition: background 0.2s;
   &:hover { background: #2a2d36; }
+  ${media.mobile} {
+    padding: 0.7rem 0.5rem;
+    font-size: 0.8rem;
+  }
 `;
 
 const HelpRow = styled.div`
@@ -304,6 +369,10 @@ const HelpRow = styled.div`
   grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
   margin-top: -1rem;
+  ${media.mobile} {
+    gap: 0.5rem;
+    margin-top: -0.5rem;
+  }
 `;
 
 const HelpButton = styled.button`

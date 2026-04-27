@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
 // ─── localStorage 헬퍼 ───────────────────────────────────────────────────────
@@ -270,6 +271,7 @@ const Overlay = styled.div<{ $exiting: boolean }>`
   background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;
   z-index:9999;padding:16px;
+  ${media.mobile} { padding: 8px; }
   animation:${p => p.$exiting ? css`${fadeOut} .26s ease forwards` : css`${fadeIn} .22s ease forwards`};
 `;
 
@@ -277,6 +279,7 @@ const Modal = styled.div<{ $exiting: boolean }>`
   background:linear-gradient(160deg,#111827 0%,#0c1220 100%);
   border:1px solid rgba(255,255,255,.08);
   border-radius:22px;width:100%;max-width:460px;
+  ${media.mobile} { border-radius: 14px; }
   box-shadow:0 40px 100px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04);
   overflow:hidden;
   animation:${p => p.$exiting ? css`${modalOut} .26s ease forwards` : css`${modalIn} .32s cubic-bezier(.34,1.48,.64,1) forwards`};
@@ -293,6 +296,7 @@ const TopBar = styled.div<{ $accent: string }>`
 const Header = styled.div`
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:14px 18px 0;
+  ${media.mobile} { padding: 10px 12px 0; }
 `;
 
 const ModeTag = styled.span<{ $bg:string;$border:string;$color:string }>`

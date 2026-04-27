@@ -2,6 +2,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 
@@ -82,6 +83,7 @@ const Modal = styled.div`
   padding: 30px;
   max-width: 500px;
   width: 90%;
+  ${media.mobile} { padding: 20px; width: 95%; }
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 215, 0, 0.3);
   animation: slideUp 0.3s ease-out;
@@ -89,6 +91,7 @@ const Modal = styled.div`
 
 const Title = styled.h2`
   font-size: 28px;
+  ${media.mobile} { font-size: 20px; }
   font-weight: bold;
   margin-bottom: 15px;
   text-align: center;

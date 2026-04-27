@@ -1,6 +1,7 @@
 // src/components/Modals/Achievements.tsx
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import {
   ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
@@ -347,6 +348,11 @@ const Modal = styled.div`
   animation: ${fadeIn} 0.2s ease-out;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,215,0,0.08);
+  ${media.mobile} {
+    width: 98%;
+    max-height: 98vh;
+    border-radius: 12px;
+  }
 `;
 
 // ── 헤더
@@ -355,6 +361,9 @@ const ModalHeader = styled.div`
   background: linear-gradient(135deg, rgba(255,215,0,0.07), transparent);
   border-bottom: 1px solid rgba(255,215,0,0.10);
   flex-shrink: 0;
+  ${media.mobile} {
+    padding: 12px 14px 0;
+  }
 `;
 
 const HeaderTop = styled.div`
@@ -367,6 +376,9 @@ const TitleArea = styled.div`display:flex;align-items:center;gap:12px;`;
 const ModalTitle = styled.h2`
   font-size: 1.4rem; font-weight: 800; color: #FFD700;
   text-shadow: 0 0 20px rgba(255,215,0,0.4);
+  ${media.mobile} {
+    font-size: 1.1rem;
+  }
 `;
 
 const APBadge = styled.div`
@@ -418,6 +430,10 @@ const SubTabBtn = styled.button<{ $active: boolean }>`
   color: ${p => p.$active ? '#FFD700' : 'rgba(255,255,255,0.4)'};
   border-radius: 8px 8px 0 0; transition: all 0.2s; display:flex;align-items:center;gap:6px;
   &:hover { color: #FFD700; }
+  ${media.mobile} {
+    padding: 5px 12px;
+    font-size: 11px;
+  }
 `;
 const RankBadge = styled.span`
   font-size: 10px; padding: 1px 6px; border-radius: 10px;
@@ -430,6 +446,10 @@ const CategoryTabRow = styled.div`
   flex-shrink:0;
   &::-webkit-scrollbar { height:3px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.3); border-radius:2px; }
+  ${media.mobile} {
+    padding: 6px 10px 0;
+    gap: 1px;
+  }
 `;
 const CatTab = styled.button<{ $active: boolean }>`
   display:flex;align-items:center;gap:4px; white-space:nowrap;
@@ -450,6 +470,10 @@ const AchievementScroll = styled.div`
   display:flex; flex-direction:column; gap:16px;
   &::-webkit-scrollbar { width:5px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.25); border-radius:3px; }
+  ${media.mobile} {
+    padding: 8px 10px 16px;
+    gap: 10px;
+  }
 `;
 
 const LoadingMsg = styled.div`
@@ -475,6 +499,10 @@ const TierGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 8px;
+  ${media.mobile} {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
 `;
 
 // ── 업적 카드
@@ -573,6 +601,9 @@ const RankingScroll = styled.div`
   display:flex; flex-direction:column; gap:4px;
   &::-webkit-scrollbar { width:5px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.25); border-radius:3px; }
+  ${media.mobile} {
+    padding: 8px 10px 16px;
+  }
 `;
 
 const RankingHeader = styled.div`
@@ -580,6 +611,11 @@ const RankingHeader = styled.div`
   padding:6px 14px; font-size:11px; font-weight:700;
   color:rgba(255,255,255,0.3); border-bottom:1px solid rgba(255,255,255,0.08);
   margin-bottom:4px;
+  ${media.mobile} {
+    grid-template-columns: 44px 1fr 80px;
+    padding: 5px 8px;
+    & > span:nth-child(3) { display: none; }
+  }
 `;
 
 const RankRow = styled.div<{ $isMe: boolean; $rank: number }>`
@@ -592,6 +628,10 @@ const RankRow = styled.div<{ $isMe: boolean; $rank: number }>`
   border: 1px solid ${p => p.$isMe ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.05)'};
   transition: background 0.15s;
   &:hover { background: rgba(255,255,255,0.06); }
+  ${media.mobile} {
+    grid-template-columns: 44px 1fr 80px;
+    padding: 8px;
+  }
 `;
 
 const RankNum = styled.div<{ $rank: number }>`
@@ -611,7 +651,9 @@ const MeTag = styled.span`
   background:rgba(255,215,0,0.2); color:#FFD700; font-weight:700;
 `;
 
-const RankStat = styled.div`font-size:12px;color:rgba(255,255,255,0.45);text-align:right;`;
+const RankStat = styled.div`font-size:12px;color:rgba(255,255,255,0.45);text-align:right;
+  ${media.mobile} { display: none; }
+`;
 const RankAP = styled.div`
   font-size:13px;font-weight:700;color:#FFD700;
   text-shadow:0 0 8px rgba(255,215,0,0.4);text-align:right;

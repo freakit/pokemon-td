@@ -1,5 +1,6 @@
 // src/components/UI/Shop.tsx
 import React, { useEffect, useState, useMemo } from 'react';
+import { media } from '../../utils/responsive.utils';
 import styled, { css } from 'styled-components';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -511,6 +512,10 @@ const ShopOverlay = styled.div`
   top: 10px;
   z-index: 999;
   pointer-events: auto;
+  ${media.mobile} {
+    right: 4px;
+    top: 4px;
+  }
 `;
 
 const ShopModal = styled.div<{ $isCollapsed: boolean }>`
@@ -526,6 +531,10 @@ const ShopModal = styled.div<{ $isCollapsed: boolean }>`
   backdrop-filter: blur(10px);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: slideInRight 0.3s ease-out;
+  ${media.mobile} {
+    width: 200px;
+    max-height: ${props => props.$isCollapsed ? '40px' : '60vh'};
+  }
 `;
 
 const ShopHeader = styled.div`

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
@@ -119,6 +120,13 @@ const Container = styled.div<{ $isCollapsed: boolean }>`
   z-index: 3000;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   animation: slideInLeft 0.3s ease-out;
+  ${media.mobile} {
+    width: 200px;
+    left: 4px;
+    top: 4px;
+    padding: 8px;
+    max-height: ${props => props.$isCollapsed ? '38px' : '40vh'};
+  }
 `;
 
 const Title = styled.h3`

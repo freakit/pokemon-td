@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import styled from 'styled-components';
+import { media } from '../utils/responsive.utils';
 import { authService } from '../services/AuthService';
 import { ShootingStarsBackground } from '../components/UI/ShootingStarsBackground';
 import { Settings } from '../components/Modals/Settings';
@@ -126,6 +127,12 @@ const SettingsBtn = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   &:hover { background: rgba(255, 255, 255, 0.1); }
+  ${media.mobile} {
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
 `;
 
 const Content = styled.div`
@@ -136,10 +143,18 @@ const Content = styled.div`
   box-shadow: 0 24px 48px rgba(0,0,0,0.4);
   text-align: center; max-width: 440px; width: 90%;
   color: #fff;
+  ${media.mobile} {
+    padding: 1.5rem 1.25rem;
+    width: 95%;
+  }
 `;
 
 const Logo = styled.div`
   font-size: 4rem; margin-bottom: 1rem;
+  ${media.mobile} {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+  }
 `;
 
 const Subtitle = styled.p`

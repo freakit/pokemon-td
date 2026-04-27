@@ -1,6 +1,7 @@
 // src/components/UI/MapSelector.tsx
 import React, { useState } from "react";
 import styled, { css } from "styled-components";
+import { media } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
@@ -119,7 +120,6 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
           <Logo
             src="/images/pokemon-aegis.png"
             alt="Pokemon Aegis Logo"
-            height="240px"
           />
           <Subtitle>{t('mapSelector.subtitle')}</Subtitle>
         </TitleSection>
@@ -214,6 +214,9 @@ const Fullscreen = styled.div`
   justify-content: center;
   overflow: auto;
   padding: 24px;
+  ${media.mobile} {
+    padding: 12px;
+  }
 `;
 
 const Container = styled.div`
@@ -225,11 +228,21 @@ const Container = styled.div`
 const TitleSection = styled.div`
   text-align: center;
   margin-bottom: 24px;
+  ${media.mobile} {
+    margin-bottom: 12px;
+  }
 `;
 
 const Logo = styled.img`
   filter: drop-shadow(0 0 40px rgba(76, 175, 255, 0.6));
   animation: pulse 3s ease-in-out infinite;
+  height: 240px;
+  ${media.tablet} {
+    height: 160px;
+  }
+  ${media.mobile} {
+    height: 100px;
+  }
 `;
 
 const Subtitle = styled.div`
@@ -237,6 +250,9 @@ const Subtitle = styled.div`
   color: #a8b8c8;
   font-weight: 600;
   margin-top: 8px;
+  ${media.mobile} {
+    font-size: 13px;
+  }
 `;
 
 const DifficultySelector = styled.div`
@@ -245,6 +261,10 @@ const DifficultySelector = styled.div`
   justify-content: center;
   margin-bottom: 24px;
   flex-wrap: wrap;
+  ${media.mobile} {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
 `;
 
 const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
@@ -271,12 +291,27 @@ const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
     box-shadow: 0 8px 25px rgba(76, 175, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     background: linear-gradient(135deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1));
   `}
+
+  ${media.tablet} {
+    padding: 10px 18px;
+    font-size: 14px;
+    border-radius: 12px;
+  }
+  ${media.mobile} {
+    padding: 8px 12px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
 `;
 
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+  ${media.mobile} {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 `;
 
 const Card = styled.div<{ $hoverGlow: string }>`
@@ -294,6 +329,13 @@ const Card = styled.div<{ $hoverGlow: string }>`
   &:hover {
     transform: translateY(-8px) scale(1.02);
     box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
+  }
+  ${media.mobile} {
+    padding: 10px 16px;
+    border-radius: 16px;
+    &:hover {
+      transform: translateY(-4px) scale(1.01);
+    }
   }
 `;
 
@@ -315,11 +357,17 @@ const CardHeader = styled.div`
   margin-bottom: 20px;
   position: relative;
   z-index: 1;
+  ${media.mobile} {
+    margin-bottom: 12px;
+  }
 `;
 
 const BgEmoji = styled.span`
   font-size: 48px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  ${media.mobile} {
+    font-size: 32px;
+  }
 `;
 
 const DifficultyBadge = styled.div<{$colors: { bg: string, border: string, color: string, glow: string }}>`
@@ -333,6 +381,11 @@ const DifficultyBadge = styled.div<{$colors: { bg: string, border: string, color
   border: 2px solid ${props => props.$colors.border};
   color: ${props => props.$colors.color};
   box-shadow: 0 0 10px ${props => props.$colors.glow};
+  ${media.mobile} {
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
 `;
 
 const MapName = styled.h3`
@@ -343,6 +396,13 @@ const MapName = styled.h3`
   position: relative;
   z-index: 1;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  ${media.tablet} {
+    font-size: 22px;
+  }
+  ${media.mobile} {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+  }
 `;
 
 const MapDescription = styled.p`
@@ -352,15 +412,25 @@ const MapDescription = styled.p`
   margin: 0 0 20px 0;
   position: relative;
   z-index: 1;
+  ${media.mobile} {
+    font-size: 13px;
+    margin: 0 0 12px 0;
+  }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
+  ${media.mobile} {
+    padding: 40px 16px;
+  }
 `;
 
 const EmptyText = styled.p`
   font-size: 20px;
   color: #7f8c8d;
   font-weight: 600;
+  ${media.mobile} {
+    font-size: 16px;
+  }
 `;

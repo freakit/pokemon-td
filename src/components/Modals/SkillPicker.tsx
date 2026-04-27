@@ -2,6 +2,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 
@@ -158,6 +159,13 @@ const Container = styled.div`
   backdrop-filter: blur(10px);
   z-index: 1000;
   animation: slideInLeft 0.3s ease-out;
+  ${media.mobile} {
+    width: 92vw;
+    max-width: 300px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    padding: 12px;
+  }
 `;
 
 const Header = styled.div`
@@ -169,6 +177,7 @@ const Header = styled.div`
 
 const Title = styled.h3`
   font-size: 20px;
+  ${media.mobile} { font-size: 16px; }
   font-weight: bold;
   margin: 0 0 4px 0;
   color: #9b59b6;

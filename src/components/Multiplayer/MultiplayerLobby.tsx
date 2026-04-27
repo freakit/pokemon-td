@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
@@ -398,6 +399,14 @@ const Container = styled.div`
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  ${media.tablet} {
+    padding: 1.5rem;
+  }
+  ${media.mobile} {
+    padding: 1rem;
+    width: 95%;
+    border-radius: 8px;
+  }
 `;
 
 const Header = styled.div`
@@ -405,12 +414,20 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  ${media.mobile} {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
 `;
 
 const Title = styled.h2`
   font-size: 1.8rem;
   color: white;
   font-weight: 700;
+  ${media.mobile} {
+    font-size: 1.3rem;
+  }
 `;
 
 const BackButton = styled.button`
@@ -428,6 +445,9 @@ const ButtonRow = styled.div`
   display: flex;
   gap: 1rem;
   margin-bottom: 1rem;
+  ${media.mobile} {
+    flex-wrap: wrap;
+  }
 `;
 
 const CreateRoomButton = styled.button`
@@ -468,6 +488,11 @@ const RoomCard = styled.div`
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: white;
+  ${media.mobile} {
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
 `;
 
 const RoomInfo = styled.div`flex: 1;`;
@@ -545,7 +570,7 @@ const PlayerStatus = styled.div<{ $ready: boolean }>`
   color: ${p => p.$ready ? '#10b981' : '#f59e0b'};
 `;
 
-const AIButtons = styled.div`display: flex;gap: 0.5rem;`;
+const AIButtons = styled.div`display: flex;gap: 0.5rem;flex-wrap: wrap;`;
 const AIButton = styled.button`
   flex: 1;
   padding: 0.75rem;

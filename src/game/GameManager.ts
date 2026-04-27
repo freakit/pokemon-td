@@ -225,7 +225,7 @@ export class GameManager {
   }
 
   private enemyAttackTower(enemy: Enemy, tower: GamePokemon) {
-    const { updateTower, activeSynergies } = useGameStore.getState();
+    const { updateTower, activeSynergies, towers, addDamageNumber } = useGameStore.getState();
     const buffedStats = getBuffedStats(tower, activeSynergies);
     const enemyAttackType = enemy.types[0] || 'normal';
     let eff = getTypeEffectiveness(enemyAttackType, tower.types);
@@ -246,7 +246,8 @@ export class GameManager {
     }
 
     const dmg = calculateDamage(enemy.attack, buffedStats.defense, 40, eff, false);
-    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier));
+    // 적 딜 20% 감소 (난이도 조정)
+    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * 0.8));
     const newHp = Math.max(0, tower.currentHp - finalDmg);
 
     if (newHp <= 0) {
@@ -254,6 +255,30 @@ export class GameManager {
       useGameStore.getState().updateEnemy(enemy.id, { targetTowerId: undefined });
     } else {
       updateTower(tower.id, { currentHp: newHp });
+    }
+
+    // 인접 타워 광역 피해: 주 피격 타워 주변 100px(약 1.5타일) 이내 타워에 주 피해의 30%
+    const splashRadius = 100;
+    const splashDmg = Math.floor(finalDmg * 0.3);
+    if (splashDmg > 0) {
+      towers.forEach(otherTower => {
+        if (otherTower.id === tower.id || otherTower.isFainted) return;
+        const dx = otherTower.position.x - tower.position.x;
+        const dy = otherTower.position.y - tower.position.y;
+        if (Math.sqrt(dx * dx + dy * dy) > splashRadius) return;
+
+        const otherNewHp = Math.max(0, otherTower.currentHp - splashDmg);
+        updateTower(otherTower.id, { currentHp: otherNewHp, isFainted: otherNewHp <= 0 });
+
+        // 스플래시 피해 수치 표시
+        addDamageNumber({
+          id: `splash-${Date.now()}-${Math.random()}`,
+          value: splashDmg,
+          position: { ...otherTower.position },
+          isCrit: false,
+          lifetime: 0.8,
+        });
+      });
     }
 
     useGameStore.getState().updateEnemy(enemy.id, { attackCooldown: 2.0 });
@@ -463,10 +488,14 @@ export class GameManager {
     removeEnemy(id);
     useGameStore.setState(state => ({ combo: state.combo + 1 }));
 
+    // [BUG-1 FIX] isFainted 타워는 XP 지급 제외
+    // 쓰러진 상태에서 레벨이 오르는 비정상 동작 방지
     const xpAmount = enemy.isBoss ? 50 : 10;
-    useGameStore.getState().towers.forEach(t => {
-      addXpToTower(t.id, xpAmount);
-    });
+    useGameStore.getState().towers
+      .filter(t => !t.isFainted)
+      .forEach(t => {
+        addXpToTower(t.id, xpAmount);
+      });
 
     // [수정 5] pendingStats 증가
     this.pendingStats.enemiesKilled++;

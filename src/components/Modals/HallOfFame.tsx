@@ -1,6 +1,7 @@
 // src/components/Modals/HallOfFame.tsx
 import { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { databaseService } from '../../services/DatabaseService';
 import { HallOfFameEntry, LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
@@ -254,6 +255,7 @@ const Container = styled.div`
   border: 1px solid rgba(255,215,0,0.25);
   border-radius: 20px;
   width: 90%; max-width: 1000px;
+  ${media.mobile} { width: 95%; border-radius: 10px; }
   max-height: 90vh;
   display: flex; flex-direction: column;
   animation: ${fadeIn} 0.25s ease-out;
@@ -273,6 +275,7 @@ const TitleRow = styled.div`
 
 const Title = styled.h2`
   font-size: 1.6rem; font-weight: bold;
+  ${media.mobile} { font-size: 1.2rem; }
   color: #FFD700;
   text-shadow: 0 0 20px rgba(255,215,0,0.5);
 `;
@@ -314,6 +317,7 @@ const FilterChip = styled.button<{ $active: boolean }>`
 
 const Body = styled.div`
   flex: 1; overflow-y: auto; padding: 16px 24px 24px;
+  ${media.mobile} { padding: 10px 12px 16px; }
 `;
 
 const CenterMsg = styled.div`
