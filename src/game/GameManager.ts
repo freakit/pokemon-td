@@ -79,14 +79,23 @@ export class GameManager {
     this.checkWaveComplete();
   }
 
+  // [FIX-MUT] 직접 변이(mutation) 제거 → setState를 통한 불변 업데이트
   private updateCooldowns(dt: number) {
-    const { towers } = useGameStore.getState();
-    towers.forEach(tower => {
-      if (tower.isFainted) return;
-      tower.equippedMoves.forEach(m => {
-        m.currentCooldown = Math.max(0, m.currentCooldown - dt);
-      });
-    });
+    useGameStore.setState(state => ({
+      towers: state.towers.map(tower => {
+        if (tower.isFainted) return tower;
+        const needsUpdate = tower.equippedMoves.some(m => m.currentCooldown > 0);
+        if (!needsUpdate) return tower;
+        return {
+          ...tower,
+          equippedMoves: tower.equippedMoves.map(m =>
+            m.currentCooldown > 0
+              ? { ...m, currentCooldown: Math.max(0, m.currentCooldown - dt) }
+              : m
+          ),
+        };
+      }),
+    }));
   }
 
   // [수정] 직접 객체 변이(mutation) 제거 → updateTower / updateEnemy 경유
@@ -322,6 +331,9 @@ export class GameManager {
   }
 
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
+    // [FIX] miss/hit 쿨다운 계산식 통일 (기존: miss=0.5, hit=0.2 → 모두 0.2)
+    const speedMultiplier = Math.max(0.2, 1 - tower.speed / 300);
+
     const m = tower.equippedMoves.find(m => m.name === move.name);
     if (m) {
       const hitChance = m.accuracy / 100;
@@ -334,12 +346,24 @@ export class GameManager {
           isMiss: true,
           lifetime: 1.0,
         });
-        const speedMultiplier = Math.max(0.5, 1 - tower.speed / 300);
-        m.currentCooldown = m.cooldown * speedMultiplier;
+        // [FIX-MUT] 직접 변이 제거 → updateTower 경유
+        useGameStore.getState().updateTower(tower.id, {
+          equippedMoves: tower.equippedMoves.map(mv =>
+            mv.name === move.name
+              ? { ...mv, currentCooldown: mv.cooldown * speedMultiplier }
+              : mv
+          ),
+        });
         return;
       }
-      const speedMultiplier = Math.max(0.2, 1 - tower.speed / 300);
-      m.currentCooldown = m.cooldown * speedMultiplier;
+      // [FIX-MUT] 직접 변이 제거 → updateTower 경유
+      useGameStore.getState().updateTower(tower.id, {
+        equippedMoves: tower.equippedMoves.map(mv =>
+          mv.name === move.name
+            ? { ...mv, currentCooldown: mv.cooldown * speedMultiplier }
+            : mv
+        ),
+      });
     }
 
     const { activeSynergies } = useGameStore.getState();
@@ -513,17 +537,21 @@ export class GameManager {
     // killedEnemyIds.clear()가 일괄 처리하므로 개별 setTimeout 불필요 (타이밍 중복 방지)
   }
 
+  // [FIX-MUT] 직접 변이(mutation) 제거 → setState를 통한 불변 업데이트
+  // 만료된 항목 필터링과 position/lifetime 갱신을 단일 setState로 처리
   private updateDamageNumbers(dt: number) {
-    const { damageNumbers, removeDamageNumber } = useGameStore.getState();
-    for (let i = damageNumbers.length - 1; i >= 0; i--) {
-      const dmg = damageNumbers[i];
-      if (!dmg) continue;
-      dmg.lifetime -= dt;
-      dmg.position.y -= 20 * dt;
-      if (dmg.lifetime <= 0) {
-        removeDamageNumber(dmg.id);
-      }
-    }
+    useGameStore.setState(state => {
+      if (state.damageNumbers.length === 0) return state;
+      return {
+        damageNumbers: state.damageNumbers
+          .filter(dmg => dmg.lifetime > dt)
+          .map(dmg => ({
+            ...dmg,
+            lifetime: dmg.lifetime - dt,
+            position: { x: dmg.position.x, y: dmg.position.y - 20 * dt },
+          })),
+      };
+    });
   }
 
   // [수정] checkWaveComplete: isCompletingWave 플래그로 중복 실행 방지
