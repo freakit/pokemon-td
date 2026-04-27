@@ -81,7 +81,7 @@ function runWaveSim(towers: GamePokemon[], wave: number, difficulty: string): Wa
   const dm = getDiffMult(difficulty);
   const scale = Math.pow(1.08, wave - 1);
   const enemyCount = Math.floor(5 + wave * 1.5);
-  const hasBoss = wave % 5 === 0;
+  const hasBoss = wave % 3 === 0; // [FIX] WaveSystem과 동일하게 3의 배수
 
   const baseEnemyHp  = (80 + wave * 15) * dm.hp  * scale;
   const baseEnemyAtk = (12 + wave * 2)  * dm.atk * scale;
@@ -390,7 +390,7 @@ export class AIPlayer {
     this.towers = this.towers.map(t => ({ ...t, currentHp: t.maxHp, isFainted: false }));
     if (Math.random() < this.cfg.levelUpChance) this.levelUpAllTowers();
     if (Math.random() < this.cfg.evolvePriority) await this.tryEvolve();
-    if (this.difficulty === 'hard' && wave % 5 === 0) await this.tryMegaEvolve();
+    if (this.difficulty === 'hard' && wave % 3 === 0) await this.tryMegaEvolve(); // [FIX] WaveSystem과 동일하게 3의 배수
   }
 
   private async doShoppingTurn() {
