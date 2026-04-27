@@ -1,6 +1,7 @@
 // src/components/UI/SynergyDetails.tsx
 import React from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { getGenerationById, SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
@@ -71,6 +72,15 @@ const Container = styled.div`
   backdrop-filter: blur(10px);
   z-index: 2999;
   animation: fadeIn 0.2s ease-out;
+  ${media.mobile} {
+    left: 208px;
+    top: 4px;
+    width: calc(100vw - 212px);
+    max-height: 40vh;
+    padding: 10px;
+    border-radius: 12px;
+    border-width: 2px;
+  }
 `;
 
 const Title = styled.h4`
@@ -81,6 +91,11 @@ const Title = styled.h4`
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid rgba(155, 89, 182, 0.3);
+  ${media.mobile} {
+    font-size: 13px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+  }
 `;
 
 const List = styled.div`

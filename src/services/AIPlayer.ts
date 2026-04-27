@@ -249,7 +249,11 @@ export class AIPlayer {
   private onPhaseChange(state: MultiplayerGameState) {
     const round = state.currentRound;
 
-    // 1. 배틀 결과 로컬 적용
+    // 1. 배틀 결과 로컬 동기화
+    // [BUG-4 FIX] V8-FIX-1-5에서 서버 트랜잭션이 AI의 Firebase money/lives를 이미 갱신함.
+    //   로컬 this.money/lives 동기화는 유지(다음 handleWave 계산에 필요)하되,
+    //   Firebase push는 제거 → 이중 적용 레이스 컨디션 방지.
+    //   (handleWave 완료 시 최신 로컬값으로 Firebase를 덮어씀)
     if (this.lastAppliedBattleRound < round) {
       const myResult = (state.battleResults || []).find(r =>
         r.roundNumber === round && (r.player1Id === this.playerId || r.player2Id === this.playerId)
@@ -260,18 +264,16 @@ export class AIPlayer {
         if (reward) {
           this.money = Math.max(0, this.money + reward.gold);
           this.lives = Math.max(0, Math.min(50, this.lives + reward.lives));
-          console.log(`[AI:${this.playerId}] Battle Reward: +${reward.gold}G, ${reward.lives}L (Round ${round})`);
-          // Firebase에 반영
-          multiplayerService.updatePlayerState(this.roomId, this.playerId, {
-            money: this.money,
-            lives: this.lives,
-            isAlive: this.lives > 0,
-          }).catch(() => {});
+          console.log(`[AI:${this.playerId}] Battle Reward (local sync only): +${reward.gold}G, ${reward.lives}L (Round ${round})`);
+          // Firebase push 제거: 서버 트랜잭션(V8-FIX-1-5)이 이미 처리함.
+          // push하면 트랜잭션이 적용한 값에 다시 더해지는 이중 적용 발생 가능.
         }
       }
     }
 
-    // 2. Bye 보너스 로컬 적용
+    // 2. Bye 보너스 로컬 동기화
+    // [BUG-4 FIX] startBattlePhase 트랜잭션이 Firebase AI money를 이미 +50 갱신함.
+    //   로컬 동기화는 유지하되 Firebase push 제거 (동일한 이중 적용 방지 원칙).
     if (
       (this.currentPhase === 'battle' || this.currentPhase === 'waiting_battle') &&
       state.roundMatchups?.skipPlayerId === this.playerId &&
@@ -279,10 +281,8 @@ export class AIPlayer {
     ) {
       this.lastAppliedByeRound = round;
       this.money += 50;
-      console.log(`[AI:${this.playerId}] Bye Bonus: +50G (Round ${round})`);
-      multiplayerService.updatePlayerState(this.roomId, this.playerId, {
-        money: this.money,
-      }).catch(() => {});
+      console.log(`[AI:${this.playerId}] Bye Bonus (local sync only): +50G (Round ${round})`);
+      // Firebase push 제거: startBattlePhase 트랜잭션이 이미 처리함.
     }
 
     switch (this.currentPhase) {
@@ -581,6 +581,10 @@ export class AIPlayer {
       // 싱글플레이 addXpToTower와 동일한 성장률
       const hpIncrease    = Math.floor(t.maxHp          * 0.1);
       const atkIncrease   = Math.floor(t.attack         * 0.05);
+      // [BUG-2 FIX] specialAttack은 자체 값 기준으로 증가량 계산
+      // 이전: atkIncrease(t.attack * 0.05)를 그대로 사용 → 특수형 포켓몬 성장 저하
+      // 수정: t.specialAttack * 0.05로 별도 계산
+      const spAtkIncrease = Math.floor(t.specialAttack  * 0.05);
       const defIncrease   = Math.floor(t.defense        * 0.05);
       const spDefIncrease = Math.floor(t.specialDefense * 0.05);
       const spdIncrease   = Math.floor(t.speed          * 0.03);
@@ -592,7 +596,7 @@ export class AIPlayer {
         currentHp:      t.currentHp      + hpIncrease,
         attack:         t.attack         + atkIncrease,
         baseAttack:     t.baseAttack     + atkIncrease,
-        specialAttack:  t.specialAttack  + atkIncrease,
+        specialAttack:  t.specialAttack  + spAtkIncrease,
         defense:        t.defense        + defIncrease,
         specialDefense: t.specialDefense + spDefIncrease,
         speed:          t.speed          + spdIncrease,
@@ -671,6 +675,12 @@ export class AIPlayer {
     if (newScore < weakScore * 1.5) return;
     const sell = this.towers[weakestIdx];
     const sellPrice = Math.max(sell.level * 20, Math.floor((sell.sellValue || 50) * 0.6));
+
+    // [BUG-3 FIX] 타워 제거 전 백업
+    // buyPokemon이 실패(API 오류, money 부족 등)하면 타워만 영구 소실되는 문제 방지
+    const removedTower = this.towers[weakestIdx];
+    const prevTowerCount = this.towers.length;
+
     this.towers.splice(weakestIdx, 1);
     this.money += sellPrice;
     // 판매 결과를 서버에 푸시
@@ -678,7 +688,19 @@ export class AIPlayer {
       money: this.money,
       towers: this.towers.length,
     });
+
     await this.buyPokemon();
+
+    // 구매 실패 시(타워 수가 늘지 않았을 때) 판매 취소 및 타워 복원
+    if (this.towers.length < prevTowerCount) {
+      this.towers.splice(weakestIdx, 0, removedTower);
+      this.money -= sellPrice;
+      console.warn(`[AI:${this.playerId}] upgradeWeakest: buy failed, restoring sold tower`);
+      await multiplayerService.updatePlayerState(this.roomId, this.playerId, {
+        money: this.money,
+        towers: this.towers.length,
+      }).catch(() => {});
+    }
   }
 
   private healFainted() {

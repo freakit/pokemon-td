@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
@@ -181,6 +182,7 @@ const Modal = styled.div`
   background: linear-gradient(145deg,#1a1f2e 0%,#0f1419 100%);
   color: #e8edf3; border-radius: 24px; padding: 0;
   max-width: 1000px; width: 90%;
+  ${media.mobile} { width: 96%; }
   box-shadow: 0 25px 80px rgba(46,204,113,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
   border: 2px solid rgba(46,204,113,0.3);
   animation: ${slideUp} 0.35s ease-out;    
@@ -188,6 +190,7 @@ const Modal = styled.div`
 
 const Header = styled.div`
   padding: 32px;
+  ${media.mobile} { padding: 16px; }
   background: linear-gradient(90deg,rgba(46,204,113,0.2),transparent);
   border-bottom: 2px solid rgba(46,204,113,0.3);
   text-align: center;
@@ -195,18 +198,21 @@ const Header = styled.div`
 
 const Title = styled.h2`
   font-size: 36px; font-weight: 900; margin: 0;
+  ${media.mobile} { font-size: 24px; }
   background: linear-gradient(135deg,#2ecc71,#a8ffb8);
   background-clip: text; -webkit-text-fill-color: transparent;
 `;
 
 const Subtitle = styled.p`
   font-size: 18px; margin: 24px 32px;
+  ${media.mobile} { font-size: 14px; margin: 12px 16px; }
   text-align: center; color: #a8b8c8; font-weight: 600;
 `;
 
 const Grid = styled.div`
   display: flex; gap: 20px; padding: 0 32px 32px;
   justify-content: center; flex-wrap: wrap;
+  ${media.mobile} { padding: 0 12px 16px; gap: 10px; }
 `;
 
 const Card = styled.div<{ $isSpecial: boolean }>`

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
 interface Wave50ClearModalProps {
@@ -68,6 +69,7 @@ const Modal = styled.div`
 
 const Header = styled.div`
   padding: 40px 32px 24px;
+  ${media.mobile} { padding: 24px 16px 16px; }
   background: linear-gradient(90deg, rgba(255, 215, 0, 0.3), transparent);
   border-bottom: 2px solid rgba(255, 215, 0, 0.4);
   text-align: center;
@@ -75,6 +77,7 @@ const Header = styled.div`
 
 const Title = styled.h2`
   font-size: 42px;
+  ${media.mobile} { font-size: 28px; }
   font-weight: 900;
   margin: 0;
   background: linear-gradient(135deg, #ffd700, #ffed4e);
@@ -86,11 +89,13 @@ const Title = styled.h2`
 
 const Content = styled.div`
   padding: 32px;
+  ${media.mobile} { padding: 16px; }
   text-align: center;
 `;
 
 const CongratsText = styled.p`
   font-size: 24px;
+  ${media.mobile} { font-size: 18px; }
   font-weight: 700;
   margin: 0 0 16px;
   color: #ffd700;
@@ -99,6 +104,7 @@ const CongratsText = styled.p`
 
 const Subtitle = styled.p`
   font-size: 18px;
+  ${media.mobile} { font-size: 14px; }
   margin: 0 0 32px;
   color: #a8b8c8;
   font-weight: 600;

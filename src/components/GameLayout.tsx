@@ -202,6 +202,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       restoreState();
     } else if (!isMultiplayer) {
+      // 싱글플레이 첫 진입 시 항상 3배속으로 시작
+      useGameStore.setState({ gameSpeed: 3 });
       syncReadyRef.current = true;
     }
   }, [isMultiplayer]);

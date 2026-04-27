@@ -1,6 +1,7 @@
 // src/components/Modals/Rankings.tsx
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { databaseService } from '../../services/DatabaseService';
 import { LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
@@ -151,6 +152,11 @@ const Container = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   position: relative;
+  ${media.mobile} {
+    padding: 1rem;
+    width: 95%;
+    border-radius: 8px;
+  }
 `;
 
 const Header = styled.div`
@@ -167,6 +173,9 @@ const Title = styled.h2`
   color: #fff;
   font-weight: 700;
   letter-spacing: -0.5px;
+  ${media.mobile} {
+    font-size: 1.3rem;
+  }
 `;
 
 const CloseButton = styled.button`
@@ -191,6 +200,11 @@ const CloseButton = styled.button`
 
 const Controls = styled.div`
   margin-bottom: 1rem;
+  ${media.mobile} {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 `;
 
 const MapSelector = styled.div`
@@ -198,6 +212,11 @@ const MapSelector = styled.div`
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+  ${media.mobile} {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0;
+  }
 `;
 
 const Label = styled.label`
@@ -218,6 +237,10 @@ const Select = styled.select`
 
   &:hover {
     border-color: rgba(255, 255, 255, 0.2);
+  }
+  ${media.mobile} {
+    width: 100%;
+    flex: 1;
   }
 `;
 
@@ -291,6 +314,18 @@ const RankingHeader = styled.div`
   text-transform: uppercase;
   letter-spacing: 1px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  ${media.tablet} {
+    grid-template-columns: 50px 1fr 100px 110px;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    font-size: 0.75rem;
+  }
+  ${media.mobile} {
+    grid-template-columns: 40px 1fr 80px;
+    gap: 0.4rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.7rem;
+  }
 `;
 
 const RankingRow = styled.div`
@@ -308,6 +343,16 @@ const RankingRow = styled.div`
 
   &:last-child {
     border-bottom: none;
+  }
+  ${media.tablet} {
+    grid-template-columns: 50px 1fr 100px 110px;
+    gap: 0.5rem;
+    padding: 0.8rem;
+  }
+  ${media.mobile} {
+    grid-template-columns: 40px 1fr 80px;
+    gap: 0.4rem;
+    padding: 0.6rem 0.8rem;
   }
 `;
 
@@ -330,6 +375,9 @@ const Rating = styled.div`
   align-items: center;
   gap: 0.4rem;
   font-weight: 500;
+  ${media.mobile} {
+    display: none;
+  }
 `;
 
 const Score = styled.div`

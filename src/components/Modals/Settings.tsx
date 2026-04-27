@@ -1,6 +1,7 @@
 // src/components/Modals/Settings.tsx
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
 import { soundService } from '../../services/SoundService';
@@ -116,6 +117,7 @@ const Modal = styled.div`
   border-radius: 16px;
   padding: 32px;
   max-width: 600px;
+  ${media.mobile} { padding: 16px; border-radius: 10px; }
   color: #333;
 
   h2 {

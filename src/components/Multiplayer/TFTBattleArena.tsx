@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { TowerDetail, PvPBattleResult } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
@@ -1039,24 +1040,24 @@ const AchievementToastDisplay: React.FC = () => {
   );
 };
 
-const Wrap = styled.div`width:100%;height:100%;display:flex;flex-direction:column;background:#0b0e14;color:#fff;overflow:hidden;padding:20px;`;
+const Wrap = styled.div`width:100%;height:100%;display:flex;flex-direction:column;background:#0b0e14;color:#fff;overflow:hidden;padding:20px;${media.tablet}{padding:12px;}${media.mobile}{padding:8px;}`;
 
-const Header = styled.div`display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;`;
+const Header = styled.div`display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;${media.mobile}{gap:6px;margin-bottom:12px;}`;
 const TitleRow = styled.div`display:flex;align-items:center;gap:12px;`;
 const ArenaIcon = styled.div`font-size:24px;`;
-const ArenaTitle = styled.div`font-size:20px;font-weight:900;letter-spacing:1px;text-transform:uppercase;`;
-const PhasePill = styled.div`display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);`;
+const ArenaTitle = styled.div`font-size:20px;font-weight:900;letter-spacing:1px;text-transform:uppercase;${media.mobile}{font-size:14px;letter-spacing:0;}`;
+const PhasePill = styled.div`display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);${media.mobile}{display:none;}`;
 const PhaseDot = styled.div`width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 8px #fbbf24;`;
 
-const VersusRow = styled.div`display:flex;align-items:center;gap:20px;`;
+const VersusRow = styled.div`display:flex;align-items:center;gap:20px;${media.mobile}{gap:10px;}`;
 const PosVS = styled.div`font-size:14px;font-weight:900;color:rgba(255,255,255,0.2);`;
 const PosLabel = styled.div<{ $isMe: boolean }>`font-size:14px;font-weight:800;color:${p => p.$isMe ? '#4ade80' : '#f87171'};text-shadow:0 0 10px ${p => p.$isMe ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};`;
 
-const MainGrid = styled.div`display:flex;flex:1;gap:24px;justify-content:center;align-items:stretch;min-height:0;`;
+const MainGrid = styled.div`display:flex;flex:1;gap:24px;justify-content:center;align-items:stretch;min-height:0;${media.tablet}{gap:0;}`;
 
-const LeftSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;`;
-const CenterArea = styled.div`display:flex;flex-direction:column;align-items:center;`;
-const RightSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;`;
+const LeftSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
+const CenterArea = styled.div`display:flex;flex-direction:column;align-items:center;${media.mobile}{transform:scale(0.83);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.83)) * -1);}`;
+const RightSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
 
 const PanelTitle = styled.div`font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1.5px;padding-left:4px;`;
 
@@ -1090,7 +1091,7 @@ const EmptyMsg = styled.div`padding:30px;text-align:center;color:rgba(255,255,25
 const Hint = styled.div`margin-top:12px;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;line-height:1.5;padding:0 8px;`;
 
 const RevealOverlay = styled.div`position:absolute;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);`;
-const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;`;
+const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;${media.mobile}{font-size:28px;}`;
 
 const TypeBadge = styled.span<{ $type?: string }>`font-size:8px;padding:2px 5px;border-radius:4px;background:${p => getTypeColor(p.$type)};color:#fff;font-weight:900;text-transform:uppercase;`;
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { pokeAPI, PokemonData } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
@@ -355,6 +356,11 @@ const Modal = styled.div`
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
+  ${media.mobile} {
+    padding: 16px;
+    border-radius: 12px;
+    width: 98%;
+  }
 `;
 
 const Header = styled.div`
@@ -371,6 +377,9 @@ const Title = styled.h2`
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
+  ${media.mobile} {
+    font-size: 20px;
+  }
 `;
 
 const CloseBtn = styled.button`
@@ -401,6 +410,14 @@ const CardGrid = styled.div`
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
+  ${media.tablet} {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  ${media.mobile} {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
 `;
 
 const Card = styled.div<{ $rarityColor: string }>`
