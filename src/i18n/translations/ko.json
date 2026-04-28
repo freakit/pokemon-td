@@ -616,7 +616,7 @@
     "summaryWin": "승리!",
     "summaryLose": "패배",
     "summaryWinDetail": "생존 포켓몬: {count}마리",
-    "summaryLoseDetail": "라이프 {lost} 감소",
+    "summaryLoseDetail": "라이프 {lost} 감소 (기본 3 + 상대 생존 {remaining}마리)",
     "standingsTitle": " 현재 순위",
     "byeTurnLabel": "{name}의 휴식 턴 (전투 없음)",
     "nextRound": "다음 라운드로 ",

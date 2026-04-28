@@ -7,8 +7,20 @@
 // [V9-3] HUD 정보(골드·목숨·웨이브·포켓몬수)를 좌측 패널에 표시
 // [V9-4] 액션 버튼 2×2 DS 스타일 + ☰ 햄버거 / ⚙️ 설정 분리
 // [V9-5] 모바일·태블릿 세로화면: 회전 안내 오버레이
-// [V9-6] V6 멀티플레이어 로직 전체 보존
+// [V9-6] V6 멀티플레이어 로직 전체 보존 (BUG-FIX 적용)
 // [V9-7] 멀티 페이즈 정보를 좌측 HUD 영역에 표시
+//
+// ──── BUG-FIX 목록 (v1.23 → fixed) ──────────────────────────────
+// [BUG-1] lastPhase를 let 변수(컴포넌트 레벨)로 선언해 리렌더링마다
+//         null 초기화 → useRef로 변경
+// [BUG-2] Firebase isAlive 감지 시 p.uid 사용 (실제 필드 p.userId) → 수정
+// [BUG-3] AI 호스트 판정 시 (state as any).room 접근 → undefined
+//         → multiplayerService.getRoom() 비동기 호출로 복원
+// [BUG-4] 로컬 money/lives/wave/towers → Firebase 동기화 누락 → 복원
+// [BUG-5] 웨이브 완료 감지 → markWaveCompleted() 호출 누락 → 복원
+// [BUG-6] lives <= 0 → playerDefeated() 호출 누락 → 복원
+// [BUG-7] 게임 종료 감지를 state.status 로 체크(해당 필드 없음)
+//         → onGameStateUpdate + alivePlayers.length 방식으로 복원
 // ──────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef } from "react";
@@ -83,6 +95,40 @@ const phaseEmoji = (phase: GamePhase) => {
   }
 };
 
+// ── Tower detail builder ──────────────────────────────────────────
+// (모듈 레벨로 분리 — buildTowerDetails 재사용, JSON scrub 포함)
+const scrub = (obj: any): any => JSON.parse(JSON.stringify(obj));
+
+const buildTowerDetails = (towers: any[]): TowerDetail[] =>
+  (towers ?? []).map((t: any) => {
+    const ability      = t.ability ?? "";
+    const critChance   = getCriticalChance(ability);
+    const hasAOEMove   = (t.equippedMoves ?? []).some((m: any) => m.isAOE);
+    const aoeMultiplier = getAOEDamageMultiplier(ability);
+    const aoeBonus     = hasAOEMove ? 0.5 * aoeMultiplier : 0;
+
+    return scrub({
+      pokemonId:     t.pokemonId,
+      name:          t.displayName || t.name,
+      level:         t.level,
+      sprite:        t.sprite,
+      position:      t.position,
+      currentHp:     t.currentHp,
+      maxHp:         t.maxHp,
+      isFainted:     !!t.isFainted,
+      attack:        t.attack,
+      defense:       t.defense,
+      specialAttack: t.specialAttack,
+      specialDefense:t.specialDefense,
+      speed:         t.speed,
+      types:         t.types,
+      equippedMoves: t.equippedMoves,
+      critChance,
+      aoeBonus,
+      lifesteal:     0,
+    });
+  });
+
 // ── Component ─────────────────────────────────────────────────────
 
 export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
@@ -139,7 +185,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const setSpeed = useGameStore(s => s.setGameSpeed);
 
   // ── Pulse cues ────────────────────────────────────────────────
-  const pulseWave   = !isWaveActive && wave >= 0 && !gameOver;
+  const pulseWave    = !isWaveActive && wave >= 0 && !gameOver;
   const pulsePokemon = towers.length === 0 && !isWaveActive;
 
   // ── Refs ──────────────────────────────────────────────────────
@@ -149,38 +195,14 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const syncReadyRef           = useRef(false);
   const initializedRef         = useRef(false);
   const defeatedRef            = useRef(false);
-  let lastPhase: GamePhase | null = null;
-
-  // ── Tower detail builder (Firebase sync) ─────────────────────
-  const buildTowerDetails = (tds: any[]): TowerDetail[] =>
-    (tds ?? []).map((td: any) => ({
-      pokemonId:     td.pokemonId,
-      name:          td.displayName || td.name,
-      level:         td.level,
-      sprite:        td.sprite,
-      position:      td.position,
-      currentHp:     td.currentHp,
-      maxHp:         td.maxHp,
-      isFainted:     !!td.isFainted,
-      attack:        td.attack,
-      defense:       td.defense,
-      specialAttack: td.specialAttack,
-      specialDefense:td.specialDefense,
-      speed:         td.speed ?? 50,
-      types:         td.types ?? ["normal"],
-      equippedMoves: (td.equippedMoves ?? []).map((m: any) => ({
-        ...m, currentCooldown: m.currentCooldown ?? 0,
-      })),
-      critChance:    td.critChance ?? 0,
-      aoeBonus:      td.aoeBonus  ?? 0,
-      lifesteal:     0,
-    }));
+  // [BUG-1 FIX] lastPhase를 useRef로 관리 (컴포넌트 레벨 let → 리렌더링마다 null 초기화 방지)
+  const lastPhaseRef           = useRef<GamePhase | null>(null);
 
   // ─────────────────────────────────────────────────────────────
-  // Effects (all original V6/V8 logic preserved)
+  // Effects — V6/V8 멀티플레이어 로직 전체 보존 + BUG-FIX
   // ─────────────────────────────────────────────────────────────
 
-  // Loading report
+  // ─── 로딩 완료 리포트 ──────────────────────────────────────────
   useEffect(() => {
     if (!isMultiplayer || !multiRoomId || !user || loadingReportedRef.current) return;
     const unsub = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, state => {
@@ -194,33 +216,51 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return unsub;
   }, [isMultiplayer, multiRoomId, user]);
 
-  // Phase + countdown subscription (covers loading → playing transitions)
+  // ─── 페이즈 구독 (웨이브·배틀 전환, AI 시작, Bye 보너스 등) ─────
   useEffect(() => {
     if (!multiRoomId) return;
+    let aiStarted = false;
+
     const unsub = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, state => {
       if (!state) return;
-      const currentPhase  = state.currentPhase  as GamePhase;
-      const currentRound  = state.currentRound  as number;
+      const currentPhase = state.currentPhase as GamePhase;
+      const currentRound = state.currentRound as number;
 
       setMultiPhase(currentPhase);
       setMultiRound(currentRound);
       setPhaseEndTime(state.phaseEndTime ?? null);
       if (currentPhase !== "loading") setMultiLoading(false);
 
-      // AI 호스트 판정 후 AI 시작
-      if (currentPhase === "wave" && lastPhase !== "wave") {
-        const room = (state as any).room;
-        const currentUser = authService.getCurrentUser();
-        const aiHostPlayer = state.players?.[0];
-        const iAmAIHost = currentUser && aiHostPlayer?.userId === currentUser.uid;
-        if (room && iAmAIHost) {
-          for (const p of room.players) {
-            if (p.isAI && p.aiDifficulty) {
-              aiPlayerManager.startAI(room.id, p.userId, p.aiDifficulty, room.mapId);
+      // [BUG-1 FIX] lastPhaseRef.current 사용
+      const lastPhase = lastPhaseRef.current;
+
+      // AI 호스트 판정 — [BUG-3 FIX] getRoom() 비동기 호출로 복원
+      if (lastPhase === null && !aiStarted) {
+        aiStarted = true;
+        const startAIs = async () => {
+          const room        = await multiplayerService.getRoom(multiRoomId);
+          const currentUser = authService.getCurrentUser();
+          // 호스트 여부: alive 인간 플레이어 userId 사전순 첫 번째
+          const aliveHumans = state.players
+            .filter(p => p.isAlive && !p.userId.startsWith("ai_"))
+            .sort((a, b) => a.userId.localeCompare(b.userId));
+          const aiHostPlayer = aliveHumans[0] ?? state.players[0];
+          const iAmAIHost    = currentUser && aiHostPlayer?.userId === currentUser.uid;
+          if (room && iAmAIHost) {
+            for (const p of room.players) {
+              if (p.isAI && p.aiDifficulty) {
+                aiPlayerManager.startAI(room.id, p.userId, p.aiDifficulty, room.mapId);
+              }
             }
           }
-        }
-        if (defeatedRef.current) { lastPhase = currentPhase; return; }
+        };
+        startAIs().catch(console.error);
+      }
+
+      // 웨이브 페이즈 전환
+      if (currentPhase === "wave" && lastPhase !== "wave") {
+        if (defeatedRef.current) { lastPhaseRef.current = currentPhase; return; }
+        // [NEW-4 FIX] 새 웨이브 시작 시 미선택 아이템 보상 UI 강제 클리어
         useGameStore.setState({ waveEndItemPick: null });
         const gs = useGameStore.getState();
         if (!gs.isWaveActive) {
@@ -229,7 +269,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         }
       }
 
-      // Rejoin during wave
+      // 재접속: wave 페이즈 도중 처음 연결
       if (currentPhase === "wave" && lastPhase === null && currentRound > 0) {
         if (!defeatedRef.current) {
           const gs = useGameStore.getState();
@@ -240,12 +280,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         }
       }
 
-      // Clear item pick UI on battle phase
+      // [NEW-4 FIX] battle 페이즈 진입 시 미선택 아이템 보상 UI 강제 클리어
       if (currentPhase === "battle" && lastPhase !== "battle") {
         useGameStore.setState({ waveEndItemPick: null });
       }
 
-      // Bye bonus [V6-FIX-GL-5] — byeBonuses 타입 없음, skipPlayerId 방식 사용
+      // [V6-FIX-GL-5] Bye 보너스 로컬 적용
       if (
         (currentPhase === "battle" || currentPhase === "waiting_battle") &&
         state.roundMatchups?.skipPlayerId === user?.uid &&
@@ -259,18 +299,13 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         }
       }
 
-      // Game over: collect final players
-      if ((state as any).status === "finished" && state.players) {
-        setFinalPlayers(state.players as PlayerGameState[]);
-        setShowGameOverModal(true);
-      }
-
-      lastPhase = currentPhase;
+      // [BUG-1 FIX] lastPhaseRef 업데이트
+      lastPhaseRef.current = currentPhase;
     });
     return unsub;
-  }, [multiRoomId]);
+  }, [multiRoomId, user]);
 
-  // Countdown timer
+  // ─── 카운트다운 타이머 ──────────────────────────────────────────
   useEffect(() => {
     if (!phaseEndTime) { setMultiCountdown(null); return; }
     const tick = () =>
@@ -280,7 +315,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     return () => clearInterval(id);
   }, [phaseEndTime]);
 
-  // Multiplayer init + state restore [V6-FIX-GL-1~4]
+  // ─── 멀티플레이어 초기화 + 재접속 상태 복원 ──────────────────────
   useEffect(() => {
     if (isMultiplayer && !initializedRef.current) {
       initializedRef.current = true;
@@ -293,62 +328,178 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         try {
           const restored = await multiplayerService.getPlayerStateForRejoin(multiRoomId, user.uid);
           if (restored && restored.wave > 0) {
-            useGameStore.setState({ lives: restored.lives, money: restored.money, wave: restored.wave });
-            lastAppliedRoundRef.current    = restored.wave;
-            lastAppliedByeRoundRef.current = restored.wave;
+            console.log("[GameLayout] Restoring state from Firebase:", {
+              lives: restored.lives, money: restored.money, wave: restored.wave,
+              towers: restored.towerDetails?.length, isAlive: restored.isAlive,
+            });
+            useGameStore.setState({
+              lives: restored.lives,
+              money: restored.money,
+              wave:  restored.wave,
+              gameSpeed: 3,
+              isWaveActive: false,
+              isPaused: false,
+            });
+            // [V5-FIX-GL-4] 재접속 시 이미 처리된 라운드 보상은 재적용 방지
+            lastAppliedRoundRef.current    = restored.currentRound;
+            lastAppliedByeRoundRef.current = restored.currentRound;
+
             if (restored.towerDetails?.length) {
-              const restoredTowers = buildTowerDetails(restored.towerDetails).map((td: any) => ({
-                id: `tower_${Math.random().toString(36).slice(2)}`,
-                pokemonId: td.pokemonId, displayName: td.name, name: td.name,
-                level: td.level, sprite: td.sprite, position: td.position,
-                currentHp: td.currentHp, maxHp: td.maxHp, isFainted: td.isFainted,
-                attack: td.attack, defense: td.defense,
-                specialAttack: td.specialAttack, specialDefense: td.specialDefense,
-                speed: td.speed ?? 50, types: td.types ?? ["normal"],
-                range: 3, equippedMoves: td.equippedMoves ?? [],
-                rejectedMoves: [], sellValue: td.level * 20, kills: 0, damageDealt: 0,
-                ability: "", lifesteal: 0, aoeBonus: 0,
-                statusEffect: undefined, gender: "unknown", targetEnemyId: null,
+              const restoredTowers = restored.towerDetails.map((td: any, idx: number) => ({
+                id: `restored-${idx}-${Date.now()}`,
+                pokemonId:      td.pokemonId,
+                displayName:    td.name,
+                name:           td.name,
+                level:          td.level,
+                experience:     0,
+                sprite:         td.sprite,
+                position:       td.position,
+                currentHp:      td.currentHp,
+                maxHp:          td.maxHp,
+                isFainted:      td.isFainted,
+                attack:         td.attack   ?? td.level * 10,
+                baseAttack:     td.attack   ?? td.level * 10,
+                defense:        td.defense  ?? td.level * 5,
+                specialAttack:  td.specialAttack  ?? td.level * 8,
+                specialDefense: td.specialDefense ?? td.level * 5,
+                speed:          td.speed ?? 50,
+                types:          td.types ?? ["normal"],
+                range:          3,
+                equippedMoves:  (td.equippedMoves ?? []).map((m: any) => ({
+                  ...m, currentCooldown: m.currentCooldown ?? 0,
+                })),
+                rejectedMoves:  [],
+                sellValue:      td.level * 20,
+                kills:          0,
+                damageDealt:    0,
+                ability:        "",
+                lifesteal:      td.lifesteal ?? 0,
+                aoeBonus:       td.aoeBonus  ?? 0,
+                statusEffect:   undefined,
+                gender:         "unknown",
+                targetEnemyId:  null,
               } as any));
+
               useGameStore.setState({ towers: restoredTowers });
-              const details = buildTowerDetails(restored.towerDetails);
-              await multiplayerService.flushTowerUpdate(multiRoomId, user.uid, details);
+              console.log(`[GameLayout] Restored ${restoredTowers.length} towers from Firebase`);
+
+              const restoredDetails = buildTowerDetails(restored.towerDetails);
+              await multiplayerService.flushTowerUpdate(multiRoomId, user.uid, restoredDetails);
+              console.log(`[GameLayout] Re-uploaded ${restoredDetails.length} towers after rejoin`);
             }
-            if (!restored.isAlive) defeatedRef.current = true;
+
+            if (!restored.isAlive) {
+              defeatedRef.current = true;
+            }
           } else {
+            // 신규 게임
             useGameStore.setState({ lives: 50, money: 500, gameSpeed: 3 });
           }
-        } catch {
+        } catch (err) {
+          console.error("[GameLayout] State restoration failed, using defaults:", err);
           useGameStore.setState({ lives: 50, money: 500, gameSpeed: 3 });
         }
         syncReadyRef.current = true;
       })();
     } else if (!isMultiplayer) {
-      useGameStore.setState({ gameSpeed: 3 });
       syncReadyRef.current = true;
     }
   }, [isMultiplayer]);
 
-  // Firebase isAlive sync [V8-FIX-1-3]
+  // ─── [V6-FIX-GL-1] 로컬 → Firebase 상태 동기화 ───────────────────
+  // [BUG-4 FIX] v1.23에서 통째로 누락된 useGameStore.subscribe 복원
+  //   로컬 gameStore가 money/lives의 '주인'.
+  //   포켓몬 구매/판매/아이템 사용은 로컬에서 즉시 반영되고 Firebase로 푸시됨.
   useEffect(() => {
     if (!multiRoomId || !user) return;
-    const unsub = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, state => {
-      if (!state || defeatedRef.current) return;
-      const me = state.players?.find((p: any) => p.uid === user.uid);
-      if (me && me.isAlive === false) {
-        defeatedRef.current = true;
-        useGameStore.setState({ lives: 0 });
-      }
+    const unsubscribe = useGameStore.subscribe((state, prevState) => {
+      if (!syncReadyRef.current) return;
+      if (defeatedRef.current) return;
+      const changed =
+        state.wave   !== prevState.wave   ||
+        state.lives  !== prevState.lives  ||
+        state.money  !== prevState.money  ||
+        state.towers.length !== prevState.towers.length;
+      if (!changed) return;
+      multiplayerService.updatePlayerState(multiRoomId, user.uid, {
+        wave:    state.wave,
+        lives:   state.lives,
+        money:   state.money,
+        towers:  state.towers.length,
+        isAlive: state.lives > 0,
+      });
     });
-    return unsub;
+    return unsubscribe;
   }, [multiRoomId, user]);
 
-  // Battle rewards [V6-FIX-GL-3]
+  // ─── [V6-FIX-GL-2] Firebase isAlive=false 감지 → 로컬 gameOver 동기화 ─
+  // [BUG-2 FIX] p.uid → p.userId (PlayerGameState 필드명 일치)
   useEffect(() => {
     if (!multiRoomId || !user) return;
-    const unsub = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, state => {
+    const unsubscribe = multiplayerService.onGameStateUpdate(multiRoomId, (players) => {
+      const me = players.find(p => p.userId === user.uid);
+      if (!me) return;
+      // [V8-FIX-1-3] Firebase isAlive=false 감지 시 로컬 gameOver 동기화
+      if (!me.isAlive && !defeatedRef.current) {
+        defeatedRef.current = true;
+        console.log("[GameLayout] Player defeated (from Firebase isAlive=false)");
+        useGameStore.setState({ gameOver: true });
+      }
+    });
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // ─── 타워 상세 정보 → Firebase 동기화 ─────────────────────────────
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+    if (towers.length === 0) return;
+    const towerDetails = buildTowerDetails(towers);
+    multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, towerDetails);
+  }, [multiRoomId, user, towers]);
+
+  // ─── [BUG-5 FIX] 웨이브 완료 감지 → markWaveCompleted ────────────
+  // v1.23에서 통째로 누락된 웨이브 완료 감지 복원
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+    const wasWaveActiveRef = { current: false };
+    const unsubscribe = useGameStore.subscribe((state, prevState) => {
+      if (defeatedRef.current) return;
+      if (prevState.isWaveActive && !state.isWaveActive && wasWaveActiveRef.current) {
+        console.log("[GameLayout] Wave completed, flushing tower data");
+        const currentTowers = useGameStore.getState().towers;
+        const towerDetails  = buildTowerDetails(currentTowers);
+        multiplayerService.flushTowerUpdate(multiRoomId, user.uid, towerDetails)
+          .then(() => multiplayerService.markWaveCompleted(multiRoomId, user.uid))
+          .catch(err => {
+            console.error("[GameLayout] flushTowerUpdate failed:", err);
+            multiplayerService.markWaveCompleted(multiRoomId, user.uid);
+          });
+      }
+      wasWaveActiveRef.current = state.isWaveActive;
+    });
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // ─── [BUG-6 FIX] 탈락 처리 — 로컬 lives <= 0 감지 ────────────────
+  // v1.23에서 통째로 누락된 playerDefeated 호출 복원
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+    const unsubscribe = useGameStore.subscribe((state) => {
+      if (state.lives <= 0 && !defeatedRef.current) {
+        defeatedRef.current = true;
+        console.log("[GameLayout] Player defeated (from local lives=0)");
+        multiplayerService.playerDefeated(multiRoomId, user.uid);
+      }
+    });
+    return unsubscribe;
+  }, [multiRoomId, user]);
+
+  // ─── [V6-FIX-GL-3] 배틀 결과 → 로컬에 보상 적용 + 토스트 ──────────
+  useEffect(() => {
+    if (!multiRoomId || !user) return;
+    const unsubscribe = multiplayerService.onGameStateUpdateWithPhase(multiRoomId, (state) => {
       if (!state) return;
-      const myResult = (state.battleResults ?? []).find((r: any) =>
+      const myResult = (state.battleResults || []).find(r =>
         r.roundNumber === state.currentRound &&
         r.roundNumber > lastAppliedRoundRef.current &&
         (r.player1Id === user.uid || r.player2Id === user.uid)
@@ -361,47 +512,36 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       if (myReward.gold  !== 0) addMoney(myReward.gold);
       if (myReward.lives !== 0) addLives(myReward.lives);
       setBattleResultToast({
-        won: user.uid === myResult.winnerId,
+        won:        user.uid === myResult.winnerId,
         goldDelta:  myReward.gold,
         livesDelta: myReward.lives,
-        round: myResult.roundNumber,
+        round:      myResult.roundNumber,
       });
       setTimeout(() => setBattleResultToast(null), 5000);
     });
-    return unsub;
+    return unsubscribe;
   }, [multiRoomId, user]);
 
-  // Tower detail → Firebase sync
+  // ─── [BUG-7 FIX] 게임 종료 감지 ──────────────────────────────────
+  // v1.23: (state as any).status === "finished" → MultiplayerGameState에 해당 필드 없음
+  // 수정: onGameStateUpdate + alivePlayers.length <= 1 방식으로 복원 (v1.21 동일)
   useEffect(() => {
-    if (!isMultiplayer || !multiRoomId || !user) return;
-    const unsub = useGameStore.subscribe(state => {
-      if (!syncReadyRef.current) return;
-      const details: TowerDetail[] = state.towers.map(t => ({
-        pokemonId:     t.pokemonId,
-        name:          t.displayName || (t as any).name,
-        level:         t.level,
-        sprite:        t.sprite,
-        position:      t.position,
-        currentHp:     t.currentHp,
-        maxHp:         t.maxHp,
-        isFainted:     !!t.isFainted,
-        attack:        t.attack,
-        defense:       t.defense,
-        specialAttack: t.specialAttack,
-        specialDefense:t.specialDefense,
-        speed:         t.speed,
-        types:         t.types,
-        equippedMoves: t.equippedMoves,
-        critChance:    getCriticalChance(t.ability),
-        aoeBonus:      (getAOEDamageMultiplier(t.ability) - 1) * 0.5,
-        lifesteal:     0,
-      }));
-      multiplayerService.updatePlayerTowerDetails(multiRoomId, user.uid, details).catch(() => {});
+    if (!multiRoomId) return;
+    const unsubscribe = multiplayerService.onGameStateUpdate(multiRoomId, (players) => {
+      const alivePlayers = players.filter(p => p.isAlive);
+      if (alivePlayers.length <= 1 && players.length > 1) {
+        setFinalPlayers(players);
+        setShowGameOverModal(true);
+        import("../services/AIPlayer").then(({ aiPlayerManager }) => aiPlayerManager.stopAll());
+      }
     });
-    return unsub;
-  }, [isMultiplayer, multiRoomId, user]);
+    return unsubscribe;
+  }, [multiRoomId]);
 
-  useEffect(() => { return () => { aiPlayerManager.stopAll(); }; }, [multiRoomId]);
+  // ─── AI 정리 ────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => { aiPlayerManager.stopAll(); };
+  }, [multiRoomId]);
 
   // ── Handlers ──────────────────────────────────────────────────
 
@@ -594,12 +734,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
 
       {/* ─── Modals ─────────────────────────────────────────── */}
-      {showPicker        && <PokemonPicker   onClose={() => setShowPicker(false)} />}
-      {showPokemonManager&& <PokemonManager  onClose={() => setShowPokemonManager(false)} />}
-      {showSettings      && <Settings        onClose={() => setShowSettings(false)} />}
-      {showAchievements  && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
-      {showHallOfFame    && <HallOfFame      onClose={() => setShowHallOfFame(false)} />}
-      {showRankings      && <Rankings        onClose={() => setShowRankings(false)} />}
+      {showPicker         && <PokemonPicker   onClose={() => setShowPicker(false)} />}
+      {showPokemonManager && <PokemonManager  onClose={() => setShowPokemonManager(false)} />}
+      {showSettings       && <Settings        onClose={() => setShowSettings(false)} />}
+      {showAchievements   && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame     && <HallOfFame      onClose={() => setShowHallOfFame(false)} />}
+      {showRankings       && <Rankings        onClose={() => setShowRankings(false)} />}
       {showMultiView && multiRoomId && (
         <MultiplayerView roomId={multiRoomId} onClose={() => setShowMultiView(false)} />
       )}
@@ -609,7 +749,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           myUserId={user.uid}
           onClose={() => {
             setShowGameOverModal(false);
-            multiplayerService.finalizeGame(multiRoomId).catch(() => {});
+            // [NEW-1 FIX] finalizeGame — 레이팅 업데이트 + 방 finished 마킹
+            multiplayerService.finalizeGame(multiRoomId).catch(err =>
+              console.warn("[GameLayout] finalizeGame failed:", err)
+            );
             handleResetAndLeave();
           }}
         />
@@ -645,15 +788,15 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               {battleResultToast.won ? t("gameLayout.toastWin") : t("gameLayout.toastLose")}
             </ToastTitle>
             <ToastDetails>
-              {battleResultToast.goldDelta !== 0 && (
-                <ToastLine $pos={battleResultToast.goldDelta > 0}>
-                  💰 {battleResultToast.goldDelta > 0 ? "+" : ""}{battleResultToast.goldDelta}G
-                </ToastLine>
-              )}
-              {battleResultToast.livesDelta !== 0 && (
-                <ToastLine $pos={battleResultToast.livesDelta > 0}>
-                  ❤️ {battleResultToast.livesDelta > 0 ? "+" : ""}{battleResultToast.livesDelta}
-                </ToastLine>
+              {battleResultToast.won ? (
+                <ToastLine $pos={true}>{t("gameLayout.toastGoldEarned", { gold: battleResultToast.goldDelta })}</ToastLine>
+              ) : (
+                <>
+                  <ToastLine $pos={false}>{t("gameLayout.toastLivesLost", { lives: battleResultToast.livesDelta })}</ToastLine>
+                  {battleResultToast.goldDelta > 0 && (
+                    <ToastLine $pos={true}>{t("gameLayout.toastConsolation", { gold: battleResultToast.goldDelta })}</ToastLine>
+                  )}
+                </>
               )}
             </ToastDetails>
           </ToastBody>
@@ -938,9 +1081,10 @@ const btnVariants = {
               color:#d090ff;
               border:1.5px solid #5c2898;
               text-shadow:0 0 8px rgba(200,100,255,0.5);`,
-  rival:  css`background: linear-gradient(180deg,#143050,#0e2040);
-              color:#90d8ff;
-              border:1.5px solid #1e4868;`,
+  rival:  css`background: linear-gradient(180deg,#4a0c0c,#380808);
+              color:#ff9090;
+              border:1.5px solid #7a2020;
+              text-shadow:0 0 8px rgba(255,100,100,0.5);`,
 };
 
 const BtnGrid = styled.div`
@@ -1167,7 +1311,7 @@ const LoadDots = styled.div`
 
 // ── Battle result toast ───────────────────────────────────────────
 
-const slide = keyframes`
+const toastSlide = keyframes`
   0%  {opacity:0;transform:translateX(60px);}
   15% {opacity:1;transform:translateX(0);}
   80% {opacity:1;transform:translateX(0);}
@@ -1181,7 +1325,8 @@ const ResultToast = styled.div<{ $won: boolean }>`
     ?"linear-gradient(135deg,rgba(46,204,113,.95),rgba(39,174,96,.95))"
     :"linear-gradient(135deg,rgba(231,76,60,.95),rgba(192,57,43,.95))"};
   border:1px solid ${p=>p.$won?"rgba(46,204,113,.5)":"rgba(231,76,60,.5)"};
-  animation:${slide} 5s ease forwards;pointer-events:none;
+  box-shadow:0 8px 32px ${p=>p.$won?"rgba(46,204,113,.4)":"rgba(231,76,60,.4)"};
+  animation:${toastSlide} 5s ease forwards;pointer-events:none;
   ${L1024}{right:12px;min-width:180px;padding:10px 14px;border-radius:12px;}
   ${L768} {right:8px; min-width:140px;padding:8px 10px; border-radius:10px;gap:8px;}
 `;
@@ -1192,12 +1337,12 @@ const ToastIco   = styled.div`
 `;
 const ToastBody  = styled.div`display:flex;flex-direction:column;gap:3px;`;
 const ToastTitle = styled.div`
-  font-size:15px;font-weight:800;color:#fff;
+  font-size:15px;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.3);
   ${L1024}{font-size:13px;}
   ${L768} {font-size:11px;}
 `;
-const ToastDetails=styled.div`display:flex;flex-direction:column;gap:2px;`;
-const ToastLine  = styled.div<{$pos:boolean}>`
+const ToastDetails = styled.div`display:flex;flex-direction:column;gap:2px;`;
+const ToastLine  = styled.div<{ $pos: boolean }>`
   font-size:13px;font-weight:600;
   color:${p=>p.$pos?"#fff":"rgba(255,255,255,.9)"};
   ${L1024}{font-size:11px;}

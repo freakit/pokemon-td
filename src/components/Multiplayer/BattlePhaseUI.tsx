@@ -152,7 +152,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
             <MyResultSub>
               {myResult.winnerId === myUserId
                 ? t('battle.summaryWinDetail', { count: myResult.winnerId === myResult.player1Id ? myResult.player1RemainingPokemon : myResult.player2RemainingPokemon })
-                : t('battle.summaryLoseDetail', { lost: myResult.lifeLost })}
+                : t('battle.summaryLoseDetail', { lost: myResult.lifeLost, remaining: myResult.lifeLost - 3 })}
             </MyResultSub>
           </MyResultBanner>
         ) : null}
@@ -627,7 +627,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
 
     const buildResult = (): PvPBattleResult => {
       const winnerId = arenaResult.winner === 'player1' ? myMatch.player1Id : myMatch.player2Id;
-      const lifeLost = arenaResult.winner === 'player1' ? arenaResult.player1Remaining : arenaResult.player2Remaining;
+      // [BUG-FIX] lifeLost = 기본 3 + 승자 생존 포켓몬 수 (MultiplayerService.calcBattleRewards와 동일)
+      const winnerRemaining = arenaResult.winner === 'player1' ? arenaResult.player1Remaining : arenaResult.player2Remaining;
+      const lifeLost = 3 + winnerRemaining;
       return {
         matchId: buildMatchId(currentRound, myMatch.player1Id, myMatch.player2Id),
         roundNumber: currentRound,
