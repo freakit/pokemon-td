@@ -845,6 +845,18 @@ const PortraitGuard = styled.div`
     background: #0f1419;
     z-index: 99999;
   }
+  /* [FIX] orientation 미디어쿼리 미지원 브라우저 대비 */
+  @media (max-width: 500px) and (max-aspect-ratio: 1/1) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    position: fixed;
+    inset: 0;
+    background: #0f1419;
+    z-index: 99999;
+  }
 `;
 const RotateEmoji = styled.div`font-size: 52px;`;
 const RotateMsg   = styled.p`
@@ -862,6 +874,10 @@ const TriPane = styled.div`
   border-top: 2px solid rgba(80, 140, 220, 0.25);
   border-bottom: 2px solid rgba(80, 140, 220, 0.25);
 
+  /* [FIX] flex 자식으로서 남은 세로 공간을 채우고, 최소 높이 제한 제거 */
+  flex: 1;
+  min-height: 0;
+
   /* 태블릿 가로 (iPad 등, ≤1024px) */
   ${L1024} { grid-template-columns: 172px 1fr 172px; }
   /* 폰 가로 (≤768px) */
@@ -869,6 +885,8 @@ const TriPane = styled.div`
 
   /* 세로 화면: PortraitGuard가 덮으므로 숨김 */
   @media (max-width: 1024px) and (orientation: portrait) { display: none; }
+  /* [FIX] orientation 미디어쿼리 미지원 브라우저 대비: 극단적으로 좁은 세로 화면 */
+  @media (max-width: 500px) and (max-aspect-ratio: 1/1) { display: none; }
 `;
 
 // ── Left Panel ────────────────────────────────────────────────────
@@ -989,6 +1007,10 @@ const CenterPanel = styled.div`
   overflow: hidden;
   position: relative;
   background: #080e14;
+  /* [FIX] CSS Grid 아이템이 min-content 이하로 축소될 수 있도록 */
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
 `;
 
 // ── Right Panel ───────────────────────────────────────────────────

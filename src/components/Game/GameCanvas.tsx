@@ -741,7 +741,7 @@ export const GameCanvas: React.FC = () => {
         </Tooltip>
       )}
 
-      <StageWrapper style={{ transform: `scale(${canvasScale})` }}>
+      <StageWrapper style={{ transform: `translate(-50%, -50%) scale(${canvasScale})` }}>
         <Stage ref={stageRef} width={MAP_WIDTH * TILE_SIZE} height={MAP_HEIGHT * TILE_SIZE}
           onMouseMove={handleMouseMove} onClick={handleClick} onContextMenu={handleRightClick}
           onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -878,8 +878,9 @@ export const GameCanvas: React.FC = () => {
 
 const CanvasContainer = styled.div`
   width: 100%; height: 100%;
-  display: flex; justify-content: center; align-items: center;
-  position: relative; touch-action: none;
+  position: relative;
+  overflow: hidden;          /* [FIX] 960px Stage가 컨테이너 밖으로 넘치는 것을 방지 */
+  touch-action: none;
 `;
 
 const EvolutionToast = styled.div`
@@ -925,9 +926,12 @@ const TooltipStatRow = styled.div``;
 const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${media.mobile} { font-size: 8px; }`;
 
 const StageWrapper = styled.div`
-  position: relative;
+  /* [FIX] position:absolute → 레이아웃 흐름에서 제거, 960px 고정 크기가 부모를 밀지 않음 */
+  position: absolute;
+  top: 50%; left: 50%;
+  transform-origin: center center;
   border: 2px solid #1a242f; border-radius: 8px; overflow: hidden;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.2); transform-origin: center; transition: transform 0.3s ease;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2); transition: transform 0.3s ease;
   ${media.mobile} { border: 1px solid #1a242f; border-radius: 4px; }
 `;
 
