@@ -587,7 +587,7 @@
     "summaryWin": "Victory!",
     "summaryLose": "Defeat",
     "summaryWinDetail": "Surviving Pokémon: {count}",
-    "summaryLoseDetail": "Lives lost: {lost}",
+    "summaryLoseDetail": "Lives lost: {lost} (base 3 + {remaining} surviving)",
     "standingsTitle": "Current Standings",
     "byeTurnLabel": "{name}'s bye round (no battle)",
     "nextRound": "Next Round",
