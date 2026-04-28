@@ -52,6 +52,7 @@ import { authService } from "../services/AuthService";
 import { PlayerGameState, TowerDetail, GamePhase } from "../types/multiplayer";
 import { aiPlayerManager } from "../services/AIPlayer";
 import { getCriticalChance, getAOEDamageMultiplier } from "../utils/abilities";
+import { lMedia } from "../utils/responsive.utils";
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -810,11 +811,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 // Styled Components
 // ─────────────────────────────────────────────────────────────────
 
-// ── 반응형 헬퍼 (가로화면 고정 게임 전용) ─────────────────────────
-// L1024: 태블릿 가로 (iPad 등, ≤1024px landscape)
-// L768 : 폰 가로 (≤768px landscape)
-const L1024 = `@media (max-width: 1024px) and (orientation: landscape)`;
-const L768  = `@media (max-width: 768px)  and (orientation: landscape)`;
+// ── 반응형 헬퍼 (가로화면 고정 게임 전용) → lMedia 사용 ──────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
 
 // ── Root ──────────────────────────────────────────────────────────
 

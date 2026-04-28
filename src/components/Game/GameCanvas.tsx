@@ -17,7 +17,7 @@ import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
 import { getMapById } from "../../data/maps";
 import { GamePokemon } from "../../types/game";
-import { media, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
+import { lMedia, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -890,7 +890,7 @@ const EvolutionToast = styled.div`
   box-shadow: 0 8px 24px rgba(155,89,182,0.6); z-index: 1000;
   animation: slideInDown 0.3s ease-out; color: #fff; font-size: 14px; font-weight: bold;
   text-shadow: 0 2px 4px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 8px;
-  ${media.mobile} { font-size: 12px; padding: 6px 12px; }
+  ${lMedia.phoneSm} { font-size: 12px; padding: 6px 12px; }
 `;
 
 const EvolutionToastButton = styled.button`
@@ -899,7 +899,7 @@ const EvolutionToastButton = styled.button`
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: bold; padding: 0; transition: background 0.2s;
   @media (hover: hover) { &:hover { background: rgba(255,255,255,0.3); } }
-  ${media.mobile} { width: 18px; height: 18px; font-size: 10px; }
+  ${lMedia.phoneSm} { width: 18px; height: 18px; font-size: 10px; }
 `;
 
 const Tooltip = styled.div`
@@ -909,21 +909,21 @@ const Tooltip = styled.div`
   color: #e8edf3; font-size: 10px; font-weight: bold;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6); pointer-events: none; z-index: 1001;
   min-width: 160px; max-width: 200px;
-  ${media.mobile} { font-size: 9px; padding: 4px 8px; min-width: 140px; }
+  ${lMedia.phoneSm} { font-size: 9px; padding: 4px 8px; min-width: 140px; }
 `;
 
 const TooltipTitle = styled.div`
   margin-bottom: 3px; color: #4cafff; font-size: 11px;
-  ${media.mobile} { font-size: 10px; }
+  ${lMedia.phoneSm} { font-size: 10px; }
 `;
 const TooltipTypes = styled.div`
   font-size: 9px; color: #a8b8c8; margin-bottom: 3px; display: flex; gap: 3px; align-items: center;
-  ${media.mobile} { font-size: 8px; }
+  ${lMedia.phoneSm} { font-size: 8px; }
 `;
-const TooltipTypeIcon = styled.img`height: 10px; object-fit: contain; ${media.mobile} { height: 9px; }`;
-const TooltipStats = styled.div`font-size: 9px; line-height: 1.4; ${media.mobile} { font-size: 8px; }`;
+const TooltipTypeIcon = styled.img`height: 10px; object-fit: contain; ${lMedia.phoneSm} { height: 9px; }`;
+const TooltipStats = styled.div`font-size: 9px; line-height: 1.4; ${lMedia.phoneSm} { font-size: 8px; }`;
 const TooltipStatRow = styled.div``;
-const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${media.mobile} { font-size: 8px; }`;
+const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${lMedia.phoneSm} { font-size: 8px; }`;
 
 const StageWrapper = styled.div`
   /* [FIX] position:absolute → 레이아웃 흐름에서 제거, 960px 고정 크기가 부모를 밀지 않음 */
@@ -932,7 +932,7 @@ const StageWrapper = styled.div`
   transform-origin: center center;
   border: 2px solid #1a242f; border-radius: 8px; overflow: hidden;
   box-shadow: 0 8px 16px rgba(0,0,0,0.2); transition: transform 0.3s ease;
-  ${media.mobile} { border: 1px solid #1a242f; border-radius: 4px; }
+  ${lMedia.phoneSm} { border: 1px solid #1a242f; border-radius: 4px; }
 `;
 
 // 최초 달성: 2.5s 슬라이드인→유지→페이드아웃 (작고 빠름)

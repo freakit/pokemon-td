@@ -1,7 +1,7 @@
 // src/components/UI/SynergyDetails.tsx
 import React from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { getGenerationById, SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
@@ -72,7 +72,7 @@ const Container = styled.div`
   backdrop-filter: blur(10px);
   z-index: 2999;
   animation: fadeIn 0.2s ease-out;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     left: 142px;
     top: 4px;
     width: calc(100vw - 146px);
@@ -92,7 +92,7 @@ const Title = styled.h4`
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid rgba(155, 89, 182, 0.3);
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 13px;
     margin-bottom: 8px;
     padding-bottom: 6px;

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 
@@ -142,6 +142,10 @@ export const SkillPicker: React.FC = () => {
   );
 };
 
+// ── 반응형 헬퍼 (landscape 전용) ─────────────────────────────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
+
 // Styled Components
 const Container = styled.div`
   position: fixed;
@@ -159,6 +163,26 @@ const Container = styled.div`
   backdrop-filter: blur(10px);
   z-index: 1000;
   animation: slideInLeft 0.3s ease-out;
+
+  /* [FIX] 태블릿/폰 가로 화면: left:16px이 맵 패널과 겹침 → 중앙 정렬 */
+  ${L1024} {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(340px, 85vw);
+    max-height: 82vh;
+    padding: 14px;
+    border-width: 2px;
+    border-radius: 16px;
+  }
+  /* [FIX] 폰 가로 화면(작은): 더 컴팩트하게 */
+  ${L768} {
+    width: min(300px, 88vw);
+    max-height: 78vh;
+    padding: 10px;
+    border-radius: 12px;
+  }
+  /* 세로 모바일 */
   ${media.mobile} {
     width: 88vw;
     max-width: 320px;

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { pokeAPI, PokemonData } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
@@ -331,6 +331,10 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   );
 };
 
+// ── 반응형 헬퍼 (landscape 전용) ─────────────────────────────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
+
 const Overlay = styled.div`
   position: fixed;
   top: 0;
@@ -349,13 +353,26 @@ const Overlay = styled.div`
 const Modal = styled.div`
   background: linear-gradient(145deg, #2a2d3a, #1f2029);
   border-radius: 20px;
-  padding: 30px;
-  max-width: 800px;
-  width: 95%;
+  padding: 30px 36px;
+  /* [FIX] 3장 카드가 넉넉하게 들어가도록 최대 너비 확대 */
+  max-width: 960px;
+  width: 92%;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
+  ${L1024} {
+    padding: 16px 20px;
+    max-height: 88vh;
+    border-radius: 14px;
+    width: 95%;
+  }
+  ${L768} {
+    padding: 10px 12px;
+    max-height: 92vh;
+    border-radius: 10px;
+    width: 97%;
+  }
   ${media.mobile} {
     padding: 12px;
     border-radius: 12px;
@@ -369,6 +386,7 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 15px;
+  ${L768} { margin-bottom: 8px; }
 `;
 
 const Title = styled.h2`
@@ -378,9 +396,9 @@ const Title = styled.h2`
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
-  ${media.mobile} {
-    font-size: 20px;
-  }
+  ${L1024} { font-size: 22px; margin-bottom: 3px; }
+  ${L768}  { font-size: 16px; }
+  ${media.mobile} { font-size: 20px; }
 `;
 
 const CloseBtn = styled.button`
@@ -393,10 +411,7 @@ const CloseBtn = styled.button`
   border-radius: 5px;
   transition: background 0.2s;
   align-self: flex-start;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
+  &:hover { background: rgba(255, 255, 255, 0.1); }
 `;
 
 const Subtitle = styled.p`
@@ -404,54 +419,51 @@ const Subtitle = styled.p`
   color: #aaa;
   margin-bottom: 20px;
   text-align: center;
+  ${L768} { font-size: 12px; margin-bottom: 8px; }
 `;
 
 const CardGrid = styled.div`
+  /* [FIX] 항상 3장 고정 → repeat(3, 1fr) + 중앙 정렬 */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 20px;
-  ${media.tablet} {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-  }
-  ${media.mobile} {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-  }
+  justify-items: center;
+  ${L1024} { gap: 14px; margin-bottom: 12px; }
+  ${L768}  { gap: 10px; margin-bottom: 8px; }
+  ${media.mobile} { gap: 10px; }
 `;
 
 const Card = styled.div<{ $rarityColor: string }>`
   background: rgba(255, 255, 255, 0.05);
   border-radius: 15px;
-  padding: 15px;
+  /* [FIX] 카드 너비 고정 — 모달 1/3 을 꽉 채우되 최대폭 제한 */
+  width: 100%;
+  max-width: 260px;
+  padding: 20px 18px;
   cursor: pointer;
   transition: all 0.3s ease;
   border: 4px solid ${props => props.$rarityColor};
-  
   @media (hover: hover) {
     &:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 20px ${props => props.$rarityColor}60;
     }
   }
-  ${media.mobile} {
-    padding: 8px;
-    border-width: 3px;
-    border-radius: 10px;
-  }
+  ${L1024} { padding: 14px 12px; border-width: 3px; border-radius: 10px; max-width: 220px; }
+  ${L768}  { padding: 10px 8px;  border-width: 2px; border-radius: 8px;  max-width: 180px; }
+  ${media.mobile} { padding: 8px; border-width: 3px; border-radius: 10px; }
 `;
 
 const Sprite = styled.img`
   width: 120px;
   height: 120px;
-  margin: 0 auto;
+  margin: 0 auto 8px;
   display: block;
   image-rendering: pixelated;
-  ${media.mobile} {
-    width: 72px;
-    height: 72px;
-  }
+  ${L1024} { width: 90px;  height: 90px; }
+  ${L768}  { width: 70px;  height: 70px; }
+  ${media.mobile} { width: 72px; height: 72px; }
 `;
 
 const Info = styled.div`
@@ -497,28 +509,33 @@ const TypeImage = styled.img`
 
 const Stats = styled.div`
   font-size: 13px;
+  /* [FIX] 스탯 레이블+값이 한 줄에 표시되도록 nowrap */
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 5px;
+  gap: 3px 8px;
   margin-bottom: 10px;
   color: #ddd;
-  ${media.mobile} {
-    font-size: 10px;
-    gap: 3px;
-    margin-bottom: 6px;
-  }
+  /* 각 셀이 줄바꿈 없이 표시되도록 */
+  & > div { white-space: nowrap; }
+  ${L1024} { font-size: 11px; }
+  ${L768}  { font-size: 10px; gap: 2px 4px; margin-bottom: 6px; }
+  ${media.mobile} { font-size: 10px; gap: 3px; margin-bottom: 6px; }
 `;
 
 const TotalStats = styled.div`
   font-weight: bold;
   color: #FFD700;
+  margin-bottom: 6px;
 `;
 
 const Cost = styled.div`
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
   text-align: center;
   color: #FFD700;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  ${L768} { font-size: 16px; }
 `;
 
 const Actions = styled.div`
@@ -526,6 +543,7 @@ const Actions = styled.div`
   justify-content: center;
   align-items: center;
   gap: 15px;
+  padding-top: 4px;
 `;
 
 const MoneyDisplay = styled.div`
@@ -544,8 +562,6 @@ const RerollBtn = styled.button`
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
-  
-  &:hover {
-    background: linear-gradient(135deg, #3388ff, #6666ff);
-  }
+  ${L768} { padding: 8px 20px; font-size: 13px; }
+  &:hover { background: linear-gradient(135deg, #3388ff, #6666ff); }
 `;

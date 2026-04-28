@@ -1,6 +1,6 @@
 // src/components/Multiplayer/MultiplayerGameOverModal.tsx
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { PlayerGameState } from '../../types/multiplayer';
 import { useTranslation } from '../../i18n';
 
@@ -153,12 +153,12 @@ const Modal = styled.div`
   overflow-y: auto;
   border: 3px solid rgba(76, 175, 255, 0.4);
   box-shadow: 0 25px 80px rgba(76, 175, 255, 0.4), 0 0 100px rgba(76, 175, 255, 0.2);
-  ${media.tablet} {
+  ${lMedia.phone} {
     padding: 2rem;
     border-radius: 20px;
     width: 95%;
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     padding: 1.25rem;
     border-radius: 16px;
     width: 98%;
@@ -172,7 +172,7 @@ const Header = styled.div`
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
   border-bottom: 2px solid rgba(255,255,255,0.1);
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.75rem;
@@ -186,10 +186,10 @@ const Title = styled.h2`
   color: white;
   font-weight: bold;
   text-shadow: 0 0 20px rgba(76, 175, 255, 0.6);
-  ${media.tablet} {
+  ${lMedia.phone} {
     font-size: 1.8rem;
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 1.4rem;
   }
 `;
@@ -209,7 +209,7 @@ const MyPlacement = styled.div<{ placement: number }>`
     if (props.placement === 3) return 'rgba(205, 127, 50, 0.6)';
     return 'rgba(76, 175, 255, 0.6)';
   }};
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 1.4rem;
   }
 `;
@@ -227,12 +227,12 @@ const TableHeader = styled.div`
   border-radius: 10px 10px 0 0;
   border: 2px solid rgba(76, 175, 255, 0.3);
   border-bottom: none;
-  ${media.tablet} {
+  ${lMedia.phone} {
     grid-template-columns: 0.8fr 2fr 1.2fr 1.2fr 1.2fr;
     gap: 0.5rem;
     padding: 0.8rem;
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     grid-template-columns: 0.6fr 2fr 1fr;
     gap: 0.4rem;
     padding: 0.6rem 0.8rem;
@@ -244,7 +244,7 @@ const HeaderCell = styled.div`
   color: rgba(255,255,255,0.7);
   font-weight: bold;
   text-align: center;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 0.75rem;
   }
 `;
@@ -268,12 +268,12 @@ const PlayerRow = styled.div<{ isMe: boolean }>`
   &:last-child {
     border-radius: 0 0 10px 10px;
   }
-  ${media.tablet} {
+  ${lMedia.phone} {
     grid-template-columns: 0.8fr 2fr 1.2fr 1.2fr 1.2fr;
     gap: 0.5rem;
     padding: 1rem 0.8rem;
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     grid-template-columns: 0.6fr 2fr 1fr;
     gap: 0.4rem;
     padding: 0.75rem 0.8rem;
@@ -312,7 +312,7 @@ const Rating = styled.div`
   font-size: 1.1rem;
   color: #ffd700;
   font-weight: bold;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     display: none;
   }
 `;
@@ -321,7 +321,7 @@ const RatingChange = styled.div<{ positive: boolean }>`
   font-size: 1.1rem;
   font-weight: bold;
   color: ${props => props.positive ? '#4caf50' : '#f44336'};
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     display: none;
   }
 `;
@@ -345,10 +345,10 @@ const SummaryStats = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
-  ${media.tablet} {
+  ${lMedia.phone} {
     grid-template-columns: repeat(2, 1fr);
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
   }
@@ -371,7 +371,7 @@ const StatValue = styled.div`
   font-size: 1.5rem;
   color: white;
   font-weight: bold;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 1.2rem;
   }
 `;

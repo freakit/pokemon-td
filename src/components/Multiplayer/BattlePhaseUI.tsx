@@ -32,7 +32,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { MultiplayerGameState, TowerDetail, PvPBattleResult } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
@@ -58,11 +58,11 @@ const pulse = keyframes`
 `;
 
 const BattleOverlay = styled.div`position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;`;
-const BattleContainer = styled.div`background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);border:2px solid rgba(255,255,255,0.15);border-radius:20px;padding:32px;min-width:320px;max-width:90vw;width:100%;text-align:center;animation:${fadeIn} 0.4s ease;box-shadow:0 0 60px rgba(0,100,255,0.3);${media.mobile}{padding:20px;border-radius:14px;}`;
+const BattleContainer = styled.div`background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);border:2px solid rgba(255,255,255,0.15);border-radius:20px;padding:32px;min-width:320px;max-width:90vw;width:100%;text-align:center;animation:${fadeIn} 0.4s ease;box-shadow:0 0 60px rgba(0,100,255,0.3);${lMedia.phoneSm}{padding:20px;border-radius:14px;}`;
 const VSHeader = styled.div`margin-bottom:24px;`;
 const RoundText = styled.div`color:rgba(255,255,255,0.5);font-size:12px;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px;`;
-const BattleTitle = styled.div`color:#fff;font-size:28px;font-weight:900;letter-spacing:4px;text-shadow:0 0 20px rgba(0,150,255,0.8);${media.mobile}{font-size:20px;letter-spacing:2px;}`;
-const MatchupContainer = styled.div`display:flex;align-items:center;justify-content:center;gap:24px;margin:24px 0;${media.mobile}{gap:12px;margin:16px 0;}`;
+const BattleTitle = styled.div`color:#fff;font-size:28px;font-weight:900;letter-spacing:4px;text-shadow:0 0 20px rgba(0,150,255,0.8);${lMedia.phoneSm}{font-size:20px;letter-spacing:2px;}`;
+const MatchupContainer = styled.div`display:flex;align-items:center;justify-content:center;gap:24px;margin:24px 0;${lMedia.phoneSm}{gap:12px;margin:16px 0;}`;
 const PlayerCard = styled.div<{ $isMe?: boolean }>`flex:1;padding:16px;background:${p => p.$isMe ? 'linear-gradient(135deg,rgba(0,100,255,0.2),rgba(0,50,150,0.1))' : 'linear-gradient(135deg,rgba(255,50,50,0.2),rgba(150,0,0,0.1))'};border:1px solid ${p => p.$isMe ? 'rgba(0,150,255,0.4)' : 'rgba(255,50,50,0.4)'};border-radius:12px;`;
 const PlayerAvatar = styled.div`width:48px;height:48px;background:rgba(255,255,255,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:#fff;margin:0 auto 8px;`;
 const PlayerName = styled.div`color:rgba(255,255,255,0.9);font-size:14px;font-weight:600;`;
@@ -71,25 +71,21 @@ const VSBadge = styled.div`font-size:24px;font-weight:900;color:#fbbf24;text-sha
 const StatusMessage = styled.div`color:rgba(255,255,255,0.7);font-size:14px;margin-top:16px;`;
 
 const TFTArenaOverlay = styled.div`position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;`;
-const ArenaFooter = styled.div`display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:rgba(0,0,0,0.8);border-top:1px solid rgba(255,255,255,0.1);${media.mobile}{padding:8px 12px;}`;
-const RoundInfo = styled.div`color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;gap:12px;`;
-const ResultBadge = styled.div<{ $win: boolean }>`padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;background:${p => p.$win ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'};color:${p => p.$win ? '#4ade80' : '#f87171'};border:1px solid ${p => p.$win ? 'rgba(74,222,128,0.4)' : 'rgba(248,113,113,0.4)'};`;
-
 const ByeOverlay = styled.div`position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;`;
-const ByeContainer = styled.div`background:linear-gradient(135deg,#1a2a1a 0%,#0f2e0f 50%,#1a3a1a 100%);border:2px solid rgba(74,222,128,0.3);border-radius:20px;padding:48px 56px;text-align:center;animation:${fadeIn} 0.4s ease;box-shadow:0 0 60px rgba(74,222,128,0.2);max-width:90vw;${media.mobile}{padding:28px 20px;border-radius:14px;}`;
+const ByeContainer = styled.div`background:linear-gradient(135deg,#1a2a1a 0%,#0f2e0f 50%,#1a3a1a 100%);border:2px solid rgba(74,222,128,0.3);border-radius:20px;padding:48px 56px;text-align:center;animation:${fadeIn} 0.4s ease;box-shadow:0 0 60px rgba(74,222,128,0.2);max-width:90vw;${lMedia.phoneSm}{padding:28px 20px;border-radius:14px;}`;
 const ByeIcon = styled.div`font-size:64px;margin-bottom:16px;animation:${pulse} 2s ease-in-out infinite;`;
-const ByeTitle = styled.div`color:#4ade80;font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:12px;text-shadow:0 0 20px rgba(74,222,128,0.6);${media.mobile}{font-size:20px;letter-spacing:1px;}`;
+const ByeTitle = styled.div`color:#4ade80;font-size:28px;font-weight:900;letter-spacing:3px;margin-bottom:12px;text-shadow:0 0 20px rgba(74,222,128,0.6);${lMedia.phoneSm}{font-size:20px;letter-spacing:1px;}`;
 const ByeSubtitle = styled.div`color:rgba(255,255,255,0.8);font-size:16px;line-height:1.6;margin-bottom:20px;`;
 const ByeBonusBox = styled.div`background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:12px;padding:12px 20px;color:#4ade80;font-size:14px;font-weight:600;`;
 const ByeCountdown = styled.div`color:rgba(255,255,255,0.4);font-size:12px;margin-top:16px;`;
 
 const SummaryOverlay = styled.div`position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;animation:${fadeIn} 0.4s ease;`;
-const SummaryContainer = styled.div`background:linear-gradient(145deg,#0d0d1a 0%,#111827 100%);border:2px solid rgba(255,255,255,0.12);border-radius:24px;padding:32px;width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 0 80px rgba(100,50,255,0.3);${media.mobile}{padding:16px;border-radius:14px;}`;
+const SummaryContainer = styled.div`background:linear-gradient(145deg,#0d0d1a 0%,#111827 100%);border:2px solid rgba(255,255,255,0.12);border-radius:24px;padding:32px;width:600px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 0 80px rgba(100,50,255,0.3);${lMedia.phoneSm}{padding:16px;border-radius:14px;}`;
 const SummaryHeader = styled.div`text-align:center;margin-bottom:28px;`;
 const SummaryRound = styled.div`color:rgba(255,255,255,0.4);font-size:11px;letter-spacing:4px;text-transform:uppercase;margin-bottom:4px;`;
 const SummaryTitle = styled.div`color:#fff;font-size:26px;font-weight:900;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;`;
 const SummaryMatchList = styled.div`display:flex;flex-direction:column;gap:12px;margin-bottom:24px;`;
-const SummaryMatchCard = styled.div<{ $isMyMatch?: boolean }>`background:${p => p.$isMyMatch ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${p => p.$isMyMatch ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'};border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;${media.mobile}{padding:10px 12px;gap:8px;}`;
+const SummaryMatchCard = styled.div<{ $isMyMatch?: boolean }>`background:${p => p.$isMyMatch ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${p => p.$isMyMatch ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.08)'};border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;${lMedia.phoneSm}{padding:10px 12px;gap:8px;}`;
 const MatchPlayerName = styled.div<{ $winner?: boolean }>`flex:1;font-size:14px;font-weight:600;color:${p => p.$winner ? '#fbbf24' : 'rgba(255,255,255,0.7)'};text-align:center;`;
 const MatchVS = styled.div`color:rgba(255,255,255,0.3);font-size:12px;font-weight:700;min-width:28px;text-align:center;`;
 const MatchResult = styled.div<{ $winner?: boolean }>`font-size:18px;min-width:28px;text-align:center;`;
@@ -761,16 +757,6 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
             battleResult={battleResult ?? null}
             onBattleComplete={handleArenaBattleComplete}
           />
-          <ArenaFooter>
-            <RoundInfo>
-              ⚔️ {t('battle.roundLabel', { round: gameState?.currentRound })}
-              {battleResult && (
-                <ResultBadge $win={battleResult.winnerId === user?.uid}>
-                  {battleResult.winnerId === user?.uid ? t('battle.winKo') : t('battle.loseKo')}
-                </ResultBadge>
-              )}
-            </RoundInfo>
-          </ArenaFooter>
         </TFTArenaOverlay>
         {showRoundSummary && gameState && (
           <RoundSummaryModal

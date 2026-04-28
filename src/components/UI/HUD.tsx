@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { GamePhase } from '../../types/multiplayer';
 
@@ -179,7 +179,7 @@ const Container = styled.div`
   margin-bottom: 6px;
   gap: 8px;
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     flex-wrap: nowrap;
     padding: 3px 6px;
     gap: 4px;
@@ -200,7 +200,7 @@ const StatGroup = styled.div`
   align-items: center;
   gap: 12px;
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     gap: 6px;
   }
 `;
@@ -220,7 +220,7 @@ const StatValue = styled.span`
   font-weight: bold;
   color: #e8edf3;
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 13px;
   }
 `;
@@ -233,12 +233,12 @@ const TimeIndicator = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #f39c12;
 
-  ${media.tablet} {
+  ${lMedia.phone} {
     font-size: 14px;
     padding: 3px 10px;
   }
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     display: none;
   }
 `;
@@ -291,7 +291,7 @@ const ButtonSection = styled.div`
   align-items: center;
   flex-wrap: nowrap;
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     gap: 3px;
   }
 `;
@@ -353,7 +353,7 @@ const Btn = styled.button<{ $variant: 'wave' | 'pokemon' | 'manage' | 'speed' | 
     background: rgba(243, 156, 18, 0.3) !important;
   `}
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     padding: 4px 8px;
     font-size: 10px;
     border-radius: 7px;

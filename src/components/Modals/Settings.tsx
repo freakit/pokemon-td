@@ -1,7 +1,7 @@
 // src/components/Modals/Settings.tsx
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
 import { soundService } from '../../services/SoundService';
@@ -120,7 +120,7 @@ const Modal = styled.div`
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
-  ${media.mobile} { padding: 16px; border-radius: 10px; width: 95%; }
+  ${lMedia.phoneSm} { padding: 16px; border-radius: 10px; width: 95%; }
   color: #333;
 
   h2 {
@@ -154,7 +154,7 @@ const SettingItem = styled.div`
     max-width: 200px;
   }
 
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
