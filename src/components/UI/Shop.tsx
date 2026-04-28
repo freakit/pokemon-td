@@ -1,803 +1,613 @@
 // src/components/UI/Shop.tsx
-import React, { useEffect, useState, useMemo } from 'react';
-import { media, isMobileOrTablet } from '../../utils/responsive.utils';
-import styled, { css } from 'styled-components';
-import { useTranslation } from '../../i18n';
-import { useGameStore } from '../../store/gameStore';
-import { canEvolveWithItem, getEvolvableWithItem } from '../../data/evolution';
-import { EVOLUTION_ITEMS_BY_CATEGORY, EVOLUTION_ITEMS, EvolutionItem } from '../../data/evolutionItems';
+// [V9] embedded prop 추가: GameLayout 우측 패널에 인라인 렌더 지원
+//      embedded=true 시 플로팅 오버레이·접기 제거, 타겟 선택 오버레이는 유지
 
-type ItemMode = 'none' | 'potion' | 'potion_good' | 'potion_super' | 'candy' | 'revive' | 'exp_candy' | string;
-type ShopTab = 'general' | 'evolution';
+import React, { useEffect, useState, useMemo } from "react";
+import styled, { css } from "styled-components";
+import { media, isMobileOrTablet } from "../../utils/responsive.utils";
+import { useTranslation } from "../../i18n";
+import { useGameStore } from "../../store/gameStore";
+import { canEvolveWithItem, getEvolvableWithItem } from "../../data/evolution";
+import {
+  EVOLUTION_ITEMS_BY_CATEGORY,
+  EVOLUTION_ITEMS,
+  EvolutionItem,
+} from "../../data/evolutionItems";
 
-export const Shop: React.FC = () => {
-  const { t } = useTranslation();
-  const { money, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(state => ({
-    money: state.money,
-    useItem: state.useItem,
-    towers: state.towers,
-    evolvePokemon: state.evolvePokemon,
-    isWaveActive: state.isWaveActive,
+type ItemMode =
+  | "none"
+  | "potion"
+  | "potion_good"
+  | "potion_super"
+  | "candy"
+  | "revive"
+  | "exp_candy"
+  | string;
+
+type ShopTab = "general" | "evolution";
+
+interface Props {
+  /** true 시 position:fixed 없이 부모 패널 안에 인라인으로 렌더 */
+  embedded?: boolean;
+}
+
+export const Shop: React.FC<Props> = ({ embedded = false }) => {
+  const { t, language } = useTranslation();
+  const { money, useItem, towers, evolvePokemon, isWaveActive } = useGameStore(s => ({
+    money:       s.money,
+    useItem:     s.useItem,
+    towers:      s.towers,
+    evolvePokemon: s.evolvePokemon,
+    isWaveActive: s.isWaveActive,
   }));
-  const [itemMode, setItemMode] = useState<ItemMode>('none');
-  const [activeTab, setActiveTab] = useState<ShopTab>('general');
-  const [isCollapsed, setIsCollapsed] = useState(() => isMobileOrTablet());
 
+  const [itemMode,    setItemMode]    = useState<ItemMode>("none");
+  const [activeTab,   setActiveTab]   = useState<ShopTab>("general");
+  // 플로팅 모드에서만 접기/펼치기 사용
+  const [isCollapsed, setIsCollapsed] = useState(() => !embedded && isMobileOrTablet());
 
-  useEffect(() => {
-    if (isWaveActive) {
-      setActiveTab('general');
-    }
-  }, [isWaveActive]);
+  useEffect(() => { if (isWaveActive) setActiveTab("general"); }, [isWaveActive]);
 
-  // ── 현재 필드 포켓몬에 바로 사용 가능한 아이템 ID 집합 ──────────────────
+  // 현재 즉시 사용 가능한 진화 아이템 ID 집합
   const usableItemIds = useMemo(() => {
     const ids = new Set<string>();
-    const aliveTowers = towers.filter(t => !t.isFainted);
-    if (aliveTowers.length === 0) return ids;
-
+    const alive = towers.filter(t => !t.isFainted);
+    if (!alive.length) return ids;
     Object.values(EVOLUTION_ITEMS).forEach(item => {
-      const evolvableIds = getEvolvableWithItem(item.id);
-      const canUse = aliveTowers.some(t => evolvableIds.includes(t.pokemonId));
-      if (canUse) ids.add(item.id);
+      if (getEvolvableWithItem(item.id).some(id => alive.some(t => t.pokemonId === id)))
+        ids.add(item.id);
     });
-
     return ids;
   }, [towers]);
 
-  // ── 아이템 목록 정렬 헬퍼: 사용 가능 아이템 → 앞으로 ────────────────────
   const sortedItems = (items: EvolutionItem[]) =>
-    [...items].sort((a, b) => {
-      const aU = usableItemIds.has(a.id) ? 0 : 1;
-      const bU = usableItemIds.has(b.id) ? 0 : 1;
-      return aU - bU;
-    });
+    [...items].sort((a, b) => (usableItemIds.has(a.id) ? 0 : 1) - (usableItemIds.has(b.id) ? 0 : 1));
 
-  const handleBuyPotion = () => {
-    if (money < 20) { alert(t('alerts.notEnoughMoney')); return; }
-    setItemMode('potion');
-  };
-  const handleBuyPotionGood = () => {
-    if (money < 100) { alert(t('alerts.notEnoughMoney')); return; }
-    setItemMode('potion_good');
-  };
-  const handleBuyPotionSuper = () => {
-    if (money < 500) { alert(t('alerts.notEnoughMoney')); return; }
-    setItemMode('potion_super');
-  };
-  const handleBuyCandy = () => {
-    setItemMode('candy');
-  };
-  const handleBuyRevive = () => {
-    setItemMode('revive');
-  };
-  // [BUG-4 FIX] exp_candy 사용 가능 여부 사전 검사
-  // 기존: 모든 포켓몬이 같은 레벨일 때도 버튼 클릭 가능 → 타겟 선택 후 "사용 불가" 알림
-  // 수정: 버튼 클릭 시점에 사용 불가 조건 확인 → 즉시 안내 후 모드 진입 차단
+  // ── Handlers ──────────────────────────────────────────────────
+
+  const handleBuyPotion      = () => { if (money < 20)  { alert(t("alerts.notEnoughMoney")); return; } setItemMode("potion"); };
+  const handleBuyPotionGood  = () => { if (money < 100) { alert(t("alerts.notEnoughMoney")); return; } setItemMode("potion_good"); };
+  const handleBuyPotionSuper = () => { if (money < 500) { alert(t("alerts.notEnoughMoney")); return; } setItemMode("potion_super"); };
+  const handleBuyCandy       = () => setItemMode("candy");
+  const handleBuyRevive      = () => setItemMode("revive");
+
   const handleBuyExpCandy = () => {
-    const aliveTowers = towers.filter(t => !t.isFainted);
-    if (aliveTowers.length < 2) {
-      alert(t('alerts.cannotUseItem'));
-      return;
-    }
-    const minLevel = Math.min(...aliveTowers.map(t => t.level));
-    const hasHigher = aliveTowers.some(t => t.level > minLevel);
-    if (!hasHigher) {
-      alert(t('alerts.cannotUseItem'));
-      return;
-    }
-    setItemMode('exp_candy');
+    const alive = towers.filter(t => !t.isFainted);
+    if (alive.length < 2) { alert(t("alerts.cannotUseItem")); return; }
+    const min = Math.min(...alive.map(t => t.level));
+    if (!alive.some(t => t.level > min)) { alert(t("alerts.cannotUseItem")); return; }
+    setItemMode("exp_candy");
   };
 
   const handleBuyEvolutionItem = (item: EvolutionItem) => {
-    if (money < item.price) {
-      alert(t('alerts.notEnoughMoney'));
-      return;
-    }
-    // [FIX-1] 선택 즉시 비용 차감 (취소 시 handleCancel에서 환불)
-    if (!useGameStore.getState().spendMoney(item.price)) {
-      alert(t('alerts.notEnoughMoney'));
-      return;
-    }
+    if (money < item.price) { alert(t("alerts.notEnoughMoney")); return; }
+    if (!useGameStore.getState().spendMoney(item.price)) { alert(t("alerts.notEnoughMoney")); return; }
     setItemMode(item.id);
   };
 
-  const handleTargetSelect = async (towerId: string) => {
-    let success = false;
-
-    if (
-      itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super' ||
-      itemMode === 'revive' || itemMode === 'candy' || itemMode === 'exp_candy'
-    ) {
-      const tower = towers.find(t => t.id === towerId);
-      if (tower) {
-        let cost = 0;
-        if (itemMode === 'potion') cost = 20;
-        else if (itemMode === 'potion_good') cost = 100;
-        else if (itemMode === 'potion_super') cost = 500;
-        else if (itemMode === 'candy') cost = tower.level * 25;
-        else if (itemMode === 'revive') cost = tower.level * 10;
-        else if (itemMode === 'exp_candy') {
-          // [FIX-3] store와 동일한 로직: 타겟 레벨보다 높은 첫 번째 레벨 기준
-          const aliveTowers = towers.filter(t => !t.isFainted);
-          const higherLevels = [...new Set(aliveTowers.map(t => t.level))]
-            .filter(lvl => lvl > tower.level)
-            .sort((a, b) => a - b);
-          const nextTargetLevel = higherLevels[0];
-          cost = nextTargetLevel !== undefined ? nextTargetLevel * 50 : 0;
-        }
-
-        if (money < cost) {
-          alert(t('alerts.notEnoughMoney'));
-          setItemMode('none');
-          return;
-        }
-      }
-
-      success = useItem(itemMode, towerId);
-      if (!success) {
-        alert(t('alerts.cannotUseItem'));
-      }
-    } else if (itemMode !== 'none') {
-      success = await evolvePokemon(towerId, itemMode);
-      if (success) {
-        alert(t('alerts.evolutionSuccess'));
-      } else {
-        // [FIX-1] 진화 실패 시 미리 차감된 비용 환불
-        const item = Object.values(EVOLUTION_ITEMS_BY_CATEGORY).flat().find(i => i.id === itemMode);
-        if (item) useGameStore.getState().addMoney(item.price);
-        alert(t('alerts.cannotEvolveWithItem'));
-      }
-    }
-
-    setItemMode('none');
-  };
-
   const handleCancel = () => {
-    // [FIX-1] 진화 아이템 모드였다면 차감된 비용 환불
-    if (itemMode !== 'none' &&
-      itemMode !== 'potion' && itemMode !== 'potion_good' && itemMode !== 'potion_super' &&
-      itemMode !== 'candy' && itemMode !== 'revive' && itemMode !== 'exp_candy') {
-      const item = Object.values(EVOLUTION_ITEMS_BY_CATEGORY).flat().find(i => i.id === itemMode);
-      if (item) useGameStore.getState().addMoney(item.price);
-    }
-    setItemMode('none');
+    const currentItem = Object.values(EVOLUTION_ITEMS).find(i => i.id === itemMode);
+    if (currentItem) useGameStore.getState().addMoney(currentItem.price);
+    setItemMode("none");
   };
 
-  const currentItem = Object.values(EVOLUTION_ITEMS_BY_CATEGORY)
-    .flat()
-    .find((i: EvolutionItem) => i.id === itemMode);
+  const handleTargetSelect = async (towerId: string) => {
+    const tower = towers.find(t => t.id === towerId);
+    if (!tower) return;
 
-  // ── 타워 선택 모드 ───────────────────────────────────────────────────────
-  if (itemMode !== 'none') {
+    if (["potion","potion_good","potion_super","revive","candy","exp_candy"].includes(itemMode)) {
+      let cost = 0;
+      if (itemMode === "potion")       cost = 20;
+      else if (itemMode === "potion_good") cost = 100;
+      else if (itemMode === "potion_super") cost = 500;
+      else if (itemMode === "candy")   cost = tower.level * 25;
+      else if (itemMode === "revive")  cost = tower.level * 10;
+      else if (itemMode === "exp_candy") {
+        const alive = towers.filter(t => !t.isFainted);
+        const higher = [...new Set(alive.map(t => t.level))].filter(l => l > tower.level).sort((a,b)=>a-b);
+        cost = (higher[0] ?? tower.level) * 50;
+      }
+      if (!useGameStore.getState().spendMoney(cost)) { alert(t("alerts.notEnoughMoney")); return; }
+      await useItem(towerId, itemMode as any);
+      setItemMode("none");
+    } else {
+      const result = canEvolveWithItem(tower.pokemonId, itemMode);
+      if (result) {
+        // evolvePokemon은 item 문자열(itemMode)을 받음 — EvolutionData 객체 아님
+        await evolvePokemon(towerId, itemMode);
+        setItemMode("none");
+      }
+    }
+  };
+
+  // ── Target selection overlay (모드 공통) ──────────────────────
+
+  const currentItem = Object.values(EVOLUTION_ITEMS).find(i => i.id === itemMode);
+
+  if (itemMode !== "none") {
     return (
       <TargetOverlay>
         <TargetModal>
-          <TargetTitle>🎯 {t('shop.targetTitle')}</TargetTitle>
+          <TargetTitle>{t("shop.targetTitle")}</TargetTitle>
           <TargetSubtitle>
-            {itemMode === 'potion' && t('shop.targetPotion')}
-            {itemMode === 'potion_good' && t('shop.targetPotionGood')}
-            {itemMode === 'potion_super' && t('shop.targetPotionSuper')}
-            {itemMode === 'candy' && t('shop.targetCandy')}
-            {itemMode === 'revive' && t('shop.targetRevive')}
-            {itemMode === 'exp_candy' && t('shop.targetExpCandy')}
-            {itemMode !== 'none' &&
-              itemMode !== 'potion' && itemMode !== 'potion_good' && itemMode !== 'potion_super' &&
-              itemMode !== 'candy' && itemMode !== 'revive' && itemMode !== 'exp_candy' &&
-              t('shop.targetItem', { name: currentItem ? t(`items.${currentItem.id}.name`) : itemMode })
-            }
+            {itemMode === "potion"       && t("shop.targetPotion")}
+            {itemMode === "potion_good"  && t("shop.targetPotionGood")}
+            {itemMode === "potion_super" && t("shop.targetPotionSuper")}
+            {itemMode === "candy"        && t("shop.targetCandy")}
+            {itemMode === "revive"       && t("shop.targetRevive")}
+            {itemMode === "exp_candy"    && t("shop.targetExpCandy")}
+            {currentItem               && t("shop.targetItem", { name: t(`items.${currentItem.id}.name`) })}
           </TargetSubtitle>
           <TowerGrid>
             {towers.map(tower => {
-              let isSelectable = false;
+              let isSelectable   = false;
               let isEvolveTarget = false;
-
-              if (itemMode === 'potion' || itemMode === 'potion_good' || itemMode === 'potion_super') {
+              if (["potion","potion_good","potion_super"].includes(itemMode))
                 isSelectable = !tower.isFainted && tower.currentHp < tower.maxHp;
-              } else if (itemMode === 'candy') {
+              else if (itemMode === "candy")
                 isSelectable = !tower.isFainted && tower.level < 100;
-              } else if (itemMode === 'revive') {
-                isSelectable = tower.isFainted;
-              } else if (itemMode === 'exp_candy') {
-                const aliveTowers = towers.filter(t => !t.isFainted);
-                if (aliveTowers.length >= 2) {
-                  const minLevel = Math.min(...aliveTowers.map(t => t.level));
-                  const hasHigher = aliveTowers.some(t => t.level > minLevel);
-                  isSelectable = !tower.isFainted && tower.level === minLevel && hasHigher;
+              else if (itemMode === "revive")
+                isSelectable = !!tower.isFainted;
+              else if (itemMode === "exp_candy") {
+                const alive = towers.filter(t => !t.isFainted);
+                if (alive.length >= 2) {
+                  const min = Math.min(...alive.map(t => t.level));
+                  isSelectable = !tower.isFainted && tower.level === min && alive.some(t => t.level > min);
                 }
-
               } else if (currentItem) {
-                const result = canEvolveWithItem(tower.pokemonId, itemMode);
-                isSelectable = !!result && !tower.isFainted;
+                const r = canEvolveWithItem(tower.pokemonId, itemMode);
+                isSelectable   = !!r && !tower.isFainted;
                 isEvolveTarget = isSelectable;
               }
 
               return (
-                <TowerCard
-                  key={tower.id}
-                  $isSelectable={isSelectable}
-                  $isEvolveTarget={isEvolveTarget}
-                  onClick={() => isSelectable && handleTargetSelect(tower.id)}
-                >
+                <TowerCard key={tower.id} $isSelectable={isSelectable} $isEvolveTarget={isEvolveTarget}
+                  onClick={() => isSelectable && handleTargetSelect(tower.id)}>
                   <TowerImg src={tower.sprite} alt={tower.displayName} />
                   <TowerName>{tower.displayName}</TowerName>
-                  <TowerInfo>Lv.{tower.level} | HP: {Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
-                  {tower.isFainted && <FaintedLabel>{t('manager.fainted')}</FaintedLabel>}
-
-                  {isSelectable && itemMode === 'candy' && (
-                    <PriceLabel $type="candy">
-                      {t('shop.cost', { cost: tower.level * 25 })}
-                    </PriceLabel>
+                  <TowerInfo>Lv.{tower.level} | HP:{Math.floor(tower.currentHp)}/{tower.maxHp}</TowerInfo>
+                  {tower.isFainted && <FaintedLabel>{t("manager.fainted")}</FaintedLabel>}
+                  {isSelectable && itemMode === "candy" && (
+                    <PriceLabel $type="candy">{t("shop.cost", { cost: tower.level * 25 })}</PriceLabel>
                   )}
-                  {isSelectable && itemMode === 'revive' && (
-                    <PriceLabel $type="revive">
-                      {t('shop.cost', { cost: tower.level * 10 })}
-                    </PriceLabel>
+                  {isSelectable && itemMode === "revive" && (
+                    <PriceLabel $type="revive">{t("shop.cost", { cost: tower.level * 10 })}</PriceLabel>
                   )}
-                  {isSelectable && itemMode === 'exp_candy' && (() => {
-                    const aliveTowers = towers.filter(t => !t.isFainted);
-                    const higherLevels = [...new Set(aliveTowers.map(t => t.level))]
-                      .filter(lvl => lvl > tower.level)
-                      .sort((a, b) => a - b);
-                    const nextTargetLevel = higherLevels[0] || tower.level;
+                  {isSelectable && itemMode === "exp_candy" && (() => {
+                    const alive = towers.filter(t => !t.isFainted);
+                    const higher = [...new Set(alive.map(t => t.level))]
+                      .filter(l => l > tower.level).sort((a,b)=>a-b);
+                    const next = higher[0] ?? tower.level;
                     return (
                       <PriceLabel $type="exp">
-                        {t('shop.costLevelChange', { cost: nextTargetLevel * 50, from: tower.level, to: nextTargetLevel })}
+                        {t("shop.costLevelChange", { cost: next * 50, from: tower.level, to: next })}
                       </PriceLabel>
                     );
-
                   })()}
                   {isEvolveTarget && (
-                    <PriceLabel $type="evolve">
-                      ✨ {t('manager.canEvolve')}
-                    </PriceLabel>
+                    <PriceLabel $type="evolve">✨ {t("manager.canEvolve")}</PriceLabel>
                   )}
                 </TowerCard>
               );
             })}
           </TowerGrid>
-          <CancelBtn onClick={handleCancel}>{t('common.cancel')}</CancelBtn>
+          <CancelBtn onClick={handleCancel}>{t("shop.cancelRefund")}</CancelBtn>
         </TargetModal>
       </TargetOverlay>
     );
   }
 
-  // ── 진화 아이템 렌더 헬퍼 ────────────────────────────────────────────────
+  // ── Evolution item render helper ──────────────────────────────
+
   const renderEvoItems = (items: EvolutionItem[]) =>
     sortedItems(items).map(item => {
       const isUsable = usableItemIds.has(item.id);
       return (
-        <EvoItemBtn
-          key={item.id}
-          $isUsable={isUsable}
-          onClick={() => handleBuyEvolutionItem(item)}
-        >
-          {isUsable && <UsableBadge>{t('shop.badgeUsableNow')}</UsableBadge>}
-          <EvoItemName $isUsable={isUsable}>{t(`items.${item.id}.name`)}</EvoItemName>
-          <EvoItemPrice>{t('shop.itemCost', { cost: item.price })}</EvoItemPrice>
-          <EvoItemDesc>{t(`items.${item.id}.description`)}</EvoItemDesc>
-        </EvoItemBtn>
+        <ClickableItem key={item.id} $isUsable={isUsable} onClick={() => handleBuyEvolutionItem(item)}>
+          <ItemTop>
+            <ItemName>
+              {t(`items.${item.id}.name`)}
+              {isUsable && <UsableTag>✓ 사용 가능</UsableTag>}
+            </ItemName>
+            <PriceBadge>{t("shop.itemCost", { cost: item.price })}</PriceBadge>
+          </ItemTop>
+          <ItemDesc>{t(`items.${item.id}.description`)}</ItemDesc>
+        </ClickableItem>
       );
     });
 
-  // ── 메인 상점 UI ─────────────────────────────────────────────────────────
+  // ── Shared inner content ──────────────────────────────────────
+
+  const shopContent = (
+    <>
+      {!embedded && (
+        <MoneyDisplay>{t("shop.currentMoney", { money })}</MoneyDisplay>
+      )}
+
+      {!isWaveActive && (
+        <TabContainer $embedded={embedded}>
+          <TabButton $isActive={activeTab === "general"}   onClick={() => setActiveTab("general")}>
+            🛒 {t("shop.tabGeneral")}
+          </TabButton>
+          <TabButton $isActive={activeTab === "evolution"} onClick={() => setActiveTab("evolution")}>
+            ✨ {t("shop.tabEvolution")}
+            {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
+          </TabButton>
+        </TabContainer>
+      )}
+
+      {activeTab === "general" && (
+        <ItemsContainer>
+          <ClickableItem onClick={handleBuyPotion}>
+            <ItemTop>
+              <ItemName>{t("shop.potionName")}</ItemName>
+              <PriceBadge>{t("shop.potionCost")}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.potionDesc")}</ItemDesc>
+          </ClickableItem>
+          <ClickableItem onClick={handleBuyPotionGood}>
+            <ItemTop>
+              <ItemName>{t("shop.potionGoodName")}</ItemName>
+              <PriceBadge>{t("shop.potionGoodCost")}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.potionGoodDesc")}</ItemDesc>
+          </ClickableItem>
+          <ClickableItem onClick={handleBuyPotionSuper}>
+            <ItemTop>
+              <ItemName>{t("shop.potionSuperName")}</ItemName>
+              <PriceBadge>{t("shop.potionSuperCost")}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.potionSuperDesc")}</ItemDesc>
+          </ClickableItem>
+          <ClickableItem onClick={handleBuyRevive}>
+            <ItemTop>
+              <ItemName>{t("shop.reviveName")}</ItemName>
+              <PriceBadge>{t("shop.reviveCost")}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.reviveDesc")}</ItemDesc>
+          </ClickableItem>
+          <ClickableItem onClick={handleBuyCandy}>
+            <ItemTop>
+              <ItemName>{t("shop.candyName")}</ItemName>
+              <PriceBadge>{t("shop.candyCost")}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.candyDesc")}</ItemDesc>
+          </ClickableItem>
+          <ClickableItem onClick={handleBuyExpCandy}>
+            <ItemTop>
+              <ItemName>{t("shop.expCandyName")}</ItemName>
+              {/* 레벨×50원으로 통일 */}
+              <PriceBadge>{language === "ko" ? "레벨×50원" : "Lv×50G"}</PriceBadge>
+            </ItemTop>
+            <ItemDesc>{t("shop.expCandyDesc")}</ItemDesc>
+          </ClickableItem>
+        </ItemsContainer>
+      )}
+
+      {activeTab === "evolution" && (
+        <EvolutionTab>
+          <CategorySection>
+            <CategoryTitle>🔥 {t("shop.categoryStone")}</CategoryTitle>
+            <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
+          </CategorySection>
+          <CategorySection>
+            <CategoryTitle>🔗 {t("shop.categoryTrade")}</CategoryTitle>
+            <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
+          </CategorySection>
+          <CategorySection>
+            <CategoryTitle>💝 {t("shop.categoryFriendship")}</CategoryTitle>
+            <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
+          </CategorySection>
+          <CategorySection>
+            <CategoryTitle>⭐ {t("shop.categoryOthers")}</CategoryTitle>
+            <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
+          </CategorySection>
+          <CategorySection>
+            <CategoryTitle>✨ {t("shop.categorySpecial")}</CategoryTitle>
+            <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
+          </CategorySection>
+        </EvolutionTab>
+      )}
+    </>
+  );
+
+  // ── embedded 모드 ──────────────────────────────────────────────
+
+  if (embedded) {
+    return (
+      <EmbeddedContainer>
+        {shopContent}
+      </EmbeddedContainer>
+    );
+  }
+
+  // ── 기존 플로팅 모드 ──────────────────────────────────────────
+
   return (
     <ShopOverlay>
       <ShopModal $isCollapsed={isCollapsed}>
         <ShopHeader onClick={() => setIsCollapsed(!isCollapsed)}>
-          <ShopTitle>🏪 {t('shop.title')}</ShopTitle>
-          <ToggleButton>{isCollapsed ? '➕' : '➖'}</ToggleButton>
+          <ShopTitle>🏪 {t("shop.title")}</ShopTitle>
+          <ToggleButton>{isCollapsed ? "➕" : "➖"}</ToggleButton>
         </ShopHeader>
-
         <CollapseContent $isCollapsed={isCollapsed}>
-          <MoneyDisplay>{t('shop.currentMoney', { money: money })}</MoneyDisplay>
-
-          {!isWaveActive && (
-            <TabContainer>
-              <TabButton
-                $isActive={activeTab === 'general'}
-                onClick={() => setActiveTab('general')}
-              >
-                🛒 {t('shop.tabGeneral')}
-              </TabButton>
-              <TabButton
-                $isActive={activeTab === 'evolution'}
-                onClick={() => setActiveTab('evolution')}
-              >
-                ✨ {t('shop.tabEvolution')}
-                {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
-              </TabButton>
-            </TabContainer>
-          )}
-
-          {activeTab === 'general' && (
-            <ItemsContainer>
-              <Item>
-                <ItemTitle>{t('shop.potionName')}</ItemTitle>
-                <ItemDesc>{t('shop.potionDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotion(); }}>{t('shop.potionCost')}</BuyBtn>
-              </Item>
-              <Item>
-                <ItemTitle>{t('shop.potionGoodName')}</ItemTitle>
-                <ItemDesc>{t('shop.potionGoodDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotionGood(); }}>{t('shop.potionGoodCost')}</BuyBtn>
-              </Item>
-              <Item>
-                <ItemTitle>{t('shop.potionSuperName')}</ItemTitle>
-                <ItemDesc>{t('shop.potionSuperDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyPotionSuper(); }}>{t('shop.potionSuperCost')}</BuyBtn>
-              </Item>
-              <Item>
-                <ItemTitle>{t('shop.reviveName')}</ItemTitle>
-                <ItemDesc>{t('shop.reviveDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyRevive(); }}>{t('shop.reviveCost')}</BuyBtn>
-              </Item>
-              <Item>
-                <ItemTitle>{t('shop.candyName')}</ItemTitle>
-                <ItemDesc>{t('shop.candyDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyCandy(); }}>{t('shop.candyCost')}</BuyBtn>
-              </Item>
-              <Item>
-                <ItemTitle>{t('shop.expCandyName')}</ItemTitle>
-                <ItemDesc>{t('shop.expCandyDesc')}</ItemDesc>
-                <BuyBtn onClick={(e) => { e.stopPropagation(); handleBuyExpCandy(); }}>{t('shop.expCandyCost')}</BuyBtn>
-              </Item>
-            </ItemsContainer>
-          )}
-
-          {activeTab === 'evolution' && (
-            <EvolutionTab>
-              <CategorySection>
-                <CategoryTitle>🔥 {t('shop.categoryStone')}</CategoryTitle>
-                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
-              </CategorySection>
-
-              <CategorySection>
-                <CategoryTitle>🔗 {t('shop.categoryTrade')}</CategoryTitle>
-                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
-              </CategorySection>
-
-              <CategorySection>
-                <CategoryTitle>💝 {t('shop.categoryFriendship')}</CategoryTitle>
-                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
-              </CategorySection>
-
-              <CategorySection>
-                <CategoryTitle>⭐ {t('shop.categoryOthers')}</CategoryTitle>
-                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
-              </CategorySection>
-
-              <CategorySection>
-                <CategoryTitle>✨ {t('shop.categorySpecial')}</CategoryTitle>
-                <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
-              </CategorySection>
-            </EvolutionTab>
-          )}
+          {shopContent}
         </CollapseContent>
       </ShopModal>
     </ShopOverlay>
-
   );
 };
 
-// ─── Styled Components ────────────────────────────────────────────────────────
+// ─── Styled Components ────────────────────────────────────────────
 
-const TargetOverlay = styled.div`
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle at center, rgba(0,0,0,0.85), rgba(0,0,0,0.95));
-  backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-  animation: fadeIn 0.3s ease-out;
+// ── 반응형 헬퍼 (가로화면 고정 게임 전용) ─────────────────────────
+const L1024 = `@media (max-width: 1024px) and (orientation: landscape)`;
+const L768  = `@media (max-width: 768px)  and (orientation: landscape)`;
+
+// ── Embedded ──────────────────────────────────────────────────────
+
+const EmbeddedContainer = styled.div`
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(243,156,18,.3); border-radius: 2px; }
 `;
 
-const TargetModal = styled.div`
-  background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
-  color: #e8edf3;
-  border-radius: 24px;
-  padding: 32px;
-  max-width: 1000px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 1px 1px rgba(76,175,255,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-  border: 2px solid rgba(76,175,255,0.2);
-  animation: slideInUp 0.4s ease-out;
-  ${media.mobile} {
-    padding: 16px;
-    width: 96%;
-    border-radius: 16px;
-    max-height: 92vh;
-  }
-`;
-
-const TargetTitle = styled.h2`
-  text-align: center;
-  font-size: 24px;
-  font-weight: bold;
-  color: #4cafff;
-  margin-bottom: 16px;
-`;
-
-const TargetSubtitle = styled.p`
-  text-align: center;
-  font-size: 16px;
-  color: #a8b8c8;
-  margin-bottom: 24px;
-`;
-
-const TowerGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px;
-  padding-bottom: 24px;
-  ${media.mobile} {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
-    padding-bottom: 12px;
-  }
-`;
-
-const TowerCard = styled.div<{ $isSelectable: boolean; $isEvolveTarget: boolean }>`
-  background: linear-gradient(145deg, rgba(30,40,60,0.9), rgba(15,20,35,0.95));
-  border: 2px solid ${props => props.$isEvolveTarget ? '#2ecc71' : 'rgba(52,152,219,0.4)'};
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  opacity: ${props => props.$isSelectable ? 1 : 0.3};
-  cursor: ${props => props.$isSelectable ? 'pointer' : 'not-allowed'};
-
-  ${props => props.$isSelectable && css`
-    &:hover {
-      transform: translateY(-2px);
-      border-color: ${props.$isEvolveTarget ? '#34f58b' : '#4cafff'};
-    }
-  `}
-`;
-
-const TowerImg = styled.img`
-  width: 80px;
-  height: 80px;
-  image-rendering: pixelated;
-  margin-bottom: 12px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
-`;
-
-const TowerName = styled.h4`
-  font-size: 16px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: #fff;
-`;
-
-const TowerInfo = styled.p`
-  font-size: 12px;
-  margin: 4px 0;
-  color: #a8b8c8;
-`;
-
-const FaintedLabel = styled.p`
-  color: #e74c3c;
-  font-weight: bold;
-  font-size: 12px;
-  margin-top: 8px;
-`;
-
-const PriceLabel = styled.p<{ $type: 'candy' | 'revive' | 'exp' | 'evolve' }>`
-  font-weight: bold;
-  font-size: 12px;
-  margin-top: 8px;
-  color: ${props => {
-    if (props.$type === 'candy') return '#f39c12';
-    if (props.$type === 'revive') return '#e74c3c';
-    if (props.$type === 'exp') return '#9b59b6';
-    if (props.$type === 'evolve') return '#2ecc71';
-    return '#fff';
-  }};
-`;
-
-const CancelBtn = styled.button`
-  width: 100%;
-  margin-top: 24px;
-  padding: 16px;
-  font-size: 18px;
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-  color: #fff;
-  border: 2px solid rgba(231,76,60,0.4);
-  border-radius: 14px;
-  cursor: pointer;
-  font-weight: bold;
-  box-shadow: 0 6px 20px rgba(231,76,60,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  &:hover { background: linear-gradient(135deg, #c0392b 0%, #a93226 100%); }
-`;
+// ── Floating ──────────────────────────────────────────────────────
 
 const ShopOverlay = styled.div`
   position: fixed;
-  right: 10px;
-  top: 10px;
+  right: 10px; top: 10px;
   z-index: 999;
   pointer-events: auto;
-  ${media.mobile} {
-    right: 4px;
-    top: 4px;
-  }
+  ${media.mobile} { right: 4px; top: 4px; }
 `;
 
 const ShopModal = styled.div<{ $isCollapsed: boolean }>`
-  background: linear-gradient(145deg, rgba(26,31,46,0.98), rgba(15,20,25,0.98));
+  background: linear-gradient(145deg, rgba(26,31,46,.98), rgba(15,20,25,.98));
   color: #e8edf3;
   border-radius: 12px;
   padding: 0;
   width: 240px;
-  max-height: ${props => props.$isCollapsed ? '46px' : '70vh'};
+  max-height: ${p => p.$isCollapsed ? "46px" : "70vh"};
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(243,156,18,0.4), 0 0 2px 1px rgba(243,156,18,0.3);
-  border: 3px solid rgba(243,156,18,0.4);
+  box-shadow: 0 20px 60px rgba(243,156,18,.4), 0 0 2px 1px rgba(243,156,18,.3);
+  border: 3px solid rgba(243,156,18,.4);
   backdrop-filter: blur(10px);
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: slideInRight 0.3s ease-out;
+  transition: all .4s cubic-bezier(.4,0,.2,1);
+  animation: slideInRight .3s ease-out;
   ${media.mobile} {
     width: 150px;
-    max-height: ${props => props.$isCollapsed ? '36px' : '60vh'};
-    border-width: 2px;
-    border-radius: 10px;
+    max-height: ${p => p.$isCollapsed ? "36px" : "60vh"};
+    border-width: 2px; border-radius: 10px;
   }
 `;
 
 const ShopHeader = styled.div`
   padding: 12px;
-  background: linear-gradient(90deg, rgba(243,156,18,0.2), transparent);
-  border-bottom: 2px solid rgba(243,156,18,0.3);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-  min-height: 36px;
-
-  @media (hover: hover) {
-    &:hover {
-      background: linear-gradient(90deg, rgba(243,156,18,0.3), transparent);
-    }
-  }
-  ${media.mobile} {
-    padding: 8px;
-    min-height: 34px;
-  }
+  background: linear-gradient(90deg, rgba(243,156,18,.2), transparent);
+  border-bottom: 2px solid rgba(243,156,18,.3);
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; user-select: none; min-height: 36px;
+  @media (hover: hover) { &:hover { background: linear-gradient(90deg, rgba(243,156,18,.3), transparent); } }
+  ${media.mobile} { padding: 8px; min-height: 34px; }
 `;
 
 const ToggleButton = styled.span`
-  font-size: 14px;
-  opacity: 0.8;
-  transition: transform 0.3s ease;
+  font-size: 14px; opacity: .8; transition: transform .3s ease;
+`;
+
+const ShopTitle = styled.h2`
+  font-size: 16px; font-weight: bold; margin: 0;
+  color: #f39c12;
+  text-shadow: 0 0 10px rgba(243,156,18,.6);
 `;
 
 const CollapseContent = styled.div<{ $isCollapsed: boolean }>`
-  max-height: ${props => props.$isCollapsed ? '0' : '65vh'};
-  opacity: ${props => props.$isCollapsed ? 0 : 1};
+  max-height: ${p => p.$isCollapsed ? "0" : "65vh"};
+  opacity:    ${p => p.$isCollapsed ? 0   : 1  };
   overflow-y: auto;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all .4s cubic-bezier(.4,0,.2,1);
 
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(243, 156, 18, 0.3);
-    border-radius: 3px;
-  }
-`;
-
-
-const ShopTitle = styled.h2`
-  font-size: 16px;
-  font-weight: bold;
-  margin: 0;
-  color: #f39c12;
-  text-shadow: 0 0 10px rgba(243,156,18,0.6);
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-track { background: rgba(0,0,0,.1); }
+  &::-webkit-scrollbar-thumb { background: rgba(243,156,18,.3); border-radius: 3px; }
 `;
 
 const MoneyDisplay = styled.div`
-  font-size: 13px;
-  font-weight: bold;
-  color: #ffd700;
-  margin: 8px 12px;
-  text-align: center;
-  text-shadow: 0 0 10px rgba(255,215,0,0.7);
-  padding: 6px;
-  background: rgba(255,215,0,0.1);
-  border-radius: 8px;
-  ${media.mobile} {
-    font-size: 11px;
-    margin: 4px 8px;
-    padding: 4px;
-  }
+  font-size: 13px; font-weight: bold; color: #ffd700;
+  margin: 8px 12px; text-align: center;
+  text-shadow: 0 0 10px rgba(255,215,0,.7);
+  padding: 6px; background: rgba(255,215,0,.1); border-radius: 8px;
+  ${media.mobile} { font-size: 11px; margin: 4px 8px; padding: 4px; }
 `;
 
-const TabContainer = styled.div`
+// ── Shared shop UI ────────────────────────────────────────────────
+
+const TabContainer = styled.div<{ $embedded?: boolean }>`
   display: flex;
-  gap: 6px;
-  padding: 0 12px 10px;
+  gap: ${p => p.$embedded ? "4px" : "6px"};
+  padding: ${p => p.$embedded ? "5px 7px" : "0 12px 10px"};
+  flex-shrink: 0;
+  ${L1024} { padding: ${(p: any) => p.$embedded ? "4px 6px" : "0 10px 8px"}; gap: 3px; }
+  ${L768}  { padding: ${(p: any) => p.$embedded ? "3px 5px" : "0 8px 6px"}; gap: 3px; }
+`;
+
+const TabBadge = styled.span`
+  position: absolute; top: -6px; right: -6px;
+  background: #e74c3c; color: #fff;
+  border-radius: 50%; width: 16px; height: 16px;
+  font-size: 10px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
-  flex: 1;
-  position: relative;
-  padding: 6px 10px;
-  background: linear-gradient(145deg, rgba(30,40,60,0.6), rgba(15,20,35,0.6));
-  color: #a0aec0;
-  border: 2px solid rgba(243,156,18,0.2);
+  flex: 1; position: relative; padding: 6px 8px;
+  background: ${p => p.$isActive
+    ? "linear-gradient(145deg,rgba(243,156,18,.3),rgba(243,156,18,.15))"
+    : "linear-gradient(145deg,rgba(30,40,60,.6),rgba(15,20,35,.6))"};
+  color: ${p => p.$isActive ? "#f39c12" : "#a0aec0"};
+  border: ${p => p.$isActive
+    ? "2px solid rgba(243,156,18,.6)"
+    : "1px solid rgba(255,255,255,.1)"};
   border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 11px;
-  transition: all 0.2s ease;
-
-  ${props => props.$isActive && css`
-    background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
-    color: #fff;
-    border: 2px solid rgba(243,156,18,0.6);
-    box-shadow: 0 4px 12px rgba(243,156,18,0.4);
-  `}
-`;
-
-// 진화 탭에 사용 가능 아이템 개수 뱃지
-const TabBadge = styled.span`
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #2ecc71;
-  color: white;
-  font-size: 10px;
-  font-weight: bold;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(46,204,113,0.6);
+  font-size: 12px; font-weight: bold; cursor: pointer;
+  transition: all .2s ease;
+  @media (hover: hover) { &:hover { background: linear-gradient(145deg,rgba(243,156,18,.2),rgba(243,156,18,.1)); } }
+  ${L1024} { font-size: 10px; padding: 5px 6px; }
+  ${L768}  { font-size: 9px;  padding: 4px 5px; }
 `;
 
 const ItemsContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 12px 12px;
+  padding: 0 8px 8px;
+  display: flex; flex-direction: column; gap: 5px;
+  ${L1024} { padding: 0 6px 6px; gap: 4px; }
+  ${L768}  { padding: 0 5px 5px; gap: 3px; }
 `;
 
-const Item = styled.div`
-  background: linear-gradient(145deg, rgba(30,40,60,0.9), rgba(15,20,35,0.95));
-  border: 1px solid rgba(243,156,18,0.3);
-  border-radius: 10px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+/* ── 일반/진화 공통 클릭 가능 아이템 ── */
+const ClickableItem = styled.div<{ $isUsable?: boolean }>`
+  background: ${p => p.$isUsable ? "rgba(46,204,113,.07)" : "rgba(255,255,255,.03)"};
+  border: 1px solid ${p => p.$isUsable ? "rgba(46,204,113,.35)" : "rgba(255,255,255,.09)"};
+  border-radius: 8px; padding: 7px 9px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+  transition: filter .15s, border-color .15s;
+  @media (hover: hover) { &:hover { filter: brightness(1.14); border-color: rgba(243,156,18,.4); } }
+  &:active { filter: brightness(0.88); }
+  ${L1024} { padding: 6px 7px; gap: 2px; border-radius: 7px; }
+  ${L768}  { padding: 4px 6px; gap: 2px; border-radius: 6px; }
 `;
 
-const ItemTitle = styled.h3`
-  font-size: 12px;
-  margin: 0 0 2px 0;
-  font-weight: bold;
-  color: #4cafff;
+/* 이름 | 가격 (같은 줄) */
+const ItemTop = styled.div`
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 6px;
+  ${L768} { gap: 4px; }
 `;
 
-const ItemDesc = styled.p`
-  font-size: 9px;
-  margin: 0 0 4px 0;
-  color: #a0aec0;
+const ItemName = styled.div`
+  font-size: 13px; font-weight: bold; color: #e8edf3;
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  word-break: keep-all;
+  ${L1024} { font-size: 11px; gap: 4px; }
+  ${L768}  { font-size: 9px;  gap: 3px; }
 `;
 
-const BuyBtn = styled.button`
-  padding: 4px 8px;
-  background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
-  color: #fff;
-  border: 1px solid rgba(243,156,18,0.4);
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  font-size: 10px;
-  box-shadow: 0 2px 8px rgba(243,156,18,0.3);
-  &:hover { background: linear-gradient(135deg, #d68910 0%, #b8730e 100%); }
+const PriceBadge = styled.span`
+  flex-shrink: 0; font-size: 11px; font-weight: 700;
+  color: #f5b030; background: rgba(245,176,48,.12);
+  border: 1px solid rgba(245,176,48,.45);
+  border-radius: 5px; padding: 2px 9px; white-space: nowrap;
+  ${L1024} { font-size: 10px; padding: 2px 7px; }
+  ${L768}  { font-size: 8px;  padding: 1px 5px; border-radius: 4px; }
 `;
 
+/* 설명 (두 번째 줄) */
+const ItemDesc = styled.div`
+  font-size: 10px; color: #7a8a9a;
+  word-break: keep-all; line-height: 1.4;
+  ${L1024} { font-size: 9px; }
+  ${L768}  { font-size: 8px; }
+`;
+
+const UsableTag = styled.span`
+  font-size: 9px; font-weight: 600; color: #4fe08a;
+  background: rgba(46,204,113,.18); border-radius: 3px;
+  padding: 1px 5px; white-space: nowrap;
+  ${L1024} { font-size: 8px; padding: 1px 4px; }
+  ${L768}  { font-size: 7px; padding: 1px 3px; }
+`;
+
+/* 진화 탭 */
 const EvolutionTab = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 12px 12px;
+  padding: 0 8px 12px; display: flex; flex-direction: column; gap: 10px;
+  ${L1024} { padding: 0 6px 10px; gap: 8px; }
+  ${L768}  { padding: 0 5px 8px;  gap: 6px; }
 `;
-
-const CategorySection = styled.div`
-  margin: 0;
+const CategorySection = styled.div`display:flex;flex-direction:column;gap:5px;`;
+const CategoryTitle   = styled.div`
+  font-size: 11px; font-weight: bold; color: #a8b8c8;
+  padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.07);
+  ${L1024} { font-size: 10px; }
+  ${L768}  { font-size: 9px; }
 `;
-
-const CategoryTitle = styled.h3`
-  font-size: 12px;
-  font-weight: bold;
-  color: #f39c12;
-  margin-bottom: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(243,156,18,0.3);
-`;
-
 const ItemGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  ${L768} { gap: 3px; }
 `;
 
-const EvoItemBtn = styled.button<{ $isUsable?: boolean }>`
-  position: relative;
-  padding: 8px;
-  background: rgba(255,255,255,0.05);
-  border: 2px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: white;
-  text-align: left;
+// ── Target selection overlay ──────────────────────────────────────
 
-  &:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: #f39c12;
-  }
+const TargetOverlay = styled.div`
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at center, rgba(0,0,0,.85), rgba(0,0,0,.95));
+  backdrop-filter: blur(8px);
+  display: flex; justify-content: center; align-items: center;
+  z-index: 9999;
+  animation: fadeIn .3s ease-out;
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+`;
 
-  ${props => props.$isUsable && css`
-    border-color: #2ecc71;
-    background: linear-gradient(145deg, rgba(46,204,113,0.12), rgba(30,40,60,0.9));
-    box-shadow: 0 0 14px rgba(46,204,113,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+const TargetModal = styled.div`
+  background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
+  color: #e8edf3; border-radius: 24px; padding: 32px;
+  max-width: 1000px; width: 90%; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 25px 80px rgba(0,0,0,.6), 0 0 1px 1px rgba(76,175,255,.3);
+  border: 2px solid rgba(76,175,255,.2);
+  animation: slideInUp .4s ease-out;
+  @keyframes slideInUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+  ${media.mobile} { padding: 16px; width: 96%; border-radius: 16px; max-height: 92vh; }
+`;
+const TargetTitle    = styled.h2`text-align:center;font-size:24px;font-weight:bold;color:#4cafff;margin-bottom:16px;`;
+const TargetSubtitle = styled.p`text-align:center;font-size:16px;color:#a8b8c8;margin-bottom:24px;`;
 
-    &:hover {
-      border-color: #34f58b;
-      background: linear-gradient(145deg, rgba(46,204,113,0.2), rgba(30,40,60,0.9));
-      box-shadow: 0 0 20px rgba(46,204,113,0.5);
+const TowerGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px; padding-bottom: 24px;
+  ${media.mobile} { grid-template-columns: repeat(auto-fill,minmax(130px,1fr)); gap:10px; padding-bottom:12px; }
+`;
+
+const TowerCard = styled.div<{ $isSelectable: boolean; $isEvolveTarget: boolean }>`
+  background: linear-gradient(145deg, rgba(30,40,60,.9), rgba(15,20,35,.95));
+  border: 2px solid ${p => p.$isEvolveTarget ? "#2ecc71" : "rgba(52,152,219,.4)"};
+  border-radius: 16px; padding: 20px; text-align: center;
+  transition: all .3s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  opacity: ${p => p.$isSelectable ? 1 : 0.3};
+  cursor: ${p => p.$isSelectable ? "pointer" : "not-allowed"};
+  ${p => p.$isSelectable && css`
+    @media (hover: hover) {
+      &:hover {
+        transform: translateY(-2px);
+        border-color: ${p.$isEvolveTarget ? "#34f58b" : "#4cafff"};
+      }
     }
   `}
 `;
+const TowerImg  = styled.img`width:80px;height:80px;image-rendering:pixelated;margin-bottom:12px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.6));`;
+const TowerName = styled.h4`font-size:16px;font-weight:700;margin:0 0 8px;color:#fff;`;
+const TowerInfo = styled.p`font-size:12px;margin:4px 0;color:#a8b8c8;`;
+const FaintedLabel = styled.p`color:#e74c3c;font-weight:bold;font-size:12px;margin-top:8px;`;
 
-// 사용 가능 뱃지
-const UsableBadge = styled.div`
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
-  color: white;
-  font-size: 10px;
-  font-weight: bold;
-  padding: 2px 10px;
-  border-radius: 10px;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(46,204,113,0.5);
-  pointer-events: none;
+const priceColorMap: Record<string, string> = {
+  candy:  "#f39c12",
+  revive: "#e74c3c",
+  exp:    "#9b59b6",
+  evolve: "#2ecc71",
+};
+const PriceLabel = styled.p<{ $type: "candy"|"revive"|"exp"|"evolve" }>`
+  font-weight: bold; font-size: 12px; margin-top: 8px;
+  color: ${p => priceColorMap[p.$type] ?? "#fff"};
 `;
 
-const EvoItemName = styled.div<{ $isUsable?: boolean }>`
-  font-size: 12px;
-  font-weight: bold;
-  margin-bottom: 4px;
-  color: ${props => props.$isUsable ? '#4fffaa' : '#fff'};
-`;
-
-const EvoItemPrice = styled.div`
-  font-size: 11px;
-  color: #FFD700;
-  margin-bottom: 4px;
-`;
-
-const EvoItemDesc = styled.div`
-  font-size: 10px;
-  color: #999;
-  line-height: 1.4;
+const CancelBtn = styled.button`
+  width: 100%; margin-top: 24px; padding: 16px; font-size: 18px;
+  background: linear-gradient(135deg,#e74c3c 0%,#c0392b 100%);
+  color: #fff; border: 2px solid rgba(231,76,60,.4);
+  border-radius: 14px; cursor: pointer; font-weight: bold;
+  box-shadow: 0 6px 20px rgba(231,76,60,.4), inset 0 1px 0 rgba(255,255,255,.2);
+  @media (hover: hover) { &:hover { background: linear-gradient(135deg,#c0392b 0%,#a93226 100%); } }
 `;
