@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { Settings } from '../Modals/Settings';
 
 const FloatingBtn = styled.button`
@@ -31,7 +31,7 @@ const FloatingBtn = styled.button`
       border-color: rgba(255, 255, 255, 0.6);
     }
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     width: 32px;
     height: 32px;
     font-size: 16px;

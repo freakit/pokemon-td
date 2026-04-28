@@ -2,13 +2,13 @@
 // 6x6 TFT 스타일 배틀 — V5 결정론 재설계 + V7 사람 매치 완주 보장 + V8 타이머 안정화
 // ──────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { media } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { TowerDetail, PvPBattleResult } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
 import { calculateActiveSynergies, getBuffedStats } from '../../utils/synergyManager';
+import { lMedia } from '../../utils/responsive.utils';
 import { GamePokemon, Synergy } from '../../types/game';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
@@ -560,10 +560,31 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
   const resultReportedRef = useRef(false);
   const hasSubmittedRef = useRef(false);
 
+  // [FIX-SCALE] 보드 스케일 — CenterArea 크기에 맞게 동적으로 계산
+  const centerRef = useRef<HTMLDivElement>(null);
+  const [boardScale, setBoardScale] = useState(1);
+
   // [FIX-JITTER-1] onBattleComplete을 ref로 관리 — 부모 리렌더마다 새 함수 참조가 들어와도
   // fighting useEffect의 dependency로 쓰이지 않으므로 setInterval이 재시작되지 않음
   const onBattleCompleteRef = useRef(onBattleComplete);
   useEffect(() => { onBattleCompleteRef.current = onBattleComplete; }, [onBattleComplete]);
+
+  // [FIX-SCALE] CenterArea 크기 변화 감지 → boardScale 업데이트
+  useLayoutEffect(() => {
+    const el = centerRef.current;
+    if (!el) return;
+    const BOARD_SIZE = COLS * CELL; // 528
+    const update = () => {
+      const W = el.clientWidth;
+      const H = el.clientHeight;
+      const scale = Math.min(W / BOARD_SIZE, H / BOARD_SIZE, 1);
+      setBoardScale(scale > 0 ? scale : 1);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const [remotePlacements, setRemotePlacements] = useState<Map<string, { id: string, x: number, y: number }[]>>(new Map());
 
@@ -923,6 +944,8 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
         <VersusRow>
           <PosLabel $isMe={true}>{t('battle.you')} ({myPosition})</PosLabel>
           <PosVS>{t('battle.vs')}</PosVS>
+          {/* [FIX-3] 타이머 — 모든 화면에서 항상 표시 */}
+          {isPrep && <CountdownBadge>{countdown}s</CountdownBadge>}
           <PosLabel $isMe={false}>{opponentName} ({myPosition === 'L' ? 'R' : 'L'})</PosLabel>
         </VersusRow>
       </Header>
@@ -948,6 +971,10 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                         </CardTypes>
                       )}
                     </CardInfo>
+                    <CardNameSmall>
+                      {u.detail.name}
+                      <CardLevelSmall>Lv.{u.detail.level}</CardLevelSmall>
+                    </CardNameSmall>
                   </TowerCard>
                 ))}
                 {benchUnits.length === 0 && <EmptyMsg>{t('battle.allPlaced')}</EmptyMsg>}
@@ -986,8 +1013,13 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
                 {myPosition === 'L' ? myBenchPanel : opponentPanel}
               </LeftSidebar>
 
-              <CenterArea>
-                <Board $isPrep={isPrep}>
+              <CenterArea ref={centerRef}>
+                <Board $isPrep={isPrep} style={{
+                  transform: `scale(${boardScale})`,
+                  transformOrigin: 'top center',
+                  // 스케일 축소 시 하단 여백 보정
+                  marginBottom: boardScale < 1 ? `${(ROWS * CELL) * (boardScale - 1)}px` : undefined,
+                }}>
                   {[...Array(ROWS)].map((_, r) => [...Array(COLS)].map((_, c) => (
                     <Cell key={`${r}-${c}`} $col={c} $row={r} $isMy={myCols.includes(c)}
                       $isTarget={!!(selectedBenchId || dragId) && myCols.includes(c)}
@@ -1040,30 +1072,102 @@ const AchievementToastDisplay: React.FC = () => {
   );
 };
 
-const Wrap = styled.div`width:100%;height:100%;display:flex;flex-direction:column;background:#0b0e14;color:#fff;overflow:hidden;padding:20px;${media.tablet}{padding:12px;}${media.mobile}{padding:8px;}`;
+// ── [FIX] 반응형 헬퍼 → responsive.utils의 lMedia 사용 ──────────
+const L1024  = lMedia.tablet;
+const LPHONE = lMedia.phoneSm;
 
-const Header = styled.div`display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:24px;${media.mobile}{gap:6px;margin-bottom:12px;}`;
+const Wrap = styled.div`
+  width:100%; height:100%; display:flex; flex-direction:column;
+  background:#0b0e14; color:#fff; overflow:hidden; padding:20px;
+  ${L1024} { padding: 10px 12px; }
+  ${LPHONE} { padding: 6px 10px; }
+`;
+
+const Header = styled.div`
+  display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:24px;
+  ${L1024} { gap: 6px; margin-bottom: 10px; }
+  ${LPHONE} { gap: 4px; margin-bottom: 6px; flex-direction: row; justify-content: space-between; }
+`;
 const TitleRow = styled.div`display:flex;align-items:center;gap:12px;`;
-const ArenaIcon = styled.div`font-size:24px;`;
-const ArenaTitle = styled.div`font-size:20px;font-weight:900;letter-spacing:1px;text-transform:uppercase;${media.mobile}{font-size:14px;letter-spacing:0;}`;
-const PhasePill = styled.div`display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.08);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);${media.mobile}{display:none;}`;
+const ArenaIcon = styled.div`font-size:24px; ${LPHONE} { font-size: 18px; }`;
+const ArenaTitle = styled.div`
+  font-size:20px; font-weight:900; letter-spacing:1px; text-transform:uppercase;
+  ${L1024} { font-size: 16px; }
+  ${LPHONE} { font-size: 13px; letter-spacing: 0; }
+`;
+const PhasePill = styled.div`
+  display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08);
+  padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; color:rgba(255,255,255,0.8);
+  ${LPHONE} { display: none; }
+`;
 const PhaseDot = styled.div`width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 8px #fbbf24;`;
 
-const VersusRow = styled.div`display:flex;align-items:center;gap:20px;${media.mobile}{gap:10px;}`;
+const VersusRow = styled.div`
+  display:flex; align-items:center; gap:20px; width:100%; justify-content:center;
+  ${LPHONE} { gap: 8px; }
+`;
 const PosVS = styled.div`font-size:14px;font-weight:900;color:rgba(255,255,255,0.2);`;
-const PosLabel = styled.div<{ $isMe: boolean }>`font-size:14px;font-weight:800;color:${p => p.$isMe ? '#4ade80' : '#f87171'};text-shadow:0 0 10px ${p => p.$isMe ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};`;
+const PosLabel = styled.div<{ $isMe: boolean }>`
+  font-size:14px; font-weight:800;
+  color:${p => p.$isMe ? '#4ade80' : '#f87171'};
+  text-shadow:0 0 10px ${p => p.$isMe ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};
+  ${LPHONE} { font-size: 12px; }
+`;
+// [FIX-3] 타이머 — 모든 화면 크기에서 항상 보임 (PhasePill 대체 + 보완)
+const CountdownBadge = styled.div`
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(251,191,36,0.15);
+  border: 1.5px solid rgba(251,191,36,0.5);
+  border-radius: 20px; padding: 4px 14px;
+  font-size: 15px; font-weight: 900; color: #fbbf24;
+  letter-spacing: 1px;
+  text-shadow: 0 0 12px rgba(251,191,36,0.5);
+  &::before { content: '⏱'; margin-right: 2px; }
+  ${L1024} { font-size: 13px; padding: 3px 10px; }
+  ${LPHONE} { font-size: 11px; padding: 3px 8px; }
+`;
 
-const MainGrid = styled.div`display:flex;flex:1;gap:24px;justify-content:center;align-items:stretch;min-height:0;${media.tablet}{gap:0;}`;
+const MainGrid = styled.div`
+  display:flex; flex:1; gap:24px; justify-content:center; align-items:stretch; min-height:0;
+  ${L1024} { gap: 0; }
+`;
 
-const LeftSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
-const CenterArea = styled.div`display:flex;flex-direction:column;align-items:center;${media.tablet}{transform:scale(0.83);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.83)) * -1);}${media.mobile}{transform:scale(0.65);transform-origin:top center;margin-bottom:calc((528px * (1 - 0.65)) * -1);}`;
-const RightSidebar = styled.div`width:260px;display:flex;flex-direction:column;gap:20px;min-height:0;${media.tablet}{display:none;}`;
+// [FIX] 사이드바: 모든 화면에서 표시. L1024/LPHONE에서 너비만 축소
+const LeftSidebar  = styled.div`
+  width: 260px; display:flex; flex-direction:column; gap:20px; min-height:0;
+  ${L1024} { width: 140px; gap: 10px; }
+  ${LPHONE} { width: 96px;  gap: 6px;  }
+`;
+const RightSidebar = styled.div`
+  width: 260px; display:flex; flex-direction:column; gap:20px; min-height:0;
+  ${L1024} { width: 140px; gap: 10px; }
+  ${LPHONE} { width: 96px;  gap: 6px;  }
+`;
 
-const PanelTitle = styled.div`font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:12px;text-transform:uppercase;letter-spacing:1.5px;padding-left:4px;`;
+// [FIX-2] CenterArea: 보드가 항상 정사각형으로 보이도록 overflow:visible (scale은 JS로 처리)
+const CenterArea = styled.div`
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 0; min-height: 0; overflow: visible;
+`;
 
+const PanelTitle = styled.div`
+  font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:12px;
+  text-transform:uppercase;letter-spacing:1.5px;padding-left:4px;
+  ${L1024} { font-size: 9px; margin-bottom: 6px; letter-spacing: 0.5px; }
+  ${LPHONE} { font-size: 8px; margin-bottom: 4px; display: none; }
+`;
 
-const BenchArea = styled.div`flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;`;
-const BenchGrid = styled.div`flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:4px;`;
+const BenchArea = styled.div`
+  flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;
+  ${L1024} { padding: 8px; border-radius: 10px; }
+  ${LPHONE} { padding: 4px; border-radius: 6px; }
+`;
+const BenchGrid = styled.div`
+  flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:4px;
+  ${L1024} { gap: 5px; }
+  ${LPHONE} { gap: 3px; padding-right: 2px; }
+`;
 
 const TowerCard = styled.div<{ $selected?: boolean }>`
   display: flex;
@@ -1075,27 +1179,55 @@ const TowerCard = styled.div<{ $selected?: boolean }>`
   gap: 12px;
   cursor: pointer;
   transition: background 0.2s;
-  ${p => p.$selected ? css`animation: ${benchPulse} 2s infinite;` : ''}
-
-  @media (hover: hover) {
-    &:hover {
-      background: rgba(255, 255, 255, 0.08);
-      transform: translateX(4px);
-    }
+  ${p => p.$selected ? css`animation: ${benchPulse} 1s ease infinite;` : ''}
+  @media (hover: hover) { &:hover { background: rgba(255,255,255,0.08); } }
+  ${L1024} { padding: 5px 7px; gap: 6px; border-radius: 8px; }
+  /* LPHONE: 스프라이트 + 이름 세로 배치 (CardInfo 숨기고 CardNameSmall 표시) */
+  ${LPHONE} { padding: 3px 4px; gap: 2px; border-radius: 5px; flex-direction: column; align-items: center; text-align: center; }
+`;
+const CardSprite = styled.img`
+  width:36px;height:36px;image-rendering:pixelated;
+  ${L1024} { width: 28px; height: 28px; }
+  ${LPHONE} { width: 22px; height: 22px; }
+`;
+const CardFallback = styled.div`
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.05);border-radius:8px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);
+  ${L1024} { width: 28px; height: 28px; font-size: 8px; }
+  ${LPHONE} { width: 22px; height: 22px; font-size: 7px; }
+`;
+// [FIX-1] 이름/레벨: L1024에서도 보이게 유지, LPHONE에서만 숨김 (CardNameSmall이 대신)
+const CardInfo = styled.div`flex:1;min-width:0; ${LPHONE}{ display: none; }`;
+const CardNameRow = styled.div`display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px; ${L1024}{ margin-bottom: 2px; }`;
+const CardName = styled.div`
+  font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  ${L1024} { font-size: 10px; }
+`;
+const CardLevel = styled.div`
+  font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;flex-shrink:0;margin-left:4px;
+  ${L1024} { font-size: 8px; }
+`;
+const CardTypes = styled.div`display:flex;gap:4px; ${L1024}{ gap: 2px; } ${LPHONE}{ display: none; }`;
+// [FIX-1] LPHONE: 이름 + 레벨을 한 줄로 표시
+const CardNameSmall = styled.div`
+  display: none;
+  ${LPHONE} {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.75);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px;
   }
 `;
+const CardLevelSmall = styled.span`
+  font-size: 6px; color: rgba(255,255,255,0.4); font-weight: 600;
+`;
 
-const CardSprite = styled.img`width:36px;height:36px;image-rendering:pixelated;`;
-const CardFallback = styled.div`width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);border-radius:8px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);`;
-const CardInfo = styled.div`flex:1;min-width:0;`;
-const CardNameRow = styled.div`display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;`;
-const CardName = styled.div`font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
-const CardLevel = styled.div`font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;`;
-const CardTypes = styled.div`display:flex;gap:4px;`;
-
-const OpponentInfoPanel = styled.div`flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;`;
-
-const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.05);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.60;pointer-events:none;z-index:0;}`;
+const OpponentInfoPanel = styled.div`
+  flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
+  border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;
+  ${L1024} { padding: 8px; border-radius: 10px; }
+  ${LPHONE} { padding: 4px; border-radius: 6px; }
+`;
+const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.05);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);flex-shrink:0;&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.60;pointer-events:none;z-index:0;}`;
 const Cell = styled.div<{ $col: number; $row: number; $isMy: boolean; $isTarget: boolean }>`position:absolute;left:${p => p.$col * CELL}px;top:${p => p.$row * CELL}px;width:${CELL}px;height:${CELL}px;border:1px solid rgba(255,255,255,0.03);background:${p => p.$isTarget ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.01)'};@media (hover: hover){&:hover{background:${p => p.$isTarget ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.03)'};}}`;
 const ZoneLbl = styled.div`position:absolute;font-size:10px;font-weight:800;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:1px;pointer-events:none;z-index:3;`;
 const UnitWrap = styled.div<{ $team: 'my' | 'opp'; $fainted: boolean; $hit: boolean; $atk: boolean; $sel: boolean }>`
@@ -1121,7 +1253,7 @@ const EmptyMsg = styled.div`padding:30px;text-align:center;color:rgba(255,255,25
 const Hint = styled.div`margin-top:12px;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;line-height:1.5;padding:0 8px;`;
 
 const RevealOverlay = styled.div`position:absolute;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);`;
-const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;${media.mobile}{font-size:28px;}`;
+const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;${LPHONE}{font-size:24px;}`;
 
 const TypeBadge = styled.span<{ $type?: string }>`font-size:8px;padding:2px 5px;border-radius:4px;background:${p => getTypeColor(p.$type)};color:#fff;font-weight:900;text-transform:uppercase;`;
 

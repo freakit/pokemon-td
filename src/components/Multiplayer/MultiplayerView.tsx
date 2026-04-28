@@ -14,7 +14,7 @@ import { multiplayerService } from '../../services/MultiplayerService';
 import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 
 interface MultiplayerViewProps {
   roomId: string;
@@ -212,7 +212,7 @@ const Container = styled.div`
   max-width:620px;width:95%;max-height:85vh;overflow-y:auto;
   border:2px solid rgba(255,215,0,0.3);
   box-shadow:0 0 30px rgba(255,215,0,0.15);
-  ${media.mobile}{padding:1rem;max-height:95vh;}
+  ${lMedia.phoneSm}{padding:1rem;max-height:95vh;}
 `;
 const Header = styled.div`
   display:flex;justify-content:space-between;align-items:center;
@@ -220,7 +220,7 @@ const Header = styled.div`
   border-bottom:2px solid rgba(255,255,255,0.1);
   gap:8px;
 `;
-const Title = styled.h2`color:#ffd700;margin:0;font-size:1.4rem;${media.mobile}{font-size:1.2rem;}`;
+const Title = styled.h2`color:#ffd700;margin:0;font-size:1.4rem;${lMedia.phoneSm}{font-size:1.2rem;}`;
 const HeaderRight = styled.div`display:flex;align-items:center;gap:8px;flex-shrink:0;`;
 const RefreshInfo = styled.span<{ $refreshing: boolean }>`
   font-size:11px;
@@ -249,7 +249,7 @@ const PlayerRow = styled.div<{ $isMe:boolean;$isDead:boolean }>`
   border-radius:12px;
   border:2px solid ${p=>p.$isMe?'rgba(52,152,219,0.4)':'transparent'};
   opacity:${p=>p.$isDead?0.5:1};position:relative;
-  ${media.mobile}{padding:0.75rem;gap:0.75rem;flex-wrap:wrap;}
+  ${lMedia.phoneSm}{padding:0.75rem;gap:0.75rem;flex-wrap:wrap;}
 `;
 const RankBadge = styled.div<{ $rank:number }>`
   width:32px;height:32px;border-radius:50%;

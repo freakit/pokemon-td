@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import styled from "styled-components";
-import { media, isMobileOrTablet } from "../../utils/responsive.utils";
+import { media, lMedia, isMobileOrTablet } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { SPECIAL_SYNERGY_DEFS } from "../../utils/synergyManager";
@@ -135,9 +135,9 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
 
 // ─── Styled Components ────────────────────────────────────────────
 
-// ── 반응형 헬퍼 ──────────────────────────────────────────────────
-const L1024 = `@media (max-width: 1024px) and (orientation: landscape)`;
-const L768  = `@media (max-width: 768px)  and (orientation: landscape)`;
+// ── 반응형 헬퍼 → lMedia 사용 ────────────────────────────────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
 
 // ── Embedded wrapper ──────────────────────────────────────────────
 

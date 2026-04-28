@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import styled, { css, keyframes } from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Item } from '../../types/game';
@@ -159,6 +159,11 @@ export const WaveEndPicker: React.FC = () => {
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
+
+// ── 반응형 헬퍼 (landscape 전용) ─────────────────────────────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
+
 const fadeIn = keyframes`
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -182,6 +187,9 @@ const Modal = styled.div`
   background: linear-gradient(145deg,#1a1f2e 0%,#0f1419 100%);
   color: #e8edf3; border-radius: 24px; padding: 0;
   max-width: 1000px; width: 90%;
+  /* [FIX] 폰 가로: 전체 높이 제한 + 스크롤 */
+  ${L1024} { width: 94%; max-height: 88vh; overflow-y: auto; border-radius: 16px; }
+  ${L768}  { width: 97%; max-height: 90vh; overflow-y: auto; border-radius: 12px; }
   ${media.mobile} { width: 96%; }
   box-shadow: 0 25px 80px rgba(46,204,113,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
   border: 2px solid rgba(46,204,113,0.3);
@@ -190,6 +198,8 @@ const Modal = styled.div`
 
 const Header = styled.div`
   padding: 32px;
+  ${L1024} { padding: 16px 20px; }
+  ${L768}  { padding: 10px 14px; }
   ${media.mobile} { padding: 16px; }
   background: linear-gradient(90deg,rgba(46,204,113,0.2),transparent);
   border-bottom: 2px solid rgba(46,204,113,0.3);
@@ -198,6 +208,8 @@ const Header = styled.div`
 
 const Title = styled.h2`
   font-size: 36px; font-weight: 900; margin: 0;
+  ${L1024} { font-size: 26px; }
+  ${L768}  { font-size: 20px; }
   ${media.mobile} { font-size: 24px; }
   background: linear-gradient(135deg,#2ecc71,#a8ffb8);
   background-clip: text; -webkit-text-fill-color: transparent;
@@ -205,6 +217,8 @@ const Title = styled.h2`
 
 const Subtitle = styled.p`
   font-size: 18px; margin: 24px 32px;
+  ${L1024} { font-size: 14px; margin: 10px 16px; }
+  ${L768}  { font-size: 12px; margin: 6px 12px; }
   ${media.mobile} { font-size: 14px; margin: 12px 16px; }
   text-align: center; color: #a8b8c8; font-weight: 600;
 `;
@@ -212,6 +226,8 @@ const Subtitle = styled.p`
 const Grid = styled.div`
   display: flex; gap: 20px; padding: 0 32px 32px;
   justify-content: center; flex-wrap: wrap;
+  ${L1024} { padding: 0 16px 16px; gap: 12px; }
+  ${L768}  { padding: 0 10px 10px; gap: 8px; }
   ${media.mobile} { padding: 0 12px 16px; gap: 10px; }
 `;
 
@@ -223,6 +239,8 @@ const Card = styled.div<{ $isSpecial: boolean }>`
   transition: transform 0.3s; text-align: center; position: relative; overflow: hidden;
   box-shadow: ${p => p.$isSpecial ? '0 0 30px rgba(224,64,251,0.8)' : '0 8px 32px rgba(0,0,0,0.4)'};
   @media (hover: hover) { &:hover { transform: translateY(-4px); } }
+  ${L1024} { flex: 1 1 150px; min-width: 140px; padding: 18px 12px; border-radius: 14px; }
+  ${L768}  { flex: 1 1 120px; min-width: 110px; padding: 12px 8px;  border-radius: 10px; }
   ${media.mobile} {
     flex: 1 1 140px; min-width: 130px; max-width: 180px;
     padding: 16px 10px; border-radius: 14px;
@@ -239,17 +257,22 @@ const ItemName = styled.h3<{ $isSpecial: boolean }>`
   font-size: 22px; font-weight: 700; margin-bottom: 12px; position: relative; z-index:1;
   color: ${p => p.$isSpecial ? '#e040fb' : '#2ecc71'};
   text-shadow: ${p => p.$isSpecial ? '0 0 20px rgba(224,64,251,0.8)' : '0 0 15px rgba(46,204,113,0.6)'};
+  ${L1024} { font-size: 16px; margin-bottom: 8px; }
+  ${L768}  { font-size: 13px; margin-bottom: 5px; }
   ${media.mobile} { font-size: 16px; margin-bottom: 8px; }
 `;
 
 const ItemEffect = styled.p`
   font-size: 14px; color: #a8b8c8; line-height: 1.6; position: relative; z-index:1;
+  ${L768}  { font-size: 11px; line-height: 1.3; }
   ${media.mobile} { font-size: 12px; line-height: 1.4; }
 `;
 
 const TowerGrid = styled.div`
   display: grid; grid-template-columns: repeat(auto-fill,minmax(160px,1fr));
   gap: 20px; padding: 24px 32px;
+  ${L1024} { gap: 12px; padding: 14px 16px; grid-template-columns: repeat(auto-fill,minmax(120px,1fr)); }
+  ${L768}  { gap: 8px;  padding: 10px 12px; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); }
 `;
 
 const TowerCard = styled.div<{ $isSelectable: boolean }>`
@@ -259,15 +282,28 @@ const TowerCard = styled.div<{ $isSelectable: boolean }>`
   opacity: ${p => p.$isSelectable ? 1 : 0.3};
   cursor: ${p => p.$isSelectable ? 'pointer' : 'not-allowed'};
   ${p => p.$isSelectable && css`&:hover { transform:translateY(-2px); border-color:#4cafff; }`}
+  ${L1024} { padding: 12px; border-radius: 10px; }
+  ${L768}  { padding: 8px;  border-radius: 8px; }
 `;
 
 const TowerImg = styled.img`
   width:80px; height:80px; image-rendering:pixelated;
   margin-bottom:12px; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+  ${L1024} { width: 56px; height: 56px; margin-bottom: 6px; }
+  ${L768}  { width: 44px; height: 44px; margin-bottom: 4px; }
 `;
-const TowerName = styled.h4`font-size:16px;font-weight:700;margin:8px 0;color:#4cafff;`;
-const TowerInfo = styled.p`font-size:14px;margin:4px 0;color:#a8b8c8;`;
-const FaintedLabel = styled.p`color:#e74c3c;font-weight:bold;font-size:14px;margin-top:8px;`;
+const TowerName = styled.h4`
+  font-size:16px;font-weight:700;margin:8px 0;color:#4cafff;
+  ${L768} { font-size: 12px; margin: 4px 0; }
+`;
+const TowerInfo = styled.p`
+  font-size:14px;margin:4px 0;color:#a8b8c8;
+  ${L768} { font-size: 11px; margin: 2px 0; }
+`;
+const FaintedLabel = styled.p`
+  color:#e74c3c;font-weight:bold;font-size:14px;margin-top:8px;
+  ${L768} { font-size: 11px; margin-top: 4px; }
+`;
 
 const CancelBtn = styled.button`
   width:calc(100% - 64px); margin:24px 32px 32px;
@@ -275,5 +311,7 @@ const CancelBtn = styled.button`
   background:linear-gradient(135deg,#95a5a6,#7f8c8d);
   color:#fff; border:2px solid rgba(149,165,166,0.4);
   border-radius:14px; cursor:pointer;
+  ${L1024} { width: calc(100% - 32px); margin: 12px 16px 16px; padding: 12px; font-size: 15px; }
+  ${L768}  { width: calc(100% - 20px); margin: 8px 10px 10px;  padding: 9px;  font-size: 13px; border-radius: 10px; }
   &:hover { background:linear-gradient(135deg,#7f8c8d,#6d7b7c); }
 `;

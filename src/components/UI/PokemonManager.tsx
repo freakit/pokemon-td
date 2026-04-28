@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { lMedia} from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Gender } from '../../types/game';
@@ -261,7 +261,7 @@ const Modal = styled.div`
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     padding: 16px;
     border-radius: 12px;
     width: 98%;
@@ -273,7 +273,7 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 12px;
@@ -287,7 +287,7 @@ const Title = styled.h2`
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 20px;
   }
 `;
@@ -301,7 +301,7 @@ const MoneyDisplay = styled.div`
 const HeaderButtons = styled.div`
   display: flex;
   gap: 10px;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     gap: 6px;
   }
 `;
@@ -320,7 +320,7 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   @media (hover: hover) {
     &:hover { filter: brightness(1.2); }
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     font-size: 13px;
     padding: 6px 10px;
   }
@@ -363,11 +363,11 @@ const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
-  ${media.tablet} {
+  ${lMedia.phone} {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 14px;
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     grid-template-columns: 1fr;
     gap: 10px;
   }
@@ -381,7 +381,7 @@ const Card = styled.div<{ $isSelected: boolean, $fusionMode: boolean }>`
   transition: border-color 0.2s ease, transform 0.2s ease;
   cursor: ${props => props.$fusionMode ? 'pointer' : 'default'};
   transform: ${props => props.$isSelected ? 'scale(1.02)' : 'scale(1)'};
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     padding: 10px;
   }
 `;
@@ -396,7 +396,7 @@ const Sprite = styled.img`
   width: 100px;
   height: 100px;
   image-rendering: pixelated;
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     width: 72px;
     height: 72px;
   }
@@ -477,7 +477,7 @@ const SellBtn = styled.button`
       background: linear-gradient(135deg, #c0392b, #a93226);
     }
   }
-  ${media.mobile} {
+  ${lMedia.phoneSm} {
     padding: 10px;
     font-size: 14px;
   }

@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import styled, { css } from "styled-components";
-import { media, isMobileOrTablet } from "../../utils/responsive.utils";
+import { media, lMedia, isMobileOrTablet } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { canEvolveWithItem, getEvolvableWithItem } from "../../data/evolution";
@@ -340,9 +340,9 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
 
 // ─── Styled Components ────────────────────────────────────────────
 
-// ── 반응형 헬퍼 (가로화면 고정 게임 전용) ─────────────────────────
-const L1024 = `@media (max-width: 1024px) and (orientation: landscape)`;
-const L768  = `@media (max-width: 768px)  and (orientation: landscape)`;
+// ── 반응형 헬퍼 → lMedia 사용 ────────────────────────────────────
+const L1024 = lMedia.tablet;
+const L768  = lMedia.phone;
 
 // ── Embedded ──────────────────────────────────────────────────────
 
