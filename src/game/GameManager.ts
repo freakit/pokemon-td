@@ -256,7 +256,9 @@ export class GameManager {
 
     const dmg = calculateDamage(enemy.attack, buffedStats.defense, 40, eff, false);
     // 적 딜 20% 감소 (난이도 조정)
-    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * 0.8));
+    // [BUG-FIX] ability.effect === 'tank' 적용: 피해 감소 특성 반영
+    const tankMultiplier = tower.ability?.effect === 'tank' ? (tower.ability.value ?? 0.75) : 1.0;
+    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * 0.8 * tankMultiplier));
     const newHp = Math.max(0, tower.currentHp - finalDmg);
 
     if (newHp <= 0) {
@@ -331,8 +333,12 @@ export class GameManager {
   }
 
   private towerAttack(tower: GamePokemon, target: Enemy, move: GameMove) {
-    // [FIX] miss/hit 쿨다운 계산식 통일 (기존: miss=0.5, hit=0.2 → 모두 0.2)
-    const speedMultiplier = Math.max(0.2, 1 - tower.speed / 300);
+    // [BUG-FIX] ability.effect === 'speed' 적용: 공격 속도 증가 특성 반영
+    let speedStat = tower.speed;
+    if (tower.ability?.effect === 'speed') {
+      speedStat = Math.min(speedStat * (tower.ability.value ?? 1.5), 290); // 최대 쿨다운 0.2 하한 보호
+    }
+    const speedMultiplier = Math.max(0.2, 1 - speedStat / 300);
 
     const m = tower.equippedMoves.find(m => m.name === move.name);
     if (m) {
@@ -391,31 +397,43 @@ export class GameManager {
   }
 
   private updateProjectiles(dt: number) {
-    const { projectiles, enemies, removeProjectile } = useGameStore.getState();
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-      const proj = projectiles[i];
-      if (!proj) continue;
+    const { enemies } = useGameStore.getState();
 
-      const target = enemies.find(e => e.id === proj.targetId);
-      if (!target) {
-        removeProjectile(proj.id);
-        continue;
-      }
+    // [BUG-FIX] 직접 변이(mutation) 제거 → setState를 통한 불변 업데이트
+    // 충돌·제거 대상과 이동 대상을 분리 후 단일 setState로 처리
+    const toRemoveIds = new Set<string>();
+    const hits: Array<{ proj: Projectile; target: Enemy }> = [];
 
-      const dx = target.position.x - proj.current.x;
-      const dy = target.position.y - proj.current.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 10) {
-        this.projectileHit(proj, target);
-        removeProjectile(proj.id);
-      } else {
+    useGameStore.setState(state => {
+      const updatedProjectiles = state.projectiles.map(proj => {
+        const target = enemies.find(e => e.id === proj.targetId);
+        if (!target) {
+          toRemoveIds.add(proj.id);
+          return proj;
+        }
+        const dx = target.position.x - proj.current.x;
+        const dy = target.position.y - proj.current.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 10) {
+          hits.push({ proj, target });
+          toRemoveIds.add(proj.id);
+          return proj;
+        }
         const move = proj.speed * dt;
         const ratio = Math.min(move / dist, 1);
-        proj.current.x += dx * ratio;
-        proj.current.y += dy * ratio;
-      }
-    }
+        return {
+          ...proj,
+          current: {
+            x: proj.current.x + dx * ratio,
+            y: proj.current.y + dy * ratio,
+          },
+        };
+      }).filter(p => !toRemoveIds.has(p.id));
+      return { projectiles: updatedProjectiles };
+    });
+
+    // 충돌 처리는 setState 밖에서 실행
+    hits.forEach(({ proj, target }) => this.projectileHit(proj, target));
   }
 
   private projectileHit(proj: Projectile, enemy: Enemy) {
@@ -459,11 +477,15 @@ export class GameManager {
     const newHp = Math.max(0, enemy.hp - dmg);
     useGameStore.getState().updateEnemy(enemy.id, { hp: newHp });
 
-    // 흡혈
-    if (attacker && !attacker.isFainted && proj.effect.drainPercent) {
-      const healAmount = Math.floor(dmg * proj.effect.drainPercent);
-      const newTowerHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
-      updateTower(attacker.id, { currentHp: newTowerHp });
+    // 흡혈: drainPercent(기술 효과) 우선, 없으면 ability.lifesteal 적용
+    if (attacker && !attacker.isFainted) {
+      const drainRatio = proj.effect.drainPercent
+        ?? (attacker.ability?.effect === 'lifesteal' ? (attacker.ability.value ?? 0) : 0);
+      if (drainRatio > 0) {
+        const healAmount = Math.floor(dmg * drainRatio);
+        const newTowerHp = Math.min(attacker.maxHp, attacker.currentHp + healAmount);
+        updateTower(attacker.id, { currentHp: newTowerHp });
+      }
     }
 
     addDamageNumber({

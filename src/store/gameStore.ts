@@ -546,8 +546,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newAttack = Math.floor(newData.stats.attack * scaleFactor);
       const newSpecialAttack = Math.floor(newData.stats.specialAttack * scaleFactor);
       const newDefense = Math.floor(newData.stats.defense * scaleFactor);
-      const newStatSpeed = newData.stats.speed; 
-
+      // [BUG-FIX] specialDefense도 scaleFactor 적용 (기존 누락)
+      const newSpecialDefense = Math.floor(newData.stats.specialDefense * scaleFactor);
+      // speed는 진화 후 포켓몬의 기본 스피드를 그대로 사용 (의도된 불변값)
+      const newSpeed = newData.stats.speed;
 
       const hpRatio = tower.currentHp / tower.maxHp;
 
@@ -563,7 +565,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         baseAttack: newAttack,
         specialAttack: newSpecialAttack,
         defense: newDefense,
-        speed: newStatSpeed,
+        specialDefense: newSpecialDefense,
+        speed: newSpeed,
       });
 
 
@@ -617,7 +620,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     );
     if (!fusionData) return false;
 
-    const cost = 1000;
+    const cost = 500;
     if (!spendMoney(cost)) return false;
 
     try {
