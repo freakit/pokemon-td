@@ -1080,38 +1080,41 @@ const Wrap = styled.div`
   width:100%; height:100%; display:flex; flex-direction:column;
   background:#0b0e14; color:#fff; overflow:hidden; padding:20px;
   ${L1024} { padding: 10px 12px; }
-  ${LPHONE} { padding: 6px 10px; }
+  ${LPHONE} { padding: 4px 6px; }
 `;
 
 const Header = styled.div`
   display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:24px;
   ${L1024} { gap: 6px; margin-bottom: 10px; }
-  ${LPHONE} { gap: 4px; margin-bottom: 6px; flex-direction: row; justify-content: space-between; }
+  ${LPHONE} { gap: 3px; margin-bottom: 5px; }
 `;
 const TitleRow = styled.div`display:flex;align-items:center;gap:12px;`;
-const ArenaIcon = styled.div`font-size:24px; ${LPHONE} { font-size: 18px; }`;
+const ArenaIcon = styled.div`font-size:24px; ${LPHONE} { font-size: 16px; }`;
 const ArenaTitle = styled.div`
   font-size:20px; font-weight:900; letter-spacing:1px; text-transform:uppercase;
   ${L1024} { font-size: 16px; }
-  ${LPHONE} { font-size: 13px; letter-spacing: 0; }
+  ${LPHONE} { font-size: 12px; letter-spacing: 0.5px; }
 `;
 const PhasePill = styled.div`
   display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.08);
   padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; color:rgba(255,255,255,0.8);
-  ${LPHONE} { display: none; }
+  ${L1024} { padding: 4px 10px; font-size: 11px; gap: 5px; }
+  ${LPHONE} { padding: 3px 8px; font-size: 10px; gap: 4px; border-radius: 14px; }
 `;
-const PhaseDot = styled.div`width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 8px #fbbf24;`;
+const PhaseDot = styled.div`width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 8px #fbbf24; ${LPHONE}{ width:6px;height:6px; }`;
 
 const VersusRow = styled.div`
   display:flex; align-items:center; gap:20px; width:100%; justify-content:center;
+  ${L1024} { gap: 12px; }
   ${LPHONE} { gap: 8px; }
 `;
-const PosVS = styled.div`font-size:14px;font-weight:900;color:rgba(255,255,255,0.2);`;
+const PosVS = styled.div`font-size:14px;font-weight:900;color:rgba(255,255,255,0.2); ${LPHONE}{ font-size:12px; }`;
 const PosLabel = styled.div<{ $isMe: boolean }>`
   font-size:14px; font-weight:800;
   color:${p => p.$isMe ? '#4ade80' : '#f87171'};
   text-shadow:0 0 10px ${p => p.$isMe ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'};
-  ${LPHONE} { font-size: 12px; }
+  ${L1024} { font-size: 13px; }
+  ${LPHONE} { font-size: 11px; }
 `;
 // [FIX-3] 타이머 — 모든 화면 크기에서 항상 보임 (PhasePill 대체 + 보완)
 const CountdownBadge = styled.div`
@@ -1124,24 +1127,25 @@ const CountdownBadge = styled.div`
   text-shadow: 0 0 12px rgba(251,191,36,0.5);
   &::before { content: '⏱'; margin-right: 2px; }
   ${L1024} { font-size: 13px; padding: 3px 10px; }
-  ${LPHONE} { font-size: 11px; padding: 3px 8px; }
+  ${LPHONE} { font-size: 10px; padding: 2px 8px; border-radius: 14px; }
 `;
 
 const MainGrid = styled.div`
   display:flex; flex:1; gap:24px; justify-content:center; align-items:stretch; min-height:0;
-  ${L1024} { gap: 0; }
+  ${L1024} { gap: 6px; }
+  ${LPHONE} { gap: 4px; }
 `;
 
 // [FIX] 사이드바: 모든 화면에서 표시. L1024/LPHONE에서 너비만 축소
 const LeftSidebar  = styled.div`
   width: 260px; display:flex; flex-direction:column; gap:20px; min-height:0;
-  ${L1024} { width: 140px; gap: 10px; }
-  ${LPHONE} { width: 96px;  gap: 6px;  }
+  ${L1024} { width: 150px; gap: 10px; }
+  ${LPHONE} { width: 110px; gap: 6px; }
 `;
 const RightSidebar = styled.div`
   width: 260px; display:flex; flex-direction:column; gap:20px; min-height:0;
-  ${L1024} { width: 140px; gap: 10px; }
-  ${LPHONE} { width: 96px;  gap: 6px;  }
+  ${L1024} { width: 150px; gap: 10px; }
+  ${LPHONE} { width: 110px; gap: 6px; }
 `;
 
 // [FIX-2] CenterArea: 보드가 항상 정사각형으로 보이도록 overflow:visible (scale은 JS로 처리)
@@ -1154,14 +1158,14 @@ const PanelTitle = styled.div`
   font-size:11px;font-weight:800;color:rgba(255,255,255,0.5);margin-bottom:12px;
   text-transform:uppercase;letter-spacing:1.5px;padding-left:4px;
   ${L1024} { font-size: 9px; margin-bottom: 6px; letter-spacing: 0.5px; }
-  ${LPHONE} { font-size: 8px; margin-bottom: 4px; display: none; }
+  ${LPHONE} { font-size: 8px; margin-bottom: 3px; letter-spacing: 0.3px; padding-left: 2px; }
 `;
 
 const BenchArea = styled.div`
   flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
   border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;
   ${L1024} { padding: 8px; border-radius: 10px; }
-  ${LPHONE} { padding: 4px; border-radius: 6px; }
+  ${LPHONE} { padding: 6px; border-radius: 8px; }
 `;
 const BenchGrid = styled.div`
   flex:1;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:4px;
@@ -1182,50 +1186,43 @@ const TowerCard = styled.div<{ $selected?: boolean }>`
   ${p => p.$selected ? css`animation: ${benchPulse} 1s ease infinite;` : ''}
   @media (hover: hover) { &:hover { background: rgba(255,255,255,0.08); } }
   ${L1024} { padding: 5px 7px; gap: 6px; border-radius: 8px; }
-  /* LPHONE: 스프라이트 + 이름 세로 배치 (CardInfo 숨기고 CardNameSmall 표시) */
-  ${LPHONE} { padding: 3px 4px; gap: 2px; border-radius: 5px; flex-direction: column; align-items: center; text-align: center; }
+  /* LPHONE: 데스크탑과 동일한 가로 배치 유지, 크기만 축소 */
+  ${LPHONE} { padding: 4px 5px; gap: 4px; border-radius: 6px; }
 `;
 const CardSprite = styled.img`
   width:36px;height:36px;image-rendering:pixelated;
   ${L1024} { width: 28px; height: 28px; }
-  ${LPHONE} { width: 22px; height: 22px; }
+  ${LPHONE} { width: 24px; height: 24px; }
 `;
 const CardFallback = styled.div`
   width:36px;height:36px;display:flex;align-items:center;justify-content:center;
   background:rgba(255,255,255,0.05);border-radius:8px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);
   ${L1024} { width: 28px; height: 28px; font-size: 8px; }
-  ${LPHONE} { width: 22px; height: 22px; font-size: 7px; }
+  ${LPHONE} { width: 24px; height: 24px; font-size: 7px; }
 `;
-// [FIX-1] 이름/레벨: L1024에서도 보이게 유지, LPHONE에서만 숨김 (CardNameSmall이 대신)
-const CardInfo = styled.div`flex:1;min-width:0; ${LPHONE}{ display: none; }`;
-const CardNameRow = styled.div`display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px; ${L1024}{ margin-bottom: 2px; }`;
+// 이름/레벨: 모든 화면에서 표시 (데스크탑과 동일한 구조 유지)
+const CardInfo = styled.div`flex:1;min-width:0;`;
+const CardNameRow = styled.div`display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px; ${L1024}{ margin-bottom: 2px; } ${LPHONE}{ margin-bottom: 1px; }`;
 const CardName = styled.div`
   font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   ${L1024} { font-size: 10px; }
+  ${LPHONE} { font-size: 9px; }
 `;
 const CardLevel = styled.div`
   font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;flex-shrink:0;margin-left:4px;
   ${L1024} { font-size: 8px; }
+  ${LPHONE} { font-size: 7px; margin-left: 2px; }
 `;
 const CardTypes = styled.div`display:flex;gap:4px; ${L1024}{ gap: 2px; } ${LPHONE}{ display: none; }`;
-// [FIX-1] LPHONE: 이름 + 레벨을 한 줄로 표시
-const CardNameSmall = styled.div`
-  display: none;
-  ${LPHONE} {
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
-    font-size: 7px; font-weight: 700; color: rgba(255,255,255,0.75);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px;
-  }
-`;
-const CardLevelSmall = styled.span`
-  font-size: 6px; color: rgba(255,255,255,0.4); font-weight: 600;
-`;
+// CardNameSmall: 더 이상 폰에서 사용하지 않음 (CardInfo 표시로 대체)
+const CardNameSmall = styled.div`display: none;`;
+const CardLevelSmall = styled.span`font-size: 6px; color: rgba(255,255,255,0.4); font-weight: 600;`;
 
 const OpponentInfoPanel = styled.div`
   flex:1;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);
   border-radius:16px;padding:16px;display:flex;flex-direction:column;min-height:0;
   ${L1024} { padding: 8px; border-radius: 10px; }
-  ${LPHONE} { padding: 4px; border-radius: 6px; }
+  ${LPHONE} { padding: 6px; border-radius: 8px; }
 `;
 const Board = styled.div<{ $isPrep: boolean }>`position:relative;width:${COLS * CELL}px;height:${ROWS * CELL}px;background:rgba(15,25,45,0.05);border:4px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,0.6);flex-shrink:0;&::before{content:'';position:absolute;inset:0;background-image:url('/images/maps/battle_field.png');background-size:cover;background-position:center;opacity:0.60;pointer-events:none;z-index:0;}`;
 const Cell = styled.div<{ $col: number; $row: number; $isMy: boolean; $isTarget: boolean }>`position:absolute;left:${p => p.$col * CELL}px;top:${p => p.$row * CELL}px;width:${CELL}px;height:${CELL}px;border:1px solid rgba(255,255,255,0.03);background:${p => p.$isTarget ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.01)'};@media (hover: hover){&:hover{background:${p => p.$isTarget ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.03)'};}}`;
@@ -1249,13 +1246,13 @@ const Fallback = styled.div<{ $team: 'my' | 'opp' }>`width:60px;height:60px;disp
 const UnitName = styled.div`font-size:9px;color:rgba(255,255,255,0.6);font-weight:700;margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,0.8);`;
 const FloatEl = styled.div`position:absolute;z-index:50;font-size:18px;font-weight:900;pointer-events:none;animation:${floatUp} 1s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;transform:translateX(-50%);text-shadow:0 2px 8px rgba(0,0,0,0.9);`;
 
-const EmptyMsg = styled.div`padding:30px;text-align:center;color:rgba(255,255,255,0.15);font-size:11px;font-weight:600;font-style:italic;`;
-const Hint = styled.div`margin-top:12px;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;line-height:1.5;padding:0 8px;`;
+const EmptyMsg = styled.div`padding:30px;text-align:center;color:rgba(255,255,255,0.15);font-size:11px;font-weight:600;font-style:italic; ${LPHONE}{ padding:12px 6px;font-size:9px; }`;
+const Hint = styled.div`margin-top:12px;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;line-height:1.5;padding:0 8px; ${LPHONE}{ font-size:8px;margin-top:6px;padding:0 4px; }`;
 
 const RevealOverlay = styled.div`position:absolute;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);`;
-const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;${LPHONE}{font-size:24px;}`;
+const RevealText = styled.div`color:#fbbf24;font-size:40px;font-weight:900;text-shadow:0 0 30px rgba(251,191,36,0.5);animation:${revealPulse} 1s infinite;${LPHONE}{font-size:28px;}`;
 
-const TypeBadge = styled.span<{ $type?: string }>`font-size:8px;padding:2px 5px;border-radius:4px;background:${p => getTypeColor(p.$type)};color:#fff;font-weight:900;text-transform:uppercase;`;
+const TypeBadge = styled.span<{ $type?: string }>`font-size:8px;padding:2px 5px;border-radius:4px;background:${p => getTypeColor(p.$type)};color:#fff;font-weight:900;text-transform:uppercase; ${LPHONE}{ font-size:7px;padding:1px 3px;border-radius:3px; }`;
 
 function getTypeColor(type?: string) {
   const colors: Record<string, string> = {
