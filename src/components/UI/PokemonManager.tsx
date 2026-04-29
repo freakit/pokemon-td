@@ -85,7 +85,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         return;
       }
 
-      const fusionCost = 1000; // gameStore.fusePokemon이 실제로 차감하는 금액
+      const fusionCost = 500; // gameStore.fusePokemon이 실제로 차감하는 금액
 
       const confirmed = window.confirm(
         t('alerts.confirmFusion', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
