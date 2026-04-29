@@ -107,8 +107,7 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
         const higher = [...new Set(alive.map(t => t.level))].filter(l => l > tower.level).sort((a,b)=>a-b);
         cost = (higher[0] ?? tower.level) * 50;
       }
-      if (!useGameStore.getState().spendMoney(cost)) { alert(t("alerts.notEnoughMoney")); return; }
-      await useItem(towerId, itemMode as any);
+      await useItem(itemMode, towerId);
       setItemMode("none");
     } else {
       const result = canEvolveWithItem(tower.pokemonId, itemMode);
