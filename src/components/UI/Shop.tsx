@@ -96,18 +96,7 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
     if (!tower) return;
 
     if (["potion","potion_good","potion_super","revive","candy","exp_candy"].includes(itemMode)) {
-      let cost = 0;
-      if (itemMode === "potion")       cost = 20;
-      else if (itemMode === "potion_good") cost = 100;
-      else if (itemMode === "potion_super") cost = 500;
-      else if (itemMode === "candy")   cost = tower.level * 25;
-      else if (itemMode === "revive")  cost = tower.level * 10;
-      else if (itemMode === "exp_candy") {
-        const alive = towers.filter(t => !t.isFainted);
-        const higher = [...new Set(alive.map(t => t.level))].filter(l => l > tower.level).sort((a,b)=>a-b);
-        cost = (higher[0] ?? tower.level) * 50;
-      }
-      await useItem(itemMode, towerId);
+      useItem(itemMode, towerId);
       setItemMode("none");
     } else {
       const result = canEvolveWithItem(tower.pokemonId, itemMode);
