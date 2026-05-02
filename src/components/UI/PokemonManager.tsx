@@ -2,11 +2,16 @@
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Gender } from '../../types/game';
 import { FUSION_DATA } from '../../data/evolution';
+
+// ─── 반응형 헬퍼 → lMedia 사용 ───────────────────────────────────────────────
+const L1024 = lMedia.tablet;   // ≤1024px landscape (iPad 등)
+const L768  = lMedia.phone;    // ≤768px  landscape
+const LSm   = lMedia.phoneSm;  // landscape + max-height ≤520px
 
 const getGenderIcon = (gender: Gender) => {
   if (gender === 'male') return '♂';
@@ -48,10 +53,10 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
   const handlePokemonClick = (towerId: string) => {
     if (!fusionMode) return;
-    
+
     const tower = towers.find(t => t.id === towerId);
     if (!tower) return;
-    
+
     if (!selectedBase) {
       const canBeBase = FUSION_DATA.some(f => f.base === tower.pokemonId);
       if (!canBeBase) {
@@ -67,32 +72,32 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
       const baseTower = towers.find(t => t.id === selectedBase);
       const materialTower = tower;
-      
+
       if (!baseTower) {
         setSelectedBase(null);
         return;
       }
 
-      const fusion = FUSION_DATA.find(f => 
-        f.base === baseTower.pokemonId && 
+      const fusion = FUSION_DATA.find(f =>
+        f.base === baseTower.pokemonId &&
         f.material === materialTower.pokemonId &&
         f.item === 'dna-splicers'
       );
-      
+
       if (!fusion) {
         alert(t('alerts.cannotFusePokemon'));
         setSelectedBase(null);
         return;
       }
 
-      const fusionCost = 500; // gameStore.fusePokemon이 실제로 차감하는 금액
+      const fusionCost = 500;
 
       const confirmed = window.confirm(
         t('alerts.confirmFusion', { base: baseTower.displayName, material: materialTower.displayName, cost: fusionCost })
       );
-      
+
       if (confirmed) {
-        // [FIX-2] spendMoney는 gameStore.fusePokemon 내부에서 처리 — 여기서 이중 차감하지 않음
+        // [FIX-2] spendMoney는 gameStore.fusePokemon 내부에서 처리 — 이중 차감 방지
         fusePokemon(selectedBase, towerId, 'dna-splicers').then(success => {
           if (success) {
             alert(t('alerts.fusionSuccess'));
@@ -116,18 +121,14 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
     if (asBase.length > 0) {
       const materialIds = asBase.map(f => f.material);
       const availableMaterials = towers.filter(t => materialIds.includes(t.pokemonId));
-      if (availableMaterials.length > 0) {
-        return '🧬';
-      }
+      if (availableMaterials.length > 0) return '🧬';
     }
 
     const asMaterial = FUSION_DATA.filter(f => f.material === tower.pokemonId);
     if (asMaterial.length > 0) {
       const baseIds = asMaterial.map(f => f.base);
       const availableBases = towers.filter(t => baseIds.includes(t.pokemonId));
-      if (availableBases.length > 0) {
-        return '🧬';
-      }
+      if (availableBases.length > 0) return '🧬';
     }
 
     return null;
@@ -142,8 +143,8 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
             <MoneyDisplay>💰 {money}{t('common.money')}</MoneyDisplay>
           </div>
           <HeaderButtons>
-            <FusionBtn 
-              onClick={handleFusionClick} 
+            <FusionBtn
+              onClick={handleFusionClick}
               $fusionMode={fusionMode}
             >
               {fusionMode ? `❌ ${t('common.cancel')}` : `🧬 ${t('manager.fusion')}`}
@@ -151,7 +152,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
             <CloseBtn onClick={onClose}>✕</CloseBtn>
           </HeaderButtons>
         </Header>
-        
+
         {fusionMode && (
           <FusionInfo>
             {!selectedBase ? (
@@ -161,9 +162,8 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
             )}
           </FusionInfo>
         )}
-        
-        {towers.length === 0 ?
-        (
+
+        {towers.length === 0 ? (
           <EmptyMessage>{t('manager.empty')}</EmptyMessage>
         ) : (
           <Grid>
@@ -172,10 +172,10 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
               const hpPercent = Math.round((tower.currentHp / tower.maxHp) * 100);
               const fusionHint = getFusionHint(tower.id);
               const isSelected = selectedBase === tower.id;
-              
+
               return (
-                <Card 
-                  key={tower.id} 
+                <Card
+                  key={tower.id}
                   $isSelected={isSelected}
                   $fusionMode={fusionMode}
                   onClick={() => handlePokemonClick(tower.id)}
@@ -189,7 +189,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                       <FusionBadge>{fusionHint}</FusionBadge>
                     )}
                   </CardHeader>
-                  
+
                   <CardBody>
                     <NameRow>
                       <PokeName>{tower.displayName}</PokeName>
@@ -198,31 +198,27 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                       </GenderIcon>
                     </NameRow>
                     <InfoRow>
-                       <span>{t('common.level')}</span>
+                      <span>{t('common.level')}</span>
                       <InfoValue>{tower.level}</InfoValue>
                     </InfoRow>
                     <InfoRow>
                       <span>{t('picker.hp')}</span>
-                       <InfoValue>
+                      <InfoValue>
                         {Math.floor(tower.currentHp)}/{tower.maxHp} ({hpPercent}%)
                       </InfoValue>
                     </InfoRow>
-                    
                     <InfoRow>
                       <span>{t('manager.kills')}</span>
                       <InfoValue>{tower.kills}</InfoValue>
                     </InfoRow>
-                
                     <InfoRow>
                       <span>{t('picker.move')}</span>
                       <InfoValue>{tower.equippedMoves[0]?.displayName || 'N/A'}</InfoValue>
                     </InfoRow>
                   </CardBody>
-                  
+
                   {!fusionMode && (
-                    <SellBtn 
-                       onClick={() => handleSell(tower.id, tower.displayName, tower.level)}
-                    >
+                    <SellBtn onClick={() => handleSell(tower.id, tower.displayName, tower.level)}>
                       💰 {t('manager.sell', { price: sellPrice })}
                     </SellBtn>
                   )}
@@ -236,12 +232,11 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
   );
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
   backdrop-filter: blur(8px);
   display: flex;
@@ -261,10 +256,26 @@ const Modal = styled.div`
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   border: 2px solid rgba(255, 255, 255, 0.1);
-  ${lMedia.phoneSm} {
-    padding: 16px;
+
+  /* 태블릿 가로 (iPad 등) */
+  ${L1024} {
+    padding: 20px;
+    border-radius: 16px;
+    max-height: 92vh;
+  }
+  /* 폰 가로 */
+  ${L768} {
+    padding: 14px;
     border-radius: 12px;
+    width: 97%;
+    max-height: 94vh;
+  }
+  /* 소형 폰 가로 */
+  ${LSm} {
+    padding: 12px;
+    border-radius: 10px;
     width: 98%;
+    max-height: 96vh;
   }
 `;
 
@@ -273,11 +284,10 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  ${lMedia.phoneSm} {
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
+
+  ${L1024} { margin-bottom: 14px; }
+  ${L768}  { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  ${LSm}   { flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 `;
 
 const Title = styled.h2`
@@ -287,23 +297,28 @@ const Title = styled.h2`
   background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 5px;
-  ${lMedia.phoneSm} {
-    font-size: 20px;
-  }
+
+  ${L1024} { font-size: 22px; }
+  ${L768}  { font-size: 18px; margin-bottom: 3px; }
+  ${LSm}   { font-size: 16px; }
 `;
 
 const MoneyDisplay = styled.div`
   font-size: 16px;
   color: #FFD700;
   font-weight: bold;
+
+  ${L1024} { font-size: 14px; }
+  ${L768}  { font-size: 13px; }
+  ${LSm}   { font-size: 12px; }
 `;
 
 const HeaderButtons = styled.div`
   display: flex;
   gap: 10px;
-  ${lMedia.phoneSm} {
-    gap: 6px;
-  }
+
+  ${L1024} { gap: 8px; }
+  ${LSm}   { gap: 6px; }
 `;
 
 const FusionBtn = styled.button<{ $fusionMode: boolean }>`
@@ -317,13 +332,11 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   transition: filter 0.2s;
   background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #1c3bb6 0%, #020842 100%)'};
 
-  @media (hover: hover) {
-    &:hover { filter: brightness(1.2); }
-  }
-  ${lMedia.phoneSm} {
-    font-size: 13px;
-    padding: 6px 10px;
-  }
+  @media (hover: hover) { &:hover { filter: brightness(1.2); } }
+
+  ${L1024} { font-size: 14px; padding: 7px 13px; }
+  ${L768}  { font-size: 13px; padding: 6px 10px; }
+  ${LSm}   { font-size: 12px; padding: 5px 9px; }
 `;
 
 const CloseBtn = styled.button`
@@ -335,10 +348,10 @@ const CloseBtn = styled.button`
   padding: 5px 10px;
   border-radius: 5px;
   transition: background 0.2s;
+  &:hover { background: rgba(255, 255, 255, 0.1); }
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
+  ${L1024} { font-size: 20px; }
+  ${LSm}   { font-size: 18px; }
 `;
 
 const FusionInfo = styled.div`
@@ -350,6 +363,10 @@ const FusionInfo = styled.div`
   font-size: 16px;
   font-weight: bold;
   color: #fff;
+
+  ${L1024} { padding: 10px; margin-bottom: 14px; font-size: 14px; }
+  ${L768}  { padding: 8px;  margin-bottom: 10px; font-size: 13px; border-radius: 8px; }
+  ${LSm}   { padding: 7px;  margin-bottom: 8px;  font-size: 12px; }
 `;
 
 const EmptyMessage = styled.p`
@@ -357,19 +374,30 @@ const EmptyMessage = styled.p`
   color: #999;
   text-align: center;
   padding: 40px;
+
+  ${L1024} { font-size: 16px; padding: 28px; }
+  ${L768}  { font-size: 14px; padding: 20px; }
 `;
 
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
-  ${lMedia.phone} {
+
+  /* 태블릿 가로 — 카드 약간 좁게 */
+  ${L1024} {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 14px;
   }
-  ${lMedia.phoneSm} {
-    grid-template-columns: 1fr;
+  /* 폰 가로 — 2열 고정 */
+  ${L768} {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 10px;
+  }
+  /* 소형 폰 가로 — 1열 */
+  ${LSm} {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 `;
 
@@ -381,48 +409,60 @@ const Card = styled.div<{ $isSelected: boolean, $fusionMode: boolean }>`
   transition: border-color 0.2s ease, transform 0.2s ease;
   cursor: ${props => props.$fusionMode ? 'pointer' : 'default'};
   transform: ${props => props.$isSelected ? 'scale(1.02)' : 'scale(1)'};
-  ${lMedia.phoneSm} {
-    padding: 10px;
-  }
+
+  ${L1024} { padding: 12px; border-radius: 12px; }
+  ${L768}  { padding: 10px; border-radius: 10px; }
+  ${LSm}   { padding: 8px;  border-radius: 8px; }
 `;
 
 const CardHeader = styled.div`
   position: relative;
   text-align: center;
   margin-bottom: 15px;
+
+  ${L1024} { margin-bottom: 10px; }
+  ${L768}  { margin-bottom: 8px; }
+  ${LSm}   { margin-bottom: 6px; }
 `;
 
 const Sprite = styled.img`
   width: 100px;
   height: 100px;
   image-rendering: pixelated;
-  ${lMedia.phoneSm} {
-    width: 72px;
-    height: 72px;
-  }
+
+  ${L1024} { width: 80px;  height: 80px; }
+  ${L768}  { width: 64px;  height: 64px; }
+  ${LSm}   { width: 56px;  height: 56px; }
 `;
 
 const FaintedBadge = styled.div`
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: 5px; right: 5px;
   background: #e74c3c;
   color: white;
   font-size: 12px;
   font-weight: bold;
   padding: 4px 8px;
   border-radius: 8px;
+
+  ${L768} { font-size: 10px; padding: 3px 6px; }
+  ${LSm}  { font-size: 9px;  padding: 2px 5px; }
 `;
 
 const FusionBadge = styled.div`
   position: absolute;
-  top: 5px;
-  left: 5px;
+  top: 5px; left: 5px;
   font-size: 24px;
+
+  ${L768} { font-size: 18px; }
+  ${LSm}  { font-size: 16px; }
 `;
 
 const CardBody = styled.div`
   margin-bottom: 15px;
+
+  ${L768} { margin-bottom: 10px; }
+  ${LSm}  { margin-bottom: 8px; }
 `;
 
 const NameRow = styled.div`
@@ -431,6 +471,9 @@ const NameRow = styled.div`
   justify-content: center;
   gap: 8px;
   margin-bottom: 12px;
+
+  ${L1024} { margin-bottom: 8px; }
+  ${L768}  { gap: 6px; margin-bottom: 6px; }
 `;
 
 const PokeName = styled.h3`
@@ -438,12 +481,19 @@ const PokeName = styled.h3`
   font-weight: bold;
   margin: 0;
   color: #fff;
+
+  ${L1024} { font-size: 17px; }
+  ${L768}  { font-size: 15px; }
+  ${LSm}   { font-size: 14px; }
 `;
 
 const GenderIcon = styled.span<{ $gender: Gender }>`
   font-size: 18px;
   font-weight: bold;
   color: ${props => getGenderColor(props.$gender)};
+
+  ${L768} { font-size: 15px; }
+  ${LSm}  { font-size: 13px; }
 `;
 
 const InfoRow = styled.div`
@@ -453,6 +503,10 @@ const InfoRow = styled.div`
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 14px;
   color: #ddd;
+
+  ${L1024} { font-size: 13px; padding: 6px 0; }
+  ${L768}  { font-size: 12px; padding: 5px 0; }
+  ${LSm}   { font-size: 11px; padding: 4px 0; }
 `;
 
 const InfoValue = styled.span`
@@ -473,12 +527,10 @@ const SellBtn = styled.button`
   transition: background 0.2s ease;
 
   @media (hover: hover) {
-    &:hover {
-      background: linear-gradient(135deg, #c0392b, #a93226);
-    }
+    &:hover { background: linear-gradient(135deg, #c0392b, #a93226); }
   }
-  ${lMedia.phoneSm} {
-    padding: 10px;
-    font-size: 14px;
-  }
+
+  ${L1024} { padding: 10px; font-size: 14px; border-radius: 10px; }
+  ${L768}  { padding: 8px;  font-size: 13px; border-radius: 8px; }
+  ${LSm}   { padding: 7px;  font-size: 12px; }
 `;

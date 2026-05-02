@@ -2,12 +2,10 @@
 // ──────────────────────────────────────────────────────────────────
 // [V5-FIX-LB-1] 나가기 확인 모달 — 게임 진행 중 실수로 나가기 방지
 // [V5-FIX-LB-2] AI가 호스트가 되는 경우에 대한 안전 장치
-//   - MultiplayerService.leaveRoom이 비AI 플레이어 우선 호스트로 승격하므로
-//     일반적으로 AI가 호스트가 되지 않지만, 방에 AI만 남았을 때는 방 자동 삭제
 
 import { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { media } from '../../utils/responsive.utils';
+import { media, lMedia } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
@@ -107,7 +105,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     }
   };
 
-  // [V5-FIX-LB-1] 나가기 확인 모달
   const handleLeaveRoomRequest = () => {
     if (!currentRoom) return;
     setLeaveConfirmOpen(true);
@@ -351,7 +348,6 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           </Container>
         </Overlay>
 
-        {/* [V5-FIX-LB-1] 나가기 확인 모달 */}
         {leaveConfirmOpen && (
           <ConfirmOverlay onClick={() => setLeaveConfirmOpen(false)}>
             <ConfirmContainer onClick={e => e.stopPropagation()}>
@@ -378,7 +374,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   return null;
 };
 
-// ─── Styled Components (원본 유지 + 확인 모달) ─────────────────
+// ─── Styled Components ─────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
   position: fixed;
   top: 0; left: 0;
@@ -389,10 +386,13 @@ const Overlay = styled.div`
   backdrop-filter: blur(5px);
   overflow-y: auto;
   padding: 16px 0;
-  ${media.mobile} {
-    align-items: flex-start;
-    padding: 8px 0;
-  }
+
+  /* 태블릿 세로 */
+  ${media.tablet} { padding: 12px 0; }
+  /* 모바일 세로 */
+  ${media.mobile} { align-items: flex-start; padding: 8px 0; }
+  /* 가로 모드 */
+  ${lMedia.phoneSm} { align-items: flex-start; padding: 6px 0; }
 `;
 
 const Container = styled.div`
@@ -405,14 +405,30 @@ const Container = styled.div`
   overflow-y: auto;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+
+  /* 태블릿 세로 */
   ${media.tablet} {
     padding: 1.5rem;
+    max-width: 720px;
   }
+  /* 모바일 세로 */
   ${media.mobile} {
     padding: 1rem;
     width: 95%;
     border-radius: 8px;
     max-height: 96vh;
+  }
+  /* 태블릿 가로 */
+  ${lMedia.tablet} {
+    padding: 1.5rem 2rem;
+    max-width: 860px;
+  }
+  /* 폰 가로 */
+  ${lMedia.phoneSm} {
+    padding: 0.75rem 1rem;
+    width: 96%;
+    max-height: 98vh;
+    border-radius: 8px;
   }
 `;
 
@@ -421,20 +437,20 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  ${media.mobile} {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-  }
+
+  ${media.tablet} { margin-bottom: 1.5rem; }
+  ${media.mobile} { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+  ${lMedia.phoneSm} { margin-bottom: 0.75rem; }
 `;
 
 const Title = styled.h2`
   font-size: 1.8rem;
   color: white;
   font-weight: 700;
-  ${media.mobile} {
-    font-size: 1.3rem;
-  }
+
+  ${media.tablet} { font-size: 1.5rem; }
+  ${media.mobile} { font-size: 1.3rem; }
+  ${lMedia.phoneSm} { font-size: 1.2rem; }
 `;
 
 const BackButton = styled.button`
@@ -446,15 +462,17 @@ const BackButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
+
+  ${media.mobile} { padding: 0.4rem 0.75rem; font-size: 0.9rem; }
 `;
 
 const ButtonRow = styled.div`
   display: flex;
   gap: 1rem;
   margin-bottom: 1rem;
-  ${media.mobile} {
-    flex-wrap: wrap;
-  }
+
+  ${media.mobile} { flex-wrap: wrap; }
+  ${lMedia.phoneSm} { gap: 0.5rem; margin-bottom: 0.6rem; }
 `;
 
 const CreateRoomButton = styled.button`
@@ -469,12 +487,17 @@ const CreateRoomButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   &:hover { background: #2a2d36; }
+
+  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
+  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
 `;
 
 const RoomList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+
+  ${lMedia.phoneSm} { gap: 0.6rem; }
 `;
 
 const EmptyMessage = styled.div`
@@ -484,6 +507,8 @@ const EmptyMessage = styled.div`
   background: rgba(255, 255, 255, 0.03);
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+
+  ${media.mobile} { padding: 1.5rem; }
 `;
 
 const RoomCard = styled.div`
@@ -495,46 +520,60 @@ const RoomCard = styled.div`
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   color: white;
-  ${media.mobile} {
-    flex-wrap: wrap;
-    padding: 0.75rem 1rem;
-    gap: 0.5rem;
-  }
+
+  ${media.tablet} { gap: 0.75rem; }
+  ${media.mobile} { flex-wrap: wrap; padding: 0.75rem 1rem; gap: 0.5rem; }
+  ${lMedia.phoneSm} { padding: 0.6rem 0.8rem; gap: 0.5rem; }
 `;
 
 const RoomInfo = styled.div`flex: 1;`;
-const RoomName = styled.div`font-size: 1.15rem;font-weight: 600;margin-bottom: 0.25rem;`;
-const RoomDetails = styled.div`font-size: 0.9rem;color: #a0a0a0;`;
-const RoomPlayers = styled.div`font-weight: 600;color: #2563eb;font-size: 1.1rem;`;
+const RoomName = styled.div`
+  font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem;
+  ${media.mobile} { font-size: 1rem; }
+`;
+const RoomDetails = styled.div`
+  font-size: 0.9rem; color: #a0a0a0;
+  ${media.mobile} { font-size: 0.8rem; }
+`;
+const RoomPlayers = styled.div`font-weight: 600; color: #2563eb; font-size: 1.1rem;`;
 const JoinButton = styled.button`
   padding: 0.75rem 1.5rem;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
+  background: #2563eb; color: white;
+  border: none; border-radius: 6px;
+  font-weight: 600; cursor: pointer;
   transition: background 0.2s;
   &:hover:not(:disabled) { background: #1d4ed8; }
   &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
+
+  ${media.mobile} { padding: 0.6rem 1rem; font-size: 0.9rem; }
 `;
 
 const Section = styled.div`
   margin-bottom: 2rem;
-  ${media.mobile} {
-    margin-bottom: 1.25rem;
-  }
+
+  ${media.tablet} { margin-bottom: 1.5rem; }
+  ${media.mobile} { margin-bottom: 1.25rem; }
+  ${lMedia.phoneSm} { margin-bottom: 0.75rem; }
 `;
-const SectionTitle = styled.h3`font-size: 1.1rem;color: #e0e0e0;margin-bottom: 1rem;font-weight: 500;`;
+
+const SectionTitle = styled.h3`
+  font-size: 1.1rem; color: #e0e0e0;
+  margin-bottom: 1rem; font-weight: 500;
+
+  ${media.tablet} { font-size: 1rem; }
+  ${media.mobile} { font-size: 0.95rem; margin-bottom: 0.75rem; }
+  ${lMedia.phoneSm} { font-size: 0.9rem; margin-bottom: 0.5rem; }
+`;
 
 const MapGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 1rem;
-  ${media.mobile} {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.6rem;
-  }
+
+  ${media.tablet} { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
+  ${media.mobile} { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
+  ${lMedia.tablet} { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  ${lMedia.phoneSm} { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
 `;
 
 const MapCard = styled.div<{ $selected: boolean }>`
@@ -546,33 +585,43 @@ const MapCard = styled.div<{ $selected: boolean }>`
   transition: background 0.2s;
   color: white;
   &:hover { background: rgba(37, 99, 235, 0.05); }
+
+  ${media.mobile} { padding: 0.85rem; }
+  ${lMedia.phoneSm} { padding: 0.65rem; }
 `;
 
-const MapName = styled.div`font-size: 1.05rem;font-weight: 600;margin-bottom: 0.5rem;`;
-const MapDifficulty = styled.div`font-size: 0.85rem;color: #a0a0a0;`;
+const MapName = styled.div`
+  font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem;
+  ${media.mobile} { font-size: 0.9rem; margin-bottom: 0.3rem; }
+  ${lMedia.phoneSm} { font-size: 0.85rem; margin-bottom: 0.25rem; }
+`;
+const MapDifficulty = styled.div`
+  font-size: 0.85rem; color: #a0a0a0;
+  ${media.mobile} { font-size: 0.75rem; }
+`;
 
 const CreateButton = styled.button`
   width: 100%;
   padding: 1rem;
-  background: #2563eb;
-  color: white;
-  font-size: 1.1rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
+  background: #2563eb; color: white;
+  font-size: 1.1rem; font-weight: 600;
+  border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s;
   &:hover { background: #1d4ed8; }
+
+  ${media.mobile} { padding: 0.85rem; font-size: 1rem; }
+  ${lMedia.phoneSm} { padding: 0.7rem; font-size: 0.95rem; }
 `;
 
 const PlayerList = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1rem;
-  ${media.mobile} {
-    grid-template-columns: 1fr;
-    gap: 0.6rem;
-  }
+
+  ${media.tablet} { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  ${media.mobile} { grid-template-columns: 1fr; gap: 0.6rem; }
+  ${lMedia.tablet} { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  ${lMedia.phoneSm} { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
 `;
 
 const PlayerCard = styled.div`
@@ -581,27 +630,39 @@ const PlayerCard = styled.div`
   border: 1px solid rgba(255,255,255,0.05);
   border-radius: 8px;
   color: white;
+
+  ${media.mobile} { padding: 0.75rem 1rem; }
+  ${lMedia.phoneSm} { padding: 0.6rem 0.75rem; }
 `;
 
-const PlayerName = styled.div`font-size: 1.1rem;font-weight: 600;margin-bottom: 0.4rem;`;
-const PlayerRating = styled.div`font-size: 0.85rem;color: #a0a0a0;margin-bottom: 0.5rem;`;
+const PlayerName = styled.div`
+  font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem;
+  ${media.mobile} { font-size: 0.95rem; }
+  ${lMedia.phoneSm} { font-size: 0.85rem; margin-bottom: 0.25rem; }
+`;
+const PlayerRating = styled.div`
+  font-size: 0.85rem; color: #a0a0a0; margin-bottom: 0.5rem;
+  ${lMedia.phoneSm} { font-size: 0.75rem; margin-bottom: 0.25rem; }
+`;
 const PlayerStatus = styled.div<{ $ready: boolean }>`
   font-weight: 600;
   color: ${p => p.$ready ? '#10b981' : '#f59e0b'};
+  ${lMedia.phoneSm} { font-size: 0.8rem; }
 `;
 
-const AIButtons = styled.div`display: flex;gap: 0.5rem;flex-wrap: wrap;`;
+const AIButtons = styled.div`display: flex; gap: 0.5rem; flex-wrap: wrap;`;
 const AIButton = styled.button`
   flex: 1;
   padding: 0.75rem;
-  background: #23252e;
-  color: #e0e0e0;
+  background: #23252e; color: #e0e0e0;
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+  cursor: pointer; transition: all 0.2s;
   &:hover { background: #2a2d36; }
+
+  ${media.mobile} { padding: 0.6rem; font-size: 0.9rem; }
+  ${lMedia.phoneSm} { padding: 0.5rem; font-size: 0.85rem; }
 `;
 
 const ReadyButton = styled.button<{ $ready: boolean }>`
@@ -609,38 +670,37 @@ const ReadyButton = styled.button<{ $ready: boolean }>`
   padding: 1rem;
   background: ${p => p.$ready ? '#d97706' : '#10b981'};
   color: white;
-  font-size: 1.05rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
+  font-size: 1.05rem; font-weight: 600;
+  border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s;
   &:hover { opacity: 0.9; }
+
+  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
+  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
 `;
 
 const StartButton = styled.button`
   flex: 1;
   padding: 1rem;
-  background: #10b981;
-  color: white;
-  font-size: 1.05rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
+  background: #10b981; color: white;
+  font-size: 1.05rem; font-weight: 600;
+  border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.2s;
   &:hover:not(:disabled) { background: #059669; }
   &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
+
+  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
+  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
 `;
 
 const LoadingText = styled.div`
-  text-align: center;
-  color: white;
-  font-size: 1.5rem;
-  padding: 2rem;
+  text-align: center; color: white;
+  font-size: 1.5rem; padding: 2rem;
+
+  ${media.mobile} { font-size: 1.2rem; }
 `;
 
-// ─── Rejoin Prompt ─────────────────────────────
+// ─── Rejoin Prompt ─────────────────────────────────────────────────────────────
 const PromptOverlay = styled(Overlay)`
   z-index: 2000;
   background: rgba(0, 0, 0, 0.95);
@@ -657,6 +717,8 @@ const PromptTitle = styled.h2`
   color: white;
   font-size: 1.8rem;
   margin-bottom: 1rem;
+
+  ${media.mobile} { font-size: 1.4rem; }
 `;
 
 const PromptText = styled.p`
@@ -664,25 +726,28 @@ const PromptText = styled.p`
   font-size: 1.1rem;
   margin-bottom: 2rem;
   line-height: 1.5;
+
+  ${media.mobile} { font-size: 1rem; margin-bottom: 1.5rem; }
 `;
 
-const PromptButtonRow = styled.div`display: flex;gap: 1rem;`;
+const PromptButtonRow = styled.div`
+  display: flex; gap: 1rem;
+  ${media.mobile} { gap: 0.6rem; }
+`;
 
 const RejoinButton = styled(CreateRoomButton)`
   background: #10b981;
-  border: none;
-  color: white;
+  border: none; color: white;
   &:hover { background: #059669; }
 `;
 
 const AbandonButton = styled(CreateRoomButton)`
   background: #ef4444;
-  border: none;
-  color: white;
+  border: none; color: white;
   &:hover { background: #dc2626; }
 `;
 
-// ─── [V5-FIX-LB-1] Leave Confirm Modal ────────────
+// ─── [V5-FIX-LB-1] Leave Confirm Modal ────────────────────────────────────────
 const ConfirmOverlay = styled.div`
   position: fixed;
   top: 0; left: 0;
@@ -690,6 +755,8 @@ const ConfirmOverlay = styled.div`
   background: rgba(0, 0, 0, 0.9);
   display: flex; align-items: center; justify-content: center;
   z-index: 3000;
+
+  ${media.mobile} { padding: 16px; }
 `;
 
 const ConfirmContainer = styled.div`
@@ -700,6 +767,9 @@ const ConfirmContainer = styled.div`
   width: 90%;
   border: 1px solid rgba(239, 68, 68, 0.3);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+
+  ${media.mobile} { padding: 1.5rem; width: 95%; }
+  ${lMedia.phoneSm} { padding: 1.25rem; }
 `;
 
 const ConfirmTitle = styled.h3`
@@ -707,6 +777,8 @@ const ConfirmTitle = styled.h3`
   font-size: 1.4rem;
   margin-bottom: 1rem;
   text-align: center;
+
+  ${media.mobile} { font-size: 1.2rem; }
 `;
 
 const ConfirmText = styled.p`
@@ -715,35 +787,33 @@ const ConfirmText = styled.p`
   line-height: 1.6;
   text-align: center;
   margin-bottom: 1.5rem;
+
+  ${media.mobile} { font-size: 0.9rem; }
 `;
 
 const ConfirmButtons = styled.div`
-  display: flex;
-  gap: 0.75rem;
+  display: flex; gap: 0.75rem;
+  ${lMedia.phoneSm} { gap: 0.5rem; }
 `;
 
 const CancelButton = styled.button`
-  flex: 1;
-  padding: 0.75rem;
-  background: #3f3f46;
-  color: #e0e0e0;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+  flex: 1; padding: 0.75rem;
+  background: #3f3f46; color: #e0e0e0;
+  border: none; border-radius: 8px;
+  font-weight: 600; cursor: pointer;
   &:hover { background: #52525b; }
+
+  ${media.mobile} { padding: 0.65rem; font-size: 0.9rem; }
 `;
 
 const ConfirmLeaveButton = styled.button`
-  flex: 1;
-  padding: 0.75rem;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+  flex: 1; padding: 0.75rem;
+  background: #ef4444; color: white;
+  border: none; border-radius: 8px;
+  font-weight: 600; cursor: pointer;
   &:hover { background: #dc2626; }
+
+  ${media.mobile} { padding: 0.65rem; font-size: 0.9rem; }
 `;
 
 interface RejoinPromptProps {
@@ -752,7 +822,7 @@ interface RejoinPromptProps {
   onAbandon: () => void;
 }
 
-const RejoinPrompt: React.FC<RejoinPromptProps> = ({ roomName, onRejoin, onAbandon }) => {
+function RejoinPrompt({ roomName, onRejoin, onAbandon }: RejoinPromptProps) {
   const { t } = useTranslation();
   return (
     <PromptOverlay>
@@ -773,4 +843,4 @@ const RejoinPrompt: React.FC<RejoinPromptProps> = ({ roomName, onRejoin, onAband
       </PromptContainer>
     </PromptOverlay>
   );
-};
+}

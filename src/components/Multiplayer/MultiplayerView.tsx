@@ -14,7 +14,12 @@ import { multiplayerService } from '../../services/MultiplayerService';
 import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia } from '../../utils/responsive.utils';
+
+// ─── 반응형 헬퍼 → lMedia 사용 ───────────────────────────────────────────────
+const L1024 = lMedia.tablet;   // ≤1024px landscape
+const L768  = lMedia.phone;    // ≤768px  landscape
+const LSm   = lMedia.phoneSm;  // landscape + max-height ≤520px
 
 interface MultiplayerViewProps {
   roomId: string;
@@ -193,117 +198,283 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   );
 };
 
-// ─── 애니메이션 / 스타일 (원본 유지) ─────────────────────────
+// ─── 애니메이션 ───────────────────────────────────────────────────────────────
 const shimmer = keyframes`
   0%{background-position:-200% 0}
   100%{background-position:200% 0}
 `;
 const blink = keyframes`0%,100%{opacity:0.3}50%{opacity:1}`;
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
-  position:fixed;top:0;left:0;width:100vw;height:100vh;
-  background:rgba(0,0,0,0.9);
-  display:flex;align-items:center;justify-content:center;
-  z-index:2000;
+  position: fixed; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000;
+  overflow-y: auto;
+  padding: 12px;
+
+  ${L768} { padding: 8px; }
+  ${LSm}  { padding: 6px; }
 `;
+
 const Container = styled.div`
-  background:linear-gradient(145deg,#1a1a2e,#16213e);
-  padding:1.5rem;border-radius:20px;
-  max-width:620px;width:95%;max-height:85vh;overflow-y:auto;
-  border:2px solid rgba(255,215,0,0.3);
-  box-shadow:0 0 30px rgba(255,215,0,0.15);
-  ${lMedia.phoneSm}{padding:1rem;max-height:95vh;}
+  background: linear-gradient(145deg, #1a1a2e, #16213e);
+  padding: 1.5rem;
+  border-radius: 20px;
+  max-width: 620px;
+  width: 95%;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 2px solid rgba(255,215,0,0.3);
+  box-shadow: 0 0 30px rgba(255,215,0,0.15);
+
+  /* 태블릿 가로 */
+  ${L1024} {
+    padding: 1.25rem;
+    max-width: 580px;
+    border-radius: 16px;
+    max-height: 88vh;
+  }
+  /* 폰 가로 */
+  ${L768} {
+    padding: 1rem;
+    width: 97%;
+    max-height: 92vh;
+    border-radius: 14px;
+  }
+  /* 소형 폰 가로 */
+  ${LSm} {
+    padding: 0.75rem;
+    max-height: 95vh;
+    border-radius: 12px;
+  }
 `;
+
 const Header = styled.div`
-  display:flex;justify-content:space-between;align-items:center;
-  margin-bottom:1.5rem;padding-bottom:0.8rem;
-  border-bottom:2px solid rgba(255,255,255,0.1);
-  gap:8px;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; padding-bottom: 0.8rem;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+  gap: 8px;
+
+  ${L1024} { margin-bottom: 1.1rem; padding-bottom: 0.6rem; }
+  ${L768}  { margin-bottom: 0.8rem; padding-bottom: 0.5rem; }
+  ${LSm}   { margin-bottom: 0.6rem; padding-bottom: 0.4rem; }
 `;
-const Title = styled.h2`color:#ffd700;margin:0;font-size:1.4rem;${lMedia.phoneSm}{font-size:1.2rem;}`;
-const HeaderRight = styled.div`display:flex;align-items:center;gap:8px;flex-shrink:0;`;
+
+const Title = styled.h2`
+  color: #ffd700; margin: 0; font-size: 1.4rem;
+
+  ${L1024} { font-size: 1.25rem; }
+  ${L768}  { font-size: 1.1rem; }
+  ${LSm}   { font-size: 1rem; }
+`;
+
+const HeaderRight = styled.div`display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  ${L768} { gap: 6px; }
+`;
+
 const RefreshInfo = styled.span<{ $refreshing: boolean }>`
-  font-size:11px;
-  color:${p => p.$refreshing ? '#4fc3f7' : 'rgba(255,255,255,0.4)'};
-  white-space:nowrap;
+  font-size: 11px;
+  color: ${p => p.$refreshing ? '#4fc3f7' : 'rgba(255,255,255,0.4)'};
+  white-space: nowrap;
+
+  ${L768} { font-size: 10px; }
+  ${LSm}  { display: none; }
 `;
+
 const ManualRefreshBtn = styled.button`
-  background:rgba(255,255,255,0.1);border:none;
-  color:#fff;width:32px;height:32px;border-radius:50%;
-  cursor:pointer;font-size:14px;transition:background 0.2s;
+  background: rgba(255,255,255,0.1); border: none;
+  color: #fff; width: 32px; height: 32px; border-radius: 50%;
+  cursor: pointer; font-size: 14px; transition: background 0.2s;
   @media(hover:hover){&:hover:not(:disabled){background:rgba(79,195,247,0.3);}}
-  &:disabled{opacity:0.4;cursor:not-allowed;}
+  &:disabled{opacity: 0.4; cursor: not-allowed;}
+
+  ${L768} { width: 28px; height: 28px; font-size: 12px; }
+  ${LSm}  { width: 26px; height: 26px; font-size: 11px; }
 `;
+
 const CloseButton = styled.button`
-  background:rgba(255,255,255,0.1);border:none;color:#fff;
-  width:36px;height:36px;border-radius:50%;cursor:pointer;
-  font-size:1.2rem;transition:background 0.2s;
+  background: rgba(255,255,255,0.1); border: none; color: #fff;
+  width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  font-size: 1.2rem; transition: background 0.2s;
   @media(hover:hover){&:hover{background:rgba(255,107,107,0.3);}}
+
+  ${L768} { width: 30px; height: 30px; font-size: 1rem; }
+  ${LSm}  { width: 28px; height: 28px; font-size: 0.95rem; }
 `;
-const PlayerList = styled.div`display:flex;flex-direction:column;gap:0.75rem;`;
-const PlayerRow = styled.div<{ $isMe:boolean;$isDead:boolean }>`
-  display:flex;align-items:center;gap:1rem;padding:1rem;
-  background:${p=>p.$isMe
-    ?'linear-gradient(135deg,rgba(52,152,219,0.2),rgba(52,152,219,0.1))'
-    :'rgba(255,255,255,0.05)'};
-  border-radius:12px;
-  border:2px solid ${p=>p.$isMe?'rgba(52,152,219,0.4)':'transparent'};
-  opacity:${p=>p.$isDead?0.5:1};position:relative;
-  ${lMedia.phoneSm}{padding:0.75rem;gap:0.75rem;flex-wrap:wrap;}
+
+const PlayerList = styled.div`
+  display: flex; flex-direction: column; gap: 0.75rem;
+
+  ${L768} { gap: 0.5rem; }
+  ${LSm}  { gap: 0.4rem; }
 `;
-const RankBadge = styled.div<{ $rank:number }>`
-  width:32px;height:32px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  font-weight:bold;font-size:1rem;flex-shrink:0;
-  background:${p=>{
-    if(p.$rank===1)return'linear-gradient(135deg,#ffd700,#ff8c00)';
-    if(p.$rank===2)return'linear-gradient(135deg,#c0c0c0,#a0a0a0)';
-    if(p.$rank===3)return'linear-gradient(135deg,#cd7f32,#a0522d)';
-    return'rgba(255,255,255,0.1)';
+
+const PlayerRow = styled.div<{ $isMe: boolean; $isDead: boolean }>`
+  display: flex; align-items: center; gap: 1rem; padding: 1rem;
+  background: ${p => p.$isMe
+    ? 'linear-gradient(135deg,rgba(52,152,219,0.2),rgba(52,152,219,0.1))'
+    : 'rgba(255,255,255,0.05)'};
+  border-radius: 12px;
+  border: 2px solid ${p => p.$isMe ? 'rgba(52,152,219,0.4)' : 'transparent'};
+  opacity: ${p => p.$isDead ? 0.5 : 1};
+  position: relative;
+
+  /* 태블릿 가로 */
+  ${L1024} { padding: 0.8rem; gap: 0.8rem; border-radius: 10px; }
+  /* 폰 가로 */
+  ${L768}  { padding: 0.65rem; gap: 0.65rem; flex-wrap: wrap; border-radius: 8px; }
+  /* 소형 폰 가로 */
+  ${LSm}   { padding: 0.5rem; gap: 0.5rem; }
+`;
+
+const RankBadge = styled.div<{ $rank: number }>`
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 1rem; flex-shrink: 0;
+  background: ${p => {
+    if (p.$rank === 1) return 'linear-gradient(135deg,#ffd700,#ff8c00)';
+    if (p.$rank === 2) return 'linear-gradient(135deg,#c0c0c0,#a0a0a0)';
+    if (p.$rank === 3) return 'linear-gradient(135deg,#cd7f32,#a0522d)';
+    return 'rgba(255,255,255,0.1)';
   }};
-  color:${p=>p.$rank<=3?'#000':'#fff'};
+  color: ${p => p.$rank <= 3 ? '#000' : '#fff'};
+
+  ${L768} { width: 26px; height: 26px; font-size: 0.85rem; }
+  ${LSm}  { width: 22px; height: 22px; font-size: 0.75rem; }
 `;
-const PlayerInfo = styled.div`flex:1;min-width:0;`;
+
+const PlayerInfo = styled.div`flex: 1; min-width: 0;`;
+
 const PlayerNameRow = styled.div`
-  font-size:1rem;font-weight:bold;color:white;
-  display:flex;align-items:center;gap:0.5rem;
+  font-size: 1rem; font-weight: bold; color: white;
+  display: flex; align-items: center; gap: 0.5rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+
+  ${L1024} { font-size: 0.95rem; }
+  ${L768}  { font-size: 0.88rem; }
+  ${LSm}   { font-size: 0.82rem; }
 `;
-const MeTag = styled.span`font-size:0.8rem;color:#4cafff;font-weight:normal;`;
-const PlayerStats = styled.div`display:flex;gap:0.75rem;margin-top:0.25rem;`;
-const StatIcon = styled.span`font-size:0.85rem;color:rgba(255,255,255,0.8);`;
-const PokemonSection = styled.div`display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;`;
-const PokemonCount = styled.div`font-size:0.8rem;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:4px;`;
-const LoadingDot = styled.span`font-size:0.75rem;color:#4fc3f7;animation:${blink} 1.2s ease infinite;`;
-const PokemonIcons = styled.div`display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;`;
-const PokemonIconWrapper = styled.div`position:relative;display:flex;flex-direction:column;align-items:center;gap:1px;`;
-const PokemonIcon = styled.img<{ $isFainted:boolean }>`
-  width:38px;height:38px;border-radius:6px;
-  background:rgba(0,0,0,0.3);object-fit:contain;
-  filter:${p=>p.$isFainted?'grayscale(100%) opacity(0.35)':'none'};
-  image-rendering:pixelated;
-  border:1px solid rgba(255,255,255,0.1);
+
+const MeTag = styled.span`
+  font-size: 0.8rem; color: #4cafff; font-weight: normal; flex-shrink: 0;
+  ${LSm} { font-size: 0.72rem; }
 `;
-const MiniHpBar = styled.div`width:38px;height:3px;background:rgba(0,0,0,0.4);border-radius:2px;overflow:hidden;`;
-const MiniHpFill = styled.div<{ $pct:number;$fainted:boolean }>`
-  height:100%;border-radius:2px;
-  width:${p=>p.$pct}%;
-  background:${p=>p.$fainted?'#555':p.$pct>50?'#2ecc71':p.$pct>25?'#f39c12':'#e74c3c'};
-  transition:width 0.4s ease;
+
+const PlayerStats = styled.div`
+  display: flex; gap: 0.75rem; margin-top: 0.25rem; flex-wrap: wrap;
+
+  ${L768} { gap: 0.5rem; margin-top: 0.15rem; }
+  ${LSm}  { gap: 0.4rem; }
 `;
-const LvBadge = styled.div`font-size:8px;color:rgba(255,255,255,0.5);line-height:1;`;
+
+const StatIcon = styled.span`
+  font-size: 0.85rem; color: rgba(255,255,255,0.8);
+
+  ${L768} { font-size: 0.78rem; }
+  ${LSm}  { font-size: 0.72rem; }
+`;
+
+const PokemonSection = styled.div`
+  display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+
+  ${L768} { gap: 0.25rem; }
+`;
+
+const PokemonCount = styled.div`
+  font-size: 0.8rem; color: rgba(255,255,255,0.6);
+  display: flex; align-items: center; gap: 4px;
+
+  ${L768} { font-size: 0.72rem; }
+  ${LSm}  { font-size: 0.68rem; }
+`;
+
+const LoadingDot = styled.span`
+  font-size: 0.75rem; color: #4fc3f7;
+  animation: ${blink} 1.2s ease infinite;
+`;
+
+const PokemonIcons = styled.div`
+  display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end;
+
+  ${L768} { gap: 3px; }
+  ${LSm}  { gap: 2px; }
+`;
+
+const PokemonIconWrapper = styled.div`
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px;
+`;
+
+const PokemonIcon = styled.img<{ $isFainted: boolean }>`
+  width: 38px; height: 38px; border-radius: 6px;
+  background: rgba(0,0,0,0.3); object-fit: contain;
+  filter: ${p => p.$isFainted ? 'grayscale(100%) opacity(0.35)' : 'none'};
+  image-rendering: pixelated;
+  border: 1px solid rgba(255,255,255,0.1);
+
+  ${L1024} { width: 32px; height: 32px; }
+  ${L768}  { width: 28px; height: 28px; }
+  ${LSm}   { width: 24px; height: 24px; border-radius: 4px; }
+`;
+
+const MiniHpBar = styled.div`
+  width: 38px; height: 3px;
+  background: rgba(0,0,0,0.4); border-radius: 2px; overflow: hidden;
+
+  ${L1024} { width: 32px; }
+  ${L768}  { width: 28px; }
+  ${LSm}   { width: 24px; height: 2px; }
+`;
+
+const MiniHpFill = styled.div<{ $pct: number; $fainted: boolean }>`
+  height: 100%; border-radius: 2px;
+  width: ${p => p.$pct}%;
+  background: ${p => p.$fainted ? '#555' : p.$pct > 50 ? '#2ecc71' : p.$pct > 25 ? '#f39c12' : '#e74c3c'};
+  transition: width 0.4s ease;
+`;
+
+const LvBadge = styled.div`
+  font-size: 8px; color: rgba(255,255,255,0.5); line-height: 1;
+
+  ${L768} { font-size: 7px; }
+  ${LSm}  { font-size: 6px; }
+`;
+
 const PokemonPlaceholder = styled.div`
-  width:38px;height:38px;border-radius:6px;
-  background:linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%);
-  background-size:200% 100%;
-  animation:${shimmer} 1.5s infinite;
-  border:1px solid rgba(255,255,255,0.07);
+  width: 38px; height: 38px; border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
+  animation: ${shimmer} 1.5s infinite;
+  border: 1px solid rgba(255,255,255,0.07);
+
+  ${L768} { width: 28px; height: 28px; }
+  ${LSm}  { width: 24px; height: 24px; }
 `;
+
 const DeadBadge = styled.div`
-  position:absolute;top:0.5rem;right:0.5rem;
-  font-size:0.75rem;color:#ff6b6b;
-  background:rgba(255,107,107,0.1);
-  padding:2px 8px;border-radius:10px;
-  border:1px solid rgba(255,107,107,0.3);
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  font-size: 0.75rem; color: #ff6b6b;
+  background: rgba(255,107,107,0.1);
+  padding: 2px 8px; border-radius: 10px;
+  border: 1px solid rgba(255,107,107,0.3);
+
+  ${L768} { font-size: 0.68rem; padding: 2px 6px; }
+  ${LSm}  { font-size: 0.62rem; padding: 1px 5px; top: 0.3rem; right: 0.3rem; }
 `;
-const Footer = styled.div`margin-top:1rem;padding-top:0.6rem;border-top:1px solid rgba(255,255,255,0.07);text-align:center;`;
-const FooterNote = styled.div`font-size:11px;color:rgba(255,255,255,0.3);`;
+
+const Footer = styled.div`
+  margin-top: 1rem; padding-top: 0.6rem;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+
+  ${L768} { margin-top: 0.6rem; padding-top: 0.4rem; }
+  ${LSm}  { margin-top: 0.4rem; padding-top: 0.3rem; }
+`;
+
+const FooterNote = styled.div`
+  font-size: 11px; color: rgba(255,255,255,0.3);
+  ${L768} { font-size: 10px; }
+`;
