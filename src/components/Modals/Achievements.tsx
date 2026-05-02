@@ -1,7 +1,7 @@
 // src/components/Modals/Achievements.tsx
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia, media } from '../../utils/responsive.utils';
 import {
   ACHIEVEMENTS,
   ACHIEVEMENT_CATEGORIES,
@@ -25,14 +25,14 @@ function getAchName(ach: AchievementWithCategory, t: (k: string, p?: Record<stri
 
   const id = ach.id;
   if (id.startsWith('syn_type_')) {
-    const parts = id.split('_'); // ['syn','type',typeKey,count]
+    const parts = id.split('_');
     const typeKey = parts[2];
     const count = parts[3];
     const typeName = t(`types.${typeKey}`);
     return t(`achData.pat_type_${count}.name`, { typeName });
   }
   if (id.startsWith('syn_gen_')) {
-    const parts = id.split('_'); // ['syn','gen',genNum,count]
+    const parts = id.split('_');
     const genNum = Number(parts[2]);
     const count = parts[3];
     const genName = `${genNum}세대(${GEN_NAMES[genNum] ?? ''})`.trim();
@@ -129,14 +129,12 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
   const totalCompletions = Array.from(progressData.values()).reduce((s, a) => s + (a.completions ?? 0), 0);
   const pct = Math.floor((unlockedCount / totalCount) * 100);
 
-  // 카테고리 통계
   const categoryStats = (cat: AchievementCategory) => {
     const catAchs = ACHIEVEMENTS.filter(a => a.category === cat);
     const done = catAchs.filter(a => (progressData.get(a.id)?.completions ?? 0) > 0).length;
     return { done, total: catAchs.length };
   };
 
-  // 필터링된 업적 (숨김 여부, 탭)
   const filteredAchs: AchievementWithCategory[] = ACHIEVEMENTS.filter(ach => {
     if (ach.hidden && !showHidden) {
       if (!((progressData.get(ach.id)?.completions ?? 0) > 0)) return false;
@@ -145,7 +143,6 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
     return true;
   });
 
-  // 티어별 그룹화
   const groupedByTier = TIER_ORDER.map(tier => ({
     tier,
     achs: filteredAchs.filter(a => a.tier === tier),
@@ -181,13 +178,16 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
             </ProgressBarOuter>
           </ProgressArea>
 
-          {/* 서브탭 (업적 / 랭킹) */}
+          {/* 서브탭 */}
           <SubTabRow>
             <SubTabBtn $active={subTab === 'achievements'} onClick={() => setSubTab('achievements')}>
               {t('achievementsPanel.tabAchievements')}
             </SubTabBtn>
             <SubTabBtn $active={subTab === 'ranking'} onClick={() => setSubTab('ranking')}>
-              {t('achievementsPanel.tabRanking')} {myRank !== null && <RankBadge>{t('achievementsPanel.myRankBadge', { rank: myRank })}</RankBadge>}
+              {t('achievementsPanel.tabRanking')}{' '}
+              {myRank !== null && (
+                <RankBadge>{t('achievementsPanel.myRankBadge', { rank: myRank })}</RankBadge>
+              )}
             </SubTabBtn>
           </SubTabRow>
         </ModalHeader>
@@ -195,7 +195,6 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
         {/* ── 업적 탭 ── */}
         {subTab === 'achievements' && (
           <>
-            {/* 카테고리 탭 */}
             <CategoryTabRow>
               <CatTab $active={activeTab === 'all'} onClick={() => setActiveTab('all')}>
                 {t('achievementsPanel.catAll')} <TabBadge>{unlockedCount}/{totalCount}</TabBadge>
@@ -211,7 +210,6 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
               })}
             </CategoryTabRow>
 
-            {/* 업적 목록 */}
             <AchievementScroll>
               {loading ? (
                 <LoadingMsg>{t('achievementsPanel.loading')}</LoadingMsg>
@@ -224,7 +222,9 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                     <TierSection key={tier}>
                       <TierHeader $color={meta.color}>
                         <TierLabel>{meta.label}</TierLabel>
-                        <TierPts>{t('achievementsPanel.apPerCompletion', { pts: TIER_POINTS[tier as AchievementTier] })}</TierPts>
+                        <TierPts>
+                          {t('achievementsPanel.apPerCompletion', { pts: TIER_POINTS[tier as AchievementTier] })}
+                        </TierPts>
                       </TierHeader>
                       <TierGrid>
                         {achs.map(ach => {
@@ -257,7 +257,9 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                                   {isUnlocked && <UnlockedMark $color={meta.color}>✓</UnlockedMark>}
                                 </CardNameRow>
                                 <CardDesc>
-                                  {ach.hidden && !isUnlocked ? t('achievementsPanel.hiddenDesc') : getAchDesc(ach, t)}
+                                  {ach.hidden && !isUnlocked
+                                    ? t('achievementsPanel.hiddenDesc')
+                                    : getAchDesc(ach, t)}
                                 </CardDesc>
                                 <CardBottom>
                                   {!isUnlocked ? (
@@ -314,7 +316,9 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                         {entry.userName ?? t('achievementsPanel.rankingColTrainer')}
                         {isMe && <MeTag>{t('achievementsPanel.rankingMe')}</MeTag>}
                       </RankName>
-                      <RankStat>{t('achievementsPanel.rankingCountSuffix', { count: entry.achievementCount.toLocaleString() })}</RankStat>
+                      <RankStat>
+                        {t('achievementsPanel.rankingCountSuffix', { count: entry.achievementCount.toLocaleString() })}
+                      </RankStat>
                       <RankAP>⚡ {entry.totalAP.toLocaleString()}</RankAP>
                     </RankRow>
                   );
@@ -337,6 +341,19 @@ const Overlay = styled.div`
   background: rgba(0,0,0,0.85);
   display: flex; justify-content: center; align-items: center;
   z-index: 1001; backdrop-filter: blur(6px);
+  padding: 16px;
+
+  /* 모바일 세로 */
+  ${media.mobile} {
+    align-items: flex-start;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  ${lMedia.phoneSm} {
+    align-items: flex-start;
+    padding: 8px;
+    overflow-y: auto;
+  }
 `;
 
 const Modal = styled.div`
@@ -348,6 +365,19 @@ const Modal = styled.div`
   animation: ${fadeIn} 0.2s ease-out;
   overflow: hidden;
   box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,215,0,0.08);
+
+  /* 태블릿 세로 */
+  ${media.tablet} {
+    max-width: 680px;
+    border-radius: 16px;
+  }
+  /* 모바일 세로 */
+  ${media.mobile} {
+    width: 98%;
+    max-height: 97vh;
+    border-radius: 12px;
+  }
+  /* 가로 모드 */
   ${lMedia.phoneSm} {
     width: 98%;
     max-height: 98vh;
@@ -361,14 +391,21 @@ const ModalHeader = styled.div`
   background: linear-gradient(135deg, rgba(255,215,0,0.07), transparent);
   border-bottom: 1px solid rgba(255,215,0,0.10);
   flex-shrink: 0;
-  ${lMedia.phoneSm} {
-    padding: 12px 14px 0;
-  }
+
+  /* 태블릿 세로 */
+  ${media.tablet} { padding: 14px 16px 0; }
+  /* 모바일 세로 */
+  ${media.mobile} { padding: 12px 12px 0; }
+  /* 가로 모드 */
+  ${lMedia.phoneSm} { padding: 10px 12px 0; }
 `;
 
 const HeaderTop = styled.div`
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 10px;
+
+  ${media.mobile} { margin-bottom: 8px; }
+  ${lMedia.phoneSm} { margin-bottom: 6px; }
 `;
 
 const TitleArea = styled.div`display:flex;align-items:center;gap:12px;`;
@@ -376,9 +413,10 @@ const TitleArea = styled.div`display:flex;align-items:center;gap:12px;`;
 const ModalTitle = styled.h2`
   font-size: 1.4rem; font-weight: 800; color: #FFD700;
   text-shadow: 0 0 20px rgba(255,215,0,0.4);
-  ${lMedia.phoneSm} {
-    font-size: 1.1rem;
-  }
+
+  ${media.tablet} { font-size: 1.25rem; }
+  ${media.mobile} { font-size: 1.1rem; }
+  ${lMedia.phoneSm} { font-size: 1.05rem; }
 `;
 
 const APBadge = styled.div`
@@ -386,6 +424,9 @@ const APBadge = styled.div`
   background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.35);
   color: #FFD700; font-size: 13px; font-weight: 700;
   text-shadow: 0 0 8px rgba(255,215,0,0.4);
+
+  ${media.mobile} { font-size: 11px; padding: 3px 9px; }
+  ${lMedia.phoneSm} { font-size: 11px; padding: 3px 8px; }
 `;
 
 const HeaderActions = styled.div`display:flex;gap:8px;align-items:center;`;
@@ -396,6 +437,9 @@ const HiddenToggle = styled.button`
   background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6);
   transition: all 0.2s;
   &:hover { background: rgba(255,255,255,0.10); color: #fff; }
+
+  /* 모바일에서 텍스트 줄이기 */
+  ${media.mobile} { padding: 4px 8px; font-size: 10px; }
 `;
 
 const CloseBtn = styled.button`
@@ -407,10 +451,14 @@ const CloseBtn = styled.button`
 `;
 
 // ── 진행 바
-const ProgressArea = styled.div`margin-bottom: 10px;`;
+const ProgressArea = styled.div`
+  margin-bottom: 10px;
+  ${media.mobile} { margin-bottom: 7px; }
+`;
 const ProgressStats = styled.div`
   display: flex; justify-content: space-between;
   font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 4px;
+  ${media.mobile} { font-size: 10px; }
 `;
 const ProgressBarOuter = styled.div`
   height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;
@@ -422,18 +470,21 @@ const ProgressBarInner = styled.div<{ $pct: number }>`
 `;
 
 // ── 서브탭
-const SubTabRow = styled.div`display:flex;gap:4px;padding-top:8px;`;
+const SubTabRow = styled.div`display:flex;gap:4px;padding-top:8px;
+  ${media.mobile} { padding-top: 6px; }
+`;
 const SubTabBtn = styled.button<{ $active: boolean }>`
   padding: 7px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
   border: none; border-bottom: 2px solid ${p => p.$active ? '#FFD700' : 'transparent'};
   background: ${p => p.$active ? 'rgba(255,215,0,0.10)' : 'transparent'};
   color: ${p => p.$active ? '#FFD700' : 'rgba(255,255,255,0.4)'};
-  border-radius: 8px 8px 0 0; transition: all 0.2s; display:flex;align-items:center;gap:6px;
+  border-radius: 8px 8px 0 0; transition: all 0.2s;
+  display:flex;align-items:center;gap:6px;
   &:hover { color: #FFD700; }
-  ${lMedia.phoneSm} {
-    padding: 5px 12px;
-    font-size: 11px;
-  }
+
+  ${media.tablet} { padding: 6px 14px; font-size: 12px; }
+  ${media.mobile} { padding: 5px 10px; font-size: 11px; }
+  ${lMedia.phoneSm} { padding: 5px 10px; font-size: 11px; }
 `;
 const RankBadge = styled.span`
   font-size: 10px; padding: 1px 6px; border-radius: 10px;
@@ -446,10 +497,10 @@ const CategoryTabRow = styled.div`
   flex-shrink:0;
   &::-webkit-scrollbar { height:3px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.3); border-radius:2px; }
-  ${lMedia.phoneSm} {
-    padding: 6px 10px 0;
-    gap: 1px;
-  }
+
+  ${media.tablet} { padding: 8px 12px 0; }
+  ${media.mobile} { padding: 7px 10px 0; gap: 1px; }
+  ${lMedia.phoneSm} { padding: 6px 10px 0; }
 `;
 const CatTab = styled.button<{ $active: boolean }>`
   display:flex;align-items:center;gap:4px; white-space:nowrap;
@@ -459,6 +510,9 @@ const CatTab = styled.button<{ $active: boolean }>`
   color: ${p => p.$active ? '#fff' : 'rgba(255,255,255,0.35)'};
   border-bottom: 2px solid ${p => p.$active ? 'rgba(255,255,255,0.4)' : 'transparent'};
   &:hover { color:#fff; }
+
+  ${media.mobile} { padding: 5px 9px; font-size: 10px; }
+  ${lMedia.phoneSm} { padding: 5px 9px; font-size: 10px; }
 `;
 const TabBadge = styled.span`
   font-size: 9px; padding: 1px 5px; background:rgba(255,255,255,0.10); border-radius:6px;
@@ -470,38 +524,66 @@ const AchievementScroll = styled.div`
   display:flex; flex-direction:column; gap:16px;
   &::-webkit-scrollbar { width:5px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.25); border-radius:3px; }
-  ${lMedia.phoneSm} {
-    padding: 8px 10px 16px;
-    gap: 10px;
-  }
+
+  ${media.tablet} { padding: 10px 14px 16px; gap: 12px; }
+  ${media.mobile} { padding: 8px 10px 16px; gap: 10px; }
+  ${lMedia.phoneSm} { padding: 8px 10px 14px; gap: 8px; }
 `;
 
 const LoadingMsg = styled.div`
   display:flex;align-items:center;justify-content:center;
   color:rgba(255,255,255,0.35);font-size:14px;padding:60px;
+  ${media.mobile} { padding: 40px; font-size: 13px; }
 `;
 const EmptyMsg = styled.div`
   text-align:center;color:rgba(255,255,255,0.3);padding:40px;font-size:14px;
+  ${media.mobile} { padding: 28px; font-size: 13px; }
 `;
 
 // ── 티어 섹션
-const TierSection = styled.div`display:flex;flex-direction:column;gap:8px;`;
+const TierSection = styled.div`display:flex;flex-direction:column;gap:8px;
+  ${media.mobile} { gap: 6px; }
+`;
 const TierHeader = styled.div<{ $color: string }>`
   display:flex;align-items:center;justify-content:space-between;
   padding: 4px 8px;
   border-left: 3px solid ${p => p.$color};
   padding-left: 12px;
 `;
-const TierLabel = styled.span`font-size:13px;font-weight:800;color:rgba(255,255,255,0.85);`;
-const TierPts = styled.span`font-size:11px;color:rgba(255,255,255,0.35);`;
+const TierLabel = styled.span`font-size:13px;font-weight:800;color:rgba(255,255,255,0.85);
+  ${media.mobile} { font-size: 12px; }
+`;
+const TierPts = styled.span`font-size:11px;color:rgba(255,255,255,0.35);
+  ${media.mobile} { font-size: 10px; }
+`;
 
+/**
+ * TierGrid:
+ *  데스크탑: auto-fill minmax(320px, 1fr) → 2~3열
+ *  태블릿 세로: 2열 (minmax 220px)
+ *  모바일 세로: 1열
+ *  태블릿 가로: 2열
+ *  폰 가로: 1열
+ */
 const TierGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 8px;
-  ${lMedia.phoneSm} {
+
+  ${media.tablet} {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 7px;
+  }
+  ${media.mobile} {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+  ${lMedia.tablet} {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  ${lMedia.phoneSm} {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
 `;
 
@@ -545,6 +627,9 @@ const AchCard = styled.div<{
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
     opacity: 1;
   }
+
+  ${media.mobile} { padding: 10px 12px; gap: 10px; border-radius: 10px; }
+  ${lMedia.phoneSm} { padding: 9px 11px; gap: 9px; }
 `;
 
 const CardIcon = styled.div<{ $unlocked: boolean; $tier: string; $color: string }>`
@@ -556,6 +641,9 @@ const CardIcon = styled.div<{ $unlocked: boolean; $tier: string; $color: string 
     ? `rgba(${p.$color.replace('#','').match(/.{2}/g)!.map(h=>parseInt(h,16)).join(',')}, 0.15)`
     : 'rgba(255,255,255,0.05)'};
   filter: ${p => p.$unlocked ? 'none' : 'grayscale(70%)'};
+
+  ${media.mobile} { width: 38px; height: 38px; font-size: 20px; }
+  ${lMedia.phoneSm} { width: 36px; height: 36px; font-size: 19px; }
 `;
 
 const CardBody = styled.div`flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;`;
@@ -564,6 +652,7 @@ const CardNameRow = styled.div`display:flex;align-items:center;gap:6px;flex-wrap
 const CardName = styled.span<{ $unlocked: boolean; $color: string }>`
   font-size:13px; font-weight:700;
   color: ${p => p.$unlocked ? p.$color : 'rgba(255,255,255,0.7)'};
+  ${media.mobile} { font-size: 12px; }
 `;
 
 const CompletionBadge = styled.span<{ $color: string }>`
@@ -577,13 +666,18 @@ const UnlockedMark = styled.span<{ $color: string }>`
   color: ${p => p.$color}; opacity:0.8;
 `;
 
-const CardDesc = styled.div`font-size:11px;color:rgba(255,255,255,0.4);line-height:1.4;`;
+const CardDesc = styled.div`
+  font-size:11px;color:rgba(255,255,255,0.4);line-height:1.4;
+  ${media.mobile} { font-size: 10.5px; }
+`;
 
 const CardBottom = styled.div`display:flex;align-items:center;gap:8px;margin-top:4px;`;
 
 const MiniBar = styled.div`
   flex:1; max-width:140px; height:4px;
   background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;
+
+  ${media.mobile} { max-width: 100px; }
 `;
 const MiniFill = styled.div<{ $pct: number; $color: string }>`
   height:100%; width:${p => p.$pct}%;
@@ -601,19 +695,40 @@ const RankingScroll = styled.div`
   display:flex; flex-direction:column; gap:4px;
   &::-webkit-scrollbar { width:5px; }
   &::-webkit-scrollbar-thumb { background:rgba(255,215,0,0.25); border-radius:3px; }
-  ${lMedia.phoneSm} {
-    padding: 8px 10px 16px;
-  }
+
+  ${media.tablet} { padding: 10px 14px 16px; }
+  ${media.mobile} { padding: 8px 10px 16px; }
+  ${lMedia.phoneSm} { padding: 8px 10px 14px; }
 `;
 
+/**
+ * 랭킹 헤더/행 컬럼:
+ *  데스크탑: 60px 1fr 100px 100px (4열)
+ *  태블릿:   44px 1fr 80px 80px   (4열, 축소)
+ *  모바일:   44px 1fr 80px        (3열 — Count 숨김)
+ */
 const RankingHeader = styled.div`
   display:grid; grid-template-columns:60px 1fr 100px 100px;
   padding:6px 14px; font-size:11px; font-weight:700;
   color:rgba(255,255,255,0.3); border-bottom:1px solid rgba(255,255,255,0.08);
   margin-bottom:4px;
+
+  ${media.tablet} {
+    grid-template-columns: 44px 1fr 80px 80px;
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+  ${media.mobile} {
+    grid-template-columns: 44px 1fr 80px;
+    padding: 5px 8px;
+    font-size: 10px;
+    /* Count 열 숨김 */
+    & > span:nth-child(3) { display: none; }
+  }
   ${lMedia.phoneSm} {
     grid-template-columns: 44px 1fr 80px;
     padding: 5px 8px;
+    font-size: 10px;
     & > span:nth-child(3) { display: none; }
   }
 `;
@@ -628,6 +743,15 @@ const RankRow = styled.div<{ $isMe: boolean; $rank: number }>`
   border: 1px solid ${p => p.$isMe ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.05)'};
   transition: background 0.15s;
   &:hover { background: rgba(255,255,255,0.06); }
+
+  ${media.tablet} {
+    grid-template-columns: 44px 1fr 80px 80px;
+    padding: 8px 10px;
+  }
+  ${media.mobile} {
+    grid-template-columns: 44px 1fr 80px;
+    padding: 8px 8px;
+  }
   ${lMedia.phoneSm} {
     grid-template-columns: 44px 1fr 80px;
     padding: 8px;
@@ -638,23 +762,37 @@ const RankNum = styled.div<{ $rank: number }>`
   font-size:${p => p.$rank <= 3 ? '18px' : '13px'};
   font-weight:800;
   color:${p => p.$rank === 1 ? '#FFD700' : p.$rank === 2 ? '#C0C0C0' : p.$rank === 3 ? '#CD7F32' : 'rgba(255,255,255,0.5)'};
+
+  ${media.mobile} { font-size:${p => p.$rank <= 3 ? '16px' : '12px'}; }
 `;
 
 const RankName = styled.div<{ $isMe: boolean }>`
   font-size:13px; font-weight:${p => p.$isMe ? 700 : 500};
   color:${p => p.$isMe ? '#FFD700' : 'rgba(255,255,255,0.8)'};
   display:flex;align-items:center;gap:6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+
+  ${media.mobile} { font-size: 12px; }
 `;
 
 const MeTag = styled.span`
   font-size:10px; padding:1px 6px; border-radius:8px;
   background:rgba(255,215,0,0.2); color:#FFD700; font-weight:700;
+  flex-shrink: 0;
 `;
 
-const RankStat = styled.div`font-size:12px;color:rgba(255,255,255,0.45);text-align:right;
+/**
+ * RankStat: 모바일 세로 + 폰 가로에서 숨겨 3열 레이아웃 유지
+ */
+const RankStat = styled.div`
+  font-size:12px;color:rgba(255,255,255,0.45);text-align:right;
+
+  ${media.mobile} { display: none; }
   ${lMedia.phoneSm} { display: none; }
 `;
 const RankAP = styled.div`
   font-size:13px;font-weight:700;color:#FFD700;
   text-shadow:0 0 8px rgba(255,215,0,0.4);text-align:right;
+
+  ${media.mobile} { font-size: 12px; }
 `;

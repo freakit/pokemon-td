@@ -10,7 +10,7 @@
 
 import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia, media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
 // ─── localStorage 헬퍼 ───────────────────────────────────────────────────────
@@ -24,7 +24,9 @@ export const hasMultiTutorialSeen  = () => localStorage.getItem(KEYS.multi) === 
 export const markTowerTutorialSeen = () => localStorage.setItem(KEYS.tower, 'true');
 export const markMultiTutorialSeen = () => localStorage.setItem(KEYS.multi, 'true');
 
-// ─── 슬라이드 데이터 ─────────────────────────────────────────────────────────
+// ─── 슬라이드 타입 ───────────────────────────────────────────────────────────
+type TFunc = (key: string, params?: Record<string, string | number>) => string;
+
 type Slide = {
   icon: string;
   title: string;
@@ -32,196 +34,170 @@ type Slide = {
   details: { icon: string; text: string }[];
 };
 
-const TOWER_SLIDES: Slide[] = [
+// 슬라이드 데이터를 t() 함수로 동적 생성 → i18n 완전 적용
+// (컴포넌트 외부 상수 대신 함수로 분리해 언어 변경 시 자동 반영)
+const buildTowerSlides = (t: TFunc): Slide[] => [
   {
     icon: '🏰',
-    title: '포켓몬 타워 디펜스',
-    desc: '포켓몬을 배치해 밀려오는 적을 막으세요!\n라이프가 0이 되기 전에 웨이브 50을 버텨야 합니다.',
+    title: t('tutorial.tower.slide0.title'),
+    desc:  t('tutorial.tower.slide0.desc'),
     details: [
-      { icon: '❤️', text: '라이프: 적이 끝까지 돌파하면 1씩 감소' },
-      { icon: '💰', text: '골드: 적 처치·웨이브 클리어 시 획득' },
-      { icon: '🎯', text: '목표: 웨이브 50을 모두 클리어!' },
+      { icon: '❤️', text: t('tutorial.tower.slide0.d0') },
+      { icon: '💰', text: t('tutorial.tower.slide0.d1') },
+      { icon: '🎯', text: t('tutorial.tower.slide0.d2') },
     ],
   },
   {
     icon: '🛒',
-    title: '포켓몬 구매 & 배치',
-    desc: '하단 우측 버튼으로 포켓몬을 구매하고,\n초록색 격자칸을 클릭해 배치하세요.',
+    title: t('tutorial.tower.slide1.title'),
+    desc:  t('tutorial.tower.slide1.desc'),
     details: [
-      { icon: '🔵', text: '진입 비용 20G + 등급 비용 차감' },
-      { icon: '🚫', text: '경로(어두운 타일) 위에는 배치 불가' },
-      { icon: '🔄', text: '웨이브 종료 후 자유롭게 재배치 가능' },
+      { icon: '🔵', text: t('tutorial.tower.slide1.d0') },
+      { icon: '🚫', text: t('tutorial.tower.slide1.d1') },
+      { icon: '🔄', text: t('tutorial.tower.slide1.d2') },
     ],
   },
   {
     icon: '⚡',
-    title: '타입 상성 & 시너지',
-    desc: '포켓몬 타입 상성으로 더 큰 피해를 주세요!\n같은 타입·세대를 모으면 시너지 보너스 발동!',
+    title: t('tutorial.tower.slide2.title'),
+    desc:  t('tutorial.tower.slide2.desc'),
     details: [
-      { icon: '🔥', text: '약점 타입 공격 시 최대 2배 피해' },
-      { icon: '💎', text: '같은 타입 2/4/6마리 → 능력치 버프' },
-      { icon: '🧬', text: '진화·메가진화로 더욱 강력하게 성장' },
+      { icon: '🔥', text: t('tutorial.tower.slide2.d0') },
+      { icon: '💎', text: t('tutorial.tower.slide2.d1') },
+      { icon: '🧬', text: t('tutorial.tower.slide2.d2') },
     ],
   },
   {
     icon: '🎁',
-    title: '웨이브 보상',
-    desc: '웨이브 클리어 후 보상 아이템을 선택하세요.',
+    title: t('tutorial.tower.slide3.title'),
+    desc:  t('tutorial.tower.slide3.desc'),
     details: [
-      { icon: '🍬', text: '이상한 사탕: 포켓몬 1마리 레벨업' },
-      { icon: '💊', text: '기력의 조각: 기절 포켓몬 50% HP로 부활' },
-      { icon: '✨', text: '메가스톤/다이버섯: 메가진화·거다이맥스' },
+      { icon: '🍬', text: t('tutorial.tower.slide3.d0') },
+      { icon: '💊', text: t('tutorial.tower.slide3.d1') },
+      { icon: '✨', text: t('tutorial.tower.slide3.d2') },
     ],
   },
 ];
 
-// 멀티플레이 + TFT 통합 슬라이드
-const MULTI_SLIDES: Slide[] = [
+const buildMultiSlides = (t: TFunc): Slide[] => [
   {
     icon: '👥',
-    title: '멀티플레이 모드',
-    desc: '최대 8인이 동시에 타워 디펜스를 진행하며\n서로 경쟁하는 PvP 배틀 모드입니다!',
-
+    title: t('tutorial.multi.slide0.title'),
+    desc:  t('tutorial.multi.slide0.desc'),
     details: [
-      { icon: '🏠', text: '방 만들기 또는 기존 방 참가' },
-      { icon: '🤖', text: 'AI 봇으로 인원 자동 채움 가능' },
-      { icon: '🚀', text: '모든 플레이어 준비 완료 시 게임 시작' },
+      { icon: '🏠', text: t('tutorial.multi.slide0.d0') },
+      { icon: '🤖', text: t('tutorial.multi.slide0.d1') },
+      { icon: '🚀', text: t('tutorial.multi.slide0.d2') },
     ],
   },
   {
     icon: '🔄',
-    title: '페이즈 흐름',
-    desc: '쇼핑 → 웨이브 → 배틀, 이 세 페이즈가 매 라운드 반복됩니다.',
+    title: t('tutorial.multi.slide1.title'),
+    desc:  t('tutorial.multi.slide1.desc'),
     details: [
-      { icon: '🛒', text: '쇼핑: 포켓몬 구매·배치·업그레이드' },
-      { icon: '🌊', text: '웨이브: 모든 플레이어 동시에 타워 디펜스 진행' },
-      { icon: '⚔️', text: '배틀: 무작위 상대와 내 팀 vs 상대 팀 자동 전투' },
+      { icon: '🛒', text: t('tutorial.multi.slide1.d0') },
+      { icon: '🌊', text: t('tutorial.multi.slide1.d1') },
+      { icon: '⚔️', text: t('tutorial.multi.slide1.d2') },
     ],
   },
   {
-    icon: '💥',
-    title: '배틀 & 라이프',
-    desc: '배틀에서 지면 상대 생존 포켓몬 수만큼 라이프가 깎입니다.\n라이프 0이 되면 탈락!',
+    icon: '⚔️',
+    title: t('tutorial.multi.slide2.title'),
+    desc:  t('tutorial.multi.slide2.desc'),
     details: [
-      { icon: '❤️', text: '시작 라이프 50 — 배틀 패배마다 감소' },
-      { icon: '🏆', text: '마지막까지 라이프가 남은 1인이 우승' },
-      { icon: '📈', text: '승패에 따라 레이팅이 변동됨' },
+      { icon: '🎲', text: t('tutorial.multi.slide2.d0') },
+      { icon: '💀', text: t('tutorial.multi.slide2.d1') },
+      { icon: '🏆', text: t('tutorial.multi.slide2.d2') },
     ],
   },
   {
     icon: '🎮',
-    title: 'TFT 배틀 아레나',
-    desc: '배틀 페이즈엔 포켓몬들이 7×4 보드 위에서\n직접 이동하며 싸우는 실시간 전투입니다!',
+    title: t('tutorial.multi.slide3.title'),
+    desc:  t('tutorial.multi.slide3.desc'),
     details: [
-      { icon: '🟦', text: '상단 2행: 상대 팀 / 하단 2행: 내 팀' },
-      { icon: '👆', text: '배틀 전 준비 시간에 포켓몬 위치 재배치 가능' },
-      { icon: '⚡', text: '타입 상성·스탯 그대로 반영 — 시너지 맞출수록 유리!' },
+      { icon: '🗺️', text: t('tutorial.multi.slide3.d0') },
+      { icon: '⏳', text: t('tutorial.multi.slide3.d1') },
+      { icon: '⭐', text: t('tutorial.multi.slide3.d2') },
     ],
   },
 ];
 
-// ─── 모드별 디자인 ────────────────────────────────────────────────────────────
-type TutorialMode = 'tower' | 'multi';
-
-const MODES: Record<TutorialMode, {
-  accent: string;
-  accentBg: string;
-  accentBorder: string;
-  btnGrad: string;
-  btnShadow: string;
-}> = {
-  tower: {
-    accent: '#4fc3f7',
-    accentBg: 'rgba(79,195,247,0.1)',
-    accentBorder: 'rgba(79,195,247,0.25)',
-    btnGrad: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
-    btnShadow: 'rgba(14,165,233,0.45)',
-  },
-  multi: {
-    accent: '#34d399',
-    accentBg: 'rgba(52,211,153,0.1)',
-    accentBorder: 'rgba(52,211,153,0.25)',
-    btnGrad: 'linear-gradient(135deg, #10b981, #059669)',
-    btnShadow: 'rgba(16,185,129,0.45)',
-  },
-};
-
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── 메인 컴포넌트 ───────────────────────────────────────────────────────────
 interface TutorialModalProps {
-  mode: TutorialMode;
+  mode: 'tower' | 'multi';
   onClose: () => void;
   onProceed?: () => void;
 }
 
-// ─── 컴포넌트 ─────────────────────────────────────────────────────────────────
 export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onProceed }) => {
   const { t } = useTranslation();
-  const cfg = MODES[mode];
 
-  // 슬라이드를 번역 키에서 동적으로 빌드
-  const SLIDE_ICONS = { tower: ['🏰','🛒','⚡','🎁'], multi: ['👥','🔄','💥','🎮'] };
-  type SlideKey = 'slide0' | 'slide1' | 'slide2' | 'slide3';
-  const slides: Slide[] = [0, 1, 2, 3].map(i => {
-    const k = `slide${i}` as SlideKey;
-    const base = t(`tutorial.${mode}.${k}.title`);
-    return {
-      icon: SLIDE_ICONS[mode][i],
-      title: base !== `tutorial.${mode}.${k}.title` ? base : (mode === 'tower' ? TOWER_SLIDES[i].title : MULTI_SLIDES[i].title),
-      desc: (() => { const v = t(`tutorial.${mode}.${k}.desc`); return v !== `tutorial.${mode}.${k}.desc` ? v : (mode === 'tower' ? TOWER_SLIDES[i].desc : MULTI_SLIDES[i].desc); })(),
-      details: [
-        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[0].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d0`); return v !== `tutorial.${mode}.${k}.d0` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[0].text; })() },
-        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[1].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d1`); return v !== `tutorial.${mode}.${k}.d1` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[1].text; })() },
-        { icon: (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[2].icon, text: (() => { const v = t(`tutorial.${mode}.${k}.d2`); return v !== `tutorial.${mode}.${k}.d2` ? v : (mode === 'tower' ? TOWER_SLIDES : MULTI_SLIDES)[i].details[2].text; })() },
-      ],
-    };
-  });
+  // t를 받아 슬라이드 생성 — 언어 변경 시 자동 반영
+  const slides = mode === 'tower' ? buildTowerSlides(t) : buildMultiSlides(t);
 
   const [page, setPage]         = useState(0);
+  const [dir, setDir]           = useState<'fwd' | 'bck'>('fwd');
   const [dontShow, setDontShow] = useState(false);
   const [exiting, setExiting]   = useState(false);
-  const [dir, setDir]           = useState<'fwd' | 'bck'>('fwd');
+
+  const accent = mode === 'tower' ? '#4fc3f7' : '#a78bfa';
+  const grad   = mode === 'tower'
+    ? 'linear-gradient(135deg,#0284c7,#0369a1)'
+    : 'linear-gradient(135deg,#7c3aed,#6d28d9)';
+  const shadow = mode === 'tower' ? 'rgba(3,105,161,0.55)' : 'rgba(109,40,217,0.55)';
 
   const isLast = page === slides.length - 1;
-  const slide  = slides[page];
 
-  const dismiss = (proceed: boolean) => {
-    if (dontShow) {
-      if (mode === 'tower') markTowerTutorialSeen();
-      else markMultiTutorialSeen();
-    }
+  const close = (proceed = false) => {
     setExiting(true);
     setTimeout(() => {
+      if (dontShow) {
+        if (mode === 'tower') markTowerTutorialSeen();
+        else                  markMultiTutorialSeen();
+      }
       if (proceed && onProceed) onProceed();
       else onClose();
     }, 260);
   };
 
-  const goNext = () => { if (isLast) { dismiss(true); return; } setDir('fwd'); setPage(p => p + 1); };
-  const goPrev = () => { if (page === 0) return; setDir('bck'); setPage(p => p - 1); };
-  const goPage = (i: number) => { setDir(i > page ? 'fwd' : 'bck'); setPage(i); };
+  const go = (next: number) => {
+    setDir(next > page ? 'fwd' : 'bck');
+    setPage(next);
+  };
+
+  const slide = slides[page];
+
+  // 모드 태그 라벨 — 번역값 앞뒤 공백 제거 후 이모지 결합
+  const modeLabel = mode === 'tower'
+    ? `🏰 ${t('tutorial.tower.label').trim()}`
+    : `👥 ${t('tutorial.multi.label').trim()}`;
 
   return (
-    <Overlay $exiting={exiting} onClick={e => e.target === e.currentTarget && dismiss(false)}>
-      <Modal $exiting={exiting}>
-        <TopBar $accent={cfg.accent} />
+    <Overlay $exiting={exiting} onClick={() => close()}>
+      <Modal $exiting={exiting} onClick={e => e.stopPropagation()}>
+        <TopBar $accent={accent} />
 
         <Header>
-          <ModeTag $bg={cfg.accentBg} $border={cfg.accentBorder} $color={cfg.accent}>
-          {t(`tutorial.${mode}.label`)}
+          <ModeTag
+            $bg={mode === 'tower' ? 'rgba(3,105,161,0.18)' : 'rgba(124,58,237,0.18)'}
+            $border={mode === 'tower' ? 'rgba(3,105,161,0.45)' : 'rgba(124,58,237,0.45)'}
+            $color={accent}
+          >
+            {modeLabel}
           </ModeTag>
-          <PageInfo $color={cfg.accent}>{page + 1} / {slides.length}</PageInfo>
-          <CloseX onClick={() => dismiss(false)} aria-label="닫기">✕</CloseX>
+          <PageInfo $color={accent}>{page + 1} / {slides.length}</PageInfo>
+          <CloseX onClick={() => close()}>✕</CloseX>
         </Header>
 
-        <SlideArea key={`${page}-${dir}`} $dir={dir}>
+        <SlideArea $dir={dir} key={page}>
           <SlideIcon>{slide.icon}</SlideIcon>
           <SlideTitle>{slide.title}</SlideTitle>
           <SlideDesc>{slide.desc}</SlideDesc>
           <DetailList>
-            {slide.details.map((item, i) => (
+            {slide.details.map((d, i) => (
               <DetailRow key={i} $delay={i}>
-                <DetailIcon>{item.icon}</DetailIcon>
-                <DetailText>{item.text}</DetailText>
+                <DetailIcon>{d.icon}</DetailIcon>
+                <DetailText>{d.text}</DetailText>
               </DetailRow>
             ))}
           </DetailList>
@@ -229,7 +205,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
 
         <Dots>
           {slides.map((_, i) => (
-            <Dot key={i} $active={i === page} $accent={cfg.accent} onClick={() => goPage(i)} />
+            <Dot key={i} $active={i === page} $accent={accent} onClick={() => go(i)} />
           ))}
         </Dots>
 
@@ -237,16 +213,26 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
           <DontShowRow>
             <Checkbox
               type="checkbox"
-              id={`dontShow-${mode}`}
+              id="dontShow"
               checked={dontShow}
               onChange={e => setDontShow(e.target.checked)}
             />
-            <label htmlFor={`dontShow-${mode}`}>{t('tutorial.dontShowAgain')}</label>
+            <label htmlFor="dontShow">{t('tutorial.dontShowAgain')}</label>
           </DontShowRow>
+
           <NavButtons>
-            {page > 0 && <PrevBtn onClick={goPrev}>{t('tutorial.prev')}</PrevBtn>}
-            <NextBtn $grad={cfg.btnGrad} $shadow={cfg.btnShadow} $isLast={isLast} onClick={goNext}>
-              {isLast ? t('tutorial.start') : t('tutorial.next')}
+            {page > 0 && (
+              <PrevBtn onClick={() => go(page - 1)}>{t('tutorial.prev')}</PrevBtn>
+            )}
+            <NextBtn
+              $grad={grad}
+              $shadow={shadow}
+              $isLast={isLast}
+              onClick={() => isLast ? close(true) : go(page + 1)}
+            >
+              {isLast
+                ? (onProceed ? `${t('tutorial.start')} 🚀` : t('tutorial.next'))
+                : t('tutorial.next')}
             </NextBtn>
           </NavButtons>
         </Footer>
@@ -255,7 +241,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
   );
 };
 
-// ─── 애니메이션 ───────────────────────────────────────────────────────────────
+// ─── Animation keyframes ──────────────────────────────────────────────────────
 const fadeIn   = keyframes`from{opacity:0}to{opacity:1}`;
 const fadeOut  = keyframes`from{opacity:1}to{opacity:0}`;
 const modalIn  = keyframes`from{opacity:0;transform:translateY(28px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}`;
@@ -265,144 +251,227 @@ const slideBck = keyframes`from{opacity:0;transform:translateX(-22px)}to{opacity
 const iconFloat = keyframes`0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-9px) scale(1.07)}70%{transform:translateY(-3px) scale(1.02)}`;
 const rowPop   = keyframes`from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}`;
 
-// ─── Styled ───────────────────────────────────────────────────────────────────
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div<{ $exiting: boolean }>`
-  position:fixed;inset:0;
-  background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);
-  display:flex;align-items:center;justify-content:center;
-  z-index:9999;padding:16px;
-  ${lMedia.phoneSm} { padding: 8px; }
-  animation:${p => p.$exiting ? css`${fadeOut} .26s ease forwards` : css`${fadeIn} .22s ease forwards`};
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: ${p => p.$exiting
+    ? css`${fadeOut} .26s ease forwards`
+    : css`${fadeIn} .22s ease forwards`};
+
+  ${media.mobile}   { padding: 12px; }
+  ${lMedia.phoneSm} { padding: 8px; align-items: flex-start; overflow-y: auto; }
 `;
 
 const Modal = styled.div<{ $exiting: boolean }>`
-  background:linear-gradient(160deg,#111827 0%,#0c1220 100%);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:22px;width:100%;max-width:460px;
-  ${lMedia.phoneSm} { border-radius: 14px; }
-  box-shadow:0 40px 100px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04);
-  overflow:hidden;
-  animation:${p => p.$exiting ? css`${modalOut} .26s ease forwards` : css`${modalIn} .32s cubic-bezier(.34,1.48,.64,1) forwards`};
+  background: linear-gradient(160deg,#111827 0%,#0c1220 100%);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 22px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 40px 100px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.04);
+  overflow: hidden;
+  animation: ${p => p.$exiting
+    ? css`${modalOut} .26s ease forwards`
+    : css`${modalIn} .32s cubic-bezier(.34,1.48,.64,1) forwards`};
+
+  ${media.tablet}   { max-width: 420px; border-radius: 18px; }
+  ${media.mobile}   { max-width: 100%;  border-radius: 16px; }
+  ${lMedia.phoneSm} { border-radius: 14px; max-width: 460px; margin: auto; }
 `;
 
 const TopBar = styled.div<{ $accent: string }>`
-  height:3px;
-  background:linear-gradient(90deg,transparent,${p => p.$accent},transparent);
-  background-size:200% 100%;
-  animation:sweep 2.4s linear infinite;
-  @keyframes sweep{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  height: 3px;
+  background: linear-gradient(90deg, transparent, ${p => p.$accent}, transparent);
+  background-size: 200% 100%;
+  animation: sweep 2.4s linear infinite;
+  @keyframes sweep { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 `;
 
 const Header = styled.div`
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:14px 18px 0;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 14px 18px 0;
+
+  ${media.mobile}   { padding: 11px 14px 0; }
   ${lMedia.phoneSm} { padding: 10px 12px 0; }
 `;
 
-const ModeTag = styled.span<{ $bg:string;$border:string;$color:string }>`
-  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:${p => p.$color};background:${p => p.$bg};border:1px solid ${p => p.$border};
-  padding:3px 10px;border-radius:20px;white-space:nowrap;
+const ModeTag = styled.span<{ $bg: string; $border: string; $color: string }>`
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: ${p => p.$color}; background: ${p => p.$bg}; border: 1px solid ${p => p.$border};
+  padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+
+  ${media.mobile} { font-size: 10px; padding: 2px 8px; }
 `;
 
 const PageInfo = styled.span<{ $color: string }>`
-  font-size:12px;font-weight:600;color:${p => p.$color};
-  opacity:.7;margin-left:auto;
+  font-size: 12px; font-weight: 600; color: ${p => p.$color};
+  opacity: .7; margin-left: auto;
 `;
 
 const CloseX = styled.button`
-  background:none;border:none;color:rgba(255,255,255,.3);font-size:15px;
-  cursor:pointer;line-height:1;padding:4px 7px;border-radius:7px;
-  transition:color .18s,background .18s;
-  &:hover{color:rgba(255,255,255,.75);background:rgba(255,255,255,.08)}
+  background: none; border: none; color: rgba(255,255,255,.3); font-size: 15px;
+  cursor: pointer; line-height: 1; padding: 4px 7px; border-radius: 7px;
+  transition: color .18s, background .18s;
+  &:hover { color: rgba(255,255,255,.75); background: rgba(255,255,255,.08) }
 `;
 
-const SlideArea = styled.div<{ $dir:'fwd'|'bck' }>`
-  padding:18px 26px 6px;
-  display:flex;flex-direction:column;align-items:center;text-align:center;
+const SlideArea = styled.div<{ $dir: 'fwd' | 'bck' }>`
+  padding: 18px 26px 6px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
   overflow-y: auto;
-  animation:${p => p.$dir === 'fwd' ? css`${slideFwd} .22s ease` : css`${slideBck} .22s ease`};
-  ${lMedia.phoneSm} {
-    padding: 12px 14px 4px;
-  }
+  animation: ${p => p.$dir === 'fwd'
+    ? css`${slideFwd} .22s ease`
+    : css`${slideBck} .22s ease`};
+
+  ${media.tablet}   { padding: 16px 22px 6px; }
+  ${media.mobile}   { padding: 14px 16px 4px; }
+  ${lMedia.phoneSm} { padding: 12px 14px 4px; }
 `;
 
 const SlideIcon = styled.div`
-  font-size:50px;line-height:1;margin-bottom:13px;
-  animation:${iconFloat} 3s ease-in-out infinite;
+  font-size: 50px; line-height: 1; margin-bottom: 13px;
+  animation: ${iconFloat} 3s ease-in-out infinite;
+
+  ${media.tablet}   { font-size: 44px; margin-bottom: 10px; }
+  ${media.mobile}   { font-size: 38px; margin-bottom: 8px; }
+  ${lMedia.phoneSm} { font-size: 30px; margin-bottom: 6px; }
 `;
 
 const SlideTitle = styled.h2`
-  font-size:19px;font-weight:800;color:#f1f5f9;margin:0 0 9px;letter-spacing:-.025em;
+  font-size: 19px; font-weight: 800; color: #f1f5f9;
+  margin: 0 0 9px; letter-spacing: -.025em;
+
+  ${media.tablet}   { font-size: 17px; }
+  ${media.mobile}   { font-size: 16px; margin: 0 0 7px; }
+  ${lMedia.phoneSm} { font-size: 14px; margin: 0 0 5px; }
 `;
 
 const SlideDesc = styled.p`
-  font-size:13px;color:rgba(255,255,255,.55);line-height:1.7;margin:0 0 16px;white-space:pre-line;
+  font-size: 13px; color: rgba(255,255,255,.55);
+  line-height: 1.7; margin: 0 0 16px; white-space: pre-line;
+
+  ${media.tablet}   { font-size: 12.5px; }
+  ${media.mobile}   { font-size: 12px; margin: 0 0 12px; line-height: 1.6; }
+  ${lMedia.phoneSm} { font-size: 11px; margin: 0 0 8px; line-height: 1.5; }
 `;
 
-const DetailList = styled.div`width:100%;display:flex;flex-direction:column;gap:7px;`;
+const DetailList = styled.div`
+  width: 100%; display: flex; flex-direction: column; gap: 7px;
 
-const DetailRow = styled.div<{ $delay:number }>`
-  display:flex;align-items:flex-start;gap:10px;
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
-  border-radius:10px;padding:9px 13px;text-align:left;
-  animation:${rowPop} .28s ease both;
-  animation-delay:${p => p.$delay * .06}s;
+  ${media.mobile}   { gap: 5px; }
+  ${lMedia.phoneSm} { gap: 4px; }
 `;
 
-const DetailIcon = styled.span`font-size:16px;flex-shrink:0;line-height:1.5;`;
-const DetailText = styled.span`font-size:12.5px;color:rgba(255,255,255,.72);line-height:1.55;`;
+const DetailRow = styled.div<{ $delay: number }>`
+  display: flex; align-items: flex-start; gap: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+  border-radius: 10px; padding: 9px 13px; text-align: left;
+  animation: ${rowPop} .28s ease both;
+  animation-delay: ${p => p.$delay * .06}s;
+
+  ${media.mobile}   { padding: 7px 10px; gap: 8px; border-radius: 8px; }
+  ${lMedia.phoneSm} { padding: 6px 9px; gap: 7px; }
+`;
+
+const DetailIcon = styled.span`
+  font-size: 16px; flex-shrink: 0; line-height: 1.5;
+
+  ${media.mobile}   { font-size: 14px; }
+  ${lMedia.phoneSm} { font-size: 13px; }
+`;
+
+const DetailText = styled.span`
+  font-size: 12.5px; color: rgba(255,255,255,.72); line-height: 1.55;
+
+  ${media.mobile}   { font-size: 11.5px; }
+  ${lMedia.phoneSm} { font-size: 11px; line-height: 1.4; }
+`;
 
 const Dots = styled.div`
-  display:flex;justify-content:center;gap:6px;padding:14px 0 2px;
+  display: flex; justify-content: center; gap: 6px;
+  padding: 14px 0 2px;
+
+  ${media.mobile}   { padding: 10px 0 2px; }
+  ${lMedia.phoneSm} { padding: 7px 0 1px; }
 `;
 
-const Dot = styled.button<{ $active:boolean;$accent:string }>`
-  width:${p => p.$active ? '18px' : '6px'};height:6px;
-  border-radius:3px;border:none;cursor:pointer;padding:0;
-  background:${p => p.$active ? p.$accent : 'rgba(255,255,255,.16)'};
-  transition:width .22s ease,background .22s ease;
+const Dot = styled.button<{ $active: boolean; $accent: string }>`
+  width: ${p => p.$active ? '18px' : '6px'}; height: 6px;
+  border-radius: 3px; border: none; cursor: pointer; padding: 0;
+  background: ${p => p.$active ? p.$accent : 'rgba(255,255,255,.16)'};
+  transition: width .22s ease, background .22s ease;
+
+  ${media.mobile} {
+    width: ${p => p.$active ? '14px' : '5px'};
+    height: 5px;
+  }
 `;
 
 const Footer = styled.div`
-  padding:12px 22px 20px;display:flex;flex-direction:column;gap:10px;
+  padding: 12px 22px 20px;
+  display: flex; flex-direction: column; gap: 10px;
+
+  ${media.tablet}   { padding: 10px 18px 16px; }
+  ${media.mobile}   { padding: 8px 14px 14px; gap: 8px; }
+  ${lMedia.phoneSm} { padding: 6px 12px 12px; gap: 6px; }
 `;
 
 const DontShowRow = styled.div`
-  display:flex;align-items:center;gap:7px;
-  label{font-size:11.5px;color:rgba(255,255,255,.35);cursor:pointer;user-select:none}
+  display: flex; align-items: center; gap: 7px;
+  label { font-size: 11.5px; color: rgba(255,255,255,.35); cursor: pointer; user-select: none; }
+
+  ${media.mobile} { label { font-size: 11px; } }
 `;
 
 const Checkbox = styled.input`
-  width:14px;height:14px;accent-color:#4fc3f7;cursor:pointer;flex-shrink:0;
+  width: 14px; height: 14px; accent-color: #4fc3f7;
+  cursor: pointer; flex-shrink: 0;
 `;
 
-const NavButtons = styled.div`display:flex;gap:8px;`;
+const NavButtons = styled.div`
+  display: flex; gap: 8px;
+
+  ${media.mobile} { gap: 6px; }
+`;
 
 const PrevBtn = styled.button`
-  flex:0 0 auto;padding:10px 16px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
-  border-radius:11px;color:rgba(255,255,255,.55);
-  font-size:13px;font-weight:600;cursor:pointer;transition:background .18s, color .18s;
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  border-radius: 11px; color: rgba(255,255,255,.55);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background .18s, color .18s;
   @media (hover: hover) {
-    &:hover{background:rgba(255,255,255,.11);color:#fff;transform:translateY(-1px)}
+    &:hover { background: rgba(255,255,255,.11); color: #fff; transform: translateY(-1px); }
   }
+
+  ${media.mobile}   { padding: 8px 12px; font-size: 12px; border-radius: 9px; }
+  ${lMedia.phoneSm} { padding: 7px 10px; font-size: 11.5px; }
 `;
 
-const NextBtn = styled.button<{ $grad:string;$shadow:string;$isLast:boolean }>`
-  flex:1;padding:11px 18px;
-  background:${p => p.$isLast ? p.$grad : 'rgba(255,255,255,.08)'};
-  border:1px solid ${p => p.$isLast ? 'transparent' : 'rgba(255,255,255,.1)'};
-  border-radius:11px;
-  color:${p => p.$isLast ? '#fff' : 'rgba(255,255,255,.75)'};
-  font-size:13.5px;font-weight:700;cursor:pointer;
-  box-shadow:${p => p.$isLast ? `0 4px 18px ${p.$shadow}` : 'none'};
-  transition:box-shadow .18s, filter .18s;
+const NextBtn = styled.button<{ $grad: string; $shadow: string; $isLast: boolean }>`
+  flex: 1;
+  padding: 11px 18px;
+  background: ${p => p.$isLast ? p.$grad : 'rgba(255,255,255,.08)'};
+  border: 1px solid ${p => p.$isLast ? 'transparent' : 'rgba(255,255,255,.1)'};
+  border-radius: 11px;
+  color: ${p => p.$isLast ? '#fff' : 'rgba(255,255,255,.75)'};
+  font-size: 13.5px; font-weight: 700; cursor: pointer;
+  box-shadow: ${p => p.$isLast ? `0 4px 18px ${p.$shadow}` : 'none'};
+  transition: box-shadow .18s, filter .18s;
   @media (hover: hover) {
-    &:hover{
-      transform:translateY(-1px);
-      box-shadow:${p => p.$isLast ? `0 6px 22px ${p.$shadow}` : '0 3px 10px rgba(0,0,0,.25)'};
-      filter:brightness(1.08);
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: ${p => p.$isLast ? `0 6px 22px ${p.$shadow}` : '0 3px 10px rgba(0,0,0,.25)'};
+      filter: brightness(1.08);
     }
   }
+
+  ${media.mobile}   { padding: 9px 14px; font-size: 12.5px; border-radius: 9px; }
+  ${lMedia.phoneSm} { padding: 7px 12px; font-size: 12px; }
 `;

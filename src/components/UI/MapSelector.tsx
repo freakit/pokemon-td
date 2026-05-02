@@ -1,7 +1,7 @@
 // src/components/UI/MapSelector.tsx
 import React, { useState } from "react";
 import styled, { css } from "styled-components";
-import { media } from "../../utils/responsive.utils";
+import { media, lMedia } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
@@ -41,130 +41,67 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
   const getDifficultyColor = (diff: string) => {
     switch (diff) {
       case "easiest":
-        return {
-          bg: "rgba(209, 213, 219, 0.2)",
-          border: "#D1D5DB",
-          color: "#D1D5DB",
-          glow: "rgba(209, 213, 219, 0.4)",
-        };
+        return { bg: "rgba(209, 213, 219, 0.2)", border: "#D1D5DB", color: "#D1D5DB", glow: "rgba(209, 213, 219, 0.4)" };
       case "easy":
-        return {
-          bg: "rgba(46, 204, 113, 0.2)",
-          border: "#2ecc71",
-          color: "#2ecc71",
-          glow: "rgba(46, 204, 113, 0.4)",
-        };
+        return { bg: "rgba(46, 204, 113, 0.2)", border: "#2ecc71", color: "#2ecc71", glow: "rgba(46, 204, 113, 0.4)" };
       case "medium":
-        return {
-          bg: "rgba(52, 152, 219, 0.2)",
-          border: "#3498db",
-          color: "#3498db",
-          glow: "rgba(52, 152, 219, 0.4)",
-        };
+        return { bg: "rgba(52, 152, 219, 0.2)", border: "#3498db", color: "#3498db", glow: "rgba(52, 152, 219, 0.4)" };
       case "hard":
-        return {
-          bg: "rgba(243, 156, 18, 0.2)",
-          border: "#f39c12",
-          color: "#f39c12",
-          glow: "rgba(243, 156, 18, 0.4)",
-        };
+        return { bg: "rgba(243, 156, 18, 0.2)", border: "#f39c12", color: "#f39c12", glow: "rgba(243, 156, 18, 0.4)" };
       case "expert":
-        return {
-          bg: "rgba(231, 76, 60, 0.2)",
-          border: "#e74c3c",
-          color: "#e74c3c",
-          glow: "rgba(231, 76, 60, 0.4)",
-        };
+        return { bg: "rgba(231, 76, 60, 0.2)", border: "#e74c3c", color: "#e74c3c", glow: "rgba(231, 76, 60, 0.4)" };
       default:
-        return {
-          bg: "rgba(149, 165, 166, 0.2)",
-          border: "#95a5a6",
-          color: "#95a5a6",
-          glow: "rgba(149, 165, 166, 0.4)",
-        };
+        return { bg: "rgba(149, 165, 166, 0.2)", border: "#95a5a6", color: "#95a5a6", glow: "rgba(149, 165, 166, 0.4)" };
     }
   };
 
   const getBackgroundEmoji = (bgType: string) => {
     switch (bgType) {
-      case "grass":
-        return "🌿";
-      case "desert":
-        return "🏜️";
-      case "snow":
-        return "❄️";
-      case "cave":
-        return "🌋";
-      case "water":
-        return "🌊";
-      default:
-        return "🗺️";
+      case "grass":  return "🌿";
+      case "desert": return "🏜️";
+      case "snow":   return "❄️";
+      case "cave":   return "🌋";
+      case "water":  return "🌊";
+      default:       return "🗺️";
     }
   };
 
   const getDifficultyText = (diff: DifficultyFilter) => {
     switch (diff) {
       case "easiest": return t('mapSelector.easiest');
-      case "easy": return t('mapSelector.easy');
-      case "medium": return t('mapSelector.medium');
-      case "hard": return t('mapSelector.hard');
-      case "expert": return t('mapSelector.expert');
-      default: return '';
+      case "easy":    return t('mapSelector.easy');
+      case "medium":  return t('mapSelector.medium');
+      case "hard":    return t('mapSelector.hard');
+      case "expert":  return t('mapSelector.expert');
+      default:        return '';
     }
-  }
+  };
 
   return (
     <Fullscreen>
       <Container>
         <TitleSection>
-          <Logo
-            src="/images/pokemon-aegis.png"
-            alt="Pokemon Aegis Logo"
-          />
+          <Logo src="/images/pokemon-aegis.png" alt="Pokemon Aegis Logo" />
           <Subtitle>{t('mapSelector.subtitle')}</Subtitle>
         </TitleSection>
 
         <DifficultySelector>
-          <DiffBtn
-            onClick={() => setSelectedFilter(null)}
-            $isActive={selectedFilter === null}
-          >
+          <DiffBtn onClick={() => setSelectedFilter(null)} $isActive={selectedFilter === null}>
             {t('mapSelector.filterAll')}
           </DiffBtn>
-
-          <DiffBtn
-            onClick={() => handleDifficultyFilter("easiest")}
-            $difficulty="easiest"
-            $isActive={selectedFilter === "easiest"}
-          >
+          <DiffBtn onClick={() => handleDifficultyFilter("easiest")} $difficulty="easiest" $isActive={selectedFilter === "easiest"}>
             ⚪ {t('mapSelector.easiest')}
           </DiffBtn>
-          <DiffBtn
-            onClick={() => handleDifficultyFilter("easy")}
-            $difficulty="easy"
-            $isActive={selectedFilter === "easy"}
-          >
+          <DiffBtn onClick={() => handleDifficultyFilter("easy")} $difficulty="easy" $isActive={selectedFilter === "easy"}>
             🟢 {t('mapSelector.easy')}
           </DiffBtn>
-          <DiffBtn
-            onClick={() => handleDifficultyFilter("medium")}
-            $difficulty="medium"
-            $isActive={selectedFilter === "medium"}
-          >
+          <DiffBtn onClick={() => handleDifficultyFilter("medium")} $difficulty="medium" $isActive={selectedFilter === "medium"}>
             🔵 {t('mapSelector.medium')}
           </DiffBtn>
-          <DiffBtn
-            onClick={() => handleDifficultyFilter("hard")}
-            $difficulty="hard"
-            $isActive={selectedFilter === "hard"}
-          >
+          <DiffBtn onClick={() => handleDifficultyFilter("hard")} $difficulty="hard" $isActive={selectedFilter === "hard"}>
             🟠 {t('mapSelector.hard')}
           </DiffBtn>
-          <DiffBtn
-            onClick={() => handleDifficultyFilter("expert")}
-            $difficulty="expert"
-            $isActive={selectedFilter === "expert"}
-          >
+          <DiffBtn onClick={() => handleDifficultyFilter("expert")} $difficulty="expert" $isActive={selectedFilter === "expert"}>
             🔴 {t('mapSelector.expert')}
           </DiffBtn>
         </DifficultySelector>
@@ -173,24 +110,24 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
           {filteredMaps.map((map) => {
             const diffColor = getDifficultyColor(map.difficulty);
             return (
-              <Card
-                key={map.id}
-                onClick={() => handleSelect(map)}
-                $hoverGlow={diffColor.glow}
-              >
+              <Card key={map.id} onClick={() => handleSelect(map)} $hoverGlow={diffColor.glow}>
                 <CardGlow />
                 <CardHeader>
-                  <BgEmoji>
-                    {getBackgroundEmoji(map.backgroundType)}
-                  </BgEmoji>
-                  <DifficultyBadge
-                    $colors={diffColor}
-                  >
+                  <BgEmoji>{getBackgroundEmoji(map.backgroundType)}</BgEmoji>
+                  <DifficultyBadge $colors={diffColor}>
                     {getDifficultyText(map.difficulty as DifficultyFilter)}
                   </DifficultyBadge>
                 </CardHeader>
-                <MapName>{t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}</MapName>
-                <MapDescription>{t(`mapData.${map.id}.description`) !== `mapData.${map.id}.description` ? t(`mapData.${map.id}.description`) : map.description}</MapDescription>
+                <MapName>
+                  {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
+                    ? t(`mapData.${map.id}.name`)
+                    : map.name}
+                </MapName>
+                <MapDescription>
+                  {t(`mapData.${map.id}.description`) !== `mapData.${map.id}.description`
+                    ? t(`mapData.${map.id}.description`)
+                    : map.description}
+                </MapDescription>
               </Card>
             );
           })}
@@ -206,17 +143,29 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
   );
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
+/**
+ * height: 100% → min-height: 100vh 로 변경
+ * 부모 체인에 명시적 height 가 없어도 뷰포트를 채울 수 있음
+ */
 const Fullscreen = styled.div`
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   background: radial-gradient(ellipse at top, #1a2332 0%, #0f1419 50%, #000000 100%);
   display: flex;
   justify-content: center;
   overflow: auto;
   padding: 24px;
-  ${media.mobile} {
-    padding: 12px;
-  }
+
+  /* 태블릿 세로 */
+  ${media.tablet} { padding: 16px; }
+  /* 모바일 세로 */
+  ${media.mobile} { padding: 12px; }
+  /* 태블릿 가로 */
+  ${lMedia.tablet} { padding: 16px 20px; }
+  /* 폰 가로 */
+  ${lMedia.phoneSm} { padding: 8px 12px; }
 `;
 
 const Container = styled.div`
@@ -228,21 +177,25 @@ const Container = styled.div`
 const TitleSection = styled.div`
   text-align: center;
   margin-bottom: 24px;
-  ${media.mobile} {
-    margin-bottom: 12px;
-  }
+
+  ${media.tablet} { margin-bottom: 16px; }
+  ${media.mobile} { margin-bottom: 12px; }
+  ${lMedia.phoneSm} { margin-bottom: 8px; }
 `;
 
 const Logo = styled.img`
   filter: drop-shadow(0 0 40px rgba(76, 175, 255, 0.6));
   animation: pulse 3s ease-in-out infinite;
   height: 240px;
-  ${media.tablet} {
-    height: 160px;
-  }
-  ${media.mobile} {
-    height: 100px;
-  }
+
+  /* 태블릿 세로 */
+  ${media.tablet} { height: 160px; }
+  /* 모바일 세로 */
+  ${media.mobile} { height: 100px; }
+  /* 태블릿 가로 – 화면 높이가 제한되므로 대폭 축소 */
+  ${lMedia.tablet} { height: 120px; }
+  /* 폰 가로 */
+  ${lMedia.phoneSm} { height: 70px; }
 `;
 
 const Subtitle = styled.div`
@@ -250,9 +203,10 @@ const Subtitle = styled.div`
   color: #a8b8c8;
   font-weight: 600;
   margin-top: 8px;
-  ${media.mobile} {
-    font-size: 13px;
-  }
+
+  ${media.tablet} { font-size: 14px; }
+  ${media.mobile} { font-size: 13px; }
+  ${lMedia.phoneSm} { font-size: 12px; margin-top: 4px; }
 `;
 
 const DifficultySelector = styled.div`
@@ -261,13 +215,13 @@ const DifficultySelector = styled.div`
   justify-content: center;
   margin-bottom: 24px;
   flex-wrap: wrap;
-  ${media.mobile} {
-    gap: 8px;
-    margin-bottom: 16px;
-  }
+
+  ${media.tablet} { gap: 10px; margin-bottom: 18px; }
+  ${media.mobile} { gap: 8px; margin-bottom: 16px; }
+  ${lMedia.phoneSm} { gap: 6px; margin-bottom: 10px; }
 `;
 
-const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
+const DiffBtn = styled.button<{ $isActive: boolean; $difficulty?: string }>`
   padding: 12px 24px;
   font-size: 16px;
   font-weight: bold;
@@ -280,10 +234,10 @@ const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
 
-  ${props => props.$difficulty === 'easy' && `border-color: rgba(46, 204, 113, 0.4);`}
-  ${props => props.$difficulty === 'medium' && `border-color: rgba(52, 152, 219, 0.4);`}
-  ${props => props.$difficulty === 'hard' && `border-color: rgba(243, 156, 18, 0.4);`}
-  ${props => props.$difficulty === 'expert' && `border-color: rgba(231, 76, 60, 0.4);`}
+  ${props => props.$difficulty === 'easy'    && `border-color: rgba(46, 204, 113, 0.4);`}
+  ${props => props.$difficulty === 'medium'  && `border-color: rgba(52, 152, 219, 0.4);`}
+  ${props => props.$difficulty === 'hard'    && `border-color: rgba(243, 156, 18, 0.4);`}
+  ${props => props.$difficulty === 'expert'  && `border-color: rgba(231, 76, 60, 0.4);`}
   ${props => props.$difficulty === 'easiest' && `border-color: rgba(209, 213, 219, 0.4);`}
 
   ${props => props.$isActive && css`
@@ -292,26 +246,62 @@ const DiffBtn = styled.button<{ $isActive: boolean, $difficulty?: string }>`
     background: linear-gradient(135deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1));
   `}
 
+  /* 태블릿 세로 */
   ${media.tablet} {
     padding: 10px 18px;
     font-size: 14px;
     border-radius: 12px;
   }
+  /* 모바일 세로 */
   ${media.mobile} {
     padding: 7px 10px;
     font-size: 12px;
     border-radius: 10px;
     border-width: 1px;
   }
+  /* 태블릿 가로 */
+  ${lMedia.tablet} {
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+  /* 폰 가로 */
+  ${lMedia.phoneSm} {
+    padding: 5px 9px;
+    font-size: 11px;
+    border-radius: 8px;
+    border-width: 1px;
+  }
 `;
 
+/**
+ * Grid:
+ *  - 데스크탑:   auto-fill minmax(280px, 1fr) → 3~4열
+ *  - 태블릿 세로 (≤768px): 2열 고정 (280px가 너무 좁아 1열로 떨어지는 현상 방지)
+ *  - 모바일 세로 (≤480px): 1열
+ *  - 태블릿 가로: auto-fill minmax(240px, 1fr) → 3열
+ *  - 폰 가로: 2열
+ */
 const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+
+  ${media.tablet} {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
   ${media.mobile} {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+  ${lMedia.tablet} {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  ${lMedia.phoneSm} {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 `;
 
@@ -333,21 +323,17 @@ const Card = styled.div<{ $hoverGlow: string }>`
       box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
     }
   }
-  &:active {
-    transform: scale(0.98);
-  }
-  ${media.mobile} {
-    padding: 10px 16px;
-    border-radius: 16px;
-  }
+  &:active { transform: scale(0.98); }
+
+  ${media.tablet} { padding: 10px 18px; border-radius: 18px; }
+  ${media.mobile} { padding: 10px 16px; border-radius: 16px; }
+  ${lMedia.phoneSm} { padding: 8px 12px; border-radius: 14px; }
 `;
 
 const CardGlow = styled.div`
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
   background: radial-gradient(circle, rgba(76, 175, 255, 0.08) 0%, transparent 70%);
   animation: pulse 4s ease-in-out infinite;
   pointer-events: none;
@@ -360,20 +346,22 @@ const CardHeader = styled.div`
   margin-bottom: 20px;
   position: relative;
   z-index: 1;
-  ${media.mobile} {
-    margin-bottom: 12px;
-  }
+
+  ${media.tablet} { margin-bottom: 14px; }
+  ${media.mobile} { margin-bottom: 12px; }
+  ${lMedia.phoneSm} { margin-bottom: 8px; }
 `;
 
 const BgEmoji = styled.span`
   font-size: 48px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
-  ${media.mobile} {
-    font-size: 32px;
-  }
+
+  ${media.tablet} { font-size: 38px; }
+  ${media.mobile} { font-size: 32px; }
+  ${lMedia.phoneSm} { font-size: 26px; }
 `;
 
-const DifficultyBadge = styled.div<{$colors: { bg: string, border: string, color: string, glow: string }}>`
+const DifficultyBadge = styled.div<{$colors: { bg: string; border: string; color: string; glow: string }}>`
   padding: 8px 16px;
   border-radius: 12px;
   font-size: 14px;
@@ -384,11 +372,10 @@ const DifficultyBadge = styled.div<{$colors: { bg: string, border: string, color
   border: 2px solid ${props => props.$colors.border};
   color: ${props => props.$colors.color};
   box-shadow: 0 0 10px ${props => props.$colors.glow};
-  ${media.mobile} {
-    padding: 5px 10px;
-    font-size: 11px;
-    border-radius: 8px;
-  }
+
+  ${media.tablet} { padding: 6px 12px; font-size: 12px; border-radius: 10px; }
+  ${media.mobile} { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
+  ${lMedia.phoneSm} { padding: 4px 8px; font-size: 10px; letter-spacing: 0.5px; }
 `;
 
 const MapName = styled.h3`
@@ -399,13 +386,11 @@ const MapName = styled.h3`
   position: relative;
   z-index: 1;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-  ${media.tablet} {
-    font-size: 22px;
-  }
-  ${media.mobile} {
-    font-size: 18px;
-    margin: 0 0 8px 0;
-  }
+
+  ${media.tablet} { font-size: 22px; margin: 0 0 10px 0; }
+  ${media.mobile} { font-size: 18px; margin: 0 0 8px 0; }
+  ${lMedia.tablet} { font-size: 20px; }
+  ${lMedia.phoneSm} { font-size: 15px; margin: 0 0 6px 0; }
 `;
 
 const MapDescription = styled.p`
@@ -415,25 +400,24 @@ const MapDescription = styled.p`
   margin: 0 0 20px 0;
   position: relative;
   z-index: 1;
-  ${media.mobile} {
-    font-size: 13px;
-    margin: 0 0 12px 0;
-  }
+
+  ${media.tablet} { font-size: 14px; margin: 0 0 14px 0; }
+  ${media.mobile} { font-size: 13px; margin: 0 0 12px 0; }
+  ${lMedia.phoneSm} { font-size: 11px; margin: 0 0 8px 0; line-height: 1.4; }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 20px;
-  ${media.mobile} {
-    padding: 40px 16px;
-  }
+
+  ${media.mobile} { padding: 40px 16px; }
+  ${lMedia.phoneSm} { padding: 24px 12px; }
 `;
 
 const EmptyText = styled.p`
   font-size: 20px;
   color: #7f8c8d;
   font-weight: 600;
-  ${media.mobile} {
-    font-size: 16px;
-  }
+
+  ${media.mobile} { font-size: 16px; }
 `;

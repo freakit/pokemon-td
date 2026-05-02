@@ -1,7 +1,7 @@
 // src/components/Modals/Rankings.tsx
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia, media } from '../../utils/responsive.utils';
 import { databaseService } from '../../services/DatabaseService';
 import { LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
@@ -61,7 +61,9 @@ export const Rankings = ({ onClose }: RankingsProps) => {
             <Select value={selectedMap} onChange={(e) => setSelectedMap(e.target.value)}>
               {MAPS.map(map => (
                 <option key={map.id} value={map.id}>
-                  {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name` ? t(`mapData.${map.id}.name`) : map.name}
+                  {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
+                    ? t(`mapData.${map.id}.name`)
+                    : map.name}
                 </option>
               ))}
             </Select>
@@ -92,18 +94,18 @@ export const Rankings = ({ onClose }: RankingsProps) => {
         {loading ? (
           <Loading>{t('rankings.loading')}</Loading>
         ) : rankings.length === 0 ? (
-          <EmptyMessage>
-            {t('rankings.empty')}
-          </EmptyMessage>
+          <EmptyMessage>{t('rankings.empty')}</EmptyMessage>
         ) : (
           <RankingList>
             <RankingHeader>
               <Rank>{t('rankings.colRank')}</Rank>
               <PlayerName>{t('rankings.colPlayer')}</PlayerName>
               <Rating>{t('rankings.colRating')}</Rating>
-              <Score>{sortBy === 'clearTime' ? t('rankings.colClearTime') : t('rankings.colHighestWave')}</Score>
+              <Score>
+                {sortBy === 'clearTime' ? t('rankings.colClearTime') : t('rankings.colHighestWave')}
+              </Score>
             </RankingHeader>
-            
+
             {rankings.map((entry, index) => (
               <RankingRow key={`${entry.userId}_${entry.mapId}`}>
                 <Rank>
@@ -128,17 +130,30 @@ export const Rankings = ({ onClose }: RankingsProps) => {
   );
 };
 
+// ─── Styled Components ────────────────────────────────────────────────────────
+
 const Overlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 16px;
+
+  /* 모바일 세로: 상단 정렬 + 스크롤 */
+  ${media.mobile} {
+    align-items: flex-start;
+    padding: 10px;
+    overflow-y: auto;
+  }
+  ${lMedia.phoneSm} {
+    align-items: flex-start;
+    padding: 8px;
+    overflow-y: auto;
+  }
 `;
 
 const Container = styled.div`
@@ -152,10 +167,25 @@ const Container = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   position: relative;
+
+  /* 태블릿 세로 */
+  ${media.tablet} {
+    padding: 1.25rem 1.5rem;
+    max-width: 680px;
+  }
+  /* 모바일 세로 */
+  ${media.mobile} {
+    padding: 1rem;
+    width: 96%;
+    border-radius: 8px;
+    max-height: 95vh;
+  }
+  /* 가로 모드 */
   ${lMedia.phoneSm} {
     padding: 1rem;
     width: 95%;
     border-radius: 8px;
+    max-height: 98vh;
   }
 `;
 
@@ -166,6 +196,8 @@ const Header = styled.div`
   margin-bottom: 1.2rem;
   padding-bottom: 0.8rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  ${media.mobile} { margin-bottom: 0.9rem; padding-bottom: 0.6rem; }
 `;
 
 const Title = styled.h2`
@@ -173,39 +205,52 @@ const Title = styled.h2`
   color: #fff;
   font-weight: 700;
   letter-spacing: -0.5px;
-  ${lMedia.phoneSm} {
-    font-size: 1.3rem;
-  }
+
+  /* 태블릿 세로 */
+  ${media.tablet} { font-size: 1.5rem; }
+  /* 모바일 세로 */
+  ${media.mobile} { font-size: 1.3rem; }
+  /* 가로 모드 */
+  ${lMedia.phoneSm} { font-size: 1.3rem; }
 `;
 
 const CloseButton = styled.button`
-  width: 36px;
-  height: 36px;
+  width: 36px; height: 36px;
   background: rgba(255, 255, 255, 0.05);
   color: #a0a0a0;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   cursor: pointer;
   font-size: 1.2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
-
   @media (hover: hover) {
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-    }
+    &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
   }
+
+  ${media.mobile} { width: 32px; height: 32px; font-size: 1rem; }
 `;
 
 const Controls = styled.div`
   margin-bottom: 1rem;
-  ${lMedia.phoneSm} {
+
+  /* 태블릿 이하: 컨트롤을 세로로 쌓기 */
+  ${media.tablet} {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+  ${media.mobile} {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 0.7rem;
+  }
+  ${lMedia.phoneSm} {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 `;
 
@@ -214,16 +259,18 @@ const MapSelector = styled.div`
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
-  ${lMedia.phoneSm} {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0;
-  }
+
+  ${media.tablet} { margin-bottom: 0; gap: 0.75rem; }
+  ${media.mobile} { margin-bottom: 0; flex-wrap: wrap; gap: 0.5rem; }
+  ${lMedia.phoneSm} { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0; }
 `;
 
 const Label = styled.label`
   color: white;
   font-weight: bold;
+  white-space: nowrap;
+
+  ${media.mobile} { font-size: 0.9rem; }
 `;
 
 const Select = styled.select`
@@ -236,14 +283,12 @@ const Select = styled.select`
   cursor: pointer;
   outline: none;
   transition: border-color 0.2s;
+  @media (hover: hover) { &:hover { border-color: rgba(255, 255, 255, 0.2); } }
 
-  @media (hover: hover) {
-    &:hover { border-color: rgba(255, 255, 255, 0.2); }
-  }
-  ${lMedia.phoneSm} {
-    width: 100%;
-    flex: 1;
-  }
+  /* 태블릿 이하 */
+  ${media.tablet} { flex: 1; }
+  ${media.mobile} { flex: 1; width: 100%; font-size: 0.88rem; }
+  ${lMedia.phoneSm} { flex: 1; width: 100%; }
 `;
 
 const SortSelector = styled.div`
@@ -262,13 +307,15 @@ const TabButton = styled.button<{ active: boolean }>`
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
   font-size: 0.95rem;
-
   @media (hover: hover) {
     &:hover {
       background: ${props => props.active ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255, 255, 255, 0.08)'};
       color: ${props => props.active ? '#8a9cff' : '#fff'};
     }
   }
+
+  ${media.mobile} { font-size: 0.82rem; padding: 0.5rem; }
+  ${lMedia.phoneSm} { font-size: 0.8rem; padding: 0.45rem; }
 `;
 
 const MyRank = styled.div`
@@ -281,22 +328,21 @@ const MyRank = styled.div`
   font-weight: 600;
   margin-bottom: 1.2rem;
   border: 1px solid rgba(102, 126, 234, 0.2);
+
+  ${media.mobile} { padding: 0.6rem; font-size: 0.9rem; margin-bottom: 0.8rem; }
 `;
 
 const Loading = styled.div`
-  text-align: center;
-  color: white;
-  font-size: 1.2rem;
-  padding: 3rem;
+  text-align: center; color: white; font-size: 1.2rem; padding: 3rem;
+  ${media.mobile} { font-size: 1rem; padding: 2rem; }
 `;
 
 const EmptyMessage = styled.div`
-  text-align: center;
-  color: white;
-  font-size: 1.1rem;
+  text-align: center; color: white; font-size: 1.1rem;
   padding: 3rem;
-  background: rgba(255,255,255,0.1);
-  border-radius: 10px;
+  background: rgba(255,255,255,0.1); border-radius: 10px;
+
+  ${media.mobile} { font-size: 0.95rem; padding: 2rem; }
 `;
 
 const RankingList = styled.div`
@@ -306,9 +352,21 @@ const RankingList = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.05);
 `;
 
+/**
+ * 컬럼 레이아웃:
+ *  데스크탑:       80px  1fr  140px  160px  (4열)
+ *  태블릿 세로:    60px  1fr  110px  120px  (4열, 간소화)
+ *  모바일 세로:    40px  1fr  80px          (3열 — Rating 숨김)
+ *  태블릿 가로:    60px  1fr  100px  110px
+ *  폰 가로:        40px  1fr  80px          (3열)
+ */
+const COLS_DESKTOP = '80px 1fr 140px 160px';
+const COLS_TABLET  = '60px 1fr 110px 120px';
+const COLS_MOBILE  = '40px 1fr 80px';        // Rating 열 제거
+
 const RankingHeader = styled.div`
   display: grid;
-  grid-template-columns: 80px 1fr 140px 160px;
+  grid-template-columns: ${COLS_DESKTOP};
   gap: 1rem;
   padding: 0.8rem 1.2rem;
   background: rgba(255, 255, 255, 0.03);
@@ -318,14 +376,27 @@ const RankingHeader = styled.div`
   text-transform: uppercase;
   letter-spacing: 1px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  ${media.tablet} {
+    grid-template-columns: ${COLS_TABLET};
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+    font-size: 0.78rem;
+  }
+  ${media.mobile} {
+    grid-template-columns: ${COLS_MOBILE};
+    gap: 0.4rem;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.72rem;
+  }
   ${lMedia.phone} {
-    grid-template-columns: 50px 1fr 100px 110px;
+    grid-template-columns: ${COLS_TABLET};
     gap: 0.5rem;
     padding: 0.8rem;
     font-size: 0.75rem;
   }
   ${lMedia.phoneSm} {
-    grid-template-columns: 40px 1fr 80px;
+    grid-template-columns: ${COLS_MOBILE};
     gap: 0.4rem;
     padding: 0.6rem 0.8rem;
     font-size: 0.7rem;
@@ -334,27 +405,32 @@ const RankingHeader = styled.div`
 
 const RankingRow = styled.div`
   display: grid;
-  grid-template-columns: 80px 1fr 140px 160px;
+  grid-template-columns: ${COLS_DESKTOP};
   gap: 1rem;
   padding: 0.8rem 1.2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   transition: background 0.2s;
   align-items: center;
+  @media (hover: hover) { &:hover { background: rgba(255, 255, 255, 0.02); } }
+  &:last-child { border-bottom: none; }
 
-  @media (hover: hover) {
-    &:hover { background: rgba(255, 255, 255, 0.02); }
+  ${media.tablet} {
+    grid-template-columns: ${COLS_TABLET};
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
   }
-
-  &:last-child {
-    border-bottom: none;
+  ${media.mobile} {
+    grid-template-columns: ${COLS_MOBILE};
+    gap: 0.4rem;
+    padding: 0.65rem 0.8rem;
   }
   ${lMedia.phone} {
-    grid-template-columns: 50px 1fr 100px 110px;
+    grid-template-columns: ${COLS_TABLET};
     gap: 0.5rem;
     padding: 0.8rem;
   }
   ${lMedia.phoneSm} {
-    grid-template-columns: 40px 1fr 80px;
+    grid-template-columns: ${COLS_MOBILE};
     gap: 0.4rem;
     padding: 0.6rem 0.8rem;
   }
@@ -364,14 +440,26 @@ const Rank = styled.div`
   font-size: 1.05rem;
   font-weight: 700;
   color: #a0a0a0;
+
+  ${media.mobile} { font-size: 0.9rem; }
 `;
 
 const PlayerName = styled.div`
   font-size: 1rem;
   color: #e0e0e0;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  ${media.mobile} { font-size: 0.88rem; }
 `;
 
+/**
+ * Rating 열:
+ *  모바일 세로(≤480px)와 폰 가로에서 숨겨 3열 레이아웃으로 전환
+ *  (그리드 열 정의와 display:none 을 동시에 적용)
+ */
 const Rating = styled.div`
   font-size: 0.95rem;
   color: #f1c40f;
@@ -379,9 +467,9 @@ const Rating = styled.div`
   align-items: center;
   gap: 0.4rem;
   font-weight: 500;
-  ${lMedia.phoneSm} {
-    display: none;
-  }
+
+  ${media.mobile} { display: none; }
+  ${lMedia.phoneSm} { display: none; }
 `;
 
 const Score = styled.div`
@@ -390,4 +478,6 @@ const Score = styled.div`
   color: #fff;
   text-align: right;
   font-variant-numeric: tabular-nums;
+
+  ${media.mobile} { font-size: 0.88rem; }
 `;

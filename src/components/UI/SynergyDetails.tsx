@@ -1,7 +1,7 @@
 // src/components/UI/SynergyDetails.tsx
 import React from 'react';
 import styled from 'styled-components';
-import { lMedia} from '../../utils/responsive.utils';
+import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { getGenerationById, SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
@@ -31,7 +31,6 @@ export const SynergyDetails: React.FC = () => {
   } else if (type === 'special') {
     const def = SPECIAL_SYNERGY_DEFS.find(d => d.id === hoveredSynergy.id);
     synergyName = def ? `${def.icon} ${def.name}` : hoveredSynergy.name;
-    // 특수 시너지: 해당 포켓몬 ID 목록과 교집합
     const idSet = new Set(def?.pokemonIds ?? []);
     matchingPokemon = activeTowers.filter(t => idSet.has(t.pokemonId));
   }
@@ -57,9 +56,15 @@ export const SynergyDetails: React.FC = () => {
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
+// GameLayout LeftPanel 패널 너비와 동기화:
+//   Desktop  (>1024px landscape) : LeftPanel = 210px  →  left: 224px (210 + 14)
+//   L1024    (≤1024px landscape) : LeftPanel = 172px  →  left: 186px (172 + 14)
+//   L768     (≤768px  landscape) : LeftPanel = 128px  →  left: 142px (128 + 14)
+//   phoneSm  (landscape h≤520px) : LeftPanel = 128px  →  left: 136px (축소 패딩)
+
 const Container = styled.div`
   position: fixed;
-  left: 260px;
+  left: 224px;
   top: 10px;
   width: 240px;
   max-height: 45vh;
@@ -72,11 +77,33 @@ const Container = styled.div`
   backdrop-filter: blur(10px);
   z-index: 2999;
   animation: fadeIn 0.2s ease-out;
-  ${lMedia.phoneSm} {
+
+  /* 태블릿 가로 (≤1024px landscape) — LeftPanel = 172px */
+  ${lMedia.tablet} {
+    left: 186px;
+    width: 220px;
+    padding: 12px;
+    border-radius: 14px;
+    border-width: 2px;
+  }
+
+  /* 폰 가로 (≤768px landscape) — LeftPanel = 128px */
+  ${lMedia.phone} {
     left: 142px;
-    top: 4px;
     width: calc(100vw - 146px);
-    max-width: 200px;
+    max-width: 190px;
+    max-height: 42vh;
+    padding: 10px;
+    border-radius: 12px;
+    border-width: 2px;
+  }
+
+  /* 소형 폰 가로 (landscape + max-height ≤520px) — LeftPanel = 128px */
+  ${lMedia.phoneSm} {
+    left: 136px;
+    top: 4px;
+    width: calc(100vw - 140px);
+    max-width: 180px;
     max-height: 40vh;
     padding: 8px;
     border-radius: 10px;
@@ -92,17 +119,19 @@ const Title = styled.h4`
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 2px solid rgba(155, 89, 182, 0.3);
-  ${lMedia.phoneSm} {
-    font-size: 13px;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-  }
+
+  ${lMedia.tablet} { font-size: 14px; margin-bottom: 9px; padding-bottom: 6px; }
+  ${lMedia.phone}  { font-size: 13px; margin-bottom: 7px; padding-bottom: 5px; }
+  ${lMedia.phoneSm}{ font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; }
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  ${lMedia.phone}  { gap: 6px; }
+  ${lMedia.phoneSm}{ gap: 5px; }
 `;
 
 const PokemonItem = styled.div`
@@ -112,18 +141,33 @@ const PokemonItem = styled.div`
   background: rgba(0,0,0,0.2);
   padding: 4px 8px;
   border-radius: 6px;
+
+  ${lMedia.phone}  { padding: 3px 6px; gap: 6px; }
+  ${lMedia.phoneSm}{ padding: 3px 5px; gap: 5px; }
 `;
 
 const Sprite = styled.img`
   width: 40px;
   height: 40px;
   image-rendering: pixelated;
+  flex-shrink: 0;
+
+  ${lMedia.tablet} { width: 34px; height: 34px; }
+  ${lMedia.phone}  { width: 30px; height: 30px; }
+  ${lMedia.phoneSm}{ width: 26px; height: 26px; }
 `;
 
 const Name = styled.span`
   font-size: 13px;
   font-weight: 600;
   color: #e8edf3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  ${lMedia.tablet} { font-size: 12px; }
+  ${lMedia.phone}  { font-size: 11px; }
+  ${lMedia.phoneSm}{ font-size: 10px; }
 `;
 
 const Empty = styled.p`
@@ -131,4 +175,7 @@ const Empty = styled.p`
   color: #a8b8c8;
   text-align: center;
   padding: 10px 0;
+
+  ${lMedia.phone}  { font-size: 11px; padding: 6px 0; }
+  ${lMedia.phoneSm}{ font-size: 10px; padding: 4px 0; }
 `;
