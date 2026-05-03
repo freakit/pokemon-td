@@ -1,483 +1,400 @@
 // src/components/Menu/MainMenu.tsx
 import { useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
 import { useTranslation } from '../../i18n';
-
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
 import { Rankings } from '../Modals/Rankings';
-import {
-  TutorialModal,
-  hasTowerTutorialSeen,
-  hasMultiTutorialSeen,
-} from '../Modals/TutorialModal';
-
+import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen } from '../Modals/TutorialModal';
 
 export const MainMenu = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const { t } = useTranslation();
-
   const [showAchievements, setShowAchievements] = useState(false);
-  const [showHallOfFame,   setShowHallOfFame]   = useState(false);
-  const [showRankings,     setShowRankings]     = useState(false);
-
-  // 튜토리얼: 'tower' | 'multi' | null
+  const [showHallOfFame, setShowHallOfFame] = useState(false);
+  const [showRankings, setShowRankings] = useState(false);
   const [tutorial, setTutorial] = useState<'tower' | 'multi' | null>(null);
-  // 튜토리얼 닫은 후 이동할 경로
   const [pendingNav, setPendingNav] = useState<string | null>(null);
 
   const handleSignOut = async () => {
-    if (confirm(t('mainMenu.signOutConfirm'))) {
-      await authService.signOut();
-    }
+    if (confirm(t('mainMenu.signOutConfirm'))) await authService.signOut();
   };
 
   const handleSinglePlay = () => {
-    if (!hasTowerTutorialSeen()) {
-      setPendingNav('/map-select');
-      setTutorial('tower');
-    } else {
-      navigate('/map-select');
-    }
+    if (!hasTowerTutorialSeen()) { setPendingNav('/map-select'); setTutorial('tower'); }
+    else navigate('/map-select');
   };
 
   const handleMultiPlay = () => {
-    if (!hasMultiTutorialSeen()) {
-      setPendingNav('/lobby');
-      setTutorial('multi');
-    } else {
-      navigate('/lobby');
-    }
+    if (!hasMultiTutorialSeen()) { setPendingNav('/lobby'); setTutorial('multi'); }
+    else navigate('/lobby');
   };
 
-  // "시작하기" 버튼 → pendingNav 경로로 이동
   const handleProceed = () => {
-    const dest = pendingNav;
-    setTutorial(null);
-    setPendingNav(null);
+    const dest = pendingNav; setTutorial(null); setPendingNav(null);
     if (dest) navigate(dest);
   };
 
-  // X버튼 / 오버레이 클릭 → 그냥 닫기 (이동 안 함)
-  const handleClose = () => {
-    setTutorial(null);
-    setPendingNav(null);
-  };
+  const handleClose = () => { setTutorial(null); setPendingNav(null); };
+
+  const avatarInitial = (user?.displayName || '?').charAt(0).toUpperCase();
 
   return (
     <>
       <ShootingStarsBackground />
-      <Overlay>
-        <Container>
-          <Header>
-            <UserInfo>
-              <Avatar
-                src={user?.photoURL || '/images/kaist-ball.png'}
-                alt={user?.displayName}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/images/kaist-ball.png';
-                }}
-              />
+      <Root>
+        {/* ── Top bar ── */}
+        <TopBar>
+          <LogoMark>
+            <LogoImg src="/images/pokemon-aegis.png" alt="" />
+            <LogoText>
+              <LogoMain>POKEMON AEGIS</LogoMain>
+            </LogoText>
+          </LogoMark>
+          <TopBarRight>
+            <UserChip>
+              <Avatar src={user?.photoURL || ''} alt={user?.displayName || ''}
+                onError={e => { (e.target as HTMLImageElement).style.display='none'; }}>
+              </Avatar>
+              <AvatarFallback>{avatarInitial}</AvatarFallback>
               <UserName>{user?.displayName}</UserName>
-              <Rating>{t('mainMenu.ratingLabel', { rating: user?.rating ?? 0 })}</Rating>
-            </UserInfo>
-            <RightButtons>
-              <SignOutButton onClick={handleSignOut}>{t('mainMenu.signOut')}</SignOutButton>
-            </RightButtons>
-          </Header>
+              <RatingChip>★ {user?.rating ?? 0}</RatingChip>
+            </UserChip>
+            <SignOutBtn onClick={handleSignOut}>{t('mainMenu.signOut')}</SignOutBtn>
+          </TopBarRight>
+        </TopBar>
 
-          <Title>
-            <TitleLogo
-              src="/images/kaist-ball.png"
-              alt="Pokemon Aegis Logo"
-            />
-            {t('mainMenu.gameTitle')}
-          </Title>
+        {/* ── Main content ── */}
+        <Main>
+          <HeroSection>
+            <HeroEyebrow>게임 모드 선택</HeroEyebrow>
+            <HeroTitle>{t('mainMenu.gameTitle')}</HeroTitle>
+          </HeroSection>
 
-          <MenuSection>
-            <SectionTitle>{t('mainMenu.gameMode')}</SectionTitle>
-            <GameModeButtons>
-              <ModeButton onClick={handleSinglePlay}>
-                <ModeIcon>👤</ModeIcon>
-                <ModeTextBlock>
-                  <ModeTitle>{t('mainMenu.singlePlay')}</ModeTitle>
-                  <ModeDesc>{t('mainMenu.singlePlayDesc')}</ModeDesc>
-                </ModeTextBlock>
-              </ModeButton>
+          {/* Primary game mode cards */}
+          <ModeGrid>
+            <ModeCard $accent="#3b82f6" onClick={handleSinglePlay}>
+              <ModeCardBg $color="rgba(59,130,246,0.06)" />
+              <ModeCardBorder $color="#3b82f6" />
+              <ModeIconWrap $bg="rgba(59,130,246,0.1)">
+                <ModeEmoji>👤</ModeEmoji>
+              </ModeIconWrap>
+              <ModeInfo>
+                <ModeName>{t('mainMenu.singlePlay')}</ModeName>
+                <ModeDesc>{t('mainMenu.singlePlayDesc')}</ModeDesc>
+              </ModeInfo>
+              <ModeArrow>→</ModeArrow>
+            </ModeCard>
 
-              <ModeButton onClick={handleMultiPlay}>
-                <ModeIcon>👥</ModeIcon>
-                <ModeTextBlock>
-                  <ModeTitle>{t('mainMenu.multiPlay')}</ModeTitle>
-                  <ModeDesc>{t('mainMenu.multiPlayDesc')}</ModeDesc>
-                </ModeTextBlock>
-              </ModeButton>
-            </GameModeButtons>
-          </MenuSection>
+            <ModeCard $accent="#f59e0b" onClick={() => navigate('/story')}>
+              <ModeCardBg $color="rgba(245,158,11,0.06)" />
+              <ModeCardBorder $color="#f59e0b" />
+              <ModeIconWrap $bg="rgba(245,158,11,0.1)">
+                <ModeEmoji>⚔</ModeEmoji>
+              </ModeIconWrap>
+              <ModeInfo>
+                <ModeName>스토리 모드</ModeName>
+                <ModeDesc>어둠의 감시자 · 8챕터</ModeDesc>
+              </ModeInfo>
+              <ModeArrow>→</ModeArrow>
+            </ModeCard>
 
-          <MenuSection>
-            <SectionTitle>{t('mainMenu.myInfo')}</SectionTitle>
-            <BottomButtons>
-              <BottomButton onClick={() => setShowAchievements(true)}>{t('mainMenu.achievements')}</BottomButton>
-              <BottomButton onClick={() => setShowHallOfFame(true)}>{t('mainMenu.hallOfFame')}</BottomButton>
-              <BottomButton onClick={() => setShowRankings(true)}>{t('mainMenu.rankings')}</BottomButton>
-            </BottomButtons>
-          </MenuSection>
+            <ModeCard $accent="#10b981" onClick={handleMultiPlay}>
+              <ModeCardBg $color="rgba(16,185,129,0.06)" />
+              <ModeCardBorder $color="#10b981" />
+              <ModeIconWrap $bg="rgba(16,185,129,0.1)">
+                <ModeEmoji>👥</ModeEmoji>
+              </ModeIconWrap>
+              <ModeInfo>
+                <ModeName>{t('mainMenu.multiPlay')}</ModeName>
+                <ModeDesc>{t('mainMenu.multiPlayDesc')}</ModeDesc>
+              </ModeInfo>
+              <ModeArrow>→</ModeArrow>
+            </ModeCard>
+          </ModeGrid>
 
-          {/* 도움말 버튼 — 언제든 다시 볼 수 있음 */}
+          {/* Utility row */}
+          <UtilSection>
+            <UtilLabel>내 정보</UtilLabel>
+            <UtilRow>
+              <UtilBtn onClick={() => setShowAchievements(true)}>
+                <UtilIcon>🏅</UtilIcon>{t('mainMenu.achievements')}
+              </UtilBtn>
+              <UtilBtn onClick={() => setShowHallOfFame(true)}>
+                <UtilIcon>🏆</UtilIcon>{t('mainMenu.hallOfFame')}
+              </UtilBtn>
+              <UtilBtn onClick={() => setShowRankings(true)}>
+                <UtilIcon>📊</UtilIcon>{t('mainMenu.rankings')}
+              </UtilBtn>
+            </UtilRow>
+          </UtilSection>
+
+          {/* Help row */}
           <HelpRow>
-            <HelpButton onClick={() => { setPendingNav(null); setTutorial('tower'); }}>
-              {t('mainMenu.helpSingle')}
-            </HelpButton>
-            <HelpButton onClick={() => { setPendingNav(null); setTutorial('multi'); }}>
-              {t('mainMenu.helpMulti')}
-            </HelpButton>
+            <HelpBtn onClick={() => { setPendingNav(null); setTutorial('tower'); }}>
+              ? {t('mainMenu.helpSingle')}
+            </HelpBtn>
+            <HelpBtn onClick={() => { setPendingNav(null); setTutorial('multi'); }}>
+              ? {t('mainMenu.helpMulti')}
+            </HelpBtn>
           </HelpRow>
-        </Container>
-      </Overlay>
+        </Main>
+      </Root>
 
-      {/* 일반 모달 */}
-      {showAchievements && <AchievementsPanel  onClose={() => setShowAchievements(false)} />}
-      {showHallOfFame   && <HallOfFame         onClose={() => setShowHallOfFame(false)} />}
-      {showRankings     && <Rankings           onClose={() => setShowRankings(false)} />}
-
-      {/* 튜토리얼 모달 */}
+      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame   && <HallOfFame        onClose={() => setShowHallOfFame(false)} />}
+      {showRankings     && <Rankings          onClose={() => setShowRankings(false)} />}
       {tutorial && (
-        <TutorialModal
-          mode={tutorial}
-          onClose={handleClose}
-          onProceed={pendingNav ? handleProceed : undefined}
-        />
+        <TutorialModal mode={tutorial} onClose={handleClose}
+          onProceed={pendingNav ? handleProceed : undefined} />
       )}
     </>
   );
 };
 
-// ─── Styled Components ────────────────────────────────────────────────────────
+// ─── Animations ───────────────────────────────────────────────────────────────
 
-const Overlay = styled.div`
-  min-height: 100vh;
-  background-color: #0f1015;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 2rem 1rem;
+const fadeUp = keyframes`from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}`;
 
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    padding: 1.5rem 0.75rem;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 1rem 0.5rem;
-  }
-  /* 가로 모드 (태블릿/폰) */
-  ${lMedia.tablet} {
-    padding: 1rem;
-  }
-  ${lMedia.phoneSm} {
-    padding: 0.5rem;
-  }
+// ─── Root ────────────────────────────────────────────────────────────────────
+
+const Root = styled.div`
+  position:relative; z-index:10; min-height:100vh;
+  display:flex; flex-direction:column;
+  background:rgba(7,9,15,0.5); backdrop-filter:blur(2px);
 `;
 
-const Container = styled.div`
-  background: rgba(26, 27, 33, 0.85);
-  backdrop-filter: blur(12px);
-  border-radius: 12px;
-  padding: 2rem;
-  width: 100%;
-  max-width: 600px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+// ─── Top Bar ─────────────────────────────────────────────────────────────────
 
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    padding: 1.5rem;
-    max-width: 540px;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 1rem;
-    border-radius: 8px;
-  }
-  /* 가로 모드 */
-  ${lMedia.tablet} {
-    max-width: 700px;
-    padding: 1.25rem 1.5rem;
-  }
-  ${lMedia.phoneSm} {
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-  }
+const TopBar = styled.header`
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; height:64px;
+  background:rgba(255,255,255,0.025);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  backdrop-filter:blur(12px);
+  position:sticky; top:0; z-index:50;
+
+  ${media.mobile} { padding:0 16px; height:56px; }
+  ${lMedia.phoneSm} { height:48px; padding:0 12px; }
 `;
 
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+const LogoMark = styled.div`display:flex; align-items:center; gap:10px;`;
 
-  ${media.tablet} {
-    margin-bottom: 1.5rem;
-  }
-  ${media.mobile} {
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  ${lMedia.phoneSm} {
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.75rem;
-  }
+const LogoImg = styled.img`
+  height:32px; object-fit:contain;
+  filter:drop-shadow(0 0 8px rgba(245,158,11,0.4));
+  ${media.mobile} { height:26px; }
 `;
 
-const UserInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+const LogoText = styled.div``;
+
+const LogoMain = styled.div`
+  font-size:13px; font-weight:800; letter-spacing:0.12em;
+  color:rgba(255,255,255,0.85);
+  ${media.mobile} { font-size:11px; }
+`;
+
+const TopBarRight = styled.div`display:flex; align-items:center; gap:12px;`;
+
+const UserChip = styled.div`
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:100px; padding:5px 12px 5px 6px;
+  position:relative;
 `;
 
 const Avatar = styled.img`
-  width: 44px; height: 44px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  object-fit: cover;
-  background-color: #0f1015;
+  width:28px; height:28px; border-radius:50%;
+  object-fit:cover; flex-shrink:0;
+  border:1px solid rgba(255,255,255,0.15);
+`;
 
-  ${media.mobile} {
-    width: 36px; height: 36px;
-  }
+const AvatarFallback = styled.div`
+  z-index:-1;
+  position:absolute; left:6px;
+  width:28px; height:28px; border-radius:50%;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:700; color:#fff; flex-shrink:0;
+  border:1px solid rgba(255,255,255,0.15);
+  pointer-events:none;
 `;
 
 const UserName = styled.span`
-  color: white;
-  font-weight: 500;
-  font-size: 1.05rem;
-
-  ${media.tablet} { font-size: 0.95rem; }
-  ${media.mobile} { font-size: 0.9rem; }
+  font-size:13px; font-weight:600; color:#f8fafc;
+  max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  ${media.mobile} { max-width:72px; font-size:12px; }
+  ${lMedia.phoneSm} { display:none; }
 `;
 
-const Rating = styled.span`
-  background: rgba(255, 255, 255, 0.05);
-  padding: 0.3rem 0.6rem;
-  border-radius: 6px;
-  color: #a0a0a0;
-  font-size: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-
-  /* 태블릿 이하 세로 모드에서 숨김 */
-  ${media.tablet} { display: none; }
+const RatingChip = styled.span`
+  font-size:12px; font-weight:700; color:#f59e0b;
+  ${media.mobile} { font-size:11px; }
 `;
 
-const SignOutButton = styled.button`
-  padding: 0.5rem 1rem;
-  background: transparent;
-  color: #a0a0a0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
-
-  ${media.tablet} { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
-  ${media.mobile} { padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+const SignOutBtn = styled.button`
+  padding:7px 14px; background:transparent;
+  border:1px solid rgba(255,255,255,0.1); border-radius:8px;
+  color:rgba(255,255,255,0.45); font-size:13px;
+  cursor:pointer; transition:all 0.2s;
+  &:hover { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#fca5a5; }
+  ${media.mobile} { padding:6px 10px; font-size:12px; }
+  ${lMedia.phoneSm} { display:none; }
 `;
 
-const RightButtons = styled.div`
-  display: flex;
-  gap: 0.5rem;
+// ─── Main Content ─────────────────────────────────────────────────────────────
+
+const Main = styled.main`
+  flex:1; display:flex; flex-direction:column;
+  max-width:900px; width:100%;
+  margin:0 auto; padding:48px 32px 40px;
+  animation:${fadeUp} 0.5s ease both; animation-delay:0.1s;
+
+  ${media.tablet} { padding:36px 24px 32px; }
+  ${media.mobile} { padding:24px 16px 24px; }
+  ${lMedia.phoneSm} { padding:16px 16px 16px; }
 `;
 
-/**
- * Title 내부 로고: 반응형 width 로 제어
- * inline style 의 고정 80px 을 대체하여 작은 화면에서도 레이아웃 안전
- */
-const TitleLogo = styled.img`
-  width: 72px;
-  object-fit: contain;
-  margin-right: 14px;
-  flex-shrink: 0;
+const HeroSection = styled.div`margin-bottom:36px; ${media.mobile}{margin-bottom:24px;} ${lMedia.phoneSm}{margin-bottom:16px;}`;
 
-  ${media.tablet} { width: 60px; margin-right: 10px; }
-  ${media.mobile} { width: 44px; margin-right: 8px; }
-  ${lMedia.phoneSm} { width: 36px; margin-right: 6px; }
+const HeroEyebrow = styled.div`
+  font-size:11px; font-weight:700; letter-spacing:0.25em;
+  color:rgba(245,158,11,0.6); text-transform:uppercase; margin-bottom:8px;
 `;
 
-const Title = styled.h1`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  text-align: center;
-  margin-bottom: 1.5rem;
-
-  ${media.tablet} { font-size: 1.7rem; margin-bottom: 1.25rem; }
-  ${media.mobile} { font-size: 1.4rem; margin-bottom: 1rem; }
-  ${lMedia.phoneSm} { font-size: 1.3rem; margin-bottom: 0.75rem; }
+const HeroTitle = styled.h1`
+  font-size:clamp(24px,4vw,36px); font-weight:900;
+  color:#f8fafc; margin:0; letter-spacing:-0.02em;
+  line-height:1.1;
 `;
 
-const MenuSection = styled.div`
-  margin-bottom: 2.5rem;
+// ─── Mode Cards ───────────────────────────────────────────────────────────────
 
-  ${media.tablet} { margin-bottom: 2rem; }
-  ${media.mobile} { margin-bottom: 1.5rem; }
-  ${lMedia.phoneSm} { margin-bottom: 1rem; }
+const ModeGrid = styled.div`
+  display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+  margin-bottom:32px;
+  ${media.tablet} { grid-template-columns:1fr; gap:10px; }
+  ${lMedia.phoneSm} { grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
 `;
 
-const SectionTitle = styled.h2`
-  font-size: 1.1rem;
-  color: #e0e0e0;
-  font-weight: 500;
-  margin-bottom: 1rem;
+const ModeCard = styled.button<{ $accent: string }>`
+  display:flex; align-items:center; gap:14px;
+  padding:20px 18px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:14px; cursor:pointer; text-align:left;
+  position:relative; overflow:hidden;
+  transition:all 0.22s ease; color:#fff;
 
-  ${media.mobile} { font-size: 1rem; margin-bottom: 0.75rem; }
-  ${lMedia.phoneSm} { font-size: 0.9rem; margin-bottom: 0.5rem; }
-`;
-
-const GameModeButtons = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-
-  ${media.mobile} {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  &:hover {
+    border-color: ${p => p.$accent}55;
+    background: ${p => p.$accent}0a;
+    transform:translateY(-2px);
+    box-shadow:0 12px 32px ${p => p.$accent}18;
   }
-  /* 가로 모드 – 화면이 넓으므로 2열 유지 */
-  ${lMedia.phoneSm} {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-  }
+  &:active { transform:translateY(0); }
+
+  ${media.tablet} { padding:18px 20px; gap:16px; }
+  ${media.mobile} { padding:14px 16px; }
+  ${lMedia.phoneSm} { padding:10px 10px; gap:8px; flex-direction:column; align-items:flex-start; }
 `;
 
-const ModeButton = styled.button`
-  background: #23252e;
-  padding: 1.5rem 1rem;
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  @media (hover: hover) { &:hover { background: #2a2d36; } }
-  &:active { background: #2a2d36; }
-
-  /* 모바일 세로 – 가로 배치 */
-  ${media.mobile} {
-    padding: 1rem;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-  }
-  /* 가로 모드 – 세로 배치 유지하되 패딩 축소 */
-  ${lMedia.phoneSm} {
-    padding: 0.75rem 0.75rem;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-  }
+const ModeCardBg = styled.div<{ $color: string }>`
+  position:absolute; inset:0; background:${p=>p.$color};
+  opacity:0; transition:opacity 0.22s;
+  ${ModeCard}:hover & { opacity:1; }
 `;
 
-/**
- * ModeButton 내부 텍스트 블록:
- * 기존 코드는 ModeTitle/ModeDesc 를 직접 배치했으므로 래퍼 추가
- */
-const ModeTextBlock = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+const ModeCardBorder = styled.div<{ $color: string }>`
+  position:absolute; left:0; top:20%; bottom:20%; width:3px;
+  background:${p=>p.$color}; border-radius:0 2px 2px 0;
+  opacity:0; transition:opacity 0.22s;
+  ${ModeCard}:hover & { opacity:1; }
 `;
 
-const ModeIcon  = styled.div`
-  font-size: 2rem;
-  margin-bottom: 0.75rem;
-  flex-shrink: 0;
-
-  ${media.mobile} { font-size: 1.5rem; margin-bottom: 0; }
-  ${lMedia.phoneSm} { font-size: 1.3rem; margin-bottom: 0; }
+const ModeIconWrap = styled.div<{ $bg: string }>`
+  width:46px; height:46px; border-radius:12px;
+  background:${p=>p.$bg}; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  ${media.mobile} { width:40px; height:40px; border-radius:10px; }
+  ${lMedia.phoneSm} { width:32px; height:32px; border-radius:8px; }
 `;
 
-const ModeTitle = styled.div`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 0.25rem;
-
-  ${media.mobile} { font-size: 1rem; }
-  ${lMedia.phoneSm} { font-size: 0.9rem; margin-bottom: 0; }
+const ModeEmoji = styled.span`
+  font-size:22px;
+  ${media.mobile} { font-size:20px; }
+  ${lMedia.phoneSm} { font-size:16px; }
 `;
 
-const ModeDesc  = styled.div`
-  font-size: 0.85rem;
-  color: #888;
+const ModeInfo = styled.div`flex:1; position:relative; z-index:1; min-width:0;`;
 
-  ${media.mobile} { font-size: 0.8rem; }
-  ${lMedia.phoneSm} { display: none; }
+const ModeName = styled.div`
+  font-size:16px; font-weight:700; color:#f8fafc;
+  margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  ${media.mobile} { font-size:15px; }
+  ${lMedia.phoneSm} { font-size:12px; margin-bottom:2px; white-space:normal; }
 `;
 
-const BottomButtons = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);   /* 항목 3개에 맞게 수정 */
-  gap: 0.75rem;
-
-  ${media.tablet} { grid-template-columns: repeat(3, 1fr); }
-  ${media.mobile} { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
-  ${lMedia.tablet} { grid-template-columns: repeat(3, 1fr); }
-  ${lMedia.phoneSm} { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+const ModeDesc = styled.div`
+  font-size:12px; color:rgba(255,255,255,0.38); line-height:1.4;
+  ${lMedia.phoneSm} { display:none; }
 `;
 
-const BottomButton = styled.button`
-  background: #23252e;
-  padding: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: #e0e0e0;
-  transition: background 0.2s;
-  @media (hover: hover) { &:hover { background: #2a2d36; } }
-  &:active { background: #2a2d36; }
-
-  ${media.mobile} { padding: 0.7rem 0.5rem; font-size: 0.8rem; }
-  ${lMedia.phoneSm} { padding: 0.55rem 0.4rem; font-size: 0.75rem; }
+const ModeArrow = styled.div`
+  font-size:18px; color:rgba(255,255,255,0.2); transition:all 0.2s; flex-shrink:0;
+  ${ModeCard}:hover & { color:rgba(255,255,255,0.7); transform:translateX(4px); }
+  ${lMedia.phoneSm} { display:none; }
 `;
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+
+const UtilSection = styled.div`margin-bottom:16px;`;
+
+const UtilLabel = styled.div`
+  font-size:11px; font-weight:700; letter-spacing:0.2em;
+  color:rgba(255,255,255,0.28); text-transform:uppercase; margin-bottom:10px;
+`;
+
+const UtilRow = styled.div`
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  ${media.mobile} { gap:8px; }
+  ${lMedia.phoneSm} { gap:6px; }
+`;
+
+const UtilBtn = styled.button`
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:12px 10px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:10px; cursor:pointer;
+  font-size:14px; font-weight:500; color:rgba(255,255,255,0.6);
+  transition:all 0.2s;
+  &:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.14); color:#fff; }
+  ${media.mobile} { font-size:13px; padding:10px 8px; }
+  ${lMedia.phoneSm} { font-size:11px; padding:8px 6px; gap:5px; }
+`;
+
+const UtilIcon = styled.span`font-size:16px; ${lMedia.phoneSm}{font-size:14px;}`;
 
 const HelpRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  margin-top: -1rem;
-
-  ${media.mobile} { gap: 0.5rem; margin-top: -0.5rem; }
-  ${lMedia.phoneSm} { margin-top: -0.25rem; gap: 0.4rem; }
+  display:grid; grid-template-columns:repeat(2,1fr); gap:8px;
+  ${lMedia.phoneSm} { gap:6px; }
 `;
 
-const HelpButton = styled.button`
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #a0a0a0;
-  padding: 0.75rem;
-  font-size: 0.85rem;
-  font-weight: 400;
-  cursor: pointer;
-  transition: background 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
-
-  ${media.mobile} { padding: 0.6rem 0.5rem; font-size: 0.8rem; }
-  ${lMedia.phoneSm} { padding: 0.5rem 0.4rem; font-size: 0.75rem; }
+const HelpBtn = styled.button`
+  padding:9px 12px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px; cursor:pointer;
+  font-size:12px; color:rgba(255,255,255,0.28);
+  transition:all 0.2s;
+  &:hover { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.55); border-color:rgba(255,255,255,0.1); }
+  ${media.mobile} { font-size:11px; padding:8px 10px; }
+  ${lMedia.phoneSm} { font-size:10px; padding:6px 8px; }
 `;

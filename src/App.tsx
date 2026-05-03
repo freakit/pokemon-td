@@ -27,6 +27,7 @@ import { MultiplayerLobby } from "./components/Multiplayer/MultiplayerLobby";
 import { MapSelector } from "./components/UI/MapSelector";
 import { GameLayout } from "./components/GameLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { StorySelector } from './components/Story/StorySelector';
 import { FloatingSettings } from "./components/UI/FloatingSettings";
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
@@ -241,6 +242,12 @@ function App() {
               handlePreloadAndNavigate(mapId, 'single');
             }}
           />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/story" element={
+        <ProtectedRoute>
+          <StorySelector />
         </ProtectedRoute>
       } />
 

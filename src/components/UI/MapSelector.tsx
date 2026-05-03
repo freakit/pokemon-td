@@ -1,423 +1,297 @@
 // src/components/UI/MapSelector.tsx
-import React, { useState } from "react";
-import styled, { css } from "styled-components";
+import { useState } from "react";
+import styled, { keyframes } from "styled-components";
 import { media, lMedia } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
 import { Difficulty, MapData } from "../../types/game";
+import { useNavigate } from "react-router-dom";
 
 type DifficultyFilter = "easiest" | "easy" | "medium" | "hard" | "expert";
 
-export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({
-  onSelect,
-}) => {
-  const { t } = useTranslation();
-  const setMap = useGameStore((s) => s.setMap);
-  const setDifficulty = useGameStore((s) => s.setDifficulty);
-  const [selectedFilter, setSelectedFilter] = useState<DifficultyFilter | null>(
-    null
-  );
+const DIFF_META: Record<DifficultyFilter, { label: string; color: string; dot: string }> = {
+  easiest: { label: "EASIEST", color: "#94a3b8", dot: "⬜" },
+  easy:    { label: "EASY",    color: "#4ade80", dot: "🟢" },
+  medium:  { label: "MEDIUM",  color: "#60a5fa", dot: "🔵" },
+  hard:    { label: "HARD",    color: "#fb923c", dot: "🟠" },
+  expert:  { label: "EXPERT",  color: "#f87171", dot: "🔴" },
+};
 
-  const handleDifficultyFilter = (difficulty: DifficultyFilter) => {
-    setSelectedFilter(difficulty);
-    const gameDifficulty: Difficulty =
-      difficulty === "medium" ? "normal" : (difficulty as Difficulty);
-    setDifficulty(gameDifficulty);
+export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ onSelect }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const setMap = useGameStore(s => s.setMap);
+  const setDifficulty = useGameStore(s => s.setDifficulty);
+  const [filter, setFilter] = useState<DifficultyFilter | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
+  
+
+  const handleFilter = (d: DifficultyFilter) => {
+    setFilter(prev => prev === d ? null : d);
+    const gd: Difficulty = d === "medium" ? "normal" : d as Difficulty;
+    setDifficulty(gd);
   };
 
   const handleSelect = (map: MapData) => {
     setMap(map.id);
-    const gameDifficulty: Difficulty =
-      map.difficulty === "medium" ? "normal" : (map.difficulty as Difficulty);
-    setDifficulty(gameDifficulty);
+    const gd: Difficulty = map.difficulty === "medium" ? "normal" : map.difficulty as Difficulty;
+    setDifficulty(gd);
     onSelect(map.id);
   };
 
-  const filteredMaps = selectedFilter
-    ? MAPS.filter((map) => map.difficulty === selectedFilter)
-    : MAPS;
+  const shown = filter ? MAPS.filter(m => m.difficulty === filter) : MAPS;
 
-  const getDifficultyColor = (diff: string) => {
-    switch (diff) {
-      case "easiest":
-        return { bg: "rgba(209, 213, 219, 0.2)", border: "#D1D5DB", color: "#D1D5DB", glow: "rgba(209, 213, 219, 0.4)" };
-      case "easy":
-        return { bg: "rgba(46, 204, 113, 0.2)", border: "#2ecc71", color: "#2ecc71", glow: "rgba(46, 204, 113, 0.4)" };
-      case "medium":
-        return { bg: "rgba(52, 152, 219, 0.2)", border: "#3498db", color: "#3498db", glow: "rgba(52, 152, 219, 0.4)" };
-      case "hard":
-        return { bg: "rgba(243, 156, 18, 0.2)", border: "#f39c12", color: "#f39c12", glow: "rgba(243, 156, 18, 0.4)" };
-      case "expert":
-        return { bg: "rgba(231, 76, 60, 0.2)", border: "#e74c3c", color: "#e74c3c", glow: "rgba(231, 76, 60, 0.4)" };
-      default:
-        return { bg: "rgba(149, 165, 166, 0.2)", border: "#95a5a6", color: "#95a5a6", glow: "rgba(149, 165, 166, 0.4)" };
-    }
-  };
+  const mapName = (map: MapData) =>
+    t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
+      ? t(`mapData.${map.id}.name`) : map.name;
 
-  const getBackgroundEmoji = (bgType: string) => {
-    switch (bgType) {
-      case "grass":  return "🌿";
-      case "desert": return "🏜️";
-      case "snow":   return "❄️";
-      case "cave":   return "🌋";
-      case "water":  return "🌊";
-      default:       return "🗺️";
-    }
-  };
-
-  const getDifficultyText = (diff: DifficultyFilter) => {
-    switch (diff) {
-      case "easiest": return t('mapSelector.easiest');
-      case "easy":    return t('mapSelector.easy');
-      case "medium":  return t('mapSelector.medium');
-      case "hard":    return t('mapSelector.hard');
-      case "expert":  return t('mapSelector.expert');
-      default:        return '';
-    }
-  };
+  const mapDesc = (map: MapData) =>
+    t(`mapData.${map.id}.description`) !== `mapData.${map.id}.description`
+      ? t(`mapData.${map.id}.description`) : map.description;
 
   return (
-    <Fullscreen>
-      <Container>
-        <TitleSection>
-          <Logo src="/images/pokemon-aegis.png" alt="Pokemon Aegis Logo" />
-          <Subtitle>{t('mapSelector.subtitle')}</Subtitle>
-        </TitleSection>
+    <Root>
+      {/* ── Header ── */}
+      <Header>
+        <BackBtn onClick={() => navigate('/')}>← 돌아가기</BackBtn>
+        <HeaderCenter>
+          <HeaderEyebrow>POKEMON AEGIS</HeaderEyebrow>
+          <HeaderTitle>{t('mapSelector.subtitle')}</HeaderTitle>
+        </HeaderCenter>
+        <HeaderRight />
+      </Header>
 
-        <DifficultySelector>
-          <DiffBtn onClick={() => setSelectedFilter(null)} $isActive={selectedFilter === null}>
-            {t('mapSelector.filterAll')}
-          </DiffBtn>
-          <DiffBtn onClick={() => handleDifficultyFilter("easiest")} $difficulty="easiest" $isActive={selectedFilter === "easiest"}>
-            ⚪ {t('mapSelector.easiest')}
-          </DiffBtn>
-          <DiffBtn onClick={() => handleDifficultyFilter("easy")} $difficulty="easy" $isActive={selectedFilter === "easy"}>
-            🟢 {t('mapSelector.easy')}
-          </DiffBtn>
-          <DiffBtn onClick={() => handleDifficultyFilter("medium")} $difficulty="medium" $isActive={selectedFilter === "medium"}>
-            🔵 {t('mapSelector.medium')}
-          </DiffBtn>
-          <DiffBtn onClick={() => handleDifficultyFilter("hard")} $difficulty="hard" $isActive={selectedFilter === "hard"}>
-            🟠 {t('mapSelector.hard')}
-          </DiffBtn>
-          <DiffBtn onClick={() => handleDifficultyFilter("expert")} $difficulty="expert" $isActive={selectedFilter === "expert"}>
-            🔴 {t('mapSelector.expert')}
-          </DiffBtn>
-        </DifficultySelector>
+      {/* ── Filter pills ── */}
+      <FilterBar>
+        <FilterPill $active={filter === null} $color="#f8fafc" onClick={() => setFilter(null)}>
+          전체
+        </FilterPill>
+        {(Object.keys(DIFF_META) as DifficultyFilter[]).map(d => (
+          <FilterPill
+            key={d}
+            $active={filter === d}
+            $color={DIFF_META[d].color}
+            onClick={() => handleFilter(d)}
+          >
+            {DIFF_META[d].dot}&nbsp;{t(`mapSelector.${d}`)}
+          </FilterPill>
+        ))}
+      </FilterBar>
 
-        <Grid>
-          {filteredMaps.map((map) => {
-            const diffColor = getDifficultyColor(map.difficulty);
-            return (
-              <Card key={map.id} onClick={() => handleSelect(map)} $hoverGlow={diffColor.glow}>
-                <CardGlow />
-                <CardHeader>
-                  <BgEmoji>{getBackgroundEmoji(map.backgroundType)}</BgEmoji>
-                  <DifficultyBadge $colors={diffColor}>
-                    {getDifficultyText(map.difficulty as DifficultyFilter)}
-                  </DifficultyBadge>
-                </CardHeader>
-                <MapName>
-                  {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
-                    ? t(`mapData.${map.id}.name`)
-                    : map.name}
-                </MapName>
-                <MapDescription>
-                  {t(`mapData.${map.id}.description`) !== `mapData.${map.id}.description`
-                    ? t(`mapData.${map.id}.description`)
-                    : map.description}
-                </MapDescription>
-              </Card>
-            );
-          })}
-        </Grid>
+      {/* ── Grid ── */}
+      <GridArea>
+        {shown.length === 0 ? (
+          <Empty>{t('mapSelector.noMaps')}</Empty>
+        ) : (
+          <Grid>
+            {shown.map((map, i) => {
+              const meta = DIFF_META[map.difficulty as DifficultyFilter];
+              return (
+                <Card
+                  key={map.id}
+                  $img={map.backgroundImage ?? ""}
+                  $color={meta?.color ?? '#fff'}
+                  $delay={i * 40}
+                  onMouseEnter={() => setHovered(map.id)}
+                  onMouseLeave={() => setHovered(null)}
+                  onClick={() => handleSelect(map)}
+                >
+                  <CardOverlay />
+                  <CardHoverOverlay $active={hovered === map.id} />
 
-        {filteredMaps.length === 0 && (
-          <EmptyState>
-            <EmptyText>{t('mapSelector.noMaps')}</EmptyText>
-          </EmptyState>
+                  <CardTop>
+                    <DiffBadge $color={meta?.color ?? '#fff'}>
+                      {meta?.dot} {meta?.label ?? map.difficulty.toUpperCase()}
+                    </DiffBadge>
+                  </CardTop>
+
+                  <CardBottom>
+                    <CardTitle>{mapName(map)}</CardTitle>
+                    <CardDesc>{mapDesc(map)}</CardDesc>
+                    <SelectHint $active={hovered === map.id}>
+                      클릭하여 선택 →
+                    </SelectHint>
+                  </CardBottom>
+                </Card>
+              );
+            })}
+          </Grid>
         )}
-      </Container>
-    </Fullscreen>
+      </GridArea>
+    </Root>
   );
 };
 
-// ─── Styled Components ────────────────────────────────────────────────────────
+// ─── Animations ───────────────────────────────────────────────────────────────
 
-/**
- * height: 100% → min-height: 100vh 로 변경
- * 부모 체인에 명시적 height 가 없어도 뷰포트를 채울 수 있음
- */
-const Fullscreen = styled.div`
-  width: 100%;
-  min-height: 100vh;
-  background: radial-gradient(ellipse at top, #1a2332 0%, #0f1419 50%, #000000 100%);
-  display: flex;
-  justify-content: center;
-  overflow: auto;
-  padding: 24px;
+const fadeUp = keyframes`from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}`;
 
-  /* 태블릿 세로 */
-  ${media.tablet} { padding: 16px; }
-  /* 모바일 세로 */
-  ${media.mobile} { padding: 12px; }
-  /* 태블릿 가로 */
-  ${lMedia.tablet} { padding: 16px 20px; }
-  /* 폰 가로 */
-  ${lMedia.phoneSm} { padding: 8px 12px; }
+// ─── Root ─────────────────────────────────────────────────────────────────────
+
+const Root = styled.div`
+  min-height:100vh;
+  background:radial-gradient(ellipse at top,#111827 0%,#070b14 60%,#000 100%);
+  display:flex; flex-direction:column;
+  color:#f8fafc;
 `;
 
-const Container = styled.div`
-  max-width: 1400px;
-  width: 100%;
-  animation: fadeIn 0.5s ease-out;
+// ─── Header ───────────────────────────────────────────────────────────────────
+
+const Header = styled.header`
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; height:64px;
+  background:rgba(255,255,255,0.025);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  backdrop-filter:blur(12px);
+  flex-shrink:0;
+  ${media.mobile} { padding:0 16px; height:52px; }
+  ${lMedia.phoneSm} { height:44px; padding:0 12px; }
 `;
 
-const TitleSection = styled.div`
-  text-align: center;
-  margin-bottom: 24px;
-
-  ${media.tablet} { margin-bottom: 16px; }
-  ${media.mobile} { margin-bottom: 12px; }
-  ${lMedia.phoneSm} { margin-bottom: 8px; }
+const BackBtn = styled.button`
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px; color:rgba(255,255,255,0.55); padding:8px 14px;
+  font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  &:hover { background:rgba(255,255,255,0.1); color:#fff; }
+  ${media.mobile} { padding:6px 10px; font-size:12px; }
 `;
 
-const Logo = styled.img`
-  filter: drop-shadow(0 0 40px rgba(76, 175, 255, 0.6));
-  animation: pulse 3s ease-in-out infinite;
-  height: 240px;
+const HeaderCenter = styled.div`text-align:center;`;
 
-  /* 태블릿 세로 */
-  ${media.tablet} { height: 160px; }
-  /* 모바일 세로 */
-  ${media.mobile} { height: 100px; }
-  /* 태블릿 가로 – 화면 높이가 제한되므로 대폭 축소 */
-  ${lMedia.tablet} { height: 120px; }
-  /* 폰 가로 */
-  ${lMedia.phoneSm} { height: 70px; }
+const HeaderEyebrow = styled.div`
+  font-size:10px; font-weight:700; letter-spacing:0.3em;
+  color:rgba(245,158,11,0.55);
+  ${media.mobile} { display:none; }
 `;
 
-const Subtitle = styled.div`
-  font-size: 16px;
-  color: #a8b8c8;
-  font-weight: 600;
-  margin-top: 8px;
-
-  ${media.tablet} { font-size: 14px; }
-  ${media.mobile} { font-size: 13px; }
-  ${lMedia.phoneSm} { font-size: 12px; margin-top: 4px; }
+const HeaderTitle = styled.h1`
+  font-size:18px; font-weight:800; color:#f8fafc;
+  margin:0; letter-spacing:-0.01em;
+  ${media.mobile} { font-size:16px; }
+  ${lMedia.phoneSm} { font-size:14px; }
 `;
 
-const DifficultySelector = styled.div`
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+const HeaderRight = styled.div`width:100px; ${media.mobile}{width:60px;}`;
 
-  ${media.tablet} { gap: 10px; margin-bottom: 18px; }
-  ${media.mobile} { gap: 8px; margin-bottom: 16px; }
-  ${lMedia.phoneSm} { gap: 6px; margin-bottom: 10px; }
+// ─── Filter bar ───────────────────────────────────────────────────────────────
+
+const FilterBar = styled.div`
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:16px 32px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  ${media.mobile} { padding:12px 16px; gap:6px; }
+  ${lMedia.phoneSm} { padding:8px 12px; gap:5px; }
 `;
 
-const DiffBtn = styled.button<{ $isActive: boolean; $difficulty?: string }>`
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  border: 2px solid rgba(76, 175, 255, 0.3);
-  border-radius: 16px;
-  cursor: pointer;
-  background: linear-gradient(145deg, rgba(30, 40, 60, 0.8), rgba(15, 20, 35, 0.9));
-  color: #e8edf3;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-
-  ${props => props.$difficulty === 'easy'    && `border-color: rgba(46, 204, 113, 0.4);`}
-  ${props => props.$difficulty === 'medium'  && `border-color: rgba(52, 152, 219, 0.4);`}
-  ${props => props.$difficulty === 'hard'    && `border-color: rgba(243, 156, 18, 0.4);`}
-  ${props => props.$difficulty === 'expert'  && `border-color: rgba(231, 76, 60, 0.4);`}
-  ${props => props.$difficulty === 'easiest' && `border-color: rgba(209, 213, 219, 0.4);`}
-
-  ${props => props.$isActive && css`
-    transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(76, 175, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    background: linear-gradient(135deg, rgba(76, 175, 255, 0.3), rgba(76, 175, 255, 0.1));
-  `}
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    padding: 10px 18px;
-    font-size: 14px;
-    border-radius: 12px;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 7px 10px;
-    font-size: 12px;
-    border-radius: 10px;
-    border-width: 1px;
-  }
-  /* 태블릿 가로 */
-  ${lMedia.tablet} {
-    padding: 8px 16px;
-    font-size: 13px;
-    border-radius: 12px;
-  }
-  /* 폰 가로 */
-  ${lMedia.phoneSm} {
-    padding: 5px 9px;
-    font-size: 11px;
-    border-radius: 8px;
-    border-width: 1px;
-  }
+const FilterPill = styled.button<{ $active: boolean; $color: string }>`
+  padding:7px 14px; border-radius:100px; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  background:${p => p.$active ? `${p.$color}18` : 'rgba(255,255,255,0.04)'};
+  border:1px solid ${p => p.$active ? `${p.$color}55` : 'rgba(255,255,255,0.08)'};
+  color:${p => p.$active ? p.$color : 'rgba(255,255,255,0.45)'};
+  &:hover { background:${p => `${p.$color}12`}; border-color:${p=>`${p.$color}44`}; color:${p=>p.$color}; }
+  ${media.mobile} { padding:5px 10px; font-size:12px; }
+  ${lMedia.phoneSm} { padding:4px 8px; font-size:11px; }
 `;
 
-/**
- * Grid:
- *  - 데스크탑:   auto-fill minmax(280px, 1fr) → 3~4열
- *  - 태블릿 세로 (≤768px): 2열 고정 (280px가 너무 좁아 1열로 떨어지는 현상 방지)
- *  - 모바일 세로 (≤480px): 1열
- *  - 태블릿 가로: auto-fill minmax(240px, 1fr) → 3열
- *  - 폰 가로: 2열
- */
+// ─── Grid area ────────────────────────────────────────────────────────────────
+
+const GridArea = styled.div`
+  flex:1; padding:28px 32px 40px; overflow-y:auto;
+  ${media.mobile} { padding:20px 16px 32px; }
+  ${lMedia.phoneSm} { padding:12px 12px 24px; }
+`;
+
 const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+  ${media.tablet} { grid-template-columns:repeat(2,1fr); gap:12px; }
+  ${media.mobile} { grid-template-columns:1fr; gap:10px; }
+  ${lMedia.tablet} { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  ${lMedia.phoneSm} { grid-template-columns:repeat(2,1fr); gap:8px; }
+`;
 
-  ${media.tablet} {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+const Card = styled.div<{ $img: string; $color: string; $delay: number }>`
+  position:relative; border-radius:16px; overflow:hidden;
+  height:220px; cursor:pointer;
+  background-image:url(${p=>p.$img});
+  background-size:cover; background-position:center;
+  background-color:#111827;
+  border:1px solid rgba(255,255,255,0.08);
+  display:flex; flex-direction:column; justify-content:space-between;
+  transition:transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation:${fadeUp} 0.45s ease both;
+  animation-delay:${p=>p.$delay}ms;
+
+  &:hover {
+    transform:translateY(-4px) scale(1.01);
+    border-color:${p=>p.$color}55;
+    box-shadow:0 20px 48px rgba(0,0,0,0.6), 0 0 0 1px ${p=>p.$color}22;
   }
-  ${media.mobile} {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  ${lMedia.tablet} {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 14px;
-  }
-  ${lMedia.phoneSm} {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
+  &:active { transform:scale(0.99); }
+
+  ${media.mobile} { height:180px; border-radius:12px; }
+  ${lMedia.phoneSm} { height:150px; border-radius:10px; }
 `;
 
-const Card = styled.div<{ $hoverGlow: string }>`
-  background: linear-gradient(145deg, rgba(26, 35, 50, 0.9), rgba(15, 20, 25, 0.95));
-  border: 2px solid rgba(76, 175, 255, 0.3);
-  border-radius: 24px;
-  padding: 12px 24px;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-
-  @media (hover: hover) {
-    &:hover {
-      transform: translateY(-8px) scale(1.02);
-      box-shadow: 0 20px 40px ${props => props.$hoverGlow}, 0 0 20px ${props => props.$hoverGlow};
-    }
-  }
-  &:active { transform: scale(0.98); }
-
-  ${media.tablet} { padding: 10px 18px; border-radius: 18px; }
-  ${media.mobile} { padding: 10px 16px; border-radius: 16px; }
-  ${lMedia.phoneSm} { padding: 8px 12px; border-radius: 14px; }
+const CardOverlay = styled.div`
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.75) 100%);
+  pointer-events:none;
 `;
 
-const CardGlow = styled.div`
-  position: absolute;
-  top: -50%; left: -50%;
-  width: 200%; height: 200%;
-  background: radial-gradient(circle, rgba(76, 175, 255, 0.08) 0%, transparent 70%);
-  animation: pulse 4s ease-in-out infinite;
-  pointer-events: none;
+const CardHoverOverlay = styled.div<{$active:boolean}>`
+  position:absolute; inset:0;
+  background:rgba(255,255,255,0.03);
+  opacity:${p=>p.$active?1:0}; transition:opacity 0.2s;
+  pointer-events:none;
 `;
 
-const CardHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  position: relative;
-  z-index: 1;
-
-  ${media.tablet} { margin-bottom: 14px; }
-  ${media.mobile} { margin-bottom: 12px; }
-  ${lMedia.phoneSm} { margin-bottom: 8px; }
+const CardTop = styled.div`
+  position:relative; z-index:2; padding:14px 16px;
+  ${lMedia.phoneSm} { padding:10px 12px; }
 `;
 
-const BgEmoji = styled.span`
-  font-size: 48px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
-
-  ${media.tablet} { font-size: 38px; }
-  ${media.mobile} { font-size: 32px; }
-  ${lMedia.phoneSm} { font-size: 26px; }
+const DiffBadge = styled.div<{$color:string}>`
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:100px;
+  background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+  border:1px solid ${p=>p.$color}44;
+  font-size:11px; font-weight:800; letter-spacing:0.1em;
+  color:${p=>p.$color};
+  ${lMedia.phoneSm} { font-size:10px; padding:3px 8px; }
 `;
 
-const DifficultyBadge = styled.div<{$colors: { bg: string; border: string; color: string; glow: string }}>`
-  padding: 8px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  background: ${props => props.$colors.bg};
-  border: 2px solid ${props => props.$colors.border};
-  color: ${props => props.$colors.color};
-  box-shadow: 0 0 10px ${props => props.$colors.glow};
-
-  ${media.tablet} { padding: 6px 12px; font-size: 12px; border-radius: 10px; }
-  ${media.mobile} { padding: 5px 10px; font-size: 11px; border-radius: 8px; }
-  ${lMedia.phoneSm} { padding: 4px 8px; font-size: 10px; letter-spacing: 0.5px; }
+const CardBottom = styled.div`
+  position:relative; z-index:2; padding:14px 16px;
+  ${lMedia.phoneSm} { padding:10px 12px; }
 `;
 
-const MapName = styled.h3`
-  font-size: 28px;
-  font-weight: 700;
-  color: #e8edf3;
-  margin: 0 0 12px 0;
-  position: relative;
-  z-index: 1;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
-
-  ${media.tablet} { font-size: 22px; margin: 0 0 10px 0; }
-  ${media.mobile} { font-size: 18px; margin: 0 0 8px 0; }
-  ${lMedia.tablet} { font-size: 20px; }
-  ${lMedia.phoneSm} { font-size: 15px; margin: 0 0 6px 0; }
+const CardTitle = styled.h3`
+  font-size:20px; font-weight:800; color:#fff;
+  margin:0 0 6px; text-shadow:0 2px 4px rgba(0,0,0,0.5);
+  ${media.mobile} { font-size:17px; }
+  ${lMedia.phoneSm} { font-size:14px; margin-bottom:3px; }
 `;
 
-const MapDescription = styled.p`
-  font-size: 16px;
-  color: #a8b8c8;
-  line-height: 1.6;
-  margin: 0 0 20px 0;
-  position: relative;
-  z-index: 1;
-
-  ${media.tablet} { font-size: 14px; margin: 0 0 14px 0; }
-  ${media.mobile} { font-size: 13px; margin: 0 0 12px 0; }
-  ${lMedia.phoneSm} { font-size: 11px; margin: 0 0 8px 0; line-height: 1.4; }
+const CardDesc = styled.p`
+  font-size:13px; color:rgba(255,255,255,0.6);
+  line-height:1.4; margin:0 0 10px;
+  ${media.mobile} { font-size:12px; }
+  ${lMedia.phoneSm} { font-size:11px; display:none; }
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 60px 20px;
-
-  ${media.mobile} { padding: 40px 16px; }
-  ${lMedia.phoneSm} { padding: 24px 12px; }
+const SelectHint = styled.div<{$active:boolean}>`
+  font-size:12px; font-weight:700; color:#f59e0b;
+  letter-spacing:0.04em;
+  opacity:${p=>p.$active?1:0}; transform:${p=>p.$active?'translateX(0)':'translateX(-8px)'};
+  transition:all 0.2s;
+  ${lMedia.phoneSm} { display:none; }
 `;
 
-const EmptyText = styled.p`
-  font-size: 20px;
-  color: #7f8c8d;
-  font-weight: 600;
-
-  ${media.mobile} { font-size: 16px; }
+const Empty = styled.div`
+  text-align:center; padding:80px 20px;
+  font-size:18px; color:rgba(255,255,255,0.3); font-weight:600;
 `;
