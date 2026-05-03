@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { media, lMedia } from '../utils/responsive.utils';
 import { authService } from '../services/AuthService';
 import { ShootingStarsBackground } from '../components/UI/ShootingStarsBackground';
@@ -22,311 +22,285 @@ export const LoginScreen = () => {
   };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await authService.signInWithGoogle();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true); setError('');
+    try { await authService.signInWithGoogle(); }
+    catch (err: any) { setError(getErrorMessage(err)); }
+    finally { setLoading(false); }
   };
 
   const handleGuestLogin = async () => {
     const trimmed = nickname.trim();
     if (!trimmed) { setError(t('login.errEmpty')); return; }
-    if (trimmed.length < 2 || trimmed.length > 12) {
-      setError(t('login.errLength')); return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      await authService.signInAsGuest(trimmed);
-    } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
+    if (trimmed.length < 2 || trimmed.length > 12) { setError(t('login.errLength')); return; }
+    setLoading(true); setError('');
+    try { await authService.signInAsGuest(trimmed); }
+    catch (err: any) { setError(getErrorMessage(err)); }
+    finally { setLoading(false); }
   };
 
   return (
     <>
       <ShootingStarsBackground />
-      <Container>
-        <SettingsBtn onClick={() => setShowSettings(true)}>⚙️ {t('nav.settings')}</SettingsBtn>
-        <Content>
-          <Logo>
-            <img src="/images/pokemon-aegis.png" alt="Pokemon Aegis"
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </Logo>
-          <Subtitle>{t('login.title')}</Subtitle>
+      <Root>
+        <SettingsBtn onClick={() => setShowSettings(true)}>
+          ⚙ {t('nav.settings')}
+        </SettingsBtn>
 
-          <LoginButton onClick={handleGoogleLogin} disabled={loading}>
-            <GoogleIcon>G</GoogleIcon>
-            {loading && !guestMode ? t('login.loggingIn') : t('login.google')}
-          </LoginButton>
+        <Layout>
+          <BrandPanel>
+            <BrandContent>
+              <BrandEyebrow>POKEMON</BrandEyebrow>
+              <BrandTitle>AEGIS</BrandTitle>
+              <BrandTagline>지키는 자들의 전쟁</BrandTagline>
+              <BrandDivider />
+              <BrandFeatures>
+                <Feature><FeatureDot />1025종 포켓몬 타워 디펜스</Feature>
+                <Feature><FeatureDot />실시간 멀티플레이 배틀</Feature>
+                <Feature><FeatureDot />시너지 &amp; 진화 시스템</Feature>
+                <Feature><FeatureDot />글로벌 랭킹 리더보드</Feature>
+              </BrandFeatures>
+            </BrandContent>
+            <BrandLogoWrap>
+              <BrandLogo src="/images/pokemon-aegis.png" alt="Pokemon Aegis" />
+            </BrandLogoWrap>
+          </BrandPanel>
 
-          <Divider><span>{t('login.or')}</span></Divider>
+          <FormPanel>
+            <FormCard>
+              <MobileLogo src="/images/pokemon-aegis.png" alt="Pokemon Aegis" />
+              <FormHeading>로그인</FormHeading>
+              <FormSubheading>{t('login.title')}</FormSubheading>
 
-          {!guestMode ? (
-            <GuestButton onClick={() => { setGuestMode(true); setError(''); }} disabled={loading}>
-              {t('login.guestBtn')}
-            </GuestButton>
-          ) : (
-            <GuestForm>
-              <NicknameInput
-                type="text"
-                placeholder={t('login.guestPlaceholder')}
-                value={nickname}
-                onChange={e => setNickname(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleGuestLogin()}
-                maxLength={12}
-                autoFocus
-              />
-              <GuestConfirmButton onClick={handleGuestLogin} disabled={loading}>
-                {loading && guestMode ? t('login.guestEntering') : t('login.guestEnter')}
-              </GuestConfirmButton>
-              <CancelText onClick={() => { setGuestMode(false); setError(''); setNickname(''); }}>
-                {t('login.cancel')}
-              </CancelText>
-            </GuestForm>
-          )}
+              {!guestMode ? (
+                <>
+                  <GoogleBtn onClick={handleGoogleLogin} disabled={loading}>
+                    <GoogleLetter>G</GoogleLetter>
+                    <span>{loading ? t('login.loggingIn') : t('login.google')}</span>
+                  </GoogleBtn>
+                  <OrRow><OrLine /><OrText>{t('login.or')}</OrText><OrLine /></OrRow>
+                  <GhostBtn onClick={() => { setGuestMode(true); setError(''); }} disabled={loading}>
+                    <GhostIcon>👤</GhostIcon>
+                    <span>{t('login.guestBtn')}</span>
+                  </GhostBtn>
+                </>
+              ) : (
+                <GuestForm>
+                  <GuestInput
+                    type="text"
+                    placeholder={t('login.guestPlaceholder')}
+                    value={nickname}
+                    onChange={e => setNickname(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleGuestLogin()}
+                    maxLength={12}
+                    autoFocus
+                  />
+                  <GuestChars>{nickname.length}/12</GuestChars>
+                  <ConfirmBtn onClick={handleGuestLogin} disabled={loading}>
+                    {loading ? t('login.guestEntering') : t('login.guestEnter')}
+                  </ConfirmBtn>
+                  <CancelLink onClick={() => { setGuestMode(false); setError(''); setNickname(''); }}>
+                    ← {t('login.cancel')}
+                  </CancelLink>
+                </GuestForm>
+              )}
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-
-          <Notice>
-            {guestMode ? t('login.noticeGuest') : t('login.noticeDefault')}
-          </Notice>
-        </Content>
-      </Container>
+              {error && <ErrorBox>{error}</ErrorBox>}
+              <Notice>{guestMode ? t('login.noticeGuest') : t('login.noticeDefault')}</Notice>
+            </FormCard>
+          </FormPanel>
+        </Layout>
+      </Root>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </>
   );
 };
 
-// ─── Styled Components ────────────────────────────────────────────────────────
+const fadeUp = keyframes`from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}`;
+const pulse = keyframes`0%,100%{opacity:.7;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}`;
 
-const Container = styled.div`
-  width: 100vw;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 10;
-  background-color: transparent;
-  padding: 24px 0;
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    align-items: flex-start;
-    padding: 20px 0;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 16px 0;
-  }
-  /* 모바일/태블릿 가로 */
-  ${lMedia.phoneSm} {
-    align-items: center;
-    padding: 8px 0;
-  }
+const Root = styled.div`
+  position: relative; z-index: 10;
+  min-height: 100vh; display: flex; flex-direction: column;
 `;
 
 const SettingsBtn = styled.button`
-  position: absolute;
-  top: 1.5rem; right: 1.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: white;
-  padding: 0.6rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.1); }
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    top: 1rem; right: 1rem;
-    padding: 0.5rem 0.9rem;
-    font-size: 0.85rem;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    top: 0.75rem; right: 0.75rem;
-    padding: 0.45rem 0.75rem;
-    font-size: 0.8rem;
-  }
-  /* 가로 모드 */
-  ${lMedia.phoneSm} {
-    top: 0.5rem; right: 0.5rem;
-    padding: 0.4rem 0.7rem;
-    font-size: 0.75rem;
-  }
+  position: fixed; top: 20px; right: 20px; z-index: 100;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: rgba(255,255,255,0.55); padding: 8px 14px;
+  font-size: 13px; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(8px);
+  &:hover { background: rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.2); }
+  ${media.mobile} { padding:7px 11px;font-size:12px;top:12px;right:12px; }
+  ${lMedia.phoneSm} { top:8px;right:8px; }
 `;
 
-const Content = styled.div`
-  background: rgba(26, 27, 33, 0.85);
-  backdrop-filter: blur(12px);
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
-  text-align: center;
-  max-width: 440px;
-  width: 90%;
-  color: #fff;
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    padding: 1.75rem 1.5rem;
-    width: 92%;
-    max-width: 420px;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 1.5rem 1.25rem;
-    width: 95%;
-    max-width: 380px;
-  }
-  /* 가로 모드 */
-  ${lMedia.phoneSm} {
-    padding: 1rem 1.25rem;
-    width: 90%;
-    max-width: 400px;
-  }
+const Layout = styled.div`
+  flex:1; display:grid; grid-template-columns:1fr 1fr; min-height:100vh;
+  ${media.tablet} { grid-template-columns:1fr; }
 `;
 
-/**
- * Logo 컨테이너: font-size 대신 height 로 명시적 크기 제어
- * (내부 img 가 width/height 100%이므로 부모 height 가 실제 크기를 결정)
- */
-const Logo = styled.div`
-  height: 120px;
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    height: 100px;
-    margin-bottom: 0.85rem;
+const BrandPanel = styled.div`
+  display:flex; flex-direction:column; justify-content:space-between;
+  padding:60px 52px;
+  background: linear-gradient(160deg,rgba(15,20,40,0.75) 0%,rgba(5,8,16,0.92) 100%);
+  border-right: 1px solid rgba(245,158,11,0.1);
+  position:relative; overflow:hidden;
+  &::before {
+    content:''; position:absolute; inset:0;
+    background: repeating-linear-gradient(-55deg,transparent,transparent 24px,rgba(245,158,11,0.018) 24px,rgba(245,158,11,0.018) 25px);
+    pointer-events:none;
   }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    height: 80px;
-    margin-bottom: 0.75rem;
-  }
-  /* 가로 모드 – 높이가 제한되므로 로고를 더 작게 */
-  ${lMedia.phoneSm} {
-    height: 55px;
-    margin-bottom: 0.5rem;
-  }
+  ${media.tablet} { display:none; }
 `;
 
-const Subtitle = styled.p`
-  color: #a0a0a0;
-  margin-bottom: 2rem;
-  line-height: 1.5;
-  font-size: 0.95rem;
+const BrandContent = styled.div`animation:${fadeUp} 0.8s ease both;`;
 
-  ${media.mobile} {
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-  }
-  ${lMedia.phoneSm} {
-    margin-bottom: 0.75rem;
-    font-size: 0.85rem;
-  }
+const BrandEyebrow = styled.div`
+  font-size:11px; font-weight:800; letter-spacing:0.4em;
+  color:rgba(245,158,11,0.55); margin-bottom:8px;
 `;
 
-const LoginButton = styled.button`
-  display: flex; align-items: center; justify-content: center; gap: 1rem;
-  width: 100%; padding: 1rem 2rem;
-  font-size: 1rem; font-weight: 500;
-  border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;
-  background: #2563eb; color: white;
-  cursor: pointer; transition: background 0.2s;
-  &:hover:not(:disabled) { background: #1d4ed8; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  ${media.mobile} {
-    padding: 0.85rem 1.5rem;
-    font-size: 0.95rem;
-  }
-  ${lMedia.phoneSm} {
-    padding: 0.7rem 1.25rem;
-    font-size: 0.9rem;
-  }
+const BrandTitle = styled.h1`
+  font-size:clamp(56px,6vw,88px); font-weight:900; letter-spacing:-0.02em;
+  color:#f8fafc; margin:0 0 10px; line-height:1;
+  text-shadow:0 0 60px rgba(245,158,11,0.2);
 `;
 
-const GoogleIcon = styled.div`
-  width: 24px; height: 24px;
-  background: transparent; color: white;
-  border-radius: 50%; display: flex;
-  align-items: center; justify-content: center;
-  font-weight: bold; font-size: 1.2rem;
+const BrandTagline = styled.div`
+  font-size:17px; color:rgba(255,255,255,0.38); font-weight:400; letter-spacing:0.05em;
 `;
 
-const Divider = styled.div`
-  position: relative; margin: 1.5rem 0;
-  display: flex; align-items: center;
-  &::before, &::after {
-    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1);
-  }
-  span { padding: 0 12px; color: #666; font-size: 0.85rem; }
-
-  ${media.mobile} { margin: 1.1rem 0; }
-  ${lMedia.phoneSm} { margin: 0.6rem 0; }
+const BrandDivider = styled.div`
+  width:48px; height:2px;
+  background:linear-gradient(90deg,#f59e0b,transparent);
+  margin:32px 0;
 `;
 
-const GuestButton = styled(LoginButton)`
-  background: #2a2b32;
-  border: 1px solid rgba(255,255,255,0.1);
-  &:hover:not(:disabled) { background: #3f414a; }
+const BrandFeatures = styled.div`display:flex; flex-direction:column; gap:12px;`;
+
+const Feature = styled.div`
+  display:flex; align-items:center; gap:10px;
+  font-size:14px; color:rgba(255,255,255,0.45);
+  animation:${fadeUp} 0.8s ease both;
+  &:nth-child(1){animation-delay:.1s} &:nth-child(2){animation-delay:.2s}
+  &:nth-child(3){animation-delay:.3s} &:nth-child(4){animation-delay:.4s}
 `;
 
-const GuestForm = styled.div`
-  display: flex; flex-direction: column; gap: 0.6rem; width: 100%;
+const FeatureDot = styled.div`
+  width:5px; height:5px; border-radius:50%; background:#f59e0b; flex-shrink:0;
 `;
 
-const NicknameInput = styled.input`
-  width: 100%; padding: 0.9rem 1rem; font-size: 0.95rem;
-  background: rgba(0,0,0,0.2); color: white;
-  border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
-  outline: none; box-sizing: border-box; transition: border-color 0.2s;
-  &:focus { border-color: #2563eb; }
-  &::placeholder { color: #666; }
+const BrandLogoWrap = styled.div`display:flex; align-items:flex-end; justify-content:flex-end;`;
 
-  ${media.mobile} { padding: 0.8rem 0.9rem; font-size: 0.9rem; }
-  ${lMedia.phoneSm} { padding: 0.65rem 0.85rem; font-size: 0.88rem; }
+const BrandLogo = styled.img`
+  height:200px; object-fit:contain;
+  filter:drop-shadow(0 0 48px rgba(245,158,11,0.28));
+  animation:${pulse} 4.5s ease-in-out infinite; opacity:0.8;
 `;
 
-const GuestConfirmButton = styled(LoginButton)`
-  background: #10b981;
-  &:hover:not(:disabled) { background: #059669; }
+const FormPanel = styled.div`
+  display:flex; align-items:center; justify-content:center;
+  padding:40px 24px;
+  background:rgba(7,9,15,0.55); backdrop-filter:blur(20px);
+  ${media.tablet} { padding:60px 24px; }
+  ${lMedia.phoneSm} { padding:32px 16px; }
 `;
 
-const CancelText = styled.span`
-  font-size: 0.85rem; color: #666; cursor: pointer;
-  text-align: center; margin-top: 0.5rem;
-  &:hover { color: #aaa; text-decoration: underline; }
+const FormCard = styled.div`
+  width:100%; max-width:400px;
+  animation:${fadeUp} 0.6s ease both; animation-delay:0.2s;
 `;
 
-const ErrorMessage = styled.div`
-  margin-top: 1rem; padding: 0.75rem; font-size: 0.9rem;
-  background: rgba(239, 68, 68, 0.1); color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px;
+const MobileLogo = styled.img`
+  display:none; height:72px; object-fit:contain;
+  margin:0 auto 28px; filter:drop-shadow(0 0 24px rgba(245,158,11,0.35));
+  ${media.tablet} { display:block; }
+  ${lMedia.phoneSm} { height:52px; margin-bottom:18px; }
+`;
 
-  ${media.mobile} { margin-top: 0.75rem; font-size: 0.85rem; }
+const FormHeading = styled.h2`
+  font-size:28px; font-weight:800; color:#f8fafc;
+  margin:0 0 6px; letter-spacing:-0.01em;
+  ${media.mobile} { font-size:24px; }
+`;
+
+const FormSubheading = styled.p`
+  font-size:14px; color:rgba(255,255,255,0.38);
+  margin:0 0 36px; line-height:1.5;
+  ${media.mobile} { margin-bottom:28px; font-size:13px; }
+  ${lMedia.phoneSm} { margin-bottom:20px; }
+`;
+
+const GoogleBtn = styled.button`
+  width:100%; display:flex; align-items:center; gap:14px;
+  padding:15px 20px; background:#2563eb;
+  border:1px solid rgba(37,99,235,0.3); border-radius:10px;
+  color:#fff; font-size:15px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; margin-bottom:16px;
+  &:hover:not(:disabled) { background:#1d4ed8; transform:translateY(-1px); box-shadow:0 8px 24px rgba(37,99,235,0.35); }
+  &:disabled { opacity:.5; cursor:not-allowed; }
+  ${media.mobile} { padding:13px 18px; font-size:14px; }
+  ${lMedia.phoneSm} { padding:11px 16px; }
+`;
+
+const GoogleLetter = styled.div`
+  width:26px; height:26px; background:rgba(255,255,255,0.15);
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-weight:900; font-size:15px; flex-shrink:0;
+`;
+
+const OrRow = styled.div`display:flex; align-items:center; gap:12px; margin:20px 0;`;
+const OrLine = styled.div`flex:1; height:1px; background:rgba(255,255,255,0.08);`;
+const OrText = styled.span`font-size:12px; color:rgba(255,255,255,0.28); letter-spacing:.06em; text-transform:uppercase;`;
+
+const GhostBtn = styled(GoogleBtn)`
+  background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.1); margin-bottom:0;
+  &:hover:not(:disabled) { background:rgba(255,255,255,0.08); transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,0.3); }
+`;
+
+const GhostIcon = styled.div`font-size:18px; width:26px; text-align:center; flex-shrink:0;`;
+
+const GuestForm = styled.div`display:flex; flex-direction:column; gap:0;`;
+
+const GuestInput = styled.input`
+  width:100%; padding:14px 16px;
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12);
+  border-bottom:none; border-radius:10px 10px 0 0;
+  color:#f8fafc; font-size:15px; outline:none; transition:border-color 0.2s; box-sizing:border-box;
+  &:focus { border-color:rgba(245,158,11,0.5); }
+  &::placeholder { color:rgba(255,255,255,0.2); }
+  ${media.mobile} { padding:12px 14px; font-size:14px; }
+`;
+
+const GuestChars = styled.div`
+  text-align:right; font-size:11px; color:rgba(255,255,255,0.2); padding:5px 14px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.12); border-top:none; border-bottom:none;
+`;
+
+const ConfirmBtn = styled.button`
+  width:100%; padding:14px; background:#10b981; border:none;
+  border-radius:0 0 10px 10px; color:#fff; font-size:15px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  &:hover:not(:disabled) { background:#059669; }
+  &:disabled { opacity:.5; cursor:not-allowed; }
+  ${media.mobile} { padding:12px; font-size:14px; }
+`;
+
+const CancelLink = styled.span`
+  display:block; text-align:center; margin-top:14px; font-size:13px;
+  color:rgba(255,255,255,0.28); cursor:pointer; transition:color 0.2s;
+  &:hover { color:rgba(255,255,255,0.6); }
+`;
+
+const ErrorBox = styled.div`
+  margin-top:16px; padding:12px 16px;
+  background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25);
+  border-radius:8px; color:#fca5a5; font-size:13px; line-height:1.5;
 `;
 
 const Notice = styled.div`
-  margin-top: 1.5rem; font-size: 0.8rem; color: #555;
-
-  ${media.mobile} { margin-top: 1rem; font-size: 0.75rem; }
-  ${lMedia.phoneSm} { margin-top: 0.5rem; }
+  margin-top:28px; font-size:12px; color:rgba(255,255,255,0.2);
+  line-height:1.6; text-align:center;
+  ${media.mobile} { margin-top:20px; }
+  ${lMedia.phoneSm} { margin-top:14px; }
 `;

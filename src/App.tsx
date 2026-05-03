@@ -27,6 +27,7 @@ import { MultiplayerLobby } from "./components/Multiplayer/MultiplayerLobby";
 import { MapSelector } from "./components/UI/MapSelector";
 import { GameLayout } from "./components/GameLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { StorySelector } from './components/Story/StorySelector';
 import { FloatingSettings } from "./components/UI/FloatingSettings";
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
@@ -119,7 +120,7 @@ function App() {
   }, [navigate, location.pathname]);
 
   const handlePreloadAndNavigate = useCallback(
-    async (mapId: string, gameMode: 'single' | 'multi') => {
+    async (mapId: string, gameMode: 'single' | 'multi', storyData?: object) => {
       resetGame();
       useGameStore.getState().setMap(mapId);
 
@@ -140,7 +141,7 @@ function App() {
         await preloadMapBackground(mapId);
 
         setLoadingStage('done');
-        navigate('/game');
+        navigate('/game', { state: storyData ? { ...storyData, mode: 'story' } : undefined });
       } catch (err) {
         console.error('Failed to preload game data', err);
         alert('게임 데이터 로드에 실패했습니다. 새로고침 해주세요.');
@@ -239,6 +240,16 @@ function App() {
           <MapSelector
             onSelect={(mapId) => {
               handlePreloadAndNavigate(mapId, 'single');
+            }}
+          />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/story" element={
+        <ProtectedRoute>
+          <StorySelector
+            onStart={(data) => {
+              handlePreloadAndNavigate(data.mapId, 'single', data);
             }}
           />
         </ProtectedRoute>

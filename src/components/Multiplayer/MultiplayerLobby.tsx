@@ -1,17 +1,15 @@
 // src/components/Multiplayer/MultiplayerLobby.tsx
-// ──────────────────────────────────────────────────────────────────
 // [V5-FIX-LB-1] 나가기 확인 모달 — 게임 진행 중 실수로 나가기 방지
 // [V5-FIX-LB-2] AI가 호스트가 되는 경우에 대한 안전 장치
 
 import { useState, useEffect, useRef } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 import { useTranslation } from '../../i18n';
-
 import { AchievementsPanel } from '../Modals/Achievements';
 import { HallOfFame } from '../Modals/HallOfFame';
 import { Rankings } from '../Modals/Rankings';
@@ -20,6 +18,15 @@ interface MultiplayerLobbyProps {
   onBack: () => void;
   onStartGame: (roomId: string, mapId: string) => void;
 }
+
+const DIFF_META: Record<string, { label: string; color: string }> = {
+  easiest: { label: 'EASIEST', color: '#94a3b8' },
+  easy:    { label: 'EASY',    color: '#4ade80' },
+  medium:  { label: 'MEDIUM',  color: '#60a5fa' },
+  normal:  { label: 'MEDIUM',  color: '#60a5fa' },
+  hard:    { label: 'HARD',    color: '#fb923c' },
+  expert:  { label: 'EXPERT',  color: '#f87171' },
+};
 
 export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps) => {
   const { t } = useTranslation();
@@ -45,10 +52,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           const { room, canRejoin } = await multiplayerService.rejoinRoom(savedRoomId);
           if (canRejoin && room) setRejoinableRoom(room);
           else multiplayerService.clearCurrentRoom();
-        } catch (error) {
-          console.error('Failed to check rejoin room:', error);
-          multiplayerService.clearCurrentRoom();
-        }
+        } catch { multiplayerService.clearCurrentRoom(); }
       }
       setIsCheckingRejoin(false);
     };
@@ -66,11 +70,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     const roomId = multiplayerService.getCurrentRoomId();
     if (roomId && view === 'room' && !startingRef.current) {
       const unsubscribe = multiplayerService.onRoomUpdate(roomId, (room) => {
-        if (!room) {
-          setView('list');
-          setCurrentRoom(null);
-          return;
-        }
+        if (!room) { setView('list'); setCurrentRoom(null); return; }
         setCurrentRoom(room);
         if ((room.status === 'starting' || room.status === 'playing') && !startingRef.current) {
           startingRef.current = true;
@@ -87,45 +87,30 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       if (!selectedMapData) throw new Error('Invalid map');
       const roomId = await multiplayerService.createRoom(selectedMap, selectedMapData.name);
       const room = await multiplayerService.rejoinRoom(roomId);
-      setCurrentRoom(room.room);
-      setView('room');
-    } catch (err: any) {
-      alert(err.message);
-    }
+      setCurrentRoom(room.room); setView('room');
+    } catch (err: any) { alert(err.message); }
   };
 
   const handleJoinRoom = async (roomId: string) => {
     try {
       await multiplayerService.joinRoom(roomId);
       const room = await multiplayerService.rejoinRoom(roomId);
-      setCurrentRoom(room.room);
-      setView('room');
-    } catch (err: any) {
-      alert(err.message);
-    }
-  };
-
-  const handleLeaveRoomRequest = () => {
-    if (!currentRoom) return;
-    setLeaveConfirmOpen(true);
+      setCurrentRoom(room.room); setView('room');
+    } catch (err: any) { alert(err.message); }
   };
 
   const handleLeaveRoomConfirmed = async () => {
     setLeaveConfirmOpen(false);
     if (currentRoom) {
       await multiplayerService.leaveRoom(currentRoom.id);
-      setView('list');
-      setCurrentRoom(null);
+      setView('list'); setCurrentRoom(null);
     }
   };
 
   const handleAddAI = async (difficulty: AIDifficulty) => {
     if (currentRoom) {
-      try {
-        await multiplayerService.addAI(currentRoom.id, difficulty);
-      } catch (err: any) {
-        alert(err.message);
-      }
+      try { await multiplayerService.addAI(currentRoom.id, difficulty); }
+      catch (err: any) { alert(err.message); }
     }
   };
 
@@ -135,11 +120,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
 
   const handleStartGame = async () => {
     if (currentRoom) {
-      try {
-        await multiplayerService.startGame(currentRoom.id);
-      } catch (err: any) {
-        alert(err.message);
-      }
+      try { await multiplayerService.startGame(currentRoom.id); }
+      catch (err: any) { alert(err.message); }
     }
   };
 
@@ -148,220 +130,262 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     if (rejoinableRoom.status === 'playing' || rejoinableRoom.status === 'starting') {
       onStartGame(rejoinableRoom.id, rejoinableRoom.mapId);
     } else {
-      setCurrentRoom(rejoinableRoom);
-      setView('room');
+      setCurrentRoom(rejoinableRoom); setView('room');
     }
     setRejoinableRoom(null);
   };
 
   const handleAbandon = async () => {
     if (!rejoinableRoom) return;
-    try {
-      await multiplayerService.leaveRoom(rejoinableRoom.id);
-    } catch (err) {
-      console.error('Failed to leave room:', err);
-      multiplayerService.clearCurrentRoom();
-    }
-    setRejoinableRoom(null);
-    setView('list');
+    try { await multiplayerService.leaveRoom(rejoinableRoom.id); }
+    catch { multiplayerService.clearCurrentRoom(); }
+    setRejoinableRoom(null); setView('list');
   };
 
+  const mapLabel = (map: { id: string; name: string }) =>
+    t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
+      ? t(`mapData.${map.id}.name`) : map.name;
+
   if (isCheckingRejoin) {
-    return <Overlay><Container><LoadingText>{t('lobby.checkingRejoin')}</LoadingText></Container></Overlay>;
+    return <Root><LoadingScreen>{t('lobby.checkingRejoin')}</LoadingScreen></Root>;
   }
 
   if (rejoinableRoom) {
-    return (
-      <RejoinPrompt
-        roomName={rejoinableRoom.name}
-        onRejoin={handleRejoin}
-        onAbandon={handleAbandon}
-      />
-    );
+    return <RejoinPrompt roomName={rejoinableRoom.name} onRejoin={handleRejoin} onAbandon={handleAbandon} />;
   }
 
-  if (view === 'list') {
-    return (
-      <>
-        <Overlay>
-          <Container>
-            <Header>
-              <Title>{t('lobby.title')}</Title>
-              <BackButton onClick={onBack}>← {t('lobby.back')}</BackButton>
-            </Header>
+  // ── Room list view ──────────────────────────────────────────────────────────
+  if (view === 'list') return (
+    <>
+      <Root>
+        <PageHeader>
+          <BackBtn onClick={onBack}>← {t('lobby.back')}</BackBtn>
+          <PageTitle>{t('lobby.title')}</PageTitle>
+          <HeaderActions>
+            <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
+            <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
+            <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+            <CreateRoomBtn onClick={() => setView('create')}>+ {t('lobby.createRoom')}</CreateRoomBtn>
+          </HeaderActions>
+        </PageHeader>
 
-            <ButtonRow>
-              <CreateRoomButton onClick={() => setView('create')}>
-                ➕ {t('lobby.createRoom')}
-              </CreateRoomButton>
-            </ButtonRow>
-
-            <RoomList>
-              {rooms.length === 0 ? (
-                <EmptyMessage>{t('lobby.emptyList')}</EmptyMessage>
-              ) : (
-                rooms.map(room => (
-                  <RoomCard key={room.id}>
-                    <RoomInfo>
+        <Content>
+          {rooms.length === 0 ? (
+            <EmptyState>
+              <EmptyIcon>🎮</EmptyIcon>
+              <EmptyTitle>{t('lobby.emptyList')}</EmptyTitle>
+              <EmptyHint>방을 직접 만들어보세요</EmptyHint>
+              <EmptyCreateBtn onClick={() => setView('create')}>+ {t('lobby.createRoom')}</EmptyCreateBtn>
+            </EmptyState>
+          ) : (
+            <RoomTable>
+              <RoomTableHead>
+                <RTH style={{flex:2}}>{t('lobby.map')}</RTH>
+                <RTH>{t('lobby.host')}</RTH>
+                <RTH style={{textAlign:'center'}}>{t('lobby.players')}</RTH>
+                <RTH style={{width:100}} />
+              </RoomTableHead>
+              {rooms.map(room => (
+                <RoomRow key={room.id}>
+                  <RoomMapCell>
+                    <RoomMapThumb src={`/images/maps/${room.mapId}.png`} alt="" />
+                    <RoomMapInfo>
                       <RoomName>{room.name}</RoomName>
-                      <RoomDetails>
-                        {t('lobby.map')}: {t(`mapData.${room.mapId}.name`) !== `mapData.${room.mapId}.name`
-                          ? t(`mapData.${room.mapId}.name`)
-                          : room.mapName} | {t('lobby.host')}: {room.hostName}
-                      </RoomDetails>
-                    </RoomInfo>
-                    <RoomPlayers>{room.players.length} / {room.maxPlayers}</RoomPlayers>
-                    <JoinButton
+                      <RoomMapName>{mapLabel(room)}</RoomMapName>
+                    </RoomMapInfo>
+                  </RoomMapCell>
+                  <RoomCell>{room.hostName}</RoomCell>
+                  <RoomCell style={{textAlign:'center'}}>
+                    <PlayerCount $full={room.players.length >= room.maxPlayers}>
+                      {room.players.length}/{room.maxPlayers}
+                    </PlayerCount>
+                  </RoomCell>
+                  <RoomCell style={{width:100}}>
+                    <JoinBtn
                       onClick={() => handleJoinRoom(room.id)}
                       disabled={room.players.length >= room.maxPlayers}
                     >
                       {t('lobby.join')}
-                    </JoinButton>
-                  </RoomCard>
-                ))
-              )}
-            </RoomList>
-          </Container>
-        </Overlay>
+                    </JoinBtn>
+                  </RoomCell>
+                </RoomRow>
+              ))}
+            </RoomTable>
+          )}
+        </Content>
+      </Root>
+      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+      {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+    </>
+  );
 
-        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
-        {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
-        {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
-      </>
-    );
-  }
-
-  if (view === 'create') {
-    return (
-      <>
-        <Overlay>
-          <Container>
-            <Header>
-              <Title>{t('lobby.createTitle')}</Title>
-              <BackButton onClick={() => setView('list')}>← {t('lobby.back')}</BackButton>
-            </Header>
-
-            <Section>
-              <SectionTitle>{t('lobby.selectMap')}</SectionTitle>
-              <MapGrid>
-                {MAPS.map(map => (
-                  <MapCard
+  // ── Create room view ────────────────────────────────────────────────────────
+  if (view === 'create') return (
+    <>
+      <Root>
+        <PageHeader>
+          <BackBtn onClick={() => setView('list')}>← {t('lobby.back')}</BackBtn>
+          <PageTitle>{t('lobby.createTitle')}</PageTitle>
+          <HeaderActions>
+            <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
+            <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
+            <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+          </HeaderActions>
+        </PageHeader>
+        <Content>
+          <CreateSection>
+            <SectionLabel>{t('lobby.selectMap')}</SectionLabel>
+            <MapPickGrid>
+              {MAPS.map(map => {
+                const meta = DIFF_META[map.difficulty] ?? { label: map.difficulty, color: '#fff' };
+                const isSelected = selectedMap === map.id;
+                return (
+                  <MapPickCard
                     key={map.id}
-                    $selected={selectedMap === map.id}
+                    $selected={isSelected}
+                    $color={meta.color}
+                    $img={map.backgroundImage ?? ""}
                     onClick={() => setSelectedMap(map.id)}
                   >
-                    <MapName>
-                      {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
-                        ? t(`mapData.${map.id}.name`)
-                        : map.name}
-                    </MapName>
-                    <MapDifficulty>{t('lobby.difficulty')}: {map.difficulty}</MapDifficulty>
-                  </MapCard>
-                ))}
-              </MapGrid>
-            </Section>
+                    <MapPickOverlay $selected={isSelected} $color={meta.color} />
+                    <MapPickBadge $color={meta.color}>{meta.label}</MapPickBadge>
+                    <MapPickName>{mapLabel(map)}</MapPickName>
+                    {isSelected && <MapPickCheck>✓</MapPickCheck>}
+                  </MapPickCard>
+                );
+              })}
+            </MapPickGrid>
+            <ConfirmCreateBtn onClick={handleCreateRoom}>{t('lobby.createRoomAction')}</ConfirmCreateBtn>
+          </CreateSection>
+        </Content>
+      </Root>
+      {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
+      {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
+      {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
+    </>
+  );
 
-            <CreateButton onClick={handleCreateRoom}>{t('lobby.createRoomAction')}</CreateButton>
-          </Container>
-        </Overlay>
-
-        {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
-        {showHallOfFame && <HallOfFame onClose={() => setShowHallOfFame(false)} />}
-        {showRankings && <Rankings onClose={() => setShowRankings(false)} />}
-      </>
-    );
-  }
-
+  // ── Room view ───────────────────────────────────────────────────────────────
   if (view === 'room' && currentRoom) {
     const isHost = currentRoom.hostId === user?.uid;
     const currentPlayer = currentRoom.players.find(p => p.userId === user?.uid);
     const allReady = currentRoom.players.every(p => p.isReady);
+    const mapInfo = MAPS.find(m => m.id === currentRoom.mapId);
+    const mapMeta = DIFF_META[mapInfo?.difficulty ?? ''] ?? { label: '', color: '#fff' };
 
     return (
       <>
-        <Overlay>
-          <Container>
-            <Header>
-              <Title>{currentRoom.name}</Title>
-              <BackButton onClick={handleLeaveRoomRequest}>← {t('lobby.leave')}</BackButton>
-            </Header>
+        <Root>
+          <PageHeader>
+            <BackBtn onClick={() => setLeaveConfirmOpen(true)}>← {t('lobby.leave')}</BackBtn>
+            <PageTitle>{currentRoom.name}</PageTitle>
+            <HeaderActions>
+              <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
+              <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
+              <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+            </HeaderActions>
+          </PageHeader>
 
-            <Section>
-              <SectionTitle>
-                {t('lobby.map')}: {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name`
-                  ? t(`mapData.${currentRoom.mapId}.name`)
-                  : currentRoom.mapName}
-              </SectionTitle>
-            </Section>
+          <Content>
+            <RoomLayout>
+              {/* Map info */}
+              <RoomMapPanel>
+                <RoomMapBig src={`/images/maps/${currentRoom.mapId}.png`} alt="" />
+                <RoomMapDetails>
+                  <RoomMapBadge $color={mapMeta.color}>{mapMeta.label}</RoomMapBadge>
+                  <RoomMapTitle>
+                    {t(`mapData.${currentRoom.mapId}.name`) !== `mapData.${currentRoom.mapId}.name`
+                      ? t(`mapData.${currentRoom.mapId}.name`) : currentRoom.mapName}
+                  </RoomMapTitle>
+                  <PlayerCountBig>
+                    {currentRoom.players.length} / {currentRoom.maxPlayers} 플레이어
+                  </PlayerCountBig>
+                </RoomMapDetails>
+              </RoomMapPanel>
 
-            <Section>
-              <SectionTitle>
-                {t('lobby.players')} ({currentRoom.players.length}/{currentRoom.maxPlayers})
-              </SectionTitle>
-              <PlayerList>
-                {currentRoom.players.map(player => (
-                  <PlayerCard key={player.userId}>
-                    <PlayerName>
-                      {player.userName}
-                      {player.userId === currentRoom.hostId && ' 👑'}
-                      {player.isAI && ' 🤖'}
-                    </PlayerName>
-                    <PlayerRating>Rating: {player.rating}</PlayerRating>
-                    <PlayerStatus $ready={player.isReady}>
-                      {player.isReady ? `✓ ${t('lobby.readyOn')}` : t('lobby.readyWait')}
-                    </PlayerStatus>
-                  </PlayerCard>
-                ))}
-              </PlayerList>
-            </Section>
+              {/* Players */}
+              <RoomPlayersArea>
+                <SectionLabel>
+                  {t('lobby.players')} ({currentRoom.players.length}/{currentRoom.maxPlayers})
+                </SectionLabel>
+                <PlayerGrid>
+                  {currentRoom.players.map(p => (
+                    <PlayerCard key={p.userId} $ready={p.isReady}>
+                      <PlayerAvatar>{(p.userName||'?').charAt(0).toUpperCase()}</PlayerAvatar>
+                      <PlayerInfo>
+                        <PlayerNameRow>
+                          {p.userName}
+                          {p.userId === currentRoom.hostId && <HostBadge>👑 HOST</HostBadge>}
+                          {p.isAI && <AIBadge>🤖 AI</AIBadge>}
+                        </PlayerNameRow>
+                        <PlayerRatingRow>Rating {p.rating}</PlayerRatingRow>
+                      </PlayerInfo>
+                      <ReadyIndicator $ready={p.isReady}>
+                        {p.isReady ? '✓ READY' : '...'}
+                      </ReadyIndicator>
+                    </PlayerCard>
+                  ))}
+                  {/* Empty slots */}
+                  {Array.from({ length: currentRoom.maxPlayers - currentRoom.players.length }).map((_, i) => (
+                    <EmptySlot key={`empty-${i}`}>— 대기 중 —</EmptySlot>
+                  ))}
+                </PlayerGrid>
 
-            {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
-              <Section>
-                <SectionTitle>{t('lobby.addAI')}</SectionTitle>
-                <AIButtons>
-                  <AIButton onClick={() => handleAddAI('easy')}>Easy AI</AIButton>
-                  <AIButton onClick={() => handleAddAI('normal')}>Normal AI</AIButton>
-                  <AIButton onClick={() => handleAddAI('hard')}>Hard AI</AIButton>
-                </AIButtons>
-              </Section>
-            )}
+                {/* AI buttons */}
+                {isHost && currentRoom.players.length < currentRoom.maxPlayers && (
+                  <AISection>
+                    <SectionLabel>{t('lobby.addAI')}</SectionLabel>
+                    <AIBtnRow>
+                      {(['easy','normal','hard'] as AIDifficulty[]).map(d => (
+                        <AIAddBtn key={d} onClick={() => handleAddAI(d)}>
+                          + {d.charAt(0).toUpperCase() + d.slice(1)} AI
+                        </AIAddBtn>
+                      ))}
+                    </AIBtnRow>
+                  </AISection>
+                )}
 
-            <ButtonRow>
-              {!isHost && (
-                <ReadyButton
-                  onClick={handleToggleReady}
-                  $ready={currentPlayer?.isReady || false}
-                >
-                  {currentPlayer?.isReady ? t('lobby.btnReadyCancel') : t('lobby.btnReady')}
-                </ReadyButton>
-              )}
+                {/* Action buttons */}
+                <ActionRow>
+                  {!isHost && (
+                    <ToggleReadyBtn
+                      $ready={currentPlayer?.isReady || false}
+                      onClick={handleToggleReady}
+                    >
+                      {currentPlayer?.isReady ? t('lobby.btnReadyCancel') : t('lobby.btnReady')}
+                    </ToggleReadyBtn>
+                  )}
+                  {isHost && (
+                    <StartGameBtn
+                      onClick={handleStartGame}
+                      disabled={!allReady || currentRoom.players.length < 2}
+                    >
+                      {t('lobby.btnStart')}
+                    </StartGameBtn>
+                  )}
+                </ActionRow>
+              </RoomPlayersArea>
+            </RoomLayout>
+          </Content>
+        </Root>
 
-              {isHost && (
-                <StartButton
-                  onClick={handleStartGame}
-                  disabled={!allReady || currentRoom.players.length < 2}
-                >
-                  {t('lobby.btnStart')}
-                </StartButton>
-              )}
-            </ButtonRow>
-          </Container>
-        </Overlay>
-
+        {/* Leave confirm */}
         {leaveConfirmOpen && (
-          <ConfirmOverlay onClick={() => setLeaveConfirmOpen(false)}>
-            <ConfirmContainer onClick={e => e.stopPropagation()}>
+          <ModalOverlay onClick={() => setLeaveConfirmOpen(false)}>
+            <ConfirmModal onClick={e => e.stopPropagation()}>
+              <ConfirmIcon>⚠</ConfirmIcon>
               <ConfirmTitle>{t('lobby.confirmLeaveTitle')}</ConfirmTitle>
               <ConfirmText>
-                {t('lobby.confirmLeaveMsg')}<br />
-                {isHost && t('lobby.confirmLeaveHostMsg')}
+                {t('lobby.confirmLeaveMsg')}
+                {isHost && <><br />{t('lobby.confirmLeaveHostMsg')}</>}
               </ConfirmText>
-              <ConfirmButtons>
-                <CancelButton onClick={() => setLeaveConfirmOpen(false)}>{t('lobby.btnCancel')}</CancelButton>
-                <ConfirmLeaveButton onClick={handleLeaveRoomConfirmed}>{t('lobby.btnLeave')}</ConfirmLeaveButton>
-              </ConfirmButtons>
-            </ConfirmContainer>
-          </ConfirmOverlay>
+              <ConfirmBtns>
+                <CancelModalBtn onClick={() => setLeaveConfirmOpen(false)}>{t('lobby.btnCancel')}</CancelModalBtn>
+                <LeaveModalBtn onClick={handleLeaveRoomConfirmed}>{t('lobby.btnLeave')}</LeaveModalBtn>
+              </ConfirmBtns>
+            </ConfirmModal>
+          </ModalOverlay>
         )}
 
         {showAchievements && <AchievementsPanel onClose={() => setShowAchievements(false)} />}
@@ -374,473 +398,412 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   return null;
 };
 
-// ─── Styled Components ─────────────────────────────────────────────────────────
+// ─── Animations ───────────────────────────────────────────────────────────────
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-  overflow-y: auto;
-  padding: 16px 0;
+const fadeUp = keyframes`from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}`;
 
-  /* 태블릿 세로 */
-  ${media.tablet} { padding: 12px 0; }
-  /* 모바일 세로 */
-  ${media.mobile} { align-items: flex-start; padding: 8px 0; }
-  /* 가로 모드 */
-  ${lMedia.phoneSm} { align-items: flex-start; padding: 6px 0; }
+// ─── Shared ───────────────────────────────────────────────────────────────────
+
+const Root = styled.div`
+  min-height:100vh;
+  background:radial-gradient(ellipse at top,#111827 0%,#070b14 60%,#000 100%);
+  display:flex; flex-direction:column; color:#f8fafc;
 `;
 
-const Container = styled.div`
-  background: rgba(26, 27, 33, 0.95);
-  padding: 2.5rem;
-  border-radius: 12px;
-  max-width: 900px;
-  width: 90%;
-  max-height: 92vh;
-  overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    padding: 1.5rem;
-    max-width: 720px;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    padding: 1rem;
-    width: 95%;
-    border-radius: 8px;
-    max-height: 96vh;
-  }
-  /* 태블릿 가로 */
-  ${lMedia.tablet} {
-    padding: 1.5rem 2rem;
-    max-width: 860px;
-  }
-  /* 폰 가로 */
-  ${lMedia.phoneSm} {
-    padding: 0.75rem 1rem;
-    width: 96%;
-    max-height: 98vh;
-    border-radius: 8px;
-  }
+const LoadingScreen = styled.div`
+  flex:1; display:flex; align-items:center; justify-content:center;
+  font-size:20px; color:rgba(255,255,255,0.4);
+  min-height:100vh;
 `;
 
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-
-  ${media.tablet} { margin-bottom: 1.5rem; }
-  ${media.mobile} { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
-  ${lMedia.phoneSm} { margin-bottom: 0.75rem; }
+const PageHeader = styled.header`
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 32px; height:64px;
+  background:rgba(255,255,255,0.025);
+  border-bottom:1px solid rgba(255,255,255,0.07);
+  backdrop-filter:blur(12px); flex-shrink:0;
+  ${media.mobile} { padding:0 16px; height:52px; }
+  ${lMedia.phoneSm} { height:44px; padding:0 12px; }
 `;
 
-const Title = styled.h2`
-  font-size: 1.8rem;
-  color: white;
-  font-weight: 700;
-
-  ${media.tablet} { font-size: 1.5rem; }
-  ${media.mobile} { font-size: 1.3rem; }
-  ${lMedia.phoneSm} { font-size: 1.2rem; }
+const BackBtn = styled.button`
+  background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px; color:rgba(255,255,255,0.55); padding:8px 14px;
+  font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  &:hover { background:rgba(255,255,255,0.1); color:#fff; }
+  ${media.mobile} { padding:6px 10px; font-size:12px; }
 `;
 
-const BackButton = styled.button`
-  padding: 0.5rem 1rem;
-  background: transparent;
-  color: #a0a0a0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.05); color: white; }
-
-  ${media.mobile} { padding: 0.4rem 0.75rem; font-size: 0.9rem; }
+const PageTitle = styled.h1`
+  font-size:18px; font-weight:800; color:#f8fafc; margin:0; letter-spacing:-0.01em;
+  ${media.mobile} { font-size:16px; }
+  ${lMedia.phoneSm} { font-size:14px; }
 `;
 
-const ButtonRow = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+const HeaderActions = styled.div`display:flex; align-items:center; gap:8px;`;
 
-  ${media.mobile} { flex-wrap: wrap; }
-  ${lMedia.phoneSm} { gap: 0.5rem; margin-bottom: 0.6rem; }
+const ActionBtn = styled.button`
+  width:36px; height:36px; background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08); border-radius:8px;
+  font-size:16px; cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; justify-content:center;
+  &:hover { background:rgba(255,255,255,0.1); }
+  ${media.mobile} { display:none; }
 `;
 
-const CreateRoomButton = styled.button`
-  flex: 1;
-  padding: 1rem;
-  background: #23252e;
-  color: #e0e0e0;
-  font-weight: 600;
-  font-size: 1.05rem;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { background: #2a2d36; }
-
-  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
-  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
+const CreateRoomBtn = styled.button`
+  padding:8px 16px; background:#3b82f6; border:none; border-radius:8px;
+  color:#fff; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.2s;
+  white-space:nowrap;
+  &:hover { background:#2563eb; transform:translateY(-1px); box-shadow:0 6px 16px rgba(59,130,246,0.3); }
+  ${media.mobile} { padding:7px 12px; font-size:13px; }
 `;
 
-const RoomList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-
-  ${lMedia.phoneSm} { gap: 0.6rem; }
+const Content = styled.main`
+  flex:1; padding:28px 32px; overflow-y:auto;
+  animation:${fadeUp} 0.4s ease both;
+  ${media.mobile} { padding:20px 16px; }
+  ${lMedia.phoneSm} { padding:12px; }
 `;
 
-const EmptyMessage = styled.div`
-  text-align: center;
-  color: #a0a0a0;
-  padding: 2.5rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-
-  ${media.mobile} { padding: 1.5rem; }
+const SectionLabel = styled.div`
+  font-size:11px; font-weight:700; letter-spacing:0.2em;
+  color:rgba(255,255,255,0.3); text-transform:uppercase; margin-bottom:12px;
 `;
 
-const RoomCard = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: white;
+// ─── Room list ────────────────────────────────────────────────────────────────
 
-  ${media.tablet} { gap: 0.75rem; }
-  ${media.mobile} { flex-wrap: wrap; padding: 0.75rem 1rem; gap: 0.5rem; }
-  ${lMedia.phoneSm} { padding: 0.6rem 0.8rem; gap: 0.5rem; }
+const EmptyState = styled.div`
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:80px 20px; gap:12px;
 `;
 
-const RoomInfo = styled.div`flex: 1;`;
+const EmptyIcon = styled.div`font-size:48px; opacity:0.3;`;
+const EmptyTitle = styled.div`font-size:18px; font-weight:600; color:rgba(255,255,255,0.35);`;
+const EmptyHint = styled.div`font-size:14px; color:rgba(255,255,255,0.2);`;
+
+const EmptyCreateBtn = styled.button`
+  margin-top:12px; padding:12px 24px; background:#3b82f6; border:none;
+  border-radius:10px; color:#fff; font-size:15px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  &:hover { background:#2563eb; transform:translateY(-1px); }
+`;
+
+const RoomTable = styled.div`display:flex; flex-direction:column; gap:0;`;
+
+const RoomTableHead = styled.div`
+  display:flex; align-items:center; gap:16px;
+  padding:8px 16px;
+  font-size:11px; font-weight:700; letter-spacing:0.12em;
+  color:rgba(255,255,255,0.28); text-transform:uppercase;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  ${media.mobile} { display:none; }
+`;
+
+const RTH = styled.div`flex:1;`;
+
+const RoomRow = styled.div`
+  display:flex; align-items:center; gap:16px; padding:12px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  transition:background 0.15s;
+  &:hover { background:rgba(255,255,255,0.03); }
+  ${media.mobile} { flex-wrap:wrap; gap:10px; padding:12px; }
+`;
+
+const RoomCell = styled.div`
+  flex:1; font-size:14px; color:rgba(255,255,255,0.65);
+  ${media.mobile} { font-size:13px; }
+`;
+
+const RoomMapCell = styled.div`
+  flex:2; display:flex; align-items:center; gap:12px;
+  min-width:0;
+`;
+
+const RoomMapThumb = styled.img`
+  width:60px; height:40px; border-radius:6px;
+  object-fit:cover; border:1px solid rgba(255,255,255,0.08); flex-shrink:0;
+  ${media.mobile} { width:48px; height:32px; }
+`;
+
+const RoomMapInfo = styled.div`min-width:0;`;
+
 const RoomName = styled.div`
-  font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem;
-  ${media.mobile} { font-size: 1rem; }
-`;
-const RoomDetails = styled.div`
-  font-size: 0.9rem; color: #a0a0a0;
-  ${media.mobile} { font-size: 0.8rem; }
-`;
-const RoomPlayers = styled.div`font-weight: 600; color: #2563eb; font-size: 1.1rem;`;
-const JoinButton = styled.button`
-  padding: 0.75rem 1.5rem;
-  background: #2563eb; color: white;
-  border: none; border-radius: 6px;
-  font-weight: 600; cursor: pointer;
-  transition: background 0.2s;
-  &:hover:not(:disabled) { background: #1d4ed8; }
-  &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
-
-  ${media.mobile} { padding: 0.6rem 1rem; font-size: 0.9rem; }
+  font-size:15px; font-weight:700; color:#f8fafc;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  ${media.mobile} { font-size:14px; }
 `;
 
-const Section = styled.div`
-  margin-bottom: 2rem;
+const RoomMapName = styled.div`font-size:12px; color:rgba(255,255,255,0.4);`;
 
-  ${media.tablet} { margin-bottom: 1.5rem; }
-  ${media.mobile} { margin-bottom: 1.25rem; }
-  ${lMedia.phoneSm} { margin-bottom: 0.75rem; }
+const PlayerCount = styled.div<{$full:boolean}>`
+  font-size:15px; font-weight:700;
+  color:${p=>p.$full?'#f87171':'#4ade80'};
+  display:inline-block;
+  background:${p=>p.$full?'rgba(248,113,113,0.1)':'rgba(74,222,128,0.1)'};
+  padding:3px 10px; border-radius:100px;
 `;
 
-const SectionTitle = styled.h3`
-  font-size: 1.1rem; color: #e0e0e0;
-  margin-bottom: 1rem; font-weight: 500;
-
-  ${media.tablet} { font-size: 1rem; }
-  ${media.mobile} { font-size: 0.95rem; margin-bottom: 0.75rem; }
-  ${lMedia.phoneSm} { font-size: 0.9rem; margin-bottom: 0.5rem; }
+const JoinBtn = styled.button`
+  padding:7px 16px; background:#3b82f6; border:none;
+  border-radius:8px; color:#fff; font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  &:hover:not(:disabled) { background:#2563eb; }
+  &:disabled { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.2); cursor:not-allowed; }
 `;
 
-const MapGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+// ─── Create room ──────────────────────────────────────────────────────────────
 
-  ${media.tablet} { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
-  ${media.mobile} { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
-  ${lMedia.tablet} { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
-  ${lMedia.phoneSm} { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
+const CreateSection = styled.div`max-width:860px;`;
+
+const MapPickGrid = styled.div`
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:10px; margin-bottom:24px;
+  ${media.tablet} { grid-template-columns:repeat(2,1fr); }
+  ${media.mobile} { grid-template-columns:repeat(2,1fr); gap:8px; }
+  ${lMedia.phoneSm} { grid-template-columns:repeat(3,1fr); gap:6px; }
 `;
 
-const MapCard = styled.div<{ $selected: boolean }>`
-  padding: 1.2rem;
-  background: ${p => p.$selected ? 'rgba(37, 99, 235, 0.1)' : 'rgba(255, 255, 255, 0.03)'};
-  border: 1px solid ${p => p.$selected ? '#2563eb' : 'rgba(255, 255, 255, 0.05)'};
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  color: white;
-  &:hover { background: rgba(37, 99, 235, 0.05); }
-
-  ${media.mobile} { padding: 0.85rem; }
-  ${lMedia.phoneSm} { padding: 0.65rem; }
+const MapPickCard = styled.div<{ $selected:boolean; $color:string; $img:string }>`
+  position:relative; border-radius:10px; overflow:hidden;
+  height:120px; cursor:pointer;
+  background-image:url(${p=>p.$img}); background-size:cover; background-position:center;
+  background-color:#1f2937;
+  border:2px solid ${p=>p.$selected ? p.$color : 'rgba(255,255,255,0.08)'};
+  transition:all 0.2s;
+  &:hover { border-color:${p=>p.$color}88; transform:translateY(-2px); }
+  ${media.mobile} { height:90px; }
+  ${lMedia.phoneSm} { height:80px; }
 `;
 
-const MapName = styled.div`
-  font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem;
-  ${media.mobile} { font-size: 0.9rem; margin-bottom: 0.3rem; }
-  ${lMedia.phoneSm} { font-size: 0.85rem; margin-bottom: 0.25rem; }
-`;
-const MapDifficulty = styled.div`
-  font-size: 0.85rem; color: #a0a0a0;
-  ${media.mobile} { font-size: 0.75rem; }
+const MapPickOverlay = styled.div<{$selected:boolean; $color:string}>`
+  position:absolute; inset:0;
+  background:${p=>p.$selected
+    ? `linear-gradient(180deg,${p.$color}22 0%,rgba(0,0,0,0.7) 100%)`
+    : 'linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.65) 100%)'};
 `;
 
-const CreateButton = styled.button`
-  width: 100%;
-  padding: 1rem;
-  background: #2563eb; color: white;
-  font-size: 1.1rem; font-weight: 600;
-  border: none; border-radius: 8px;
-  cursor: pointer; transition: background 0.2s;
-  &:hover { background: #1d4ed8; }
-
-  ${media.mobile} { padding: 0.85rem; font-size: 1rem; }
-  ${lMedia.phoneSm} { padding: 0.7rem; font-size: 0.95rem; }
+const MapPickBadge = styled.div<{$color:string}>`
+  position:absolute; top:8px; left:8px;
+  background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+  border:1px solid ${p=>p.$color}44;
+  color:${p=>p.$color}; font-size:10px; font-weight:800;
+  padding:2px 7px; border-radius:100px; letter-spacing:0.08em;
 `;
 
-const PlayerList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
-
-  ${media.tablet} { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
-  ${media.mobile} { grid-template-columns: 1fr; gap: 0.6rem; }
-  ${lMedia.tablet} { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  ${lMedia.phoneSm} { grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+const MapPickName = styled.div`
+  position:absolute; bottom:8px; left:10px; right:10px;
+  font-size:13px; font-weight:700; color:#fff;
+  text-shadow:0 1px 3px rgba(0,0,0,0.7);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  ${lMedia.phoneSm} { font-size:11px; }
 `;
 
-const PlayerCard = styled.div`
-  padding: 1rem 1.5rem;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.05);
-  border-radius: 8px;
-  color: white;
-
-  ${media.mobile} { padding: 0.75rem 1rem; }
-  ${lMedia.phoneSm} { padding: 0.6rem 0.75rem; }
+const MapPickCheck = styled.div`
+  position:absolute; top:8px; right:8px;
+  width:22px; height:22px; border-radius:50%;
+  background:#10b981; display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:900; color:#fff;
 `;
 
-const PlayerName = styled.div`
-  font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem;
-  ${media.mobile} { font-size: 0.95rem; }
-  ${lMedia.phoneSm} { font-size: 0.85rem; margin-bottom: 0.25rem; }
-`;
-const PlayerRating = styled.div`
-  font-size: 0.85rem; color: #a0a0a0; margin-bottom: 0.5rem;
-  ${lMedia.phoneSm} { font-size: 0.75rem; margin-bottom: 0.25rem; }
-`;
-const PlayerStatus = styled.div<{ $ready: boolean }>`
-  font-weight: 600;
-  color: ${p => p.$ready ? '#10b981' : '#f59e0b'};
-  ${lMedia.phoneSm} { font-size: 0.8rem; }
+const ConfirmCreateBtn = styled.button`
+  width:100%; padding:14px;
+  background:linear-gradient(135deg,#3b82f6,#2563eb); border:none;
+  border-radius:10px; color:#fff; font-size:16px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  &:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(59,130,246,0.35); }
 `;
 
-const AIButtons = styled.div`display: flex; gap: 0.5rem; flex-wrap: wrap;`;
-const AIButton = styled.button`
-  flex: 1;
-  padding: 0.75rem;
-  background: #23252e; color: #e0e0e0;
-  font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  cursor: pointer; transition: all 0.2s;
-  &:hover { background: #2a2d36; }
+// ─── Room view ────────────────────────────────────────────────────────────────
 
-  ${media.mobile} { padding: 0.6rem; font-size: 0.9rem; }
-  ${lMedia.phoneSm} { padding: 0.5rem; font-size: 0.85rem; }
+const RoomLayout = styled.div`
+  display:grid; grid-template-columns:280px 1fr; gap:24px;
+  ${media.tablet} { grid-template-columns:1fr; }
+  ${lMedia.phoneSm} { grid-template-columns:1fr; gap:16px; }
 `;
 
-const ReadyButton = styled.button<{ $ready: boolean }>`
-  flex: 1;
-  padding: 1rem;
-  background: ${p => p.$ready ? '#d97706' : '#10b981'};
-  color: white;
-  font-size: 1.05rem; font-weight: 600;
-  border: none; border-radius: 8px;
-  cursor: pointer; transition: background 0.2s;
-  &:hover { opacity: 0.9; }
-
-  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
-  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
+const RoomMapPanel = styled.div`
+  border-radius:12px; overflow:hidden;
+  border:1px solid rgba(255,255,255,0.08);
+  background:rgba(255,255,255,0.03);
+  ${media.tablet} { display:flex; align-items:center; gap:16px; }
 `;
 
-const StartButton = styled.button`
-  flex: 1;
-  padding: 1rem;
-  background: #10b981; color: white;
-  font-size: 1.05rem; font-weight: 600;
-  border: none; border-radius: 8px;
-  cursor: pointer; transition: background 0.2s;
-  &:hover:not(:disabled) { background: #059669; }
-  &:disabled { opacity: 0.5; background: #3f3f46; cursor: not-allowed; }
-
-  ${media.mobile} { padding: 0.85rem; font-size: 0.95rem; }
-  ${lMedia.phoneSm} { padding: 0.65rem; font-size: 0.9rem; }
+const RoomMapBig = styled.img`
+  width:100%; height:160px; object-fit:cover; display:block;
+  ${media.tablet} { width:120px; height:80px; border-radius:8px; flex-shrink:0; }
+  ${media.mobile} { width:90px; height:60px; }
 `;
 
-const LoadingText = styled.div`
-  text-align: center; color: white;
-  font-size: 1.5rem; padding: 2rem;
+const RoomMapDetails = styled.div`padding:16px; ${media.tablet}{flex:1; padding:12px;}`;
 
-  ${media.mobile} { font-size: 1.2rem; }
+const RoomMapBadge = styled.div<{$color:string}>`
+  display:inline-block; padding:3px 10px; border-radius:100px;
+  background:${p=>p.$color}18; border:1px solid ${p=>p.$color}44;
+  color:${p=>p.$color}; font-size:11px; font-weight:800; letter-spacing:0.1em;
+  margin-bottom:8px;
 `;
 
-// ─── Rejoin Prompt ─────────────────────────────────────────────────────────────
-const PromptOverlay = styled(Overlay)`
-  z-index: 2000;
-  background: rgba(0, 0, 0, 0.95);
+const RoomMapTitle = styled.div`font-size:16px; font-weight:700; color:#f8fafc; margin-bottom:6px;`;
+
+const PlayerCountBig = styled.div`font-size:13px; color:rgba(255,255,255,0.45);`;
+
+const RoomPlayersArea = styled.div``;
+
+const PlayerGrid = styled.div`
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:10px; margin-bottom:20px;
+  ${media.mobile} { grid-template-columns:1fr; gap:8px; }
+  ${lMedia.phoneSm} { grid-template-columns:repeat(2,1fr); gap:6px; }
 `;
 
-const PromptContainer = styled(Container)`
-  max-width: 500px;
-  text-align: center;
-  background: rgba(26, 27, 33, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+const PlayerCard = styled.div<{$ready:boolean}>`
+  display:flex; align-items:center; gap:12px; padding:12px 16px;
+  background:${p=>p.$ready?'rgba(16,185,129,0.06)':'rgba(255,255,255,0.04)'};
+  border:1px solid ${p=>p.$ready?'rgba(16,185,129,0.2)':'rgba(255,255,255,0.07)'};
+  border-radius:10px; transition:all 0.2s;
+  ${lMedia.phoneSm} { padding:10px 12px; gap:8px; }
 `;
 
-const PromptTitle = styled.h2`
-  color: white;
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-
-  ${media.mobile} { font-size: 1.4rem; }
+const PlayerAvatar = styled.div`
+  width:36px; height:36px; border-radius:50%;
+  background:linear-gradient(135deg,#3b82f6,#1d4ed8);
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:700; color:#fff; flex-shrink:0;
+  ${lMedia.phoneSm} { width:30px; height:30px; font-size:13px; }
 `;
 
-const PromptText = styled.p`
-  color: #e0e0e0;
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-  line-height: 1.5;
+const PlayerInfo = styled.div`flex:1; min-width:0;`;
 
-  ${media.mobile} { font-size: 1rem; margin-bottom: 1.5rem; }
+const PlayerNameRow = styled.div`
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  font-size:14px; font-weight:700; color:#f8fafc; margin-bottom:2px;
+  ${lMedia.phoneSm} { font-size:12px; }
 `;
 
-const PromptButtonRow = styled.div`
-  display: flex; gap: 1rem;
-  ${media.mobile} { gap: 0.6rem; }
+const HostBadge = styled.span`
+  font-size:10px; font-weight:800; color:#f59e0b;
+  background:rgba(245,158,11,0.1); padding:1px 6px; border-radius:4px;
 `;
 
-const RejoinButton = styled(CreateRoomButton)`
-  background: #10b981;
-  border: none; color: white;
-  &:hover { background: #059669; }
+const AIBadge = styled.span`
+  font-size:10px; font-weight:800; color:#a78bfa;
+  background:rgba(167,139,250,0.1); padding:1px 6px; border-radius:4px;
 `;
 
-const AbandonButton = styled(CreateRoomButton)`
-  background: #ef4444;
-  border: none; color: white;
-  &:hover { background: #dc2626; }
+const PlayerRatingRow = styled.div`font-size:12px; color:rgba(255,255,255,0.35);`;
+
+const ReadyIndicator = styled.div<{$ready:boolean}>`
+  font-size:12px; font-weight:700;
+  color:${p=>p.$ready?'#4ade80':'rgba(255,255,255,0.3)'};
+  flex-shrink:0;
 `;
 
-// ─── [V5-FIX-LB-1] Leave Confirm Modal ────────────────────────────────────────
-const ConfirmOverlay = styled.div`
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 3000;
-
-  ${media.mobile} { padding: 16px; }
+const EmptySlot = styled.div`
+  display:flex; align-items:center; justify-content:center;
+  padding:12px 16px; border-radius:10px;
+  border:1px dashed rgba(255,255,255,0.1);
+  font-size:13px; color:rgba(255,255,255,0.2);
+  font-style:italic;
 `;
 
-const ConfirmContainer = styled.div`
-  background: rgba(26, 27, 33, 0.98);
-  padding: 2rem;
-  border-radius: 12px;
-  max-width: 420px;
-  width: 90%;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+const AISection = styled.div`margin-bottom:20px;`;
 
-  ${media.mobile} { padding: 1.5rem; width: 95%; }
-  ${lMedia.phoneSm} { padding: 1.25rem; }
+const AIBtnRow = styled.div`display:flex; gap:8px; flex-wrap:wrap;`;
+
+const AIAddBtn = styled.button`
+  flex:1; padding:9px 16px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+  border-radius:8px; color:rgba(255,255,255,0.6);
+  font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;
+  min-width:90px;
+  &:hover { background:rgba(255,255,255,0.08); color:#fff; border-color:rgba(255,255,255,0.2); }
 `;
 
-const ConfirmTitle = styled.h3`
-  color: #f87171;
-  font-size: 1.4rem;
-  margin-bottom: 1rem;
-  text-align: center;
+const ActionRow = styled.div`display:flex; gap:10px;`;
 
-  ${media.mobile} { font-size: 1.2rem; }
+const ToggleReadyBtn = styled.button<{$ready:boolean}>`
+  flex:1; padding:13px;
+  background:${p=>p.$ready?'rgba(245,158,11,0.15)':'rgba(16,185,129,0.15)'};
+  border:1px solid ${p=>p.$ready?'rgba(245,158,11,0.3)':'rgba(16,185,129,0.3)'};
+  border-radius:10px; color:${p=>p.$ready?'#fbbf24':'#34d399'};
+  font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s;
+  &:hover { filter:brightness(1.1); transform:translateY(-1px); }
 `;
 
-const ConfirmText = styled.p`
-  color: #e0e0e0;
-  font-size: 1rem;
-  line-height: 1.6;
-  text-align: center;
-  margin-bottom: 1.5rem;
-
-  ${media.mobile} { font-size: 0.9rem; }
+const StartGameBtn = styled.button`
+  flex:1; padding:13px;
+  background:linear-gradient(135deg,#10b981,#059669); border:none;
+  border-radius:10px; color:#fff; font-size:15px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  &:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 8px 24px rgba(16,185,129,0.3); }
+  &:disabled { background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.25); cursor:not-allowed; transform:none; }
 `;
 
-const ConfirmButtons = styled.div`
-  display: flex; gap: 0.75rem;
-  ${lMedia.phoneSm} { gap: 0.5rem; }
+// ─── Confirm modal ────────────────────────────────────────────────────────────
+
+const ModalOverlay = styled.div`
+  position:fixed; inset:0; background:rgba(0,0,0,0.85);
+  display:flex; align-items:center; justify-content:center; z-index:3000;
+  backdrop-filter:blur(4px); padding:16px;
 `;
 
-const CancelButton = styled.button`
-  flex: 1; padding: 0.75rem;
-  background: #3f3f46; color: #e0e0e0;
-  border: none; border-radius: 8px;
-  font-weight: 600; cursor: pointer;
-  &:hover { background: #52525b; }
-
-  ${media.mobile} { padding: 0.65rem; font-size: 0.9rem; }
+const ConfirmModal = styled.div`
+  background:#0f1419; border:1px solid rgba(239,68,68,0.25);
+  border-radius:16px; padding:32px; max-width:420px; width:100%;
+  text-align:center; box-shadow:0 32px 64px rgba(0,0,0,0.6);
 `;
 
-const ConfirmLeaveButton = styled.button`
-  flex: 1; padding: 0.75rem;
-  background: #ef4444; color: white;
-  border: none; border-radius: 8px;
-  font-weight: 600; cursor: pointer;
-  &:hover { background: #dc2626; }
+const ConfirmIcon = styled.div`font-size:32px; margin-bottom:16px; color:#f87171;`;
+const ConfirmTitle = styled.h3`font-size:20px; font-weight:800; color:#f87171; margin:0 0 12px;`;
+const ConfirmText = styled.p`font-size:14px; color:rgba(255,255,255,0.55); line-height:1.6; margin:0 0 24px;`;
 
-  ${media.mobile} { padding: 0.65rem; font-size: 0.9rem; }
+const ConfirmBtns = styled.div`display:flex; gap:10px;`;
+
+const CancelModalBtn = styled.button`
+  flex:1; padding:12px; background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1); border-radius:10px;
+  color:rgba(255,255,255,0.7); font-size:14px; font-weight:600;
+  cursor:pointer; transition:all 0.2s;
+  &:hover { background:rgba(255,255,255,0.1); color:#fff; }
 `;
 
-interface RejoinPromptProps {
-  roomName: string;
-  onRejoin: () => void;
-  onAbandon: () => void;
-}
+const LeaveModalBtn = styled.button`
+  flex:1; padding:12px; background:rgba(239,68,68,0.15);
+  border:1px solid rgba(239,68,68,0.3); border-radius:10px;
+  color:#f87171; font-size:14px; font-weight:700;
+  cursor:pointer; transition:all 0.2s;
+  &:hover { background:rgba(239,68,68,0.25); }
+`;
+
+// ─── Rejoin Prompt ────────────────────────────────────────────────────────────
+
+interface RejoinPromptProps { roomName: string; onRejoin: () => void; onAbandon: () => void; }
 
 function RejoinPrompt({ roomName, onRejoin, onAbandon }: RejoinPromptProps) {
   const { t } = useTranslation();
   return (
-    <PromptOverlay>
-      <PromptContainer>
-        <PromptTitle>{t('lobby.rejoinTitle')}</PromptTitle>
-        <PromptText>
-          {t('lobby.rejoinMsg', { name: roomName }).split('\n').map((line, i) => (
-            <span key={i}>
-              {line}
-              {i === 0 && <br />}
-            </span>
-          ))}
-        </PromptText>
-        <PromptButtonRow>
-          <AbandonButton onClick={onAbandon}>{t('lobby.rejoinNo')}</AbandonButton>
-          <RejoinButton onClick={onRejoin}>{t('lobby.rejoinYes')}</RejoinButton>
-        </PromptButtonRow>
-      </PromptContainer>
-    </PromptOverlay>
+    <Root>
+      <ModalOverlay>
+        <ConfirmModal style={{borderColor:'rgba(59,130,246,0.25)'}}>
+          <ConfirmIcon style={{color:'#60a5fa'}}>🎮</ConfirmIcon>
+          <ConfirmTitle style={{color:'#60a5fa'}}>{t('lobby.rejoinTitle')}</ConfirmTitle>
+          <ConfirmText>
+            {t('lobby.rejoinMsg', { name: roomName }).split('\n').map((line, i) => (
+              <span key={i}>{line}{i === 0 && <br />}</span>
+            ))}
+          </ConfirmText>
+          <ConfirmBtns>
+            <CancelModalBtn onClick={onAbandon}>{t('lobby.rejoinNo')}</CancelModalBtn>
+            <LeaveModalBtn
+              style={{background:'rgba(59,130,246,0.15)',borderColor:'rgba(59,130,246,0.3)',color:'#60a5fa'}}
+              onClick={onRejoin}
+            >
+              {t('lobby.rejoinYes')}
+            </LeaveModalBtn>
+          </ConfirmBtns>
+        </ConfirmModal>
+      </ModalOverlay>
+    </Root>
   );
 }
