@@ -120,7 +120,7 @@ function App() {
   }, [navigate, location.pathname]);
 
   const handlePreloadAndNavigate = useCallback(
-    async (mapId: string, gameMode: 'single' | 'multi') => {
+    async (mapId: string, gameMode: 'single' | 'multi', storyData?: object) => {
       resetGame();
       useGameStore.getState().setMap(mapId);
 
@@ -141,7 +141,7 @@ function App() {
         await preloadMapBackground(mapId);
 
         setLoadingStage('done');
-        navigate('/game');
+        navigate('/game', { state: storyData ? { ...storyData, mode: 'story' } : undefined });
       } catch (err) {
         console.error('Failed to preload game data', err);
         alert('게임 데이터 로드에 실패했습니다. 새로고침 해주세요.');
@@ -247,7 +247,11 @@ function App() {
 
       <Route path="/story" element={
         <ProtectedRoute>
-          <StorySelector />
+          <StorySelector
+            onStart={(data) => {
+              handlePreloadAndNavigate(data.mapId, 'single', data);
+            }}
+          />
         </ProtectedRoute>
       } />
 

@@ -5,13 +5,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useNavigate } from 'react-router-dom';
-import { AEGIS_STORY_CHAPTERS } from '../../data/storyChapters';
+import { AEGIS_STORY_CHAPTERS, StoryChapter } from '../../data/storyChapters';
 import {
   storyProgressService,
   ChapterProgress,
 } from '../../services/StoryProgressService';
 import { MAPS } from '../../data/maps';
 import { media } from '../../utils/responsive.utils';
+import { StoryOpening } from './StoryOpening';
+
+export interface StoryStartData {
+  mapId: string;
+  chapterId: string;
+  chapterNumber: number;
+  heroPool: number[];
+  enemyTypes: string[];
+  bossWave: number;
+  bossName?: string;
+}
+
+interface StorySelectorProps {
+  onStart: (data: StoryStartData) => void;
+}
 
 // ─── Star rating component ────────────────────────────────────────────────────
 
@@ -30,10 +45,12 @@ const StarRating: React.FC<{ stars: number; max?: number }> = ({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const StorySelector: React.FC = () => {
+export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
   const navigate = useNavigate();
   const [progress] = useState(() => storyProgressService.getProgress());
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+  const [showOpening, setShowOpening] = useState(false);
+  const [pendingChapter, setPendingChapter] = useState<StoryChapter | null>(null);
 
   const [showIntro, setShowIntro] = useState(true);
 
@@ -64,25 +81,33 @@ export const StorySelector: React.FC = () => {
     const ch = AEGIS_STORY_CHAPTERS[selectedIdx];
     const map = MAPS.find((m) => m.id === ch.mapId);
     if (!map) return;
-
     storyProgressService.updateLastPlayed(ch.id);
+    // 오프닝 대화 화면으로 전환
+    setPendingChapter(ch);
+    setShowOpening(true);
+  }, [selectedIdx]);
 
-    // Navigate to game with story metadata in state
-    navigate('/game', {
-      state: {
-        mapId: map.id,
-        mode: 'story',
-        chapterId: ch.id,
-        chapterNumber: ch.chapterNumber,
-        openingDialogue: ch.openingDialogue,
-        endingDialogue: ch.endingDialogue,
-        heroPool: ch.heroPool,
-        enemyTypes: ch.enemyTypes,
-        bossWave: ch.bossWave,
-        bossName: ch.bossName,
-      },
+  // 오프닝 대화 완료 → 게임 시작
+  const handleOpeningComplete = useCallback(() => {
+    if (!pendingChapter) return;
+    const map = MAPS.find(m => m.id === pendingChapter.mapId);
+    if (!map) return;
+    setShowOpening(false);
+    onStart({
+      mapId: map.id,
+      chapterId: pendingChapter.id,
+      chapterNumber: pendingChapter.chapterNumber,
+      heroPool: pendingChapter.heroPool,
+      enemyTypes: pendingChapter.enemyTypes,
+      bossWave: pendingChapter.bossWave,
+      bossName: pendingChapter.bossName,
     });
-  }, [selectedIdx, navigate]);
+  }, [pendingChapter, onStart]);
+
+  // 오프닝 스킵 → 바로 게임 시작
+  const handleOpeningSkip = useCallback(() => {
+    handleOpeningComplete();
+  }, [handleOpeningComplete]);
 
   const totalStars = progress.totalStars;
   const maxStars = AEGIS_STORY_CHAPTERS.length * 3;
@@ -294,6 +319,15 @@ export const StorySelector: React.FC = () => {
         </DetailPanel>
       </MainLayout>
 
+      {/* Story opening overlay */}
+      {showOpening && pendingChapter && (
+        <StoryOpening
+          chapter={pendingChapter}
+          onComplete={handleOpeningComplete}
+          onSkip={handleOpeningSkip}
+        />
+      )}
+
       {/* Intro overlay */}
       {showIntro && (
         <IntroOverlay>
@@ -332,13 +366,13 @@ const TYPE_COLORS: Record<string, string> = {
 // ─── Animations ───────────────────────────────────────────────────────────────
 
 const fadeUp = keyframes`
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(24px) }
+  to   { opacity: 1; transform: translateY(0) }
 `;
 
 const shimmer = keyframes`
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0%   { background-position: -200% center }
+  100% { background-position: 200% center }
 `;
 
 const particleFloat = keyframes`
@@ -348,15 +382,15 @@ const particleFloat = keyframes`
 `;
 
 const introPulse = keyframes`
-  0%   { opacity: 0; transform: scale(0.9); }
-  40%  { opacity: 1; transform: scale(1); }
-  80%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.02); }
+  0%   { opacity: 0; transform: scale(0.9) }
+  40%  { opacity: 1; transform: scale(1) }
+  80%  { opacity: 1; transform: scale(1) }
+  100% { opacity: 0; transform: scale(1.02) }
 `;
 
 const glowPulse = keyframes`
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1; }
+  0%, 100% { opacity: 0.6 }
+  50%       { opacity: 1 }
 `;
 
 // ─── Styled Components ────────────────────────────────────────────────────────
