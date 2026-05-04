@@ -43,6 +43,7 @@ export const MainMenu = () => {
   const handleClose = () => { setTutorial(null); setPendingNav(null); };
 
   const avatarInitial = (user?.displayName || '?').charAt(0).toUpperCase();
+  const [avatarError, setAvatarError] = useState(false);
 
   return (
     <>
@@ -58,10 +59,15 @@ export const MainMenu = () => {
           </LogoMark>
           <TopBarRight>
             <UserChip>
-              <Avatar src={user?.photoURL || ''} alt={user?.displayName || ''}
-                onError={e => { (e.target as HTMLImageElement).style.display='none'; }}>
-              </Avatar>
-              <AvatarFallback>{avatarInitial}</AvatarFallback>
+              {!avatarError && user?.photoURL ? (
+                <Avatar
+                  src={user.photoURL}
+                  alt={user.displayName || ''}
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <AvatarFallback>{avatarInitial}</AvatarFallback>
+              )}
               <UserName>{user?.displayName}</UserName>
               <RatingChip>★ {user?.rating ?? 0}</RatingChip>
             </UserChip>
@@ -206,7 +212,7 @@ const UserChip = styled.div`
   background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
   border-radius:100px; padding:5px 12px 5px 6px;
-  position:relative; z-index:0;
+  position:relative;
 `;
 
 const Avatar = styled.img`
@@ -216,8 +222,6 @@ const Avatar = styled.img`
 `;
 
 const AvatarFallback = styled.div`
-  z-index:-1;
-  position:absolute; left:6px;
   width:28px; height:28px; border-radius:50%;
   background:linear-gradient(135deg,#3b82f6,#1d4ed8);
   display:flex; align-items:center; justify-content:center;
