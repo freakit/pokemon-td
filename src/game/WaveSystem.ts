@@ -16,6 +16,20 @@ const DIFFICULTY_MULTIPLIERS: Record<
   expert:  { hp: 1.2,  attack: 1.2,  reward: 1.0 },
 };
 
+// ─── 스토리 모드 챕터별 난이도 배율 ────────────────────────────────────────────
+// 30웨이브 기준, 챕터가 올라갈수록 적이 강해짐
+// 참고: wave 30에서 1.08^29 ≈ 10x 이므로, 챕터 1은 쉽게, 챕터 8은 도전적으로
+const STORY_CHAPTER_MULTIPLIERS: Record<number, { hp: number; attack: number; reward: number }> = {
+  1: { hp: 0.50, attack: 0.50, reward: 1.0 },
+  2: { hp: 0.60, attack: 0.60, reward: 1.0 },
+  3: { hp: 0.70, attack: 0.70, reward: 1.0 },
+  4: { hp: 0.80, attack: 0.80, reward: 1.0 },
+  5: { hp: 0.90, attack: 0.90, reward: 1.0 },
+  6: { hp: 1.00, attack: 1.00, reward: 1.0 },
+  7: { hp: 1.10, attack: 1.10, reward: 1.0 },
+  8: { hp: 1.20, attack: 1.20, reward: 1.0 },
+};
+
 // 웨이브별 종족값 범위 (스폰 포켓몬 강도 조절)
 const WAVE_STAT_RANGES: Array<{ min: number; max: number }> = [
   { min: 1,   max: 300  }, // 1~5
@@ -93,9 +107,11 @@ export class WaveSystem {
 
     setSpawning(true);
 
-    // 난이도는 항상 선택된 맵의 difficulty 기준 (싱글/멀티 공통)
-    // maps.ts의 'medium'과 gameStore Difficulty 타입의 'normal'을 모두 지원
-    const mult = DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal'];
+    // 난이도: 스토리 모드면 챕터 번호 기준, 아니면 맵 difficulty 기준
+    const { storyChapterNumber } = useGameStore.getState();
+    const mult = (storyChapterNumber !== null && STORY_CHAPTER_MULTIPLIERS[storyChapterNumber])
+      ? STORY_CHAPTER_MULTIPLIERS[storyChapterNumber]
+      : (DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal']);
     const count = this.getEnemyCount(wave);
     const pathsToUse = map.paths;
 

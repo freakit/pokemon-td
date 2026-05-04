@@ -18,6 +18,7 @@ export interface StoryStartData {
   mapId: string;
   chapterId: string;
   chapterNumber: number;
+  totalWaves: number;
   heroPool: number[];
   enemyTypes: string[];
   bossWave: number;
@@ -97,6 +98,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
       mapId: map.id,
       chapterId: pendingChapter.id,
       chapterNumber: pendingChapter.chapterNumber,
+      totalWaves: pendingChapter.totalWaves,
       heroPool: pendingChapter.heroPool,
       enemyTypes: pendingChapter.enemyTypes,
       bossWave: pendingChapter.bossWave,

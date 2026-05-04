@@ -312,6 +312,9 @@ export interface GameState {
   } | null;
 
   wave50Clear: boolean;
+  storyClear: boolean;
+  storyChapterNumber: number | null;
+  storyTotalWaves: number | null;
 
   activeSynergies: Synergy[];
   hoveredSynergy: Synergy | null;
