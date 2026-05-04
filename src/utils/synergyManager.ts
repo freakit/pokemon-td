@@ -392,15 +392,9 @@ const getSpecialSynergyLevel = (count: number): number => {
   return 0;
 };
 
-const getSpecialSynergyDescription = (count: number, maxCount: number): string => {
+const getSpecialSynergyDescription = (count: number): string => {
   const mult = getSpecialSynergyMultiplier(count);
-  const nextThreshold = [2, 3, 4, 5, 6].find(t => t > count);
-  const nextMult = nextThreshold ? getSpecialSynergyMultiplier(nextThreshold) : null;
-  const base = `(${count}) 스탯 ${mult.toFixed(1)}배`;
-  if (nextThreshold && nextMult && count < maxCount) {
-    return `${base} → ${nextThreshold}마리: ${nextMult.toFixed(1)}배`;
-  }
-  return base;
+  return `(${count}) 스탯 ${mult.toFixed(1)}배`;
 };
 
 // ─── Generation Utility ──────────────────────────────────────────────────────
@@ -505,7 +499,7 @@ export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
       name: def.name,
       count,
       level,
-      description: getSpecialSynergyDescription(count, def.pokemonIds.length),
+      description: getSpecialSynergyDescription(count),
     });
   });
 

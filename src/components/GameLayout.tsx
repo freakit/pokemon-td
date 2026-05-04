@@ -23,7 +23,7 @@
 //         → onGameStateUpdate + alivePlayers.length 방식으로 복원
 // ──────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled, { keyframes, css } from "styled-components";
 import { useTranslation } from "../i18n";
@@ -153,6 +153,29 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const storyChapterId = locationState.chapterId ?? null;
   const storyChapterNumber = locationState.chapterNumber ?? null;
   const storyTotalWaves = locationState.totalWaves ?? null;
+
+  // ─── 스토리 모드 누적 heroPool: 현재 챕터 + 이전에 클리어한 챕터 heroPool 합산 ──
+  // 이전 챕터는 실제로 클리어한 챕터만 포함하고, 현재 챕터는 항상 포함
+  const storyAccumulatedPool = useMemo<number[] | null>(() => {
+    if (!isStoryMode || storyChapterNumber === null) return null;
+    const pool = new Set<number>();
+    const progress = storyProgressService.getProgress();
+    for (const ch of AEGIS_STORY_CHAPTERS) {
+      if (ch.chapterNumber === storyChapterNumber) {
+        // 현재 플레이 중인 챕터 → 항상 포함
+        ch.heroPool.forEach(id => pool.add(id));
+      } else if (ch.chapterNumber < storyChapterNumber) {
+        // 이전 챕터 → 클리어한 경우에만 포함
+        const cleared = progress.chapterProgress[ch.id]?.cleared ?? false;
+        if (cleared) {
+          ch.heroPool.forEach(id => pool.add(id));
+        }
+      }
+    }
+    return Array.from(pool);
+  // storyProgressService는 모듈 싱글톤으로 참조가 불변 → deps 제외
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStoryMode, storyChapterNumber]);
   const { t } = useTranslation();
 
   // ── UI state ─────────────────────────────────────────────────
@@ -581,10 +604,12 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   // ─── 스토리 모드 초기화: location.state → gameStore ────────────────────────
   useEffect(() => {
     if (isStoryMode && storyChapterNumber !== null) {
+      const enemyTypes = locationState.enemyTypes ?? null;
       useGameStore.setState({
         storyChapterNumber,
         storyTotalWaves,
         storyClear: false,
+        storyEnemyTypes: enemyTypes,
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -788,7 +813,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
 
       {/* ─── Modals ─────────────────────────────────────────── */}
-      {showPicker         && <PokemonPicker   onClose={() => setShowPicker(false)} />}
+      {showPicker         && <PokemonPicker   onClose={() => setShowPicker(false)} storyHeroPool={storyAccumulatedPool} />}
       {showPokemonManager && <PokemonManager  onClose={() => setShowPokemonManager(false)} />}
       {showSettings       && <Settings        onClose={() => setShowSettings(false)} />}
       {showAchievements   && <AchievementsPanel onClose={() => setShowAchievements(false)} />}

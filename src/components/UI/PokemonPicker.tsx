@@ -85,10 +85,12 @@ const getGenderColor = (gender: Gender) => {
   return '#999';
 };
 
-export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: number[] | null }> = ({ onClose, storyHeroPool }) => {
   const { t } = useTranslation();
   const [choices, setChoices] = useState<PokemonChoice[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  // 스토리 모드에서 배치 가능한 포켓몬이 모두 배치됐을 때 true
+  const [allPlaced, setAllPlaced] = useState(false);
   const setPokemonToPlace = useGameStore(state => state.setPokemonToPlace);
   const { money, spendMoney } = useGameStore(state => ({
     money: state.money,
@@ -97,16 +99,39 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
   const loadChoices = async () => {
     setIsLoading(true);
+
+    // 매 호출마다 스토어에서 최신 towers를 읽어 stale closure 방지
+    const currentTowers = useGameStore.getState().towers;
+    const placedPokemonIds = new Set(currentTowers.map(t => t.pokemonId));
+
+    let ids: number[];
+
+    if (storyHeroPool && storyHeroPool.length > 0) {
+      // ── 스토리 모드: heroPool에서 중복 없이 선택 ──────────────────────────
+      const available = storyHeroPool.filter(id => !placedPokemonIds.has(id));
+
+      // 배치 가능한 후보가 전혀 없으면 → "모두 배치됨" 상태로 전환
+      if (available.length === 0) {
+        setAllPlaced(true);
+        setIsLoading(false);
+        return;
+      }
+
+      setAllPlaced(false);
+      // 풀에서 최대 3개 중복 없이 뽑기
+      const shuffled = [...available].sort(() => Math.random() - 0.5);
+      ids = shuffled.slice(0, 3);
+    } else {
+      // ── 일반 모드: 기존 랜덤 가중치 방식 ─────────────────────────────────
+      const [id1, id2, id3] = await Promise.all([
+        pokeAPI.getRandomPokemonIdWithRarity(),
+        pokeAPI.getRandomPokemonIdWithRarity(),
+        pokeAPI.getRandomPokemonIdWithRarity(),
+      ]);
+      ids = [id1, id2, id3];
+    }
     
-    const id1 = await pokeAPI.getRandomPokemonIdWithRarity();
-    const id2 = await pokeAPI.getRandomPokemonIdWithRarity();
-    const id3 = await pokeAPI.getRandomPokemonIdWithRarity();
-    
-    const data = await Promise.all([
-      pokeAPI.getPokemon(id1),
-      pokeAPI.getPokemon(id2),
-      pokeAPI.getPokemon(id3)
-    ]);
+    const data = await Promise.all(ids.map(id => pokeAPI.getPokemon(id)));
 
     const withCostAndRarityAndGender = await Promise.all(data.map(async (p) => {
       const statTotal = p.stats.hp + p.stats.attack + p.stats.defense + 
@@ -123,6 +148,8 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   
   useEffect(() => {
     loadChoices();
+  // loadChoices는 항상 useGameStore.getState()로 최신 값을 읽으므로 deps 불필요
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = async (choice: PokemonChoice) => {
@@ -261,6 +288,26 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
     loadChoices();
   };
   
+  // ── 모두 배치됨 화면 (스토리 모드 전용) ──────────────────────────────────
+  if (allPlaced) {
+    return (
+      <Overlay>
+        <AllPlacedModal>
+          <AllPlacedIcon>🛡️</AllPlacedIcon>
+          <AllPlacedTitle>모든 대원이 배치됐어!</AllPlacedTitle>
+          <AllPlacedDesc>
+            이번 챕터에서 등장하는 포켓몬을<br />
+            전부 배치했어. 전원 전선에 나갔다고!
+          </AllPlacedDesc>
+          <AllPlacedSub>
+            진화 아이템이나 강화 아이템을 써서<br />더 강하게 만들어 봐.
+          </AllPlacedSub>
+          <CloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>닫기</CloseBtn>
+        </AllPlacedModal>
+      </Overlay>
+    );
+  }
+
   return (
     <Overlay>
       <Modal>
@@ -334,6 +381,33 @@ export const PokemonPicker: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 // ── 반응형 헬퍼 (landscape 전용) ─────────────────────────────────
 const L1024 = lMedia.tablet;
 const L768  = lMedia.phone;
+
+// ── AllPlaced 전용 스타일 ─────────────────────────────────────────────────────
+const AllPlacedModal = styled.div`
+  background: linear-gradient(145deg, #1a1f2e, #0f1419);
+  border-radius: 20px;
+  padding: 48px 40px 36px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  border: 2px solid rgba(100,200,120,0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: fadeIn 0.3s ease-out;
+`;
+const AllPlacedIcon = styled.div`font-size: 52px; line-height: 1;`;
+const AllPlacedTitle = styled.h2`
+  font-size: 22px; font-weight: 800; color: #7effa0; margin: 0;
+`;
+const AllPlacedDesc = styled.p`
+  font-size: 15px; color: #d0e8d8; line-height: 1.7; margin: 0;
+`;
+const AllPlacedSub = styled.p`
+  font-size: 13px; color: rgba(255,255,255,0.35); line-height: 1.6; margin: 0;
+`;
 
 const Overlay = styled.div`
   position: fixed;

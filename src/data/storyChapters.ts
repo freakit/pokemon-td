@@ -222,7 +222,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  1,
   mapId:          'easiest_straight',
   totalWaves:     30,
-  heroPool:       [25, 1, 4, 7, 133, 39],
+  heroPool:       [25, 133, 448],                 // 피카츄, 이브이, 루카리오
   enemyTypes:     ['normal', 'bug', 'flying'],
   bossWave:       0,
   unlockCondition: '게임을 시작하면 해금됩니다.',
@@ -311,27 +311,31 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   endingDialogue: [
       {
         speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '끝났어...? 마지막 감시자가 쓰러질 때, 잠깐 눈빛이 돌아온 것 같았어.',
+        text: '해냈어! 봉인석이 살아있어, 루카리오!',
+      },
+      {
+        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
+        text: '......그래. 오늘 밤은 우리가 이겼다.',
+      },
+      {
+        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
+        text: '그런데 마지막 감시자가 쓰러질 때, 잠깐 눈빛이 돌아온 것 같았어.',
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
         text: '......봤어. 골뱃이었다. 북쪽 숲에서 별을 세던 녀석.',
       },
       {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
+        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
         text: '우리가 구한 거야? 아니면 더 멀리 보내버린 거야?',
       },
       {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '모른다. Aegis가 아는 건 하나뿐이야. 봉인석은 아직 서 있다.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '그럼 다음 밤에도 누군가의 이름을 지키는 거네.',
+        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
+        text: '모르겠어. 근데 한 가지는 알아. 봉인석이 무너졌으면 그 골뱃은 영영 돌아오지 못했을 거야.',
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그래. 오늘 밤의 방패가 내일의 전설이 되지 않도록. 조용히 계속한다.',
+        text: '그래서 막는 거야. 오늘 밤의 방패가 내일의 이름을 지킨다.',
       },
   ],
 },
@@ -345,7 +349,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  2,
   mapId:          'easy_loop',
   totalWaves:     30,
-  heroPool:       [3, 6, 9, 136, 197, 94],
+  heroPool:       [94, 123, 25, 448],             // 팬텀, 스라크, 피카츄, 루카리오
   enemyTypes:     ['ghost', 'psychic', 'poison'],
   bossWave:       22,
   bossName:       '어둠의 선봉 — 강화 팬텀',
@@ -388,7 +392,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '순환 경로. 반복되는 공포는 실제 공격보다 오래 남는다.',
+        text: '순환 경로. 반복되는 공포는 실제 공격보다 오래 남는다. 저 눈이 보이나 — 빛이 없어.',
       },
       {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
@@ -414,16 +418,16 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
 
   endingDialogue: [
       {
+        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
+        text: '마지막 팬텀이 사라졌어! 성벽 안쪽엔 아무것도 없어!',
+      },
+      {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
         text: '성벽은 버텼다. 하지만 저 팬텀... 마지막까지 웃고 있었어.',
       },
       {
         speaker: '팬텀', speakerEn: 'Gengar', pokemonId: 94,
         text: '웃음이 아니야. 입이 그렇게 생겼을 뿐이지. 그 안쪽은 비어 있었어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주의 파편이 더 선명해지고 있어. 단순한 행진이 아니라 압박이다.',
       },
       {
         speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
@@ -435,7 +439,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '정답은 나중에 찾는다. 오늘 밤 살아남은 마을이 먼저야.',
+        text: '군주의 파편이 더 선명해지고 있어. 단순한 행진이 아니라 압박이다. 하지만 오늘은 마을을 지켰어.',
       },
       {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
@@ -453,7 +457,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  3,
   mapId:          'extreme_aggro_shortcut',
   totalWaves:     30,
-  heroPool:       [249, 380, 382, 130, 54, 131],
+  heroPool:       [380, 131, 54, 448],            // 라티아스, 라프라스, 고라파덕, 루카리오
   enemyTypes:     ['water', 'poison', 'ice'],
   bossWave:       25,
   bossName:       '어둠의 폭류 — 어둠 갸라도스',
@@ -522,6 +526,10 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
 
   endingDialogue: [
       {
+        speaker: '라프라스', speakerEn: 'Lapras', pokemonId: 131,
+        text: '검은 조류가 물러갔어. 방파제가 살아있어!',
+      },
+      {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
         text: '마지막 갸라도스가 쓰러질 때... 바다 밑에서 누가 내 이름을 불렀어.',
       },
@@ -534,24 +542,16 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
         text: '모르겠어. 오빠의 목소리 같았는데, 너무 멀었어. 너무 차가웠어.',
       },
       {
-        speaker: '라프라스', speakerEn: 'Lapras', pokemonId: 131,
-        text: '검은 조류가 물러갔다. 하지만 완전히 사라진 건 아니야.',
-      },
-      {
         speaker: '고라파덕', speakerEn: 'Psyduck', pokemonId: 54,
         text: '머리는 덜 아파. 대신 마음이 아파.',
       },
       {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '괜찮아. 기다린다는 건 아무것도 안 하는 게 아니니까.',
+        text: '알아. 그래도 오늘은 우리가 해안을 지켰어. 오빠가 돌아올 자리를 남겼어.',
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그래. 네가 지킨 자리가 돌아올 길이 된다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '동굴로 가자. 군주가 남긴 목소리를 더 듣고 싶어.',
+        text: '네가 지킨 자리가 돌아올 길이 된다. 동굴로 간다.',
       },
   ],
 },
@@ -565,7 +565,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  4,
   mapId:          'medium_multi_s',
   totalWaves:     30,
-  heroPool:       [377, 219, 237, 169, 461, 232],
+  heroPool:       [377, 123, 380, 448],           // 레지락, 스라크, 라티아스, 루카리오
   enemyTypes:     ['rock', 'ground', 'poison', 'dark'],
   bossWave:       25,
   bossName:       '동굴의 파견대장 — 어둠의 레지락 복제',
@@ -634,6 +634,10 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
 
   endingDialogue: [
       {
+        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
+        text: '회랑 봉쇄 성공. 동굴 봉인석은 온전해.',
+      },
+      {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
         text: '저건 레지락의 복제였나. 아니면 군주가 네 기억으로 만든 허수아비였나.',
       },
@@ -647,7 +651,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       },
       {
         speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......그래. 너희의 망설임도, 분노도, 미안함도.',
+        text: '......그래. 너희의 망설임도, 분노도, 미안함도. 그리고... 오늘의 의지도.',
       },
       {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
@@ -673,7 +677,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  5,
   mapId:          'medium_merge',
   totalWaves:     30,
-  heroPool:       [645, 637, 214, 359, 248, 445],
+  heroPool:       [359, 377, 380, 123, 448],      // 앱솔, 레지락, 라티아스, 스라크, 루카리오
   enemyTypes:     ['rock', 'ground', 'fire', 'dark'],
   bossWave:       27,
   bossName:       '섀도우 마기라스 — 군주의 첫 번째 전령',
@@ -700,7 +704,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       },
       {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '저기... 눈이 보라색이야. 감시자보다 더 선명해.',
+        text: '저기... 눈이 보라색이야. 감시자보다 더 선명해. 몸에서 열기가 나.',
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
@@ -742,6 +746,10 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
 
   endingDialogue: [
       {
+        speaker: '앱솔', speakerEn: 'Absol', pokemonId: 359,
+        text: '협곡을 봉쇄했어. 두 물결 모두 끊었다.',
+      },
+      {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
         text: '섀도우 마기라스가 마지막에 손을 멈췄다. 아주 잠깐.',
       },
@@ -754,10 +762,6 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
         text: '......',
       },
       {
-        speaker: '앱솔', speakerEn: 'Absol', pokemonId: 359,
-        text: '재앙은 지나갔다. 하지만 냄새는 남아 있어. 우리한테.',
-      },
-      {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
         text: '우리가 저들과 달라지는 선은 어디지? 더 효율적으로 막기 시작하는 순간?',
       },
@@ -766,12 +770,12 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
         text: '......선을 묻는 자는 아직 선 밖에 있다.',
       },
       {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그 말에 기대고 싶진 않아. 그래도 지금은 간다. 사바나가 다음이다.',
-      },
-      {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
         text: '우리가 잊지 않으면, 아직 닮아간 건 아니야. 알아.',
+      },
+      {
+        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
+        text: '잊지 마. 사바나로 간다.',
       },
   ],
 },
@@ -785,7 +789,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  6,
   mapId:          'hard_straight_wide',
   totalWaves:     30,
-  heroPool:       [475, 103, 452, 197, 149, 373],
+  heroPool:       [475, 149, 380, 123, 448],      // 엘레이드, 망나뇽, 라티아스, 스라크, 루카리오
   enemyTypes:     ['normal', 'grass', 'fighting', 'dark'],
   bossWave:       28,
   bossName:       '섀도우 삼삼바우',
@@ -859,15 +863,11 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   endingDialogue: [
       {
         speaker: '망나뇽', speakerEn: 'Dragonite', pokemonId: 149,
-        text: '끝났어. 지평선이 다시 선이 됐어.',
+        text: '끝났어! 세 갈래 전선 전부 막았어. 지평선이 다시 선이 됐다!',
       },
       {
         speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
         text: '세 갈래를 동시에 막는 건 미친 짓이었어. 그러니까 성공했겠지.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '엘레이드. 아까 말한 문장.',
       },
       {
         speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
@@ -901,7 +901,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  7,
   mapId:          'hard_dual_path',
   totalWaves:     30,
-  heroPool:       [378, 144, 460, 478, 473, 471],
+  heroPool:       [378, 144, 380, 475, 448],      // 레지아이스, 프리져, 라티아스, 엘레이드, 루카리오
   enemyTypes:     ['ice', 'steel', 'dark', 'ghost'],
   bossWave:       30,
   bossName:       '섀도우 눈설왕 ×2 — 쌍둥이 감시자',
@@ -975,7 +975,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   endingDialogue: [
       {
         speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
-        text: '쌍둥이 감시자 둘 다 쓰러졌다. 산맥은 아직 닫혀 있어.',
+        text: '쌍둥이 봉우리 둘 다 지켰어. 두 전선 모두 버텼다.',
       },
       {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
@@ -1017,7 +1017,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  8,
   mapId:          'extreme_central',
   totalWaves:     30,
-  heroPool:       [487, 484, 483, 150, 151, 448, 381, 380],
+  heroPool:       [487, 448, 381, 380, 25, 133, 377, 378, 123, 144, 475], // 기라티나, 루카리오, 라티오스, 라티아스, 피카츄, 이브이, 레지락, 레지아이스, 스라크, 프리져, 엘레이드
   enemyTypes:     ['ghost', 'dragon', 'dark', 'psychic'],
   bossWave:       30,
   bossName:       '군주의 화신 — 기라티나 (Origin Forme)',
@@ -1035,8 +1035,16 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
 
   openingDialogue: [
       {
+        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
+        text: '여기가... 제단이야? 공기가 달라. 숨이 무거워.',
+      },
+      {
+        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
+        text: '팔레트 평원에서 처음 싸우던 날이 기억나. 그때랑 같은 무서움이야. 근데 도망치고 싶지 않아.',
+      },
+      {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '여기다. 네 방향의 길이 모두 제단으로 모인다.',
+        text: '그 마음이 방패야. 여기다. 네 방향의 길이 모두 제단으로 모인다.',
       },
       {
         speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
@@ -1089,6 +1097,10 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       {
         speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
         text: '그래서 너희가 왔구나. 방패를 들고, 이해라는 칼을 숨긴 채.',
+      },
+      {
+        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
+        text: '숨기지 않아. 이해하고 싶어. 그래도 봉인석을 지킬 거야.',
       },
       {
         speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
@@ -1172,6 +1184,14 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
       {
         speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
         text: '응. 알아. 오늘은 울어도 되는 날이야.',
+      },
+      {
+        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
+        text: '루카리오. 우리, 방패가 됐지?',
+      },
+      {
+        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
+        text: '그래. 내일도. 그 다음 날도.',
       },
       {
         speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
