@@ -8,7 +8,12 @@
 
 ## ✨ 핵심 기능
 
-### 🎮 게임 플레이
+### 📖 스토리 모드 (Story Mode)
+- **시나리오 기반 전개**: 포켓몬스터 세계관을 바탕으로 구성된 챕터와 스테이지 라인업
+- **몰입감 있는 연출**: 스테이지 진입 전후 타이핑 애니메이션이 적용된 시나리오 대사 출력
+- **특별한 클리어 보상**: 스테이지 클리어에 따른 다음 진행 해금 및 특수 보상 제공
+
+### 🎮 타워 디펜스 및 핵심 플레이
 - **전략적 타워 디펜스**: 자유로운 격자 배치와 적의 경로를 방해하는 미로(Maze) 구축
 - **완벽한 포켓몬 구현**: PokeAPI 기반 실제 종족값, 타입 상성(18종), 특성(5종), 기술 구현
 - **레어도 시스템**: 종족값 총합 기준 6단계 (Bronze / Silver / Gold / Diamond / Master / Legend)
@@ -67,9 +72,10 @@
   - 각 업적 달성 시 AP(Achievement Points) 누적 지급
 - **Wave 50 챌린지**: 싱글 플레이 궁극 목표 — 클리어 시 전당 등록 + 특수 모달
 
-### 🌍 다국어 지원
+### 🌍 다국어 및 편의성 지원
 - **한국어 / 영어** 실시간 전환 (i18next 기반)
 - 게임 내 모든 텍스트, 업적명, 아이템명 번역 지원
+- **플로팅 설정 (Floating Settings)**: 로비, 게임 중 어디서든 화면 내 설정 버튼을 통해 사운드, 속도, 언어 즉시 변경 가능
 
 ---
 
@@ -101,9 +107,8 @@ src/
 ├── components/
 │   ├── Game/
 │   │   └── GameCanvas.tsx   # 메인 게임 캔버스 (Konva 기반 렌더링)
-│   ├── GameLayout.tsx       # 싱글/멀티 전환 레이아웃 + 게임루프 제어
 │   ├── Menu/
-│   │   └── MainMenu.tsx     # 메인 메뉴 (싱글/멀티/랭킹/업적 진입)
+│   │   └── MainMenu.tsx     # 메인 메뉴 (싱글/멀티/스토리/랭킹/업적 진입)
 │   ├── Modals/
 │   │   ├── Achievements.tsx          # 업적 목록 (카테고리 필터, AP 표시)
 │   │   ├── EvolutionConfirmModal.tsx # 진화 확인 모달
@@ -116,39 +121,44 @@ src/
 │   │   └── WaveEndPicker.tsx         # 웨이브 종료 아이템 보상 선택
 │   ├── Multiplayer/
 │   │   ├── BattlePhaseUI.tsx         # PvP 배틀 페이즈 UI (4분할 관전 + 디버프)
-│   │   ├── BattleVisualizer.tsx      # 배틀 결과 시각화
 │   │   ├── MultiplayerGameOverModal.tsx # 멀티 게임 오버/순위 모달
 │   │   ├── MultiplayerLobby.tsx      # 로비 (방 생성/참가/AI 추가)
 │   │   ├── MultiplayerView.tsx       # 멀티 게임 뷰 (상대방 미니뷰 포함)
 │   │   └── TFTBattleArena.tsx        # TFT 스타일 배틀 아레나 시뮬레이션
-│   ├── ProtectedRoute.tsx            # 인증 라우트 가드
-│   └── UI/
-│       ├── GlobalLanguageSwitcher.tsx # 언어 전환 버튼
-│       ├── HUD.tsx                   # 게임 HUD (라이프/골드/웨이브/속도)
-│       ├── MapSelector.tsx           # 맵 선택 화면 (8종 맵 카드)
-│       ├── PokemonManager.tsx        # 배치된 포켓몬 관리 패널
-│       ├── PokemonPicker.tsx         # 포켓몬 뽑기/구매 (레어도별 확률)
-│       ├── ShootingStarsBackground.tsx # 별똥별 배경 애니메이션
-│       ├── Shop.tsx                  # 인게임 상점 (아이템 구매/판매)
-│       ├── SynergyDetails.tsx        # 시너지 상세 툴팁
-│       └── SynergyTracker.tsx        # 활성 시너지 트래커
+│   ├── Story/                        # 스토리 모드
+│   │   ├── StoryEnding.tsx           # 스토리 스테이지 클리어/엔딩 연출
+│   │   ├── StoryOpening.tsx          # 스토리 오프닝 대사 (타이핑 효과)
+│   │   └── StorySelector.tsx         # 챕터 및 스테이지 선택 UI
+│   ├── UI/
+│   │   ├── FloatingSettings.tsx      # 플로팅 설정 버튼
+│   │   ├── HUD.tsx                   # 게임 HUD (라이프/골드/웨이브/속도)
+│   │   ├── MapSelector.tsx           # 맵 선택 화면 (8종 맵 카드)
+│   │   ├── PokemonManager.tsx        # 배치된 포켓몬 관리 패널
+│   │   ├── PokemonPicker.tsx         # 포켓몬 뽑기/구매 (레어도별 확률)
+│   │   ├── ShootingStarsBackground.tsx # 별똥별 배경 애니메이션
+│   │   ├── Shop.tsx                  # 인게임 상점 (아이템 구매/판매)
+│   │   ├── SynergyDetails.tsx        # 시너지 상세 툴팁
+│   │   └── SynergyTracker.tsx        # 활성 시너지 트래커
+│   ├── GameLayout.tsx       # 싱글/멀티/스토리 전환 레이아웃 + 게임루프 제어
+│   └── ProtectedRoute.tsx   # 인증 라우트 가드
 ├── config/
 │   └── firebase.ts          # Firebase 초기화 + serverNow() + Presence
 ├── data/
 │   ├── achievements.ts      # 200종+ 업적 정의 (5티어, 8카테고리)
 │   ├── evolution.ts         # 진화 체인 + 메가진화(47종) + 거다이맥스(31종) + 합체(6종)
 │   ├── evolutionItems.ts    # 진화 아이템 정의
-│   └── maps.ts              # 8종 맵 데이터 (경로, 스폰, 오브젝티브)
+│   ├── maps.ts              # 8종 맵 데이터 (경로, 스폰, 오브젝티브)
+│   └── storyChapters.ts     # 스토리 모드 챕터, 대사, 보상, 난이도 데이터
 ├── game/
 │   ├── GameManager.ts       # 핵심 게임 루프 (적 이동, 타워 공격, 투사체, 웨이브 관리)
 │   └── WaveSystem.ts        # 웨이브 적 스폰 시스템 (보스 포함)
 ├── i18n/
 │   ├── I18nProvider.tsx     # i18next 프로바이더
-│   ├── index.ts
+│   ├── index.ts             # i18n 초기화 설정
 │   └── translations/
 │       ├── en.json          # 영어 번역
 │       └── ko.json          # 한국어 번역
-├── rendering/               # (예약된 렌더링 모듈 디렉터리)
+├── rendering/               # 렌더링 모듈 (예약)
 ├── services/
 │   ├── AIPlayer.ts          # AI 봇 로직 (Easy/Normal/Hard 전략)
 │   ├── AchievementService.ts # 업적 이벤트 중앙 처리기
@@ -157,7 +167,8 @@ src/
 │   ├── MultiplayerService.ts # Firebase RTDB 기반 멀티플레이 동기화 (V7)
 │   ├── PvPBattleService.ts  # PvP 매치업 생성 및 배틀 결과 계산
 │   ├── SaveService.ts       # LocalStorage 저장/불러오기 (업적, 통계)
-│   └── SoundService.ts      # Howler.js 오디오 매니저
+│   ├── SoundService.ts      # Howler.js 오디오 매니저
+│   └── StoryProgressService.ts # 스토리 모드 진행 상태 관리
 ├── store/
 │   └── gameStore.ts         # Zustand 전역 게임 상태
 ├── types/
@@ -239,10 +250,11 @@ npm run build
 | 경로 | 컴포넌트 | 설명 |
 | :--- | :--- | :--- |
 | `/login` | `LoginScreen` | Firebase 로그인 |
-| `/` | `MainMenu` | 메인 메뉴 (싱글/멀티/랭킹 등) |
+| `/` | `MainMenu` | 메인 메뉴 (싱글/멀티/스토리/랭킹 등) |
 | `/map-select` | `MapSelector` | 싱글 플레이 맵 선택 |
+| `/story` | `StorySelector` | 스토리 챕터 및 스테이지 선택 |
 | `/lobby` | `MultiplayerLobby` | 멀티플레이 로비 |
-| `/game` | `GameLayout` | 실제 게임 화면 |
+| `/game` | `GameLayout` | 실제 게임 화면 (싱글/멀티/스토리 공통) |
 
 > 모든 라우트는 `ProtectedRoute`로 보호되며, 비인증 사용자는 `/login`으로 리다이렉트됩니다.
 

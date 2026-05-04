@@ -99,6 +99,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   storyClear: false,        // story 챕터 클리어 트리거
   storyChapterNumber: null as number | null,  // 현재 스토리 챕터 번호
   storyTotalWaves: null as number | null,     // 이 챕터의 목표 웨이브 수
+  storyEnemyTypes: null as string[] | null,   // 챕터별 적 타입 편향
   timeOfDay: 'day',
   evolutionConfirmQueue: [],
   activeSynergies: [],
@@ -232,6 +233,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       storyClear: false,
       storyChapterNumber: null,
       storyTotalWaves: null,
+      storyEnemyTypes: null,
       timeOfDay: 'day',
       evolutionConfirmQueue: [],
       activeSynergies: [],

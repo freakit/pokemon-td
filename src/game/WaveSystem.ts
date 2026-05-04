@@ -279,9 +279,15 @@ export class WaveSystem {
 
   /**
    * [수정] 경량 스탯 캐시 사용 - 추가 API 호출 없음
+   * 스토리 모드에서는 챕터 enemyTypes로 타입 편향 필터링 적용
    */
   private getEnemyPokemonId(wave: number): number {
     const { min, max } = getStatRange(wave);
+    const { storyEnemyTypes } = useGameStore.getState();
+
+    if (storyEnemyTypes && storyEnemyTypes.length > 0) {
+      return pokeAPI.getEnemyPokemonIdByTypeAndStat(min, max, storyEnemyTypes);
+    }
     return pokeAPI.getEnemyPokemonIdByStatRange(min, max);
   }
 

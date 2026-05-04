@@ -315,6 +315,7 @@ export interface GameState {
   storyClear: boolean;
   storyChapterNumber: number | null;
   storyTotalWaves: number | null;
+  storyEnemyTypes: string[] | null; // 스토리 챕터 적 타입 편향 목록
 
   activeSynergies: Synergy[];
   hoveredSynergy: Synergy | null;

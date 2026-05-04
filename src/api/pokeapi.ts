@@ -406,6 +406,33 @@ class PokeAPIService {
     return Math.floor(Math.random() * 1025) + 1;
   }
 
+  /**
+   * 스토리 모드 전용: 타입 편향 + 스탯 범위로 적 포켓몬 선택
+   * types 배열 중 하나라도 포함하는 포켓몬을 우선 선택
+   */
+  getEnemyPokemonIdByTypeAndStat(minStat: number, maxStat: number, types: string[]): number {
+    const typedCandidates: number[] = [];
+    const fallbackCandidates: number[] = [];
+    const typeSet = new Set(types);
+
+    for (const [id, stat] of this.statCache) {
+      if (stat.statTotal >= minStat && stat.statTotal <= maxStat) {
+        if (stat.types.some(t => typeSet.has(t))) {
+          typedCandidates.push(id);
+        } else {
+          fallbackCandidates.push(id);
+        }
+      }
+    }
+
+    // 타입 매칭 후보가 있으면 100% 그 중에서만 선택
+    if (typedCandidates.length > 0) {
+      return typedCandidates[Math.floor(Math.random() * typedCandidates.length)];
+    }
+    // statCache에 해당 타입이 없으면 스탯 범위로 폴백 (초기 캐시 미구축 상황 대비)
+    return this.getEnemyPokemonIdByStatRange(minStat, maxStat);
+  }
+
   async getLearnableMoves(pokemonId: number, level: number): Promise<GameMove[]> {
     try {
       const levelKey = `${pokemonId}:${level}`;
