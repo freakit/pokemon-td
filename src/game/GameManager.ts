@@ -710,6 +710,10 @@ export class GameManager {
       },
     ];
 
+    // 스토리 모드에서는 메가스톤 / 다이버섯 미등장
+    const isStoryMode = useGameStore.getState().storyChapterNumber !== null;
+    if (isStoryMode) return itemChoices;
+
     const megaEligible = towers.filter(t => hasMegaEvolution(t.pokemonId));
     if (megaEligible.length > 0 && Math.random() < 0.1 * megaEligible.length) {
       const randomPokemon = megaEligible[Math.floor(Math.random() * megaEligible.length)];

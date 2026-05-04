@@ -222,7 +222,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  1,
   mapId:          'easiest_straight',
   totalWaves:     30,
-  heroPool:       [25, 1, 4, 7, 133, 39],
+  heroPool:       [25, 133, 448],                 // 피카츄, 이브이, 루카리오
   enemyTypes:     ['normal', 'bug', 'flying'],
   bossWave:       0,
   unlockCondition: '게임을 시작하면 해금됩니다.',
@@ -349,7 +349,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  2,
   mapId:          'easy_loop',
   totalWaves:     30,
-  heroPool:       [3, 6, 9, 136, 197, 94],
+  heroPool:       [94, 123, 25, 448],             // 팬텀, 스라크, 피카츄, 루카리오
   enemyTypes:     ['ghost', 'psychic', 'poison'],
   bossWave:       22,
   bossName:       '어둠의 선봉 — 강화 팬텀',
@@ -457,7 +457,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  3,
   mapId:          'extreme_aggro_shortcut',
   totalWaves:     30,
-  heroPool:       [249, 380, 382, 130, 54, 131],
+  heroPool:       [380, 131, 54, 448],            // 라티아스, 라프라스, 고라파덕, 루카리오
   enemyTypes:     ['water', 'poison', 'ice'],
   bossWave:       25,
   bossName:       '어둠의 폭류 — 어둠 갸라도스',
@@ -565,7 +565,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  4,
   mapId:          'medium_multi_s',
   totalWaves:     30,
-  heroPool:       [377, 219, 237, 169, 461, 232],
+  heroPool:       [377, 123, 380, 448],           // 레지락, 스라크, 라티아스, 루카리오
   enemyTypes:     ['rock', 'ground', 'poison', 'dark'],
   bossWave:       25,
   bossName:       '동굴의 파견대장 — 어둠의 레지락 복제',
@@ -677,7 +677,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  5,
   mapId:          'medium_merge',
   totalWaves:     30,
-  heroPool:       [645, 637, 214, 359, 248, 445],
+  heroPool:       [359, 377, 380, 123, 448],      // 앱솔, 레지락, 라티아스, 스라크, 루카리오
   enemyTypes:     ['rock', 'ground', 'fire', 'dark'],
   bossWave:       27,
   bossName:       '섀도우 마기라스 — 군주의 첫 번째 전령',
@@ -789,7 +789,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  6,
   mapId:          'hard_straight_wide',
   totalWaves:     30,
-  heroPool:       [475, 103, 452, 197, 149, 373],
+  heroPool:       [475, 149, 380, 123, 448],      // 엘레이드, 망나뇽, 라티아스, 스라크, 루카리오
   enemyTypes:     ['normal', 'grass', 'fighting', 'dark'],
   bossWave:       28,
   bossName:       '섀도우 삼삼바우',
@@ -901,7 +901,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  7,
   mapId:          'hard_dual_path',
   totalWaves:     30,
-  heroPool:       [378, 144, 460, 478, 473, 471],
+  heroPool:       [378, 144, 380, 475, 448],      // 레지아이스, 프리져, 라티아스, 엘레이드, 루카리오
   enemyTypes:     ['ice', 'steel', 'dark', 'ghost'],
   bossWave:       30,
   bossName:       '섀도우 눈설왕 ×2 — 쌍둥이 감시자',
@@ -1017,7 +1017,7 @@ export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
   chapterNumber:  8,
   mapId:          'extreme_central',
   totalWaves:     30,
-  heroPool:       [487, 484, 483, 150, 151, 448, 381, 380],
+  heroPool:       [487, 448, 381, 380, 25, 133, 377, 378, 123, 144, 475], // 기라티나, 루카리오, 라티오스, 라티아스, 피카츄, 이브이, 레지락, 레지아이스, 스라크, 프리져, 엘레이드
   enemyTypes:     ['ghost', 'dragon', 'dark', 'psychic'],
   bossWave:       30,
   bossName:       '군주의 화신 — 기라티나 (Origin Forme)',

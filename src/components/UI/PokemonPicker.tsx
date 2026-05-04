@@ -92,17 +92,17 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
   // 스토리 모드에서 배치 가능한 포켓몬이 모두 배치됐을 때 true
   const [allPlaced, setAllPlaced] = useState(false);
   const setPokemonToPlace = useGameStore(state => state.setPokemonToPlace);
-  const { money, spendMoney, towers } = useGameStore(state => ({
+  const { money, spendMoney } = useGameStore(state => ({
     money: state.money,
     spendMoney: state.spendMoney,
-    towers: state.towers,
   }));
-
-  // 이미 배치된 포켓몬 ID 집합
-  const placedPokemonIds = new Set(towers.map(t => t.pokemonId));
 
   const loadChoices = async () => {
     setIsLoading(true);
+
+    // 매 호출마다 스토어에서 최신 towers를 읽어 stale closure 방지
+    const currentTowers = useGameStore.getState().towers;
+    const placedPokemonIds = new Set(currentTowers.map(t => t.pokemonId));
 
     let ids: number[];
 
@@ -148,6 +148,8 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
   
   useEffect(() => {
     loadChoices();
+  // loadChoices는 항상 useGameStore.getState()로 최신 값을 읽으므로 deps 불필요
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = async (choice: PokemonChoice) => {

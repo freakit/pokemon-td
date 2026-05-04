@@ -286,7 +286,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
 
                 {selected.bossName && (
                   <Section>
-                    <SectionLabel>보스 웨이브 {selected.bossWave}</SectionLabel>
+                    <SectionLabel>보스 (매 3웨이브마다 등장)</SectionLabel>
                     <BossName>{selected.bossName}</BossName>
                   </Section>
                 )}
