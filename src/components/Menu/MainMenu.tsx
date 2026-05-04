@@ -206,7 +206,7 @@ const UserChip = styled.div`
   background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
   border-radius:100px; padding:5px 12px 5px 6px;
-  position:relative;
+  position:relative; z-index:0;
 `;
 
 const Avatar = styled.img`

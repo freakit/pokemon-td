@@ -614,9 +614,18 @@ export class GameManager {
       const itemChoices = this.buildWaveEndItems(towers, wave);
       setWaveEndItemPick(itemChoices);
 
-      // 50웨이브 클리어 (싱글플레이 전용)
-      if (!isMultiplayer && wave === 50) {
-        useGameStore.setState({ wave50Clear: true });
+      // 웨이브 클리어 (싱글플레이 전용)
+      // 스토리 모드: storyTotalWaves 기준 / 일반 모드: 50웨이브
+      const { storyTotalWaves, storyChapterNumber } = useGameStore.getState();
+      const clearWave = storyTotalWaves ?? 50;
+      const isStoryClear = storyChapterNumber !== null && wave === clearWave;
+      const isNormalClear = storyChapterNumber === null && wave === 50;
+
+      if (!isMultiplayer && (isStoryClear || isNormalClear)) {
+        useGameStore.setState({
+          wave50Clear: !isStoryClear,  // 일반 모드만 wave50Clear
+          storyClear: isStoryClear,    // 스토리 모드 클리어
+        });
         try {
           const map = getMapById(currentMap);
           const pokemonUsed = towers.map(t => t.displayName);
@@ -628,7 +637,10 @@ export class GameManager {
             gameTime
           );
           await databaseService.updateLeaderboard(currentMap, gameTime, wave);
-          saveService.updateAchievement('wave50', 50);
+          // wave50 업적은 일반 50웨이브 클리어 시에만 기록
+          if (isNormalClear) {
+            saveService.updateAchievement('wave50', 50);
+          }
 
         } catch (err) {
           console.error('Failed to save Wave 50 clear data:', err);
@@ -640,7 +652,7 @@ export class GameManager {
       if (!isMultiplayer) {
         try {
           // 도전 업적 (퍼펙트/스피드런/불패/난이도/속도) → AchievementService 위임
-          achievementService.onWaveComplete(wave, currentLives, 50, gameTime, difficulty, towers);
+          achievementService.onWaveComplete(wave, currentLives, clearWave, gameTime, difficulty, towers);
 
           // 전설 포켓몬 수집 업적
           for (const tower of towers) {

@@ -1,0 +1,290 @@
+// src/components/Story/StoryEnding.tsx
+// 스토리 챕터 클리어 후 엔딩 대사 화면
+// 다 보면 onComplete() 콜백 → 챕터 해금 + /story 이동
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import styled, { keyframes } from 'styled-components';
+import { StoryChapter, DialogueLine } from '../../data/storyChapters';
+
+interface StoryEndingProps {
+  chapter: StoryChapter;
+  onComplete: () => void; // 전부 본 후 호출
+}
+
+const CHAR_SPEED = 28;
+
+const SPEAKER_SPRITES: Record<string, string> = {
+  루카리오:  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/448.png`,
+  스라크:    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/123.png`,
+  라티아스:  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/380.png`,
+  라티오스:  `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/381.png`,
+  레지락:    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/377.png`,
+  레지아이스:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/378.png`,
+  프리져:    `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/144.png`,
+  에르레이드:`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/475.png`,
+  군주:      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/487.png`,
+  '???':     `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/381.png`,
+};
+
+const BG_IMAGES: Record<string, string> = {
+  easiest_straight:       '/images/maps/easiest_straight.png',
+  easy_loop:              '/images/maps/easy_loop.png',
+  extreme_aggro_shortcut: '/images/maps/extreme_aggro_shortcut.png',
+  medium_multi_s:         '/images/maps/medium_multi_s.png',
+  medium_merge:           '/images/maps/medium_merge.png',
+  hard_straight_wide:     '/images/maps/hard_straight_wide.png',
+  hard_dual_path:         '/images/maps/hard_dual_path.png',
+  extreme_central:        '/images/maps/extreme_central.png',
+};
+
+export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete }) => {
+  const lines = chapter.endingDialogue;
+  const [lineIdx, setLineIdx] = useState(0);
+  const [displayed, setDisplayed] = useState('');
+  const [typing, setTyping] = useState(false);
+  const [visible, setVisible] = useState(false);
+  // [FIX-2] canProceedRef — 타이핑 완료 후에만 다음 줄 진행 허용
+  const canProceedRef = useRef(false);
+
+  const currentLine: DialogueLine | undefined = lines[lineIdx];
+
+  const bgSrc = BG_IMAGES[chapter.mapId] ?? '';
+  const spriteUrl = currentLine
+    ? SPEAKER_SPRITES[currentLine.speaker]
+      ?? (currentLine.pokemonId
+        ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${currentLine.pokemonId}.png`
+        : null)
+    : null;
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  // 타이프라이터 + canProceedRef
+  useEffect(() => {
+    if (!currentLine) return;
+    setDisplayed('');
+    setTyping(true);
+    canProceedRef.current = false; // [FIX-2] 새 줄 시작 → 진행 잠금
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(currentLine.text.slice(0, i));
+      if (i >= currentLine.text.length) {
+        clearInterval(id);
+        setTyping(false);
+        canProceedRef.current = true; // [FIX-2] 타이핑 완료 → 진행 허용
+      }
+    }, CHAR_SPEED);
+    return () => clearInterval(id);
+  }, [lineIdx, currentLine]);
+
+  const advance = useCallback(() => {
+    if (typing) {
+      // 타이핑 스킵
+      setDisplayed(currentLine?.text ?? '');
+      setTyping(false);
+      canProceedRef.current = true; // [FIX-2] 스킵 후 즉시 진행 허용
+      return;
+    }
+    // [FIX-2] 진행 잠금 확인
+    if (!canProceedRef.current) return;
+    canProceedRef.current = false;
+
+    if (lineIdx < lines.length - 1) {
+      setLineIdx(p => p + 1);
+    } else {
+      onComplete();
+    }
+  }, [typing, lineIdx, lines.length, currentLine, onComplete]);
+
+  // 키보드 단축키
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') advance();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [advance]);
+
+  const isLastLine = lineIdx === lines.length - 1;
+
+  return (
+    <Root $visible={visible}>
+      {/* 배경 */}
+      <BgImg src={bgSrc} />
+      <BgDim />
+      <BgVignette />
+
+      {/* 클리어 배너 */}
+      <ClearBanner>
+        <ClearEyebrow>CHAPTER {String(chapter.chapterNumber).padStart(2,'0')} CLEAR</ClearEyebrow>
+        <ClearTitle $accent={chapter.theme.primary}>{chapter.title}</ClearTitle>
+      </ClearBanner>
+
+      {/* 스킵 버튼 */}
+      <SkipBtn onClick={e => { e.stopPropagation(); onComplete(); }}>
+        SKIP ▶
+      </SkipBtn>
+
+      {/* 캐릭터 스프라이트 */}
+      <CharacterArea>
+        {spriteUrl && (
+          <CharSprite
+            key={`end-${lineIdx}`}
+            src={spriteUrl}
+            alt={currentLine?.speaker ?? ''}
+          />
+        )}
+      </CharacterArea>
+
+      {/* 텍스트 박스 */}
+      {currentLine && (
+        <TextBox onClick={e => { e.stopPropagation(); advance(); }}>
+          <TextBoxInner>
+            <SpeakerLabel $isEnemy={currentLine.speaker === '군주'}>
+              {currentLine.speaker}
+            </SpeakerLabel>
+            <DialogueText>
+              {displayed}
+              {typing && <Cursor />}
+            </DialogueText>
+          </TextBoxInner>
+          <ProgressRow>
+            {lines.map((_, i) => (
+              <ProgDot key={i} $active={i === lineIdx} $past={i < lineIdx} />
+            ))}
+            <AdvanceCue $visible={!typing}>
+              {isLastLine
+                ? (chapter.chapterNumber < 8 ? '다음 챕터 해금 ▶' : '완결 ▶')
+                : '다음 ▶'}
+            </AdvanceCue>
+          </ProgressRow>
+        </TextBox>
+      )}
+    </Root>
+  );
+};
+
+// ─── Animations ───────────────────────────────────────────────────────────────
+
+const blink = keyframes`0%,100%{opacity:1}50%{opacity:0}`;
+const charSlideIn = keyframes`from{opacity:0;transform:translateX(-20px) scale(0.92)}to{opacity:1;transform:translateX(0) scale(1)}`;
+const panBg = keyframes`from{transform:scale(1.06)}to{transform:scale(1.0)}`;
+const bannerReveal = keyframes`from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}`;
+
+// ─── Styled Components ────────────────────────────────────────────────────────
+
+const Root = styled.div<{ $visible: boolean }>`
+  position:fixed; inset:0; z-index:3000;
+  cursor:pointer; user-select:none; overflow:hidden;
+  opacity:${p => p.$visible ? 1 : 0};
+  transition:opacity 0.7s ease;
+`;
+
+const BgImg = styled.img`
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; opacity:0.45;
+  animation:${panBg} 25s ease-out both;
+  pointer-events:none;
+`;
+
+const BgDim = styled.div`
+  position:absolute; inset:0; background:rgba(0,0,0,0.65); pointer-events:none;
+`;
+
+const BgVignette = styled.div`
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,0.9) 100%);
+  pointer-events:none;
+`;
+
+const ClearBanner = styled.div`
+  position:absolute; top:32px; left:0; right:0;
+  text-align:center; pointer-events:none;
+  animation:${bannerReveal} 0.8s ease 0.3s both;
+`;
+
+const ClearEyebrow = styled.div`
+  font-size:11px; font-weight:800; letter-spacing:0.4em;
+  color:rgba(245,158,11,0.7); margin-bottom:8px;
+`;
+
+const ClearTitle = styled.h1<{ $accent: string }>`
+  font-size:clamp(24px,4vw,42px); font-weight:900;
+  color:#fff; margin:0;
+  text-shadow:0 0 48px ${p => p.$accent}66, 0 2px 12px rgba(0,0,0,0.6);
+`;
+
+const SkipBtn = styled.button`
+  position:absolute; top:24px; right:32px;
+  background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.15);
+  border-radius:6px; color:rgba(255,255,255,0.4);
+  padding:7px 14px; font-size:11px; font-weight:700; letter-spacing:0.12em;
+  cursor:pointer; transition:all 0.2s; z-index:10;
+  &:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);}
+`;
+
+const CharacterArea = styled.div`
+  position:absolute; bottom:200px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:flex-end; justify-content:center; pointer-events:none;
+  @media(max-height:600px){bottom:180px;}
+`;
+
+const CharSprite = styled.img`
+  height:clamp(180px,28vh,300px); object-fit:contain;
+  filter:drop-shadow(0 8px 28px rgba(0,0,0,0.8));
+  animation:${charSlideIn} 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  pointer-events:none;
+`;
+
+const TextBox = styled.div`
+  position:absolute; bottom:0; left:0; right:0;
+  background:linear-gradient(180deg,rgba(5,8,16,0.0) 0%,rgba(5,8,16,0.97) 12%);
+  padding:20px 0 0; pointer-events:all;
+`;
+
+const TextBoxInner = styled.div`
+  max-width:900px; margin:0 auto; padding:24px 48px 20px;
+  border-top:1px solid rgba(255,255,255,0.07);
+  @media(max-width:600px){padding:18px 24px 16px;}
+`;
+
+const SpeakerLabel = styled.div<{ $isEnemy: boolean }>`
+  font-size:13px; font-weight:800; letter-spacing:0.14em;
+  color:${p => p.$isEnemy ? '#f87171' : 'rgba(245,158,11,0.85)'};
+  text-transform:uppercase; margin-bottom:12px;
+`;
+
+const DialogueText = styled.p`
+  font-size:clamp(16px,2.2vw,20px);
+  line-height:1.75; color:#f0f4f8; margin:0;
+  font-weight:400; min-height:3.5em; letter-spacing:0.01em;
+`;
+
+const Cursor = styled.span`
+  display:inline-block; width:2px; height:1.1em;
+  background:rgba(245,158,11,0.8);
+  vertical-align:text-bottom; margin-left:3px;
+  animation:${blink} 0.55s step-end infinite;
+`;
+
+const ProgressRow = styled.div`
+  display:flex; align-items:center; gap:6px;
+  max-width:900px; margin:0 auto;
+  padding:12px 48px 20px;
+  @media(max-width:600px){padding:10px 24px 16px;}
+`;
+
+const ProgDot = styled.div<{ $active: boolean; $past: boolean }>`
+  width:6px; height:6px; border-radius:50%;
+  background:${p => p.$active ? '#f59e0b' : p.$past ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.1)'};
+  transition:background 0.25s;
+`;
+
+const AdvanceCue = styled.div<{$visible?:boolean}>`
+  opacity:${p=>p.$visible===false?0:1};transition:opacity 0.3s;
+  margin-left:auto; font-size:12px; font-weight:700;
+  color:rgba(255,255,255,0.3); letter-spacing:0.1em;
+`;

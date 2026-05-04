@@ -23,7 +23,8 @@
 //         → onGameStateUpdate + alivePlayers.length 방식으로 복원
 // ──────────────────────────────────────────────────────────────────
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import styled, { keyframes, css } from "styled-components";
 import { useTranslation } from "../i18n";
 import { GameCanvas } from "./Game/GameCanvas";
@@ -46,6 +47,9 @@ import { BattlePhaseUI } from "./Multiplayer/BattlePhaseUI";
 import { SkillPicker } from "./Modals/SkillPicker";
 import { WaveEndPicker } from "./Modals/WaveEndPicker";
 import { Wave50ClearModal } from "./Modals/Wave50ClearModal";
+import { StoryEnding } from "./Story/StoryEnding";
+import { storyProgressService } from "../services/StoryProgressService";
+import { AEGIS_STORY_CHAPTERS } from "../data/storyChapters";
 import { EvolutionConfirmModal } from "./Modals/EvolutionConfirmModal";
 
 import { authService } from "../services/AuthService";
@@ -133,6 +137,22 @@ const buildTowerDetails = (towers: any[]): TowerDetail[] =>
 // ── Component ─────────────────────────────────────────────────────
 
 export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const locationState = (location.state ?? {}) as {
+    mode?: string;
+    chapterId?: string;
+    chapterNumber?: number;
+    totalWaves?: number;
+    heroPool?: number[];
+    enemyTypes?: string[];
+    bossWave?: number;
+    bossName?: string;
+  };
+  const isStoryMode = locationState.mode === 'story';
+  const storyChapterId = locationState.chapterId ?? null;
+  const storyChapterNumber = locationState.chapterNumber ?? null;
+  const storyTotalWaves = locationState.totalWaves ?? null;
   const { t } = useTranslation();
 
   // ── UI state ─────────────────────────────────────────────────
@@ -165,7 +185,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   // ── Game store ────────────────────────────────────────────────
   const {
     money, lives, wave, isWaveActive, towers, gameSpeed,
-    timeOfDay, gameTime, skillChoiceQueue, waveEndItemPick, wave50Clear, gameOver,
+    timeOfDay, gameTime, skillChoiceQueue, waveEndItemPick, wave50Clear, storyClear, gameOver,
     nextWave, spendMoney,
   } = useGameStore(s => ({
     money:          s.money,
@@ -179,6 +199,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     skillChoiceQueue: s.skillChoiceQueue,
     waveEndItemPick:  s.waveEndItemPick,
     wave50Clear:      s.wave50Clear,
+    storyClear:        s.storyClear,
     gameOver:         s.gameOver,
     nextWave:         s.nextWave,
     spendMoney:       s.spendMoney,
@@ -557,9 +578,37 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     setShowPicker(true);
   };
 
+  // ─── 스토리 모드 초기화: location.state → gameStore ────────────────────────
+  useEffect(() => {
+    if (isStoryMode && storyChapterNumber !== null) {
+      useGameStore.setState({
+        storyChapterNumber,
+        storyTotalWaves,
+        storyClear: false,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStoryMode, storyChapterNumber, storyTotalWaves]);
+
+  // ─── 스토리 챕터 클리어 처리 ─────────────────────────────────────────────
+  const handleStoryClearComplete = useCallback(() => {
+    if (!storyChapterId || storyChapterNumber === null) return;
+    // 클리어 기록 저장
+    const totalW = storyTotalWaves ?? 30;
+    storyProgressService.markCleared(storyChapterId, {
+      stars: 3, // 기본 3성 (향후 라이프 기반으로 개선 가능)
+      bestWave: totalW,
+    });
+    // storyClear 플래그 초기화 후 /story 복귀
+    useGameStore.setState({ storyClear: false, storyChapterNumber: null, storyTotalWaves: null });
+    navigate('/story');
+  }, [storyChapterId, storyChapterNumber, storyTotalWaves, navigate]);
+
   const handleResetAndLeave = () => {
     if (multiRoomId) multiplayerService.leaveRoom(multiRoomId).catch(() => {});
-    onLeaveGame();
+    onLeaveGame(); // resetGame() + navigate('/map-select' or '/lobby')
+    // 스토리 모드일 때는 /story로 오버라이드
+    if (isStoryMode) navigate('/story');
   };
 
   const handleSpeedToggle = () =>
@@ -610,7 +659,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               </HudTile>
               <HudTile>
                 <HudLbl>WAVE</HudLbl>
-                <HudVal $c="blue">{wave}<Sub>/50</Sub></HudVal>
+                <HudVal $c="blue">
+                  {wave}
+                  {/* 싱글: /50, 스토리: /30, 멀티: 표시 없음 */}
+                  {!isMultiplayer && <Sub>/{storyTotalWaves ?? 50}</Sub>}
+                </HudVal>
               </HudTile>
               <HudTile>
                 <HudLbl>포켓몬</HudLbl>
@@ -764,6 +817,16 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
       <EvolutionConfirmModal />
       {waveEndItemPick && <WaveEndPicker />}
+      {storyClear && storyChapterId && (() => {
+        const ch = AEGIS_STORY_CHAPTERS.find(c => c.id === storyChapterId);
+        return ch ? (
+          <StoryEnding
+            chapter={ch}
+            onComplete={handleStoryClearComplete}
+          />
+        ) : null;
+      })()}
+
       {wave50Clear && (
         <Wave50ClearModal
           onContinue={() => useGameStore.setState({ wave50Clear: false, isPaused: false })}
