@@ -1,4 +1,4 @@
-// src/components/Story/StorySelector.tsx
+// src/components/story/StorySelector.tsx
 // Pokemon Aegis — Story Mode Selection Screen
 // Design: Dark epic fantasy · Amber/cyan accent · Animated chapter cards
 
@@ -11,7 +11,7 @@ import {
   ChapterProgress,
 } from '../../services/StoryProgressService';
 import { MAPS } from '../../data/maps';
-import { media } from '../../utils/responsive.utils';
+import { media, lMedia } from '../../utils/responsive.utils';
 import { StoryOpening } from './StoryOpening';
 
 export interface StoryStartData {
@@ -445,6 +445,8 @@ const Header = styled.header<{ $visible: boolean }>`
   transition: opacity 0.6s ease 0.4s;
 
   ${media.mobile} { padding: 14px 16px 12px; flex-wrap: wrap; gap: 10px; }
+  ${lMedia.tablet} { padding: 10px 20px 8px; }
+  ${lMedia.phoneSm} { padding: 6px 12px 6px; flex-wrap: wrap; gap: 6px; }
 `;
 
 const BackBtn = styled.button`
@@ -465,6 +467,7 @@ const BackBtn = styled.button`
   }
 
   ${media.mobile} { font-size: 12px; padding: 6px 12px; }
+  ${lMedia.phoneSm} { font-size: 11px; padding: 5px 10px; }
 `;
 
 const HeaderCenter = styled.div`
@@ -491,6 +494,8 @@ const PageTitle = styled.h1`
   line-height: 1.2;
 
   ${media.mobile} { font-size: 20px; }
+  ${lMedia.tablet} { font-size: 20px; }
+  ${lMedia.phoneSm} { font-size: 16px; }
 `;
 
 const PageSubtitle = styled.div`
@@ -517,6 +522,7 @@ const ProgressNum = styled.div`
   line-height: 1;
 
   ${media.mobile} { font-size: 18px; }
+  ${lMedia.phoneSm} { font-size: 15px; }
 `;
 
 const ProgressLabel = styled.div`
@@ -558,6 +564,17 @@ const MainLayout = styled.div<{ $visible: boolean }>`
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
+
+  /* 태블릿 가로(landscape): 오른쪽 패널을 좀 더 좁게 */
+  ${lMedia.tablet} {
+    grid-template-columns: 1fr 300px;
+    overflow: hidden;
+  }
+  /* 폰 가로(landscape): 단일 열로 전환하되 스크롤 허용 */
+  ${lMedia.phoneSm} {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
 `;
 
 const ChapterList = styled.div`
@@ -577,6 +594,15 @@ const ChapterList = styled.div`
 
   @media (max-width: 900px) {
     padding: 16px;
+    overflow-y: visible;
+  }
+
+  ${lMedia.tablet} {
+    padding: 12px 16px;
+    overflow-y: auto;
+  }
+  ${lMedia.phoneSm} {
+    padding: 10px 12px;
     overflow-y: visible;
   }
 `;
@@ -622,6 +648,7 @@ const ChapterCard = styled.div<{
   }
 
   ${media.mobile} { margin-bottom: 8px; }
+  ${lMedia.phoneSm} { margin-bottom: 6px; }
 `;
 
 const CardThumb = styled.div<{ $unlocked: boolean }>`
@@ -644,6 +671,8 @@ const CardThumb = styled.div<{ $unlocked: boolean }>`
   }
 
   ${media.mobile} { width: 90px; }
+  ${lMedia.tablet} { width: 100px; }
+  ${lMedia.phoneSm} { width: 72px; }
 `;
 
 const LockIcon = styled.div`
@@ -693,6 +722,7 @@ const CardBody = styled.div`
   gap: 3px;
 
   ${media.mobile} { padding: 10px 12px; }
+  ${lMedia.phoneSm} { padding: 8px 10px; }
 `;
 
 const CardMeta = styled.div`
@@ -721,6 +751,7 @@ const CardTitle = styled.div<{ $unlocked: boolean }>`
   line-height: 1.2;
 
   ${media.mobile} { font-size: 14px; }
+  ${lMedia.phoneSm} { font-size: 13px; }
 `;
 
 const CardSubtitle = styled.div<{ $unlocked: boolean }>`
@@ -773,6 +804,20 @@ const DetailPanel = styled.div<{ $visible: boolean }>`
     border-top: 1px solid rgba(255, 255, 255, 0.07);
     display: ${(p) => (p.$visible ? 'flex' : 'none')};
   }
+
+  /* 태블릿 가로: 사이드 패널로 표시 */
+  ${lMedia.tablet} {
+    display: flex;
+    border-left: 1px solid rgba(255, 255, 255, 0.07);
+    border-top: none;
+    overflow: hidden;
+  }
+  /* 폰 가로: 세로 쌓기 (900px 이하와 동일) */
+  ${lMedia.phoneSm} {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    display: ${(p) => (p.$visible ? 'flex' : 'none')};
+  }
 `;
 
 const DetailHeader = styled.div<{ $bg: string }>`
@@ -792,6 +837,9 @@ const DetailHeader = styled.div<{ $bg: string }>`
     );
     pointer-events: none;
   }
+
+  ${lMedia.tablet} { padding: 16px 18px 14px; }
+  ${lMedia.phoneSm} { padding: 12px 14px 10px; }
 `;
 
 const DetailChNum = styled.div<{ $accent: string }>`
@@ -809,6 +857,9 @@ const DetailTitle = styled.h2`
   margin: 0 0 4px;
   position: relative;
   z-index: 1;
+
+  ${lMedia.tablet} { font-size: 20px; }
+  ${lMedia.phoneSm} { font-size: 17px; }
 `;
 
 const DetailSubtitle = styled.div`
@@ -839,6 +890,9 @@ const DetailBody = styled.div`
     background: rgba(255, 255, 255, 0.15);
     border-radius: 2px;
   }
+
+  ${lMedia.tablet} { padding: 14px 16px; gap: 12px; }
+  ${lMedia.phoneSm} { padding: 10px 12px; gap: 10px; }
 `;
 
 const RecordBox = styled.div`
@@ -951,6 +1005,9 @@ const PreviewText = styled.div`
 const DetailFooter = styled.div`
   padding: 16px 24px 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
+
+  ${lMedia.tablet} { padding: 12px 16px 14px; }
+  ${lMedia.phoneSm} { padding: 10px 12px 12px; }
 `;
 
 const StartBtn = styled.button<{ $accent: string }>`

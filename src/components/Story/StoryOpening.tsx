@@ -1,4 +1,4 @@
-// src/components/Story/StoryOpening.tsx
+// src/components/story/StoryOpening.tsx
 // 버그 수정:
 //  [FIX-1] TextBox → Root 이벤트 버블링으로 advance()가 2회 호출 → 줄 2개씩 건너뜀
 //          해결: Root onClick은 title phase에서만, TextBox는 stopPropagation

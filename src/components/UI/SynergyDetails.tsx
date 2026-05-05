@@ -1,4 +1,4 @@
-// src/components/UI/SynergyDetails.tsx
+// src/components/ui/SynergyDetails.tsx
 import React from 'react';
 import styled from 'styled-components';
 import { lMedia } from '../../utils/responsive.utils';
@@ -66,107 +66,105 @@ const Container = styled.div`
   position: fixed;
   left: 224px;
   top: 10px;
-  width: 240px;
-  max-height: 45vh;
+  width: 200px;
+  max-height: 40vh;
   overflow-y: auto;
-  background: linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98));
-  border: 3px solid rgba(155, 89, 182, 0.5);
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+  background: linear-gradient(160deg, #0d1117 0%, #080c14 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-top: 2px solid rgba(79,195,247,0.6);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.7);
   backdrop-filter: blur(10px);
   z-index: 2999;
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 0.15s ease-out;
 
-  /* 태블릿 가로 (≤1024px landscape) — LeftPanel = 172px */
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
   ${lMedia.tablet} {
     left: 186px;
-    width: 220px;
-    padding: 12px;
-    border-radius: 14px;
-    border-width: 2px;
+    width: 180px;
+    padding: 8px 10px;
+    border-radius: 12px;
   }
 
-  /* 폰 가로 (≤768px landscape) — LeftPanel = 128px */
   ${lMedia.phone} {
     left: 142px;
-    width: calc(100vw - 146px);
-    max-width: 190px;
-    max-height: 42vh;
-    padding: 10px;
-    border-radius: 12px;
-    border-width: 2px;
+    width: calc(100vw - 148px);
+    max-width: 170px;
+    max-height: 38vh;
+    padding: 7px 9px;
+    border-radius: 10px;
   }
 
-  /* 소형 폰 가로 (landscape + max-height ≤520px) — LeftPanel = 128px */
   ${lMedia.phoneSm} {
     left: 136px;
     top: 4px;
-    width: calc(100vw - 140px);
-    max-width: 180px;
-    max-height: 40vh;
-    padding: 8px;
-    border-radius: 10px;
-    border-width: 2px;
+    width: calc(100vw - 142px);
+    max-width: 160px;
+    max-height: 36vh;
+    padding: 6px 8px;
+    border-radius: 8px;
   }
 `;
 
 const Title = styled.h4`
-  font-size: 16px;
-  font-weight: bold;
-  color: #9b59b6;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4fc3f7;
   text-align: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid rgba(155, 89, 182, 0.3);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(79,195,247,0.2);
 
-  ${lMedia.tablet} { font-size: 14px; margin-bottom: 9px; padding-bottom: 6px; }
-  ${lMedia.phone}  { font-size: 13px; margin-bottom: 7px; padding-bottom: 5px; }
-  ${lMedia.phoneSm}{ font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; }
+  ${lMedia.tablet} { font-size: 12px; margin-bottom: 6px; padding-bottom: 4px; }
+  ${lMedia.phone}  { font-size: 12px; margin-bottom: 5px; padding-bottom: 4px; }
+  ${lMedia.phoneSm}{ font-size: 11px; margin-bottom: 4px; padding-bottom: 3px; }
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 
-  ${lMedia.phone}  { gap: 6px; }
-  ${lMedia.phoneSm}{ gap: 5px; }
+  ${lMedia.phone}  { gap: 4px; }
+  ${lMedia.phoneSm}{ gap: 3px; }
 `;
 
 const PokemonItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(0,0,0,0.2);
-  padding: 4px 8px;
+  gap: 6px;
+  background: rgba(255,255,255,0.04);
+  padding: 3px 6px;
   border-radius: 6px;
 
-  ${lMedia.phone}  { padding: 3px 6px; gap: 6px; }
-  ${lMedia.phoneSm}{ padding: 3px 5px; gap: 5px; }
+  ${lMedia.phone}  { padding: 2px 5px; gap: 5px; }
+  ${lMedia.phoneSm}{ padding: 2px 4px; gap: 4px; }
 `;
 
 const Sprite = styled.img`
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   image-rendering: pixelated;
   flex-shrink: 0;
 
-  ${lMedia.tablet} { width: 34px; height: 34px; }
-  ${lMedia.phone}  { width: 30px; height: 30px; }
-  ${lMedia.phoneSm}{ width: 26px; height: 26px; }
+  ${lMedia.tablet} { width: 28px; height: 28px; }
+  ${lMedia.phone}  { width: 24px; height: 24px; }
+  ${lMedia.phoneSm}{ width: 22px; height: 22px; }
 `;
 
 const Name = styled.span`
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #e8edf3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 
-  ${lMedia.tablet} { font-size: 12px; }
-  ${lMedia.phone}  { font-size: 11px; }
+  ${lMedia.tablet} { font-size: 11px; }
+  ${lMedia.phone}  { font-size: 10px; }
   ${lMedia.phoneSm}{ font-size: 10px; }
 `;
 

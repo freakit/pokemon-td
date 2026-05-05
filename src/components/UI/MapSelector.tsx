@@ -1,4 +1,4 @@
-// src/components/UI/MapSelector.tsx
+// src/components/ui/MapSelector.tsx
 import { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { media, lMedia } from "../../utils/responsive.utils";
@@ -199,18 +199,22 @@ const FilterPill = styled.button<{ $active: boolean; $color: string }>`
 
 const GridArea = styled.div`
   flex:1; padding:28px 32px 40px; overflow-y:auto;
+  display: flex; flex-direction: column; align-items: center;
   ${media.mobile} { padding:20px 16px 32px; }
   ${lMedia.phoneSm} { padding:12px 12px 24px; }
 `;
 
 const Grid = styled.div`
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  grid-template-columns:repeat(4, minmax(0, 280px));
   gap:16px;
-  ${media.tablet} { grid-template-columns:repeat(2,1fr); gap:12px; }
-  ${media.mobile} { grid-template-columns:1fr; gap:10px; }
-  ${lMedia.tablet} { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
-  ${lMedia.phoneSm} { grid-template-columns:repeat(2,1fr); gap:8px; }
+  width: 100%;
+  max-width: 1200px;
+  justify-content: center;
+  ${media.tablet} { grid-template-columns:repeat(2,1fr); gap:12px; max-width: 640px; }
+  ${media.mobile} { grid-template-columns:1fr; gap:10px; max-width: 400px; }
+  ${lMedia.tablet} { grid-template-columns:repeat(4, minmax(0,220px)); gap:12px; }
+  ${lMedia.phoneSm} { grid-template-columns:repeat(2,1fr); gap:8px; max-width: 600px; }
 `;
 
 const Card = styled.div<{ $img: string; $color: string; $delay: number }>`

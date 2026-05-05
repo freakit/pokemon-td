@@ -1,7 +1,10 @@
-// src/components/UI/PokemonManager.tsx
+// src/components/ui/PokemonManager.tsx
 
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import {
+  ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT,
+} from '../shared/modal.styles';
 import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -135,8 +138,9 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
   };
 
   return (
-    <Overlay>
-      <Modal>
+    <ModalOverlay>
+      <ModalBox $size="lg" $accent={MODAL_ACCENT.blue} $scroll>
+        <InnerPad>
         <Header>
           <div>
             <Title>{t('manager.title', { towers: towers.length })}</Title>
@@ -149,7 +153,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
             >
               {fusionMode ? `❌ ${t('common.cancel')}` : `🧬 ${t('manager.fusion')}`}
             </FusionBtn>
-            <CloseBtn onClick={onClose}>✕</CloseBtn>
+            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
           </HeaderButtons>
         </Header>
 
@@ -227,57 +231,15 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
             })}
           </Grid>
         )}
-      </Modal>
-    </Overlay>
+        </InnerPad>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
-  backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-  animation: fadeIn 0.3s ease-out;
-`;
 
-const Modal = styled.div`
-  background: linear-gradient(145deg, #2a2d3a, #1f2029);
-  border-radius: 20px;
-  padding: 30px;
-  max-width: 1000px;
-  width: 95%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 255, 255, 0.1);
-
-  /* 태블릿 가로 (iPad 등) */
-  ${L1024} {
-    padding: 20px;
-    border-radius: 16px;
-    max-height: 92vh;
-  }
-  /* 폰 가로 */
-  ${L768} {
-    padding: 14px;
-    border-radius: 12px;
-    width: 97%;
-    max-height: 94vh;
-  }
-  /* 소형 폰 가로 */
-  ${LSm} {
-    padding: 12px;
-    border-radius: 10px;
-    width: 98%;
-    max-height: 96vh;
-  }
-`;
 
 const Header = styled.div`
   display: flex;
@@ -330,7 +292,7 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   color: #fff;
   cursor: pointer;
   transition: filter 0.2s;
-  background: ${props => props.$fusionMode ? '#e74c3c' : 'linear-gradient(135deg, #1c3bb6 0%, #020842 100%)'};
+  background: ${props => props.$fusionMode ? '#c0392b' : 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)'};
 
   @media (hover: hover) { &:hover { filter: brightness(1.2); } }
 
@@ -339,20 +301,6 @@ const FusionBtn = styled.button<{ $fusionMode: boolean }>`
   ${LSm}   { font-size: 12px; padding: 5px 9px; }
 `;
 
-const CloseBtn = styled.button`
-  font-size: 24px;
-  background: none;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 5px;
-  transition: background 0.2s;
-  &:hover { background: rgba(255, 255, 255, 0.1); }
-
-  ${L1024} { font-size: 20px; }
-  ${LSm}   { font-size: 18px; }
-`;
 
 const FusionInfo = styled.div`
   background: rgba(102, 126, 234, 0.2);
@@ -533,4 +481,11 @@ const SellBtn = styled.button`
   ${L1024} { padding: 10px; font-size: 14px; border-radius: 10px; }
   ${L768}  { padding: 8px;  font-size: 13px; border-radius: 8px; }
   ${LSm}   { padding: 7px;  font-size: 12px; }
+`;
+
+const InnerPad = styled.div`
+  padding: 24px;
+  ${L1024} { padding: 18px; }
+  ${L768}  { padding: 14px; }
+  ${LSm}   { padding: 12px; }
 `;

@@ -1,4 +1,4 @@
-// src/components/Modals/TutorialModal.tsx
+// src/components/modals/TutorialModal.tsx
 //
 // mode: 'tower' = 싱글플레이 버튼 클릭 시
 //       'multi' = 멀티플레이 버튼 클릭 시 (멀티 게임 방식 + TFT 배틀 통합 안내)
@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { ModalOverlay, ModalBox, modalSlideUp, modalFadeIn } from '../shared/modal.styles';
 import { lMedia, media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
@@ -173,8 +174,8 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
     : `👥 ${t('tutorial.multi.label').trim()}`;
 
   return (
-    <Overlay $exiting={exiting} onClick={() => close()}>
-      <Modal $exiting={exiting} onClick={e => e.stopPropagation()}>
+    <AnimatedOverlay $exiting={exiting} onClick={() => close()}>
+      <AnimatedModalBox $exiting={exiting} $size="sm" $accent={mode === 'tower' ? '#4fc3f7' : '#a78bfa'} onClick={e => e.stopPropagation()}>
         <TopBar $accent={accent} />
 
         <Header>
@@ -236,15 +237,12 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
             </NextBtn>
           </NavButtons>
         </Footer>
-      </Modal>
-    </Overlay>
+      </AnimatedModalBox>
+    </AnimatedOverlay>
   );
 };
 
 // ─── Animation keyframes ──────────────────────────────────────────────────────
-const fadeIn   = keyframes`from{opacity:0}to{opacity:1}`;
-const fadeOut  = keyframes`from{opacity:1}to{opacity:0}`;
-const modalIn  = keyframes`from{opacity:0;transform:translateY(28px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}`;
 const modalOut = keyframes`from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(20px) scale(.97)}`;
 const slideFwd = keyframes`from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:translateX(0)}`;
 const slideBck = keyframes`from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}`;
@@ -252,37 +250,6 @@ const iconFloat = keyframes`0%,100%{transform:translateY(0) scale(1)}45%{transfo
 const rowPop   = keyframes`from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}`;
 
 // ─── Styled Components ────────────────────────────────────────────────────────
-
-const Overlay = styled.div<{ $exiting: boolean }>`
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999;
-  padding: 16px;
-  animation: ${p => p.$exiting
-    ? css`${fadeOut} .26s ease forwards`
-    : css`${fadeIn} .22s ease forwards`};
-
-  ${media.mobile}   { padding: 12px; }
-  ${lMedia.phoneSm} { padding: 8px; align-items: flex-start; overflow-y: auto; }
-`;
-
-const Modal = styled.div<{ $exiting: boolean }>`
-  background: linear-gradient(160deg,#111827 0%,#0c1220 100%);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 22px;
-  width: 100%;
-  max-width: 460px;
-  box-shadow: 0 40px 100px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.04);
-  overflow: hidden;
-  animation: ${p => p.$exiting
-    ? css`${modalOut} .26s ease forwards`
-    : css`${modalIn} .32s cubic-bezier(.34,1.48,.64,1) forwards`};
-
-  ${media.tablet}   { max-width: 420px; border-radius: 18px; }
-  ${media.mobile}   { max-width: 100%;  border-radius: 16px; }
-  ${lMedia.phoneSm} { border-radius: 14px; max-width: 460px; margin: auto; }
-`;
 
 const TopBar = styled.div<{ $accent: string }>`
   height: 3px;
@@ -474,4 +441,16 @@ const NextBtn = styled.button<{ $grad: string; $shadow: string; $isLast: boolean
 
   ${media.mobile}   { padding: 9px 14px; font-size: 12.5px; border-radius: 9px; }
   ${lMedia.phoneSm} { padding: 7px 12px; font-size: 12px; }
+`;
+
+const AnimatedModalBox = styled(ModalBox)<{ $exiting: boolean }>`
+  animation: ${p => p.$exiting
+    ? css`${modalOut} .26s ease forwards`
+    : css`${modalSlideUp} .28s ease forwards`};
+`;
+
+const AnimatedOverlay = styled(ModalOverlay)<{ $exiting: boolean }>`
+  animation: ${p => p.$exiting
+    ? css`${modalOut} .26s ease forwards`
+    : css`${modalFadeIn} .22s ease forwards`};
 `;

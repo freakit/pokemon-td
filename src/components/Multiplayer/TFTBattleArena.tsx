@@ -1,4 +1,4 @@
-// src/components/Multiplayer/TFTBattleArena.tsx
+// src/components/multiplayer/TFTBattleArena.tsx
 // 6x6 TFT 스타일 배틀 — V5 결정론 재설계 + V7 사람 매치 완주 보장 + V8 타이머 안정화
 // ──────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-// src/components/UI/Shop.tsx
+// src/components/ui/Shop.tsx
 // [V9] embedded prop 추가: GameLayout 우측 패널에 인라인 렌더 지원
 //      embedded=true 시 플로팅 오버레이·접기 제거, 타겟 선택 오버레이는 유지
 

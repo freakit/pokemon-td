@@ -1,4 +1,4 @@
-// src/components/GameLayout.tsx
+// src/components/game/GameLayout.tsx
 // ──────────────────────────────────────────────────────────────────
 // V9 — 3-Pane DS-Style Redesign
 //
@@ -26,37 +26,37 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import styled, { keyframes, css } from "styled-components";
-import { useTranslation } from "../i18n";
-import { GameCanvas } from "./Game/GameCanvas";
-import { PokemonPicker } from "./UI/PokemonPicker";
-import { PokemonManager } from "./UI/PokemonManager";
-import { Shop } from "./UI/Shop";
-import { SynergyTracker } from "./UI/SynergyTracker";
-import { SynergyDetails } from "./UI/SynergyDetails";
+import { useTranslation } from "../../i18n";
+import { GameCanvas } from "./GameCanvas";
+import { PokemonPicker } from "../ui/PokemonPicker";
+import { PokemonManager } from "../ui/PokemonManager";
+import { Shop } from "../ui/Shop";
+import { SynergyTracker } from "../ui/SynergyTracker";
+import { SynergyDetails } from "../ui/SynergyDetails";
 
-import { AchievementsPanel } from "./Modals/Achievements";
-import { HallOfFame } from "./Modals/HallOfFame";
-import { Rankings } from "./Modals/Rankings";
-import { Settings } from "./Modals/Settings";
-import { useGameStore } from "../store/gameStore";
-import { WaveSystem } from "../game/WaveSystem";
-import { multiplayerService } from "../services/MultiplayerService";
-import { MultiplayerView } from "./Multiplayer/MultiplayerView";
-import { MultiplayerGameOverModal } from "./Multiplayer/MultiplayerGameOverModal";
-import { BattlePhaseUI } from "./Multiplayer/BattlePhaseUI";
-import { SkillPicker } from "./Modals/SkillPicker";
-import { WaveEndPicker } from "./Modals/WaveEndPicker";
-import { Wave50ClearModal } from "./Modals/Wave50ClearModal";
-import { StoryEnding } from "./Story/StoryEnding";
-import { storyProgressService } from "../services/StoryProgressService";
-import { AEGIS_STORY_CHAPTERS } from "../data/storyChapters";
-import { EvolutionConfirmModal } from "./Modals/EvolutionConfirmModal";
+import { AchievementsPanel } from "../modals/Achievements";
+import { HallOfFame } from "../modals/HallOfFame";
+import { Rankings } from "../modals/Rankings";
+import { Settings } from "../modals/Settings";
+import { useGameStore } from "../../store/gameStore";
+import { WaveSystem } from "../../game/WaveSystem";
+import { multiplayerService } from "../../services/MultiplayerService";
+import { MultiplayerView } from "../multiplayer/MultiplayerView";
+import { MultiplayerGameOverModal } from "../multiplayer/MultiplayerGameOverModal";
+import { BattlePhaseUI } from "../multiplayer/BattlePhaseUI";
+import { SkillPicker } from "../modals/SkillPicker";
+import { WaveEndPicker } from "../modals/WaveEndPicker";
+import { Wave50ClearModal } from "../modals/Wave50ClearModal";
+import { StoryEnding } from "../story/StoryEnding";
+import { storyProgressService } from "../../services/StoryProgressService";
+import { AEGIS_STORY_CHAPTERS } from "../../data/storyChapters";
+import { EvolutionConfirmModal } from "../modals/EvolutionConfirmModal";
 
-import { authService } from "../services/AuthService";
-import { PlayerGameState, TowerDetail, GamePhase } from "../types/multiplayer";
-import { aiPlayerManager } from "../services/AIPlayer";
-import { getCriticalChance, getAOEDamageMultiplier } from "../utils/abilities";
-import { lMedia } from "../utils/responsive.utils";
+import { authService } from "../../services/AuthService";
+import { PlayerGameState, TowerDetail, GamePhase } from "../../types/multiplayer";
+import { aiPlayerManager } from "../../services/AIPlayer";
+import { getCriticalChance, getAOEDamageMultiplier } from "../../utils/abilities";
+import { lMedia } from "../../utils/responsive.utils";
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -577,7 +577,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       if (alivePlayers.length <= 1 && players.length > 1) {
         setFinalPlayers(players);
         setShowGameOverModal(true);
-        import("../services/AIPlayer").then(({ aiPlayerManager }) => aiPlayerManager.stopAll());
+        import("../../services/AIPlayer").then(({ aiPlayerManager }) => aiPlayerManager.stopAll());
       }
     });
     return unsubscribe;

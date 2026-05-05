@@ -1,10 +1,11 @@
-// src/components/Modals/SkillPicker.tsx
+// src/components/modals/SkillPicker.tsx
 
 import React from 'react';
 import styled from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
+import { modalBoxCss, MODAL_ACCENT } from '../shared/modal.styles';
 
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
 
@@ -155,11 +156,9 @@ const Container = styled.div`
   width: 280px;
   max-height: 80vh;
   overflow-y: auto;
-  background: linear-gradient(145deg, rgba(26, 31, 46, 0.98), rgba(15, 20, 25, 0.98));
-  border: 3px solid rgba(155, 89, 182, 0.5);
+  ${modalBoxCss(MODAL_ACCENT.purple)}
   border-radius: 20px;
   padding: 16px;
-  box-shadow: 0 20px 60px rgba(155, 89, 182, 0.4), 0 0 2px 1px rgba(155, 89, 182, 0.3);
   backdrop-filter: blur(10px);
   z-index: 1000;
   animation: slideInLeft 0.3s ease-out;
@@ -172,7 +171,9 @@ const Container = styled.div`
     width: min(340px, 85vw);
     max-height: 82vh;
     padding: 14px;
-    border-width: 2px;
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
     border-radius: 16px;
   }
   /* [FIX] 폰 가로 화면(작은): 더 컴팩트하게 */
@@ -191,7 +192,9 @@ const Container = styled.div`
     transform: translate(-50%, -50%);
     padding: 12px;
     max-height: 85vh;
-    border-width: 2px;
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-bottom-width: 2px;
   }
 `;
 

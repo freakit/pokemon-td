@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { lMedia} from '../../utils/responsive.utils';
-import { Settings } from '../Modals/Settings';
+import { Settings } from '../modals/Settings';
 
 const FloatingBtn = styled.button`
   position: fixed;

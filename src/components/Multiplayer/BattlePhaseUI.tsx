@@ -1,4 +1,4 @@
-// src/components/Multiplayer/BattlePhaseUI.tsx
+// src/components/multiplayer/BattlePhaseUI.tsx
 // 페이즈 전환 + 대전 시뮬레이션 오케스트레이션
 // ──────────────────────────────────────────────────────────────────
 // [V5-FIX-BP-1] TFTBattleArena에 전달하는 myTeam/opponentTeam 모두 Firebase 기준으로 통일

@@ -1,8 +1,8 @@
-// src/components/ProtectedRoute.tsx
+// src/components/auth/ProtectedRoute.tsx
 import { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { authService } from '../services/AuthService';
-import { User } from '../types/multiplayer';
+import { authService } from '../../services/AuthService';
+import { User } from '../../types/multiplayer';
 import styled from 'styled-components';
 
 const LoadingOverlay = styled.div`

@@ -1,4 +1,4 @@
-// src/components/UI/PokemonPicker.tsx
+// src/components/ui/PokemonPicker.tsx
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -9,6 +9,7 @@ import { useGameStore } from '../../store/gameStore';
 import { GameMove, MoveEffect, Gender } from '../../types/game';
 import { Rarity, RARITY_COLORS } from '../../data/evolution';
 import { mapAbilityToGameEffect } from '../../utils/abilities';
+import { ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT } from '../shared/modal.styles';
 
 const REROLL_COST = 20;
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
@@ -291,7 +292,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
   // ── 모두 배치됨 화면 (스토리 모드 전용) ──────────────────────────────────
   if (allPlaced) {
     return (
-      <Overlay>
+      <ModalOverlay>
         <AllPlacedModal>
           <AllPlacedIcon>🛡️</AllPlacedIcon>
           <AllPlacedTitle>모든 대원이 배치됐어!</AllPlacedTitle>
@@ -302,20 +303,21 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
           <AllPlacedSub>
             진화 아이템이나 강화 아이템을 써서<br />더 강하게 만들어 봐.
           </AllPlacedSub>
-          <CloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>닫기</CloseBtn>
+          <ModalCloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>닫기</ModalCloseBtn>
         </AllPlacedModal>
-      </Overlay>
+      </ModalOverlay>
     );
   }
 
   return (
-    <Overlay>
-      <Modal>
+    <ModalOverlay>
+      <ModalBox $size="xl" $accent={MODAL_ACCENT.blue} $scroll>
+        <InnerPad>
         <Header>
           <div>
             <Title>{isLoading ? t('picker.loading') : t('picker.title')}</Title>
           </div>
-          <CloseBtn onClick={onClose}>✕</CloseBtn>
+          <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
         </Header>
 
         <Subtitle>{t('picker.subtitle')}</Subtitle>
@@ -373,8 +375,9 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
             🔄 {t('picker.reroll')}
           </RerollBtn>
         </Actions>
-      </Modal>
-    </Overlay>
+        </InnerPad>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
@@ -384,14 +387,15 @@ const L768  = lMedia.phone;
 
 // ── AllPlaced 전용 스타일 ─────────────────────────────────────────────────────
 const AllPlacedModal = styled.div`
-  background: linear-gradient(145deg, #1a1f2e, #0f1419);
+  background: linear-gradient(160deg, #0d1117 0%, #080c14 100%);
   border-radius: 20px;
   padding: 48px 40px 36px;
   max-width: 420px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  border: 2px solid rgba(100,200,120,0.25);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-top: 3px solid #2ecc71;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -409,51 +413,7 @@ const AllPlacedSub = styled.p`
   font-size: 13px; color: rgba(255,255,255,0.35); line-height: 1.6; margin: 0;
 `;
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95));
-  backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-  animation: fadeIn 0.3s ease-out;
-`;
 
-const Modal = styled.div`
-  background: linear-gradient(145deg, #2a2d3a, #1f2029);
-  border-radius: 20px;
-  padding: 30px 36px;
-  /* [FIX] 3장 카드가 넉넉하게 들어가도록 최대 너비 확대 */
-  max-width: 960px;
-  width: 92%;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  ${L1024} {
-    padding: 16px 20px;
-    max-height: 88vh;
-    border-radius: 14px;
-    width: 95%;
-  }
-  ${L768} {
-    padding: 10px 12px;
-    max-height: 92vh;
-    border-radius: 10px;
-    width: 97%;
-  }
-  ${media.mobile} {
-    padding: 12px;
-    border-radius: 12px;
-    width: 98%;
-    max-height: 95vh;
-  }
-`;
 
 const Header = styled.div`
   display: flex;
@@ -464,29 +424,15 @@ const Header = styled.div`
 `;
 
 const Title = styled.h2`
-  font-size: 28px;
-  font-weight: bold;
-  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 5px;
-  ${L1024} { font-size: 22px; margin-bottom: 3px; }
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+  ${L1024} { font-size: 20px; }
   ${L768}  { font-size: 16px; }
   ${media.mobile} { font-size: 20px; }
 `;
 
-const CloseBtn = styled.button`
-  font-size: 24px;
-  background: none;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 5px;
-  transition: background 0.2s;
-  align-self: flex-start;
-  &:hover { background: rgba(255, 255, 255, 0.1); }
-`;
 
 const Subtitle = styled.p`
   font-size: 16px;
@@ -630,12 +576,20 @@ const RerollBtn = styled.button`
   padding: 12px 30px;
   font-size: 16px;
   font-weight: bold;
-  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
+  background: linear-gradient(135deg, #2980b9 0%, #1a6ea8 100%);
   color: white;
   border: none;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
   ${L768} { padding: 8px 20px; font-size: 13px; }
-  &:hover { background: linear-gradient(135deg, #3388ff, #6666ff); }
+  &:hover { background: linear-gradient(135deg, #3498db, #2980b9); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+`;
+
+const InnerPad = styled.div`
+  padding: 20px 24px 24px;
+  ${L1024} { padding: 16px 18px 20px; }
+  ${L768}  { padding: 12px 14px 16px; }
+  ${media.mobile} { padding: 16px 16px 20px; }
 `;

@@ -1,8 +1,9 @@
-// src/components/Modals/WaveEndPicker.tsx
+// src/components/modals/WaveEndPicker.tsx
 // ✅ 거다이맥스 버그 수정: evolutionItem = 'max-mushroom' → evolutionItem = item.id
 
 import React, { useState } from 'react';
-import styled, { css, keyframes } from 'styled-components';
+import styled, { css } from 'styled-components';
+import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -92,8 +93,8 @@ export const WaveEndPicker: React.FC = () => {
 
   if (selectedItem) {
     return (
-      <Overlay>
-        <Modal>
+      <ModalOverlay>
+        <ModalBox $size="xl" $accent={MODAL_ACCENT.green} $animate="slideUp" $scroll>
           <Header>
             <Title>🎯 {t('waveEnd.targetTitle', { name: getItemName(selectedItem) })}</Title>
           </Header>
@@ -126,14 +127,14 @@ export const WaveEndPicker: React.FC = () => {
             })}
           </TowerGrid>
           <CancelBtn onClick={handleCancelTarget}>← {t('common.back')}</CancelBtn>
-        </Modal>
-      </Overlay>
+        </ModalBox>
+      </ModalOverlay>
     );
   }
 
   return (
-    <Overlay>
-      <Modal>
+    <ModalOverlay>
+      <ModalBox $size="xl" $accent={MODAL_ACCENT.green} $animate="slideUp" $scroll>
         <Header>
           <Title>🎉 {t('waveEnd.clearTitle', { wave })}</Title>
         </Header>
@@ -153,8 +154,8 @@ export const WaveEndPicker: React.FC = () => {
           })}
         </Grid>
         <CancelBtn onClick={handleSkip}>❌ {t('waveEnd.skip')}</CancelBtn>
-      </Modal>
-    </Overlay>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
@@ -164,45 +165,14 @@ export const WaveEndPicker: React.FC = () => {
 const L1024 = lMedia.tablet;
 const L768  = lMedia.phone;
 
-const fadeIn = keyframes`
-  from { opacity: 0; }
-  to   { opacity: 1; }
-`;
 
-const slideUp = keyframes`
-  from { opacity: 0; transform: translateY(30px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);    }
-`;
-
-const Overlay = styled.div`
-  position: fixed; inset: 0;
-  background: radial-gradient(circle at center, rgba(46,204,113,0.3), rgba(0,0,0,0.95));
-  backdrop-filter: blur(10px);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1001;
-  animation: ${fadeIn} 0.35s ease-out; 
-`;
-
-const Modal = styled.div`
-  background: linear-gradient(145deg,#1a1f2e 0%,#0f1419 100%);
-  color: #e8edf3; border-radius: 24px; padding: 0;
-  max-width: 1000px; width: 90%;
-  /* [FIX] 폰 가로: 전체 높이 제한 + 스크롤 */
-  ${L1024} { width: 94%; max-height: 88vh; overflow-y: auto; border-radius: 16px; }
-  ${L768}  { width: 97%; max-height: 90vh; overflow-y: auto; border-radius: 12px; }
-  ${media.mobile} { width: 96%; }
-  box-shadow: 0 25px 80px rgba(46,204,113,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-  border: 2px solid rgba(46,204,113,0.3);
-  animation: ${slideUp} 0.35s ease-out;    
-`;
 
 const Header = styled.div`
   padding: 32px;
   ${L1024} { padding: 16px 20px; }
   ${L768}  { padding: 10px 14px; }
   ${media.mobile} { padding: 16px; }
-  background: linear-gradient(90deg,rgba(46,204,113,0.2),transparent);
-  border-bottom: 2px solid rgba(46,204,113,0.3);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   text-align: center;
 `;
 

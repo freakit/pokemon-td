@@ -21,14 +21,14 @@ import { saveService } from "./services/SaveService";
 import { pokeAPI } from './api/pokeapi';
 import { getMapById } from './data/maps';
 
-import { LoginScreen } from "./Auth/LoginScreen";
-import { MainMenu } from "./components/Menu/MainMenu";
-import { MultiplayerLobby } from "./components/Multiplayer/MultiplayerLobby";
-import { MapSelector } from "./components/UI/MapSelector";
-import { GameLayout } from "./components/GameLayout";
-import { ProtectedRoute } from "./components/ProtectedRoute";
-import { StorySelector } from './components/Story/StorySelector';
-import { FloatingSettings } from "./components/UI/FloatingSettings";
+import { LoginScreen } from "./components/auth/LoginScreen";
+import { MainMenu } from "./components/menu/MainMenu";
+import { MultiplayerLobby } from "./components/multiplayer/MultiplayerLobby";
+import { MapSelector } from "./components/ui/MapSelector";
+import { GameLayout } from "./components/game/GameLayout";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { StorySelector } from './components/story/StorySelector';
+import { FloatingSettings } from "./components/ui/FloatingSettings";
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
 

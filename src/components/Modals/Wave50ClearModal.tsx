@@ -1,7 +1,8 @@
-// src/components/Modals/Wave50ClearModal.tsx
+// src/components/modals/Wave50ClearModal.tsx
 
 import React from 'react';
 import styled from 'styled-components';
+import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
 import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
@@ -19,8 +20,8 @@ export const Wave50ClearModal: React.FC<Wave50ClearModalProps> = ({ onContinue, 
   const { t } = useTranslation();
 
   return (
-    <Overlay>
-      <Modal>
+    <ModalOverlay>
+      <ModalBox $size="sm" $accent={MODAL_ACCENT.gold} $animate="slideUp" $scroll>
         <Header>
           <Title>🎉 {t('waveClear.title')}! 🎉</Title>
         </Header>
@@ -40,55 +41,23 @@ export const Wave50ClearModal: React.FC<Wave50ClearModalProps> = ({ onContinue, 
             </RestartBtn>
           </ButtonContainer>
         </Content>
-      </Modal>
-    </Overlay>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3), rgba(0, 0, 0, 0.95));
-  backdrop-filter: blur(10px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1002;
-  animation: fadeIn 0.5s ease-out;
-  padding: 16px;
 
-  /* 가로 모드에서 모달이 화면을 벗어나지 않도록 스크롤 허용 */
-  ${L1024} { align-items: center; overflow-y: auto; }
-  ${LSm}   { align-items: flex-start; padding: 8px; overflow-y: auto; }
-`;
-
-const Modal = styled.div`
-  background: linear-gradient(145deg, #2c3e50 0%, #1a252f 100%);
-  color: #e8edf3;
-  border-radius: 24px;
-  padding: 0;
-  max-width: 600px;
-  width: 90%;
-  box-shadow: 0 25px 80px rgba(255, 215, 0, 0.6), 0 0 1px 1px rgba(255, 215, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  border: 3px solid rgba(255, 215, 0, 0.5);
-  animation: pulse 2s ease-in-out infinite;
-
-  ${L1024} { max-width: 500px; border-radius: 20px; border-width: 2px; }
-  ${L768}  { max-width: 420px; border-radius: 16px; width: 95%; }
-  ${LSm}   { max-width: 380px; border-radius: 14px; width: 98%; }
-`;
 
 const Header = styled.div`
   padding: 40px 32px 24px;
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.3), transparent);
-  border-bottom: 2px solid rgba(255, 215, 0, 0.4);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   text-align: center;
 
   ${L1024} { padding: 28px 24px 18px; }
   ${L768}  { padding: 20px 18px 14px; }
-  ${LSm}   { padding: 14px 14px 10px; border-bottom-width: 1px; }
+  ${LSm}   { padding: 14px 14px 10px; }
 `;
 
 const Title = styled.h2`

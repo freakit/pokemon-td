@@ -1,4 +1,4 @@
-// src/components/Game/GameCanvas.tsx
+// src/components/game/GameCanvas.tsx
 
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -850,7 +850,7 @@ export const GameCanvas: React.FC = () => {
             {/* 배치 모드 */}
             {pokemonToPlace && (
               <>
-                <Text x={rawMousePos.x+40} y={rawMousePos.y-40} text={`${pokemonToPlace.cost||100}${t('common.money')}`}
+                <Text x={rawMousePos.x+40} y={rawMousePos.y-40} text={pokemonToPlace.originalCost ? `${pokemonToPlace.originalCost}${t('common.money')}` : ''}
                   fill="#f39c12" fontSize={18} fontStyle="bold" stroke="black" strokeWidth={2} />
                 <KonvaImage image={placementImage||undefined} x={rawMousePos.x-32} y={rawMousePos.y-32} width={64} height={64} opacity={0.6} imageSmoothingEnabled={false} />
                 <Circle x={mousePos.x} y={mousePos.y} radius={3*TILE_SIZE} stroke="#fff" strokeWidth={2} opacity={0.4} dash={[10,5]} />

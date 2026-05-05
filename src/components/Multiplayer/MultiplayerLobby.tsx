@@ -1,4 +1,4 @@
-// src/components/Multiplayer/MultiplayerLobby.tsx
+// src/components/multiplayer/MultiplayerLobby.tsx
 // [V5-FIX-LB-1] 나가기 확인 모달 — 게임 진행 중 실수로 나가기 방지
 // [V5-FIX-LB-2] AI가 호스트가 되는 경우에 대한 안전 장치
 
@@ -10,9 +10,9 @@ import { Room, AIDifficulty } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 import { useTranslation } from '../../i18n';
-import { AchievementsPanel } from '../Modals/Achievements';
-import { HallOfFame } from '../Modals/HallOfFame';
-import { Rankings } from '../Modals/Rankings';
+import { AchievementsPanel } from '../modals/Achievements';
+import { HallOfFame } from '../modals/HallOfFame';
+import { Rankings } from '../modals/Rankings';
 
 interface MultiplayerLobbyProps {
   onBack: () => void;

@@ -1,6 +1,10 @@
-// src/components/Modals/HallOfFame.tsx
+// src/components/modals/HallOfFame.tsx
 import { useState, useEffect } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
+import {
+  ModalOverlay, ModalBox, ModalCloseBtn,
+  MODAL_ACCENT,
+} from '../shared/modal.styles';
 import { lMedia, media } from '../../utils/responsive.utils';
 import { databaseService } from '../../services/DatabaseService';
 import { HallOfFameEntry, LeaderboardEntry } from '../../types/multiplayer';
@@ -68,14 +72,14 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
   };
 
   return (
-    <Overlay onClick={onClose}>
-      <Container onClick={e => e.stopPropagation()}>
+    <ModalOverlay onClick={onClose}>
+      <ModalBox $size="lg" $accent={MODAL_ACCENT.gold} onClick={e => e.stopPropagation()}>
 
         {/* ── 헤더 ── */}
-        <Header>
+        <HeaderSection>
           <TitleRow>
-            <Title>{t('hallOfFame.title')}</Title>
-            <CloseBtn onClick={onClose}>✕</CloseBtn>
+            <SectionTitle>🏆 {t('hallOfFame.title')}</SectionTitle>
+            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
           </TitleRow>
 
           {/* ── 탭 ── */}
@@ -110,7 +114,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
               ))}
             </MapFilterRow>
           )}
-        </Header>
+        </HeaderSection>
 
         {/* ── 콘텐츠 ── */}
         <Body>
@@ -125,8 +129,8 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
           )}
         </Body>
 
-      </Container>
-    </Overlay>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
@@ -261,100 +265,7 @@ const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
-const fadeIn = keyframes`from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}`;
 
-const Overlay = styled.div`
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.82);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-
-  /* 모바일 세로 */
-  ${media.mobile} {
-    align-items: flex-start;
-    padding: 10px;
-    overflow-y: auto;
-  }
-  ${lMedia.phoneSm} {
-    align-items: flex-start;
-    padding: 8px;
-    overflow-y: auto;
-  }
-`;
-
-const Container = styled.div`
-  background: linear-gradient(160deg, #0f1e35 0%, #1a1040 100%);
-  border: 1px solid rgba(255,215,0,0.25);
-  border-radius: 20px;
-  width: 90%;
-  max-width: 1000px;
-  max-height: 90vh;
-  display: flex; flex-direction: column;
-  animation: ${fadeIn} 0.25s ease-out;
-  overflow: hidden;
-
-  /* 태블릿 세로 */
-  ${media.tablet} {
-    max-width: 720px;
-    border-radius: 16px;
-    max-height: 92vh;
-  }
-  /* 모바일 세로 */
-  ${media.mobile} {
-    width: 97%;
-    border-radius: 12px;
-    max-height: 96vh;
-  }
-  /* 가로 모드 */
-  ${lMedia.phoneSm} {
-    width: 95%;
-    border-radius: 10px;
-    max-height: 98vh;
-  }
-`;
-
-const Header = styled.div`
-  padding: 20px 24px 0;
-  background: linear-gradient(135deg, rgba(212,175,55,0.12), transparent);
-  border-bottom: 1px solid rgba(255,215,0,0.15);
-  flex-shrink: 0;
-
-  ${media.tablet} { padding: 16px 18px 0; }
-  ${media.mobile} { padding: 14px 14px 0; }
-  ${lMedia.phoneSm} { padding: 10px 12px 0; }
-`;
-
-const TitleRow = styled.div`
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 14px;
-
-  ${media.mobile} { margin-bottom: 10px; }
-  ${lMedia.phoneSm} { margin-bottom: 8px; }
-`;
-
-const Title = styled.h2`
-  font-size: 1.6rem; font-weight: bold;
-  color: #FFD700;
-  text-shadow: 0 0 20px rgba(255,215,0,0.5);
-
-  /* 태블릿 세로 */
-  ${media.tablet} { font-size: 1.4rem; }
-  /* 모바일 세로 */
-  ${media.mobile} { font-size: 1.2rem; }
-  /* 가로 모드 */
-  ${lMedia.phoneSm} { font-size: 1.1rem; }
-`;
-
-const CloseBtn = styled.button`
-  width: 36px; height: 36px;
-  background: rgba(255,255,255,0.1); color: white;
-  border: none; border-radius: 50%; cursor: pointer;
-  font-size: 1.2rem; transition: background 0.2s;
-  @media (hover: hover) { &:hover { background: rgba(255,255,255,0.2); } }
-
-  ${media.mobile} { width: 30px; height: 30px; font-size: 1rem; }
-`;
 
 const TabRow = styled.div`
   display: flex; gap: 4px; margin-bottom: 10px;
@@ -609,4 +520,27 @@ const DateRow = styled.div`
   text-align: right;
 
   ${media.mobile} { margin-top: 8px; font-size: 10px; }
+`;
+
+// ── 헤더 섹션 래퍼 ──
+const TitleRow = styled.div`
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px 14px; gap: 12px;
+  ${media.tablet} { padding: 14px 18px 12px; }
+  ${media.mobile} { padding: 12px 14px 10px; }
+  ${lMedia.phoneSm} { padding: 10px 12px 8px; }
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 20px; font-weight: 800; color: #FFD700; margin: 0;
+  text-shadow: 0 0 20px rgba(255,215,0,0.35);
+  display: flex; align-items: center; gap: 8px; flex: 1;
+  ${media.tablet} { font-size: 18px; }
+  ${media.mobile} { font-size: 16px; }
+  ${lMedia.phoneSm} { font-size: 15px; }
+`;
+
+const HeaderSection = styled.div`
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
 `;

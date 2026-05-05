@@ -1,15 +1,15 @@
-// src/components/Menu/MainMenu.tsx
+// src/components/menu/MainMenu.tsx
 import { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
-import { ShootingStarsBackground } from '../UI/ShootingStarsBackground';
+import { ShootingStarsBackground } from '../ui/ShootingStarsBackground';
 import { useTranslation } from '../../i18n';
-import { AchievementsPanel } from '../Modals/Achievements';
-import { HallOfFame } from '../Modals/HallOfFame';
-import { Rankings } from '../Modals/Rankings';
-import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen } from '../Modals/TutorialModal';
+import { AchievementsPanel } from '../modals/Achievements';
+import { HallOfFame } from '../modals/HallOfFame';
+import { Rankings } from '../modals/Rankings';
+import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen } from '../modals/TutorialModal';
 
 export const MainMenu = () => {
   const navigate = useNavigate();

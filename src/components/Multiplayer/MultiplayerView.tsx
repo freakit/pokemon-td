@@ -1,5 +1,6 @@
-// src/components/Multiplayer/MultiplayerView.tsx
+// src/components/multiplayer/MultiplayerView.tsx
 // 멀티플레이어 현황 뷰 - 플레이어 체력 순 정렬
+import React from 'react';
 // ──────────────────────────────────────────────────────────────────
 // [V5-FIX-MV-1] 본인 데이터도 Firebase 구독 기준으로 일관성 확보
 //   - 기존: 내 것만 로컬 towers 사용 → 서버와 순간 불일치 가능
@@ -15,6 +16,7 @@ import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
 import { lMedia } from '../../utils/responsive.utils';
+import { ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT } from '../shared/modal.styles';
 
 // ─── 반응형 헬퍼 → lMedia 사용 ───────────────────────────────────────────────
 const L1024 = lMedia.tablet;   // ≤1024px landscape
@@ -119,8 +121,8 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
   });
 
   return (
-    <Overlay onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <Container>
+    <ModalOverlay onClick={(e: React.MouseEvent) => { if (e.target === e.currentTarget) onClose(); }}>
+      <ModalBox $size="md" $accent={MODAL_ACCENT.gold} $scroll>
         <Header>
           <Title>🏆 플레이어 순위</Title>
           <HeaderRight>
@@ -128,7 +130,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
               {isRefreshing ? '🔄 새로고침 중...' : `⏱ ${refreshedTimeStr}`}
             </RefreshInfo>
             <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침">🔃</ManualRefreshBtn>
-            <CloseButton onClick={onClose}>✕</CloseButton>
+            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
           </HeaderRight>
         </Header>
 
@@ -193,8 +195,8 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
         </PlayerList>
 
         <Footer><FooterNote>📡 실시간 동기화 중</FooterNote></Footer>
-      </Container>
-    </Overlay>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
@@ -207,69 +209,26 @@ const blink = keyframes`0%,100%{opacity:0.3}50%{opacity:1}`;
 
 // ─── Styled Components ────────────────────────────────────────────────────────
 
-const Overlay = styled.div`
-  position: fixed; top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.9);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 2000;
-  overflow-y: auto;
-  padding: 12px;
 
-  ${L768} { padding: 8px; }
-  ${LSm}  { padding: 6px; }
-`;
-
-const Container = styled.div`
-  background: linear-gradient(145deg, #1a1a2e, #16213e);
-  padding: 1.5rem;
-  border-radius: 20px;
-  max-width: 620px;
-  width: 95%;
-  max-height: 85vh;
-  overflow-y: auto;
-  border: 2px solid rgba(255,215,0,0.3);
-  box-shadow: 0 0 30px rgba(255,215,0,0.15);
-
-  /* 태블릿 가로 */
-  ${L1024} {
-    padding: 1.25rem;
-    max-width: 580px;
-    border-radius: 16px;
-    max-height: 88vh;
-  }
-  /* 폰 가로 */
-  ${L768} {
-    padding: 1rem;
-    width: 97%;
-    max-height: 92vh;
-    border-radius: 14px;
-  }
-  /* 소형 폰 가로 */
-  ${LSm} {
-    padding: 0.75rem;
-    max-height: 95vh;
-    border-radius: 12px;
-  }
-`;
 
 const Header = styled.div`
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 1.5rem; padding-bottom: 0.8rem;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   gap: 8px;
 
-  ${L1024} { margin-bottom: 1.1rem; padding-bottom: 0.6rem; }
-  ${L768}  { margin-bottom: 0.8rem; padding-bottom: 0.5rem; }
-  ${LSm}   { margin-bottom: 0.6rem; padding-bottom: 0.4rem; }
+  ${L1024} { padding: 14px 18px 12px; }
+  ${L768}  { padding: 12px 16px 10px; flex-wrap: wrap; }
+  ${LSm}   { padding: 10px 14px 8px; flex-wrap: wrap; }
 `;
 
 const Title = styled.h2`
-  color: #ffd700; margin: 0; font-size: 1.4rem;
+  color: #ffd700; margin: 0; font-size: 20px; font-weight: 800;
+  text-shadow: 0 0 20px rgba(255,215,0,0.35);
 
-  ${L1024} { font-size: 1.25rem; }
-  ${L768}  { font-size: 1.1rem; }
-  ${LSm}   { font-size: 1rem; }
+  ${L1024} { font-size: 18px; }
+  ${L768}  { font-size: 16px; }
+  ${LSm}   { font-size: 14px; }
 `;
 
 const HeaderRight = styled.div`display: flex; align-items: center; gap: 8px; flex-shrink: 0;
@@ -296,25 +255,16 @@ const ManualRefreshBtn = styled.button`
   ${LSm}  { width: 26px; height: 26px; font-size: 11px; }
 `;
 
-const CloseButton = styled.button`
-  background: rgba(255,255,255,0.1); border: none; color: #fff;
-  width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
-  font-size: 1.2rem; transition: background 0.2s;
-  @media(hover:hover){&:hover{background:rgba(255,107,107,0.3);}}
-
-  ${L768} { width: 30px; height: 30px; font-size: 1rem; }
-  ${LSm}  { width: 28px; height: 28px; font-size: 0.95rem; }
-`;
 
 const PlayerList = styled.div`
-  display: flex; flex-direction: column; gap: 0.75rem;
+  display: flex; flex-direction: column; gap: 12px;
 
-  ${L768} { gap: 0.5rem; }
-  ${LSm}  { gap: 0.4rem; }
+  ${L768} { gap: 8px; }
+  ${LSm}  { gap: 6px; }
 `;
 
 const PlayerRow = styled.div<{ $isMe: boolean; $isDead: boolean }>`
-  display: flex; align-items: center; gap: 1rem; padding: 1rem;
+  display: flex; align-items: center; gap: 1rem; padding: 16px;
   background: ${p => p.$isMe
     ? 'linear-gradient(135deg,rgba(52,152,219,0.2),rgba(52,152,219,0.1))'
     : 'rgba(255,255,255,0.05)'};
@@ -328,7 +278,7 @@ const PlayerRow = styled.div<{ $isMe: boolean; $isDead: boolean }>`
   /* 폰 가로 */
   ${L768}  { padding: 0.65rem; gap: 0.65rem; flex-wrap: wrap; border-radius: 8px; }
   /* 소형 폰 가로 */
-  ${LSm}   { padding: 0.5rem; gap: 0.5rem; }
+  ${LSm}   { padding: 0.5rem; gap: 8px; }
 `;
 
 const RankBadge = styled.div<{ $rank: number }>`
@@ -351,7 +301,7 @@ const PlayerInfo = styled.div`flex: 1; min-width: 0;`;
 
 const PlayerNameRow = styled.div`
   font-size: 1rem; font-weight: bold; color: white;
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; align-items: center; gap: 8px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 
   ${L1024} { font-size: 0.95rem; }
@@ -365,10 +315,10 @@ const MeTag = styled.span`
 `;
 
 const PlayerStats = styled.div`
-  display: flex; gap: 0.75rem; margin-top: 0.25rem; flex-wrap: wrap;
+  display: flex; gap: 12px; margin-top: 0.25rem; flex-wrap: wrap;
 
-  ${L768} { gap: 0.5rem; margin-top: 0.15rem; }
-  ${LSm}  { gap: 0.4rem; }
+  ${L768} { gap: 8px; margin-top: 0.15rem; }
+  ${LSm}  { gap: 6px; }
 `;
 
 const StatIcon = styled.span`
@@ -379,7 +329,7 @@ const StatIcon = styled.span`
 `;
 
 const PokemonSection = styled.div`
-  display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
 
   ${L768} { gap: 0.25rem; }
 `;

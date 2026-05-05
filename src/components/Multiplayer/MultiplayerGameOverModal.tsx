@@ -1,8 +1,9 @@
-// src/components/Multiplayer/MultiplayerGameOverModal.tsx
+// src/components/multiplayer/MultiplayerGameOverModal.tsx
 import styled from 'styled-components';
 import { lMedia} from '../../utils/responsive.utils';
 import { PlayerGameState } from '../../types/multiplayer';
 import { useTranslation } from '../../i18n';
+import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
 
 interface MultiplayerGameOverModalProps {
   players: PlayerGameState[];
@@ -40,8 +41,8 @@ export const MultiplayerGameOverModal = ({
   const myPlacement = sortedPlayers.findIndex(p => p.userId === myUserId) + 1;
 
   return (
-    <Overlay>
-      <Modal>
+    <ModalOverlay>
+      <ModalBox $size="lg" $accent={MODAL_ACCENT.blue} $animate="slideUp" $scroll>
         <Header>
           <Title>{t('multiGameOver.title')}</Title>
           <MyPlacement placement={myPlacement}>
@@ -119,83 +120,45 @@ export const MultiplayerGameOverModal = ({
             {t('multiGameOver.backToMenu')}
           </BackButton>
         </ButtonRow>
-      </Modal>
-    </Overlay>
+      </ModalBox>
+    </ModalOverlay>
   );
 };
 
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.5s ease-out;
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-`;
-
-const Modal = styled.div`
-  background: linear-gradient(145deg, #1a1f2e 0%, #0f1419 100%);
-  border-radius: 32px;
-  padding: 3rem;
-  max-width: 900px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  border: 3px solid rgba(76, 175, 255, 0.4);
-  box-shadow: 0 25px 80px rgba(76, 175, 255, 0.4), 0 0 100px rgba(76, 175, 255, 0.2);
-  ${lMedia.phone} {
-    padding: 2rem;
-    border-radius: 20px;
-    width: 95%;
-  }
-  ${lMedia.phoneSm} {
-    padding: 1.25rem;
-    border-radius: 16px;
-    width: 98%;
-  }
-`;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  ${lMedia.phone} {
+    padding: 20px 22px 14px;
+  }
   ${lMedia.phoneSm} {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-    padding-bottom: 1rem;
+    gap: 8px;
+    padding: 16px 18px 12px;
   }
 `;
 
 const Title = styled.h2`
-  font-size: 2.5rem;
+  font-size: 28px;
   color: white;
-  font-weight: bold;
-  text-shadow: 0 0 20px rgba(76, 175, 255, 0.6);
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(76, 175, 255, 0.5);
   ${lMedia.phone} {
-    font-size: 1.8rem;
+    font-size: 22px;
   }
   ${lMedia.phoneSm} {
-    font-size: 1.4rem;
+    font-size: 18px;
   }
 `;
 
 const MyPlacement = styled.div<{ placement: number }>`
-  font-size: 2rem;
+  font-size: 32px;
   font-weight: bold;
   color: ${props => {
     if (props.placement === 1) return '#FFD700';
@@ -215,27 +178,27 @@ const MyPlacement = styled.div<{ placement: number }>`
 `;
 
 const ResultsTable = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 32px;
 `;
 
 const TableHeader = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr 1.5fr 1.5fr 1.5fr;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 16px;
+  padding: 16px;
   background: rgba(76, 175, 255, 0.1);
   border-radius: 10px 10px 0 0;
   border: 2px solid rgba(76, 175, 255, 0.3);
   border-bottom: none;
   ${lMedia.phone} {
     grid-template-columns: 0.8fr 2fr 1.2fr 1.2fr 1.2fr;
-    gap: 0.5rem;
-    padding: 0.8rem;
+    gap: 8px;
+    padding: 13px;
   }
   ${lMedia.phoneSm} {
     grid-template-columns: 0.6fr 2fr 1fr;
-    gap: 0.4rem;
-    padding: 0.6rem 0.8rem;
+    gap: 6px;
+    padding: 10px 13px;
   }
 `;
 
@@ -245,15 +208,15 @@ const HeaderCell = styled.div`
   font-weight: bold;
   text-align: center;
   ${lMedia.phoneSm} {
-    font-size: 0.75rem;
+    font-size: 12px;
   }
 `;
 
 const PlayerRow = styled.div<{ isMe: boolean }>`
   display: grid;
   grid-template-columns: 1fr 2fr 1.5fr 1.5fr 1.5fr;
-  gap: 1rem;
-  padding: 1.25rem 1rem;
+  gap: 16px;
+  padding: 20px 16px;
   background: ${props => props.isMe ? 'linear-gradient(90deg, rgba(76, 175, 255, 0.2), rgba(76, 175, 255, 0.05))' : 'rgba(255,255,255,0.02)'};
   border: 2px solid ${props => props.isMe ? 'rgba(76, 175, 255, 0.4)' : 'rgba(255,255,255,0.1)'};
   border-top: none;
@@ -270,13 +233,13 @@ const PlayerRow = styled.div<{ isMe: boolean }>`
   }
   ${lMedia.phone} {
     grid-template-columns: 0.8fr 2fr 1.2fr 1.2fr 1.2fr;
-    gap: 0.5rem;
-    padding: 1rem 0.8rem;
+    gap: 8px;
+    padding: 16px 13px;
   }
   ${lMedia.phoneSm} {
     grid-template-columns: 0.6fr 2fr 1fr;
-    gap: 0.4rem;
-    padding: 0.75rem 0.8rem;
+    gap: 6px;
+    padding: 12px 13px;
   }
 `;
 
@@ -298,18 +261,18 @@ const Rank = styled.div<{ placement: number }>`
 `;
 
 const PlayerName = styled.div`
-  font-size: 1.1rem;
+  font-size: 18px;
   color: white;
   font-weight: 600;
 `;
 
 const Wave = styled.div`
-  font-size: 1rem;
+  font-size: 16px;
   color: rgba(255,255,255,0.9);
 `;
 
 const Rating = styled.div`
-  font-size: 1.1rem;
+  font-size: 18px;
   color: #ffd700;
   font-weight: bold;
   ${lMedia.phoneSm} {
@@ -318,7 +281,7 @@ const Rating = styled.div`
 `;
 
 const RatingChange = styled.div<{ positive: boolean }>`
-  font-size: 1.1rem;
+  font-size: 18px;
   font-weight: bold;
   color: ${props => props.positive ? '#4caf50' : '#f44336'};
   ${lMedia.phoneSm} {
@@ -330,33 +293,33 @@ const Summary = styled.div`
   background: rgba(76, 175, 255, 0.05);
   border: 2px solid rgba(76, 175, 255, 0.3);
   border-radius: 15px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
+  padding: 24px;
+  margin-bottom: 32px;
 `;
 
 const SummaryTitle = styled.h3`
   font-size: 1.3rem;
   color: white;
-  margin-bottom: 1rem;
+  margin-bottom: 16px;
   font-weight: bold;
 `;
 
 const SummaryStats = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  gap: 16px;
   ${lMedia.phone} {
     grid-template-columns: repeat(2, 1fr);
   }
   ${lMedia.phoneSm} {
     grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
+    gap: 8px;
   }
 `;
 
 const SummaryStat = styled.div`
   text-align: center;
-  padding: 1rem;
+  padding: 16px;
   background: rgba(255,255,255,0.03);
   border-radius: 10px;
 `;
@@ -364,27 +327,27 @@ const SummaryStat = styled.div`
 const StatLabel = styled.div`
   font-size: 0.85rem;
   color: rgba(255,255,255,0.6);
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 `;
 
 const StatValue = styled.div`
-  font-size: 1.5rem;
+  font-size: 24px;
   color: white;
   font-weight: bold;
   ${lMedia.phoneSm} {
-    font-size: 1.2rem;
+    font-size: 19px;
   }
 `;
 
 const ButtonRow = styled.div`
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: 16px;
 `;
 
 const BackButton = styled.button`
-  padding: 1rem 3rem;
-  font-size: 1.2rem;
+  padding: 16px 48px;
+  font-size: 19px;
   background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
   color: white;
   border: 3px solid rgba(46, 204, 113, 0.4);

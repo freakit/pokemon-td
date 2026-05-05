@@ -1,4 +1,4 @@
-// src/components/Story/StoryEnding.tsx
+// src/components/story/StoryEnding.tsx
 // 스토리 챕터 클리어 후 엔딩 대사 화면
 // 다 보면 onComplete() 콜백 → 챕터 해금 + /story 이동
 

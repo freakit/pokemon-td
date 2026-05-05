@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { media, lMedia } from '../utils/responsive.utils';
-import { authService } from '../services/AuthService';
-import { ShootingStarsBackground } from '../components/UI/ShootingStarsBackground';
-import { Settings } from '../components/Modals/Settings';
-import { useTranslation } from '../i18n';
+import { media, lMedia } from '../../utils/responsive.utils';
+import { authService } from '../../services/AuthService';
+import { ShootingStarsBackground } from '../ui/ShootingStarsBackground';
+import { Settings } from '../modals/Settings';
+import { useTranslation } from '../../i18n';
 
 export const LoginScreen = () => {
   const { t } = useTranslation();

@@ -1,4 +1,4 @@
-// src/components/UI/SynergyTracker.tsx
+// src/components/ui/SynergyTracker.tsx
 // [V9] embedded prop 추가: GameLayout 좌측 패널에 인라인 렌더 지원
 
 import React, { useState } from "react";
