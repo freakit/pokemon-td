@@ -102,14 +102,16 @@
 src/
 ├── api/
 │   └── pokeapi.ts           # PokeAPI 통신 + 1025마리 레어도 캐시 + 프리로딩
-├── Auth/
-│   └── LoginScreen.tsx      # Firebase Auth 로그인 화면 (Google/이메일)
 ├── components/
-│   ├── Game/
-│   │   └── GameCanvas.tsx   # 메인 게임 캔버스 (Konva 기반 렌더링)
-│   ├── Menu/
-│   │   └── MainMenu.tsx     # 메인 메뉴 (싱글/멀티/스토리/랭킹/업적 진입)
-│   ├── Modals/
+│   ├── auth/
+│   │   ├── LoginScreen.tsx      # Firebase Auth 로그인 화면 (Google/이메일)
+│   │   └── ProtectedRoute.tsx   # 인증 라우트 가드
+│   ├── game/
+│   │   ├── GameCanvas.tsx       # 메인 게임 캔버스 (Konva 기반 렌더링)
+│   │   └── GameLayout.tsx       # 싱글/멀티/스토리 전환 레이아웃 + 게임루프 제어
+│   ├── menu/
+│   │   └── MainMenu.tsx         # 메인 메뉴 (싱글/멀티/스토리/랭킹/업적 진입)
+│   ├── modals/
 │   │   ├── Achievements.tsx          # 업적 목록 (카테고리 필터, AP 표시)
 │   │   ├── EvolutionConfirmModal.tsx # 진화 확인 모달
 │   │   ├── HallOfFame.tsx            # 전당 등록 기록
@@ -119,28 +121,28 @@ src/
 │   │   ├── TutorialModal.tsx         # 게임 튜토리얼
 │   │   ├── Wave50ClearModal.tsx      # 웨이브 50 클리어 모달
 │   │   └── WaveEndPicker.tsx         # 웨이브 종료 아이템 보상 선택
-│   ├── Multiplayer/
+│   ├── multiplayer/
 │   │   ├── BattlePhaseUI.tsx         # PvP 배틀 페이즈 UI (4분할 관전 + 디버프)
 │   │   ├── MultiplayerGameOverModal.tsx # 멀티 게임 오버/순위 모달
 │   │   ├── MultiplayerLobby.tsx      # 로비 (방 생성/참가/AI 추가)
 │   │   ├── MultiplayerView.tsx       # 멀티 게임 뷰 (상대방 미니뷰 포함)
 │   │   └── TFTBattleArena.tsx        # TFT 스타일 배틀 아레나 시뮬레이션
-│   ├── Story/                        # 스토리 모드
+│   ├── shared/
+│   │   └── modal.styles.ts           # 공통 모달 스타일
+│   ├── story/                        # 스토리 모드
 │   │   ├── StoryEnding.tsx           # 스토리 스테이지 클리어/엔딩 연출
 │   │   ├── StoryOpening.tsx          # 스토리 오프닝 대사 (타이핑 효과)
 │   │   └── StorySelector.tsx         # 챕터 및 스테이지 선택 UI
-│   ├── UI/
-│   │   ├── FloatingSettings.tsx      # 플로팅 설정 버튼
-│   │   ├── HUD.tsx                   # 게임 HUD (라이프/골드/웨이브/속도)
-│   │   ├── MapSelector.tsx           # 맵 선택 화면 (8종 맵 카드)
-│   │   ├── PokemonManager.tsx        # 배치된 포켓몬 관리 패널
-│   │   ├── PokemonPicker.tsx         # 포켓몬 뽑기/구매 (레어도별 확률)
-│   │   ├── ShootingStarsBackground.tsx # 별똥별 배경 애니메이션
-│   │   ├── Shop.tsx                  # 인게임 상점 (아이템 구매/판매)
-│   │   ├── SynergyDetails.tsx        # 시너지 상세 툴팁
-│   │   └── SynergyTracker.tsx        # 활성 시너지 트래커
-│   ├── GameLayout.tsx       # 싱글/멀티/스토리 전환 레이아웃 + 게임루프 제어
-│   └── ProtectedRoute.tsx   # 인증 라우트 가드
+│   └── ui/
+│       ├── FloatingSettings.tsx      # 플로팅 설정 버튼
+│       ├── HUD.tsx                   # 게임 HUD (라이프/골드/웨이브/속도)
+│       ├── MapSelector.tsx           # 맵 선택 화면 (8종 맵 카드)
+│       ├── PokemonManager.tsx        # 배치된 포켓몬 관리 패널
+│       ├── PokemonPicker.tsx         # 포켓몬 뽑기/구매 (레어도별 확률)
+│       ├── ShootingStarsBackground.tsx # 별똥별 배경 애니메이션
+│       ├── Shop.tsx                  # 인게임 상점 (아이템 구매/판매)
+│       ├── SynergyDetails.tsx        # 시너지 상세 툴팁
+│       └── SynergyTracker.tsx        # 활성 시너지 트래커
 ├── config/
 │   └── firebase.ts          # Firebase 초기화 + serverNow() + Presence
 ├── data/
@@ -158,7 +160,6 @@ src/
 │   └── translations/
 │       ├── en.json          # 영어 번역
 │       └── ko.json          # 한국어 번역
-├── rendering/               # 렌더링 모듈 (예약)
 ├── services/
 │   ├── AIPlayer.ts          # AI 봇 로직 (Easy/Normal/Hard 전략)
 │   ├── AchievementService.ts # 업적 이벤트 중앙 처리기
