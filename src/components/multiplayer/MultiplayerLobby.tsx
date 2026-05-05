@@ -554,11 +554,11 @@ const JoinBtn = styled.button`
 
 // ─── Create room ──────────────────────────────────────────────────────────────
 
-const CreateSection = styled.div`max-width:860px;`;
+const CreateSection = styled.div`max-width:860px; margin: 0 auto;`;
 
 const MapPickGrid = styled.div`
   display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-  gap:10px; margin-bottom:24px;
+  gap:10px; margin: 0 auto 24px auto; justify-content: center;
   ${media.tablet} { grid-template-columns:repeat(2,1fr); }
   ${media.mobile} { grid-template-columns:repeat(2,1fr); gap:8px; }
   ${lMedia.phoneSm} { grid-template-columns:repeat(3,1fr); gap:6px; }

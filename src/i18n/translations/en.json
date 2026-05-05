@@ -498,6 +498,8 @@
   "rankings": {
     "title": " Rankings",
     "mapLabel": "Map:",
+    "tabMap": "Map Records",
+    "tabAP": "AP Ranking",
     "tabClearTime": " Fastest Clear",
     "tabHighestWave": " Highest Wave",
     "myRank": "My Rank: #{rank}",
@@ -508,6 +510,8 @@
     "colRating": "Rating",
     "colClearTime": "Clear Time",
     "colHighestWave": "Highest Wave",
+    "colAchCount": "Completions",
+    "colAP": "AP",
     "rankSuffix": "#{rank}",
     "waveSuffix": "Wave {wave}"
   },

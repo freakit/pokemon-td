@@ -269,8 +269,11 @@ const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
 
 const TabRow = styled.div`
   display: flex; gap: 4px; margin-bottom: 10px;
+  padding: 0 24px;
 
-  ${media.mobile} { margin-bottom: 8px; }
+  ${media.tablet} { padding: 0 18px; }
+  ${media.mobile} { margin-bottom: 8px; padding: 0 14px; }
+  ${lMedia.phoneSm} { padding: 0 12px; }
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
@@ -292,9 +295,11 @@ const Tab = styled.button<{ $active: boolean }>`
 
 const MapFilterRow = styled.div`
   display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 12px;
+  padding: 0 24px 12px;
 
-  ${media.mobile} { gap: 5px; padding-bottom: 8px; }
-  ${lMedia.phoneSm} { gap: 4px; padding-bottom: 6px; }
+  ${media.tablet} { padding: 0 18px 12px; }
+  ${media.mobile} { gap: 5px; padding: 0 14px 8px; }
+  ${lMedia.phoneSm} { gap: 4px; padding: 0 12px 6px; }
 `;
 
 const FilterChip = styled.button<{ $active: boolean }>`
