@@ -255,9 +255,7 @@ const Header = styled.div`
 const Title = styled.h2`
   font-size: 28px;
   font-weight: bold;
-  background: linear-gradient(135deg, #6666ff 0%, #3388ff 100%);
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #e8edf3;
   margin-bottom: 5px;
 
   ${L1024} { font-size: 22px; }

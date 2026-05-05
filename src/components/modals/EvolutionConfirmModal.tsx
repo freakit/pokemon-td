@@ -74,6 +74,7 @@ const Title = styled.h2`
   font-size: 28px;
   font-weight: bold;
   margin-bottom: 15px;
+  padding-top: 24px;
   text-align: center;
   background: linear-gradient(135deg, #FFD700, #FFA500);
   background-clip: text;

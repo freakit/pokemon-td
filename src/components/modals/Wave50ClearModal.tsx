@@ -20,7 +20,7 @@ export const Wave50ClearModal: React.FC<Wave50ClearModalProps> = ({ onContinue, 
   const { t } = useTranslation();
 
   return (
-    <ModalOverlay>
+    <ModalOverlay $zIndex={1002}>
       <ModalBox $size="sm" $accent={MODAL_ACCENT.gold} $animate="slideUp" $scroll>
         <Header>
           <Title>🎉 {t('waveClear.title')}! 🎉</Title>

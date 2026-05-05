@@ -202,7 +202,7 @@ const Header = styled.div`
   text-align: center;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 2px solid rgba(155, 89, 182, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const Title = styled.h3`
@@ -210,8 +210,8 @@ const Title = styled.h3`
   ${media.mobile} { font-size: 16px; }
   font-weight: bold;
   margin: 0 0 4px 0;
-  color: #9b59b6;
-  text-shadow: 0 0 10px rgba(155, 89, 182, 0.6);
+  color: #4fc3f7;
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
 `;
 
 const PokemonName = styled.div`
@@ -325,26 +325,26 @@ const LearnBtn = styled.button`
   width: 100%;
   padding: 10px;
   font-size: 14px;
-  background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+  background: linear-gradient(135deg, #2471a3 0%, #1a5276 100%);
   color: #fff;
-  border: 2px solid rgba(155, 89, 182, 0.4);
+  border: 2px solid rgba(79, 195, 247, 0.4);
   border-radius: 10px;
   cursor: pointer;
   font-weight: bold;
-  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+  box-shadow: 0 4px 12px rgba(79, 195, 247, 0.25);
   transition: all 0.2s ease;
 
   &:hover {
-    background: linear-gradient(135deg, #8e44ad 0%, #7d3c98 100%);
+    background: linear-gradient(135deg, #2980b9 0%, #2471a3 100%);
   }
 `;
 
 const Arrow = styled.div`
   text-align: center;
   font-size: 24px;
-  color: #9b59b6;
+  color: #4fc3f7;
   margin: 8px 0;
-  text-shadow: 0 0 10px rgba(155, 89, 182, 0.6);
+  text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
 `;
 
 const QueueInfo = styled.div`
