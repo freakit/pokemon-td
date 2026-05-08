@@ -208,7 +208,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  reset: () =>
+  reset: () => {
+    // [BUG-C2] GameManager 싱글턴 내부 상태도 함께 초기화.
+    // pendingStats, statFlushTimer, isCompletingWave 가 이전 게임에서 누적되던 버그 수정.
+    // 동적 import로 순환 참조 방지 (GameManager → gameStore 역방향 의존성)
+    import('../game/GameManager').then(({ GameManager }) => {
+      GameManager.getInstance().resetState();
+    }).catch(() => {});
+
     set({
       wave: 0,
       money: 500,
@@ -240,7 +247,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hoveredSynergy: null,
       isPreloading: false,
       isShopDisabled: false,
-    }),
+    });
+  },
 
   incrementGameTime: (dt) =>
     set(state => ({ gameTime: state.gameTime + dt * 1000 })),

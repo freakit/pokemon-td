@@ -536,7 +536,8 @@
     "colRating": " Rating",
     "rankSuffix": "#{rank}",
     "minuteSecond": "{m}m {s}s",
-    "pokemonUsed": "Pokémon Used"
+    "pokemonUsed": "Pokémon Used",
+    "dataNotice": "Your top 10 records per map (by clear time) are kept permanently. Records ranked 11th or lower that are older than 60 days may be automatically removed."
   },
   "lobby": {
     "checkingRejoin": "Checking for active session...",
@@ -567,7 +568,13 @@
     "confirmLeaveMsg": "Are you sure you want to leave?",
     "confirmLeaveHostMsg": "Host will be transferred to another player.",
     "btnCancel": "Cancel",
-    "btnLeave": "Leave"
+    "btnLeave": "Leave",
+    "kickBtn": "Kick",
+    "kickConfirmTitle": "Kick Player",
+    "kickConfirmMsg": "Are you sure you want to kick {name}?",
+    "kickConfirmYes": "Kick",
+    "kickConfirmNo": "Cancel",
+    "kicked": "You have been kicked by the host."
   },
   "battle": {
     "roundLabel": "ROUND {round}",

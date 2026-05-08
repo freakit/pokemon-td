@@ -2,7 +2,7 @@
 // [V5-FIX-LB-1] 나가기 확인 모달 — 게임 진행 중 실수로 나가기 방지
 // [V5-FIX-LB-2] AI가 호스트가 되는 경우에 대한 안전 장치
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
@@ -37,6 +37,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [isCheckingRejoin, setIsCheckingRejoin] = useState(true);
   const [rejoinableRoom, setRejoinableRoom] = useState<Room | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [kickConfirm, setKickConfirm] = useState<{ open: boolean; player: import('../../types/multiplayer').RoomPlayer | null }>({ open: false, player: null });
   const startingRef = useRef(false);
   const user = authService.getCurrentUser();
 
@@ -45,6 +46,10 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [showRankings, setShowRankings] = useState(false);
 
   useEffect(() => {
+    // [FREE-3] 멀티플레이어 로비 진입 시 RTDB lazy 초기화 + 방 정리 시작
+    // 싱글플레이어 유저는 RTDB에 연결되지 않아 무료 플랜 100연결 한도를 보존함
+    multiplayerService.initForMultiplayer();
+
     const checkRejoin = async () => {
       const savedRoomId = multiplayerService.getCurrentRoomId();
       if (savedRoomId) {
@@ -71,6 +76,20 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     if (roomId && view === 'room' && !startingRef.current) {
       const unsubscribe = multiplayerService.onRoomUpdate(roomId, (room) => {
         if (!room) { setView('list'); setCurrentRoom(null); return; }
+
+        // 강퇴 감지: 방이 존재하는데 내 userId가 players에 없으면 강퇴됨
+        const stillInRoom = room.players.some(p => p.userId === user?.uid);
+        if (!stillInRoom && room.status === 'waiting') {
+          const wasKicked = room.kickedUserIds?.includes(user?.uid ?? '');
+          multiplayerService.clearCurrentRoom();
+          setView('list');
+          setCurrentRoom(null);
+          if (wasKicked) {
+            alert(t('lobby.kicked'));
+          }
+          return;
+        }
+
         setCurrentRoom(room);
         if ((room.status === 'starting' || room.status === 'playing') && !startingRef.current) {
           startingRef.current = true;
@@ -122,6 +141,16 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     if (currentRoom) {
       try { await multiplayerService.startGame(currentRoom.id); }
       catch (err: any) { alert(err.message); }
+    }
+  };
+
+  const handleKickPlayer = async () => {
+    if (!currentRoom || !kickConfirm.player) return;
+    setKickConfirm({ open: false, player: null });
+    try {
+      await multiplayerService.kickPlayer(currentRoom.id, kickConfirm.player.userId);
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -324,6 +353,15 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       <ReadyIndicator $ready={p.isReady}>
                         {p.isReady ? '✓ READY' : '...'}
                       </ReadyIndicator>
+                      {/* 강퇴 버튼: 호스트만, 자기 자신 제외, 게임 시작 전만 */}
+                      {isHost && p.userId !== user?.uid && (
+                        <KickBtn
+                          title={t('lobby.kickBtn')}
+                          onClick={() => setKickConfirm({ open: true, player: p })}
+                        >
+                          ✕
+                        </KickBtn>
+                      )}
                     </PlayerCard>
                   ))}
                   {/* Empty slots */}
@@ -383,6 +421,30 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
               <ConfirmBtns>
                 <CancelModalBtn onClick={() => setLeaveConfirmOpen(false)}>{t('lobby.btnCancel')}</CancelModalBtn>
                 <LeaveModalBtn onClick={handleLeaveRoomConfirmed}>{t('lobby.btnLeave')}</LeaveModalBtn>
+              </ConfirmBtns>
+            </ConfirmModal>
+          </ModalOverlay>
+        )}
+
+        {/* Kick confirm */}
+        {kickConfirm.open && kickConfirm.player && (
+          <ModalOverlay onClick={() => setKickConfirm({ open: false, player: null })}>
+            <ConfirmModal onClick={e => e.stopPropagation()}>
+              <ConfirmIcon style={{ color: '#f87171' }}>🚫</ConfirmIcon>
+              <ConfirmTitle style={{ color: '#f87171' }}>{t('lobby.kickConfirmTitle')}</ConfirmTitle>
+              <ConfirmText>
+                {t('lobby.kickConfirmMsg', { name: kickConfirm.player.userName })}
+              </ConfirmText>
+              <ConfirmBtns>
+                <CancelModalBtn onClick={() => setKickConfirm({ open: false, player: null })}>
+                  {t('lobby.kickConfirmNo')}
+                </CancelModalBtn>
+                <LeaveModalBtn
+                  style={{ background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.4)', color: '#f87171' }}
+                  onClick={handleKickPlayer}
+                >
+                  {t('lobby.kickConfirmYes')}
+                </LeaveModalBtn>
               </ConfirmBtns>
             </ConfirmModal>
           </ModalOverlay>
@@ -693,6 +755,27 @@ const AIBadge = styled.span`
 
 const PlayerRatingRow = styled.div`font-size:12px; color:rgba(255,255,255,0.35);`;
 
+const KickBtn = styled.button`
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.08);
+  color: rgba(239,68,68,0.7);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(239,68,68,0.22);
+      border-color: rgba(239,68,68,0.6);
+      color: #f87171;
+    }
+  }
+  ${lMedia.phoneSm} { width: 22px; height: 22px; font-size: 11px; }
+`;
+
 const ReadyIndicator = styled.div<{$ready:boolean}>`
   font-size:12px; font-weight:700;
   color:${p=>p.$ready?'#4ade80':'rgba(255,255,255,0.3)'};
@@ -790,7 +873,7 @@ function RejoinPrompt({ roomName, onRejoin, onAbandon }: RejoinPromptProps) {
           <ConfirmTitle style={{color:'#60a5fa'}}>{t('lobby.rejoinTitle')}</ConfirmTitle>
           <ConfirmText>
             {t('lobby.rejoinMsg', { name: roomName }).split('\n').map((line, i) => (
-              <span key={i}>{line}{i === 0 && <br />}</span>
+              <Fragment key={i}>{line}{i === 0 && <br />}</Fragment>
             ))}
           </ConfirmText>
           <ConfirmBtns>

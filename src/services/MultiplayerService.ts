@@ -19,6 +19,13 @@
 // ── V7: 사람 매치 완주 보장 + Deadlock 방지 ──
 // [V7-FIX-MS-14] leaveRoom: 사람 0명 시 방 자동 삭제 (AI-only deadlock 방지)
 // [V7-FIX-MS-15] forcePushTowerDetailsFull 공식 API 추가
+//
+// ── FREE-TIER 최적화 ──
+// [FREE-1] constructor에서 startAutoCleanup() 제거 — 모든 유저가 앱 로드 시
+//          RTDB를 읽던 문제 해결. 멀티플레이어 진입 시에만 호출.
+// [FREE-2] MAX_ACTIVE_ROOMS(12) 제한 — 동시 연결 96개 이하 유지 (여유 4개)
+// [FREE-3] initRtdbListeners() 지연 초기화 — 싱글플레이어는 RTDB 연결 0개
+// [BUG-C3] finalizeGame: 마지막 생존자(우승자)에게 placement:1 설정 — ELO 계산 오류 수정
 //   - AIPlayer가 fbSet을 직접 호출하던 것을 일원화
 //   - throttle 무시 즉시 업로드 + tftPlacements 보존
 
@@ -26,7 +33,7 @@ import {
   ref, set, onValue, push, update, remove, get, off,
   runTransaction,
 } from 'firebase/database';
-import { rtdb, serverNow, getServerTimeOffset, registerPresence } from '../config/firebase';
+import { rtdb, serverNow, getServerTimeOffset, registerPresence, initRtdbListeners } from '../config/firebase';
 import {
   Room, RoomPlayer, PlayerGameState, AIDifficulty, TowerDetail,
   GamePhase, MultiplayerGameState, RoundMatchup, PvPBattleResult,
@@ -44,6 +51,9 @@ const ROOM_EXPIRY_TIME = 3 * 60 * 60 * 1000;       // 3시간
 const FINISHED_GAME_TTL = 5 * 60 * 1000;           // [V5] 종료된 게임 정리까지 5분 대기
 const CLEANUP_INTERVAL = 10 * 60 * 1000;           // 10분 간격
 
+// [FREE-2] 무료 플랜 동시 연결 100개 보호: 방 8명 * 12방 = 96연결 + 여유 4
+const MAX_ACTIVE_ROOMS = 12;
+
 // [V6-FIX] 클라이언트가 업로드 가능한 필드 — money/lives 복원
 //   배틀 보상 및 탈락 처리는 여전히 서버 트랜잭션이 수행하지만,
 //   일반 구매/판매는 클라이언트가 로컬에서 즉시 반영하고 Firebase에 푸시.
@@ -57,9 +67,25 @@ class MultiplayerService {
   private currentRoomId: string | null = null;
   private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
   private presenceCleanup: (() => void) | null = null;
+  private _multiplayerInitialized = false;
 
   constructor() {
-    this.startAutoCleanup();
+    // [FREE-1] constructor에서 startAutoCleanup() 제거.
+    // 앱 로드 시 모든 유저가 RTDB에 연결하던 문제 해결.
+    // 멀티플레이어 진입 시 initForMultiplayer()를 호출해야 한다.
+  }
+
+  /**
+   * [FREE-1] 멀티플레이어 로비 진입 시 반드시 한 번 호출.
+   *   - RTDB 실시간 리스너를 lazy 초기화 (첫 연결 발생)
+   *   - 만료 방 자동 정리 시작
+   * 이후 중복 호출은 no-op.
+   */
+  initForMultiplayer(): void {
+    if (this._multiplayerInitialized) return;
+    this._multiplayerInitialized = true;
+    initRtdbListeners();                         // [FREE-3] RTDB 연결 시작
+    this.startAutoCleanup();                     // 만료 방 정리 시작
   }
 
   // [V5-FIX-MS-9] 서버 시간은 firebase.ts 전역 값을 사용
@@ -196,6 +222,17 @@ class MultiplayerService {
   async createRoom(mapId: string, mapName: string): Promise<string> {
     const user = authService.getCurrentUser();
     if (!user) throw new Error('Not authenticated');
+
+    // [FREE-2] 활성 방 수가 MAX_ACTIVE_ROOMS(12) 이상이면 생성 거부
+    // 동시 연결 100개 한도 보호: 12방 * 8명 = 96연결
+    const existingRoomsSnap = await get(ref(rtdb, 'rooms'));
+    if (existingRoomsSnap.exists()) {
+      const activeRooms = Object.values(existingRoomsSnap.val() as Record<string, any>)
+        .filter((r: any) => r.status === 'waiting' || r.status === 'playing' || r.status === 'starting');
+      if (activeRooms.length >= MAX_ACTIVE_ROOMS) {
+        throw new Error('서버가 혼잡합니다. 잠시 후 다시 시도하거나 기존 방에 참가해주세요. (최대 동시 방 수 초과)');
+      }
+    }
     const newRoomRef = push(ref(rtdb, 'rooms'));
     const roomId = newRoomRef.key!;
     const room: Room = {
@@ -338,6 +375,34 @@ class MultiplayerService {
     }
 
     this.clearCurrentRoom();
+  }
+
+  /**
+   * 호스트가 특정 플레이어를 방에서 강퇴.
+   * - 호스트만 호출 가능, 게임 시작 전(waiting) 상태에서만 동작
+   * - AI 강퇴도 동일하게 처리 (클라이언트 알림 불필요)
+   * - 강퇴된 플레이어는 onRoomUpdate에서 자신이 players에 없음을 감지해 퇴장 처리
+   */
+  async kickPlayer(roomId: string, targetUserId: string): Promise<void> {
+    const user = authService.getCurrentUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    let kickError: Error | null = null;
+
+    await runTransaction(roomRef, (room: Room | null) => {
+      if (!room) { kickError = new Error('Room not found'); return room; }
+      if (room.hostId !== user.uid) { kickError = new Error('Only host can kick players'); return room; }
+      if (room.status !== 'waiting') { kickError = new Error('Cannot kick after game started'); return room; }
+      if (targetUserId === user.uid) { kickError = new Error('Cannot kick yourself'); return room; }
+
+      const updatedPlayers = room.players.filter(p => p.userId !== targetUserId);
+      // kickedUserIds에 기록 → 강퇴된 클라이언트가 자발적 퇴장과 구분 가능
+      const kickedUserIds: string[] = [...(room.kickedUserIds ?? []), targetUserId];
+      return { ...room, players: updatedPlayers, kickedUserIds };
+    });
+
+    if (kickError) throw kickError;
   }
 
   async addAI(roomId: string, difficulty: AIDifficulty): Promise<void> {
@@ -951,7 +1016,31 @@ class MultiplayerService {
     const snap = await get(ref(rtdb, `gameStates/${roomId}`));
     if (!snap.exists()) return;
     const gs = snap.val() as MultiplayerGameState;
-    await this.updateRatings(gs);
+
+    // [BUG-C3] 마지막 생존자(우승자)에게 placement:1 설정.
+    // playerDefeated()로 탈락한 플레이어는 placement가 설정되지만
+    // 우승자는 placement가 undefined → ELO 계산에서 틀리게 처리되던 버그 수정.
+    const winner = gs.players.find(p => p.isAlive && !p.userId.startsWith('ai_'));
+    if (winner && !winner.placement) {
+      const gsRef = ref(rtdb, `gameStates/${roomId}`);
+      await runTransaction(gsRef, (state: MultiplayerGameState | null) => {
+        if (!state) return state;
+        return {
+          ...state,
+          players: state.players.map(p =>
+            p.userId === winner.userId ? { ...p, placement: 1 } : p
+          ),
+        };
+      }).catch(err => console.warn('[MS] winner placement set failed:', err));
+      // 업데이트된 상태로 재조회
+      const updatedSnap = await get(ref(rtdb, `gameStates/${roomId}`));
+      if (updatedSnap.exists()) {
+        await this.updateRatings(updatedSnap.val() as MultiplayerGameState);
+      }
+    } else {
+      await this.updateRatings(gs);
+    }
+
     // [V5-FIX-MS-11] 랭킹 업데이트 후 방 상태를 finished로 표기
     await this.cleanupGame(roomId, false).catch(() => {});
   }
