@@ -129,6 +129,11 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
           )}
         </Body>
 
+        {/* ── 데이터 보존 안내 ── */}
+        <DataNotice>
+          ⚠️ {t('hallOfFame.dataNotice')}
+        </DataNotice>
+
       </ModalBox>
     </ModalOverlay>
   );
@@ -548,4 +553,17 @@ const SectionTitle = styled.h2`
 const HeaderSection = styled.div`
   border-bottom: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
+`;
+
+// ── 데이터 보존 안내 ──
+const DataNotice = styled.div`
+  flex-shrink: 0;
+  padding: 8px 20px 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
+  text-align: center;
+  line-height: 1.5;
+
+  ${media.mobile} { font-size: 10px; padding: 6px 14px 8px; }
 `;

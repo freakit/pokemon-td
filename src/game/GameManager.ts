@@ -38,6 +38,21 @@ export class GameManager {
     return GameManager.instance;
   }
 
+  /**
+   * [BUG-C2] 게임 재시작 시 싱글턴 내부 상태 초기화.
+   * gameStore.reset()에서 호출됨.
+   * pendingStats / statFlushTimer / isCompletingWave 가 이전 게임에서 누적되던 버그 수정.
+   */
+  resetState() {
+    this.isCompletingWave = false;
+    this.killedEnemyIds.clear();
+    this.pendingStats = { enemiesKilled: 0, totalMoneyEarned: 0, bossesDefeated: 0 };
+    if (this.statFlushTimer) {
+      clearTimeout(this.statFlushTimer);
+      this.statFlushTimer = null;
+    }
+  }
+
   private loseLife(amount: number) {
     const newLives = Math.max(0, useGameStore.getState().lives - amount);
     useGameStore.setState({ lives: newLives });
@@ -182,6 +197,8 @@ export class GameManager {
             soundService.playDefeatSound();
           }
         }
+        // [BUG-C1] 목표 도달 후 return — 제거된 적이 같은 프레임에 타워를 공격하는 유령 공격 버그 수정
+        return;
       }
 
       // 적이 타워 공격
@@ -216,14 +233,20 @@ export class GameManager {
   }
 
   private findTargetTower(enemy: Enemy): GamePokemon | undefined {
+    // [TARGETING] 매 공격마다 현재 스토어에서 최신 적 위치를 읽어 실시간 계산.
+    // 로컬 enemy 객체의 position은 이 프레임 시작 시점 스냅샷이므로
+    // moveEnemy()가 이미 위치를 갱신했을 수 있음 → 최신 위치로 재조회.
+    const currentEnemy = useGameStore.getState().enemies.find(e => e.id === enemy.id);
+    const pos = currentEnemy?.position ?? enemy.position;
+
     const { towers } = useGameStore.getState();
     let closest: GamePokemon | null = null;
     let minDist = Infinity;
 
     for (const tower of towers) {
       if (tower.isFainted) continue;
-      const dx = tower.position.x - enemy.position.x;
-      const dy = tower.position.y - enemy.position.y;
+      const dx = tower.position.x - pos.x;
+      const dy = tower.position.y - pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < minDist && dist <= enemy.range * 2) {
         minDist = dist;
@@ -677,11 +700,14 @@ export class GameManager {
           console.error('Failed to check achievements:', err);
         }
 
-        // 랭킹 업데이트 (싱글플레이, 매 웨이브)
-        try {
-          await databaseService.updateLeaderboard(currentMap, undefined, wave);
-        } catch {
-          // 무시
+        // [FREE-TIER] 리더보드 업데이트: 매 웨이브가 아닌 5웨이브마다 1회만 업데이트.
+        // 50웨이브 완주 시 50회 → 10회로 Firestore 쓰기 80% 절감.
+        if (wave % 5 === 0) {
+          try {
+            await databaseService.updateLeaderboard(currentMap, undefined, wave);
+          } catch {
+            // 무시
+          }
         }
       }
     } finally {

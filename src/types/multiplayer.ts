@@ -45,6 +45,8 @@ export interface Room {
   maxPlayers: number;
   status: 'waiting' | 'starting' | 'playing' | 'finished';
   createdAt: number;
+  /** 강퇴된 유저 ID 목록 — 클라이언트가 자발적 퇴장과 강퇴를 구분하는 데 사용 */
+  kickedUserIds?: string[];
 }
 
 export interface RoomPlayer {

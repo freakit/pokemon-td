@@ -3,6 +3,8 @@
 // [FIX-4b] Firestore 오프라인 persistence 활성화
 // [FIX-RTDB] RTDB 연결 상태 감시
 // [FIX-V5] 서버 시간 동기 노출, 재연결 훅 단일화, onDisconnect 헬퍼 제공
+// [FREE-TIER] RTDB 연결을 lazy 초기화 — 싱글플레이어는 RTDB 연결 없음
+//   무료 플랜 동시 연결 100개 한도를 멀티플레이어에만 사용하도록 보존
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
@@ -38,26 +40,39 @@ export const rtdb = getDatabase(app);
 export const googleProvider = new GoogleAuthProvider();
 
 // ─── [FIX-RTDB] RTDB 연결 상태 감시 ────────────────────────────
+// [FREE-TIER] 무료 플랜 동시 연결 100개 한도 보호:
+//   모듈 로드 시 즉시 연결하지 않고, initRtdbListeners() 호출 시에만 연결.
+//   싱글플레이어 유저는 RTDB를 전혀 사용하지 않아 연결 슬롯을 소모하지 않음.
 type ConnectedCallback = (isConnected: boolean) => void;
 const connectedListeners = new Set<ConnectedCallback>();
 let _rtdbConnected = false;
 let _serverTimeOffset = 0;
+let _rtdbListenersActive = false;
 
-onValue(ref(rtdb, '.info/connected'), (snap) => {
-  const prev = _rtdbConnected;
-  _rtdbConnected = snap.val() === true;
-  if (prev !== _rtdbConnected) {
-    console.log(`[firebase] RTDB connected: ${_rtdbConnected}`);
-  }
-  connectedListeners.forEach(cb => {
-    try { cb(_rtdbConnected); } catch (e) { console.error(e); }
+/**
+ * 멀티플레이어 진입 시 한 번만 호출. RTDB 실시간 구독을 시작한다.
+ * 이후 중복 호출은 no-op.
+ */
+export function initRtdbListeners(): void {
+  if (_rtdbListenersActive) return;
+  _rtdbListenersActive = true;
+
+  onValue(ref(rtdb, '.info/connected'), (snap) => {
+    const prev = _rtdbConnected;
+    _rtdbConnected = snap.val() === true;
+    if (prev !== _rtdbConnected) {
+      console.log(`[firebase] RTDB connected: ${_rtdbConnected}`);
+    }
+    connectedListeners.forEach(cb => {
+      try { cb(_rtdbConnected); } catch (e) { console.error(e); }
+    });
   });
-});
 
-// [FIX-V5] 서버 시간 오프셋을 전역으로 관리 (모든 서비스가 동일한 값을 보도록)
-onValue(ref(rtdb, '.info/serverTimeOffset'), (snap) => {
-  _serverTimeOffset = snap.val() || 0;
-});
+  // [FIX-V5] 서버 시간 오프셋을 전역으로 관리 (모든 서비스가 동일한 값을 보도록)
+  onValue(ref(rtdb, '.info/serverTimeOffset'), (snap) => {
+    _serverTimeOffset = snap.val() || 0;
+  });
+}
 
 /** RTDB 연결 상태 구독. 반환값은 구독 해제 함수. */
 export function onRtdbConnected(cb: ConnectedCallback): () => void {

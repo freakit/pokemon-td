@@ -1,12 +1,18 @@
 // src/services/DatabaseService.ts
+// [FREE-TIER] Firestore 쿼터 절감을 위한 데이터 정리 로직 추가
+//   - hallOfFame: 맵당 최대 50개 유지, 30일 이상 된 항목 삭제
+//   - 정리는 게임 클리어 후 20% 확률로 실행 (쿼터 낭비 방지)
 import {
   doc, setDoc, getDoc, collection, query, where, orderBy,
-  limit, getDocs, addDoc, updateDoc
+  limit, getDocs, addDoc, updateDoc, deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { HallOfFameEntry, LeaderboardEntry } from '../types/multiplayer';
 import { Achievement } from '../types/game';
 import { authService } from './AuthService';
+
+// [FREE-TIER] 무료 플랜 데이터 보존 한도
+const HALL_OF_FAME_MAX_AGE_DAYS = 60;  // 이 일수보다 오래된 자신의 기록은 삭제 후보
 
 // ─── AP 랭킹 엔트리 타입 ──────────────────────────────────────────────────────
 export interface APRankingEntry {
@@ -41,6 +47,75 @@ class DatabaseService {
       timestamp: Date.now(),
     };
     await addDoc(collection(db, 'hallOfFame'), entry);
+
+    // [FREE-TIER] 20% 확률로 오래된 기록 정리 (매번 실행 시 Firestore 쿼터 낭비)
+    if (Math.random() < 0.2) {
+      this.cleanupOldHallOfFame(mapId).catch(() => {});
+    }
+  }
+
+  /**
+   * [FREE-TIER] 현재 유저의 오래된/초과된 전당 기록을 삭제하여 Firestore 용량/쿼터 절감.
+   *
+   * ★ Firestore 보안 룰: delete는 resource.data.userId == request.auth.uid 만 허용.
+   *   → 반드시 자신의 기록만 쿼리·삭제해야 함. 타 유저 항목 삭제 시도 시 permission-denied.
+   *
+   * 보존 정책:
+   *   - clearTime 기준 상위(빠른) 10개는 날짜에 관계없이 영구 보존
+   *   - 11위 이하이면서 60일이 지난 기록만 삭제 대상
+   *   - 한 번에 최대 5개만 삭제 (Firestore 쓰기 쿼터 보호)
+   *
+   * composite index 없이 동작하도록 Firestore에서는 == 필터만 사용,
+   * clearTime 정렬은 메모리에서 수행.
+   */
+  private async cleanupOldHallOfFame(mapId: string): Promise<void> {
+    const user = authService.getCurrentUser();
+    if (!user) return;
+
+    try {
+      const cutoffMs = Date.now() - HALL_OF_FAME_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+      const TOP_K = 10; // 상위 K개는 날짜와 무관하게 영구 보존
+
+      // == 필터만 사용 → composite index 불필요 (orderBy 제거)
+      const q = query(
+        collection(db, 'hallOfFame'),
+        where('userId', '==', user.uid),
+        where('mapId', '==', mapId),
+        limit(100) // 유저당 맵당 현실적 상한
+      );
+      const snap = await getDocs(q);
+
+      // clearTime 오름차순 정렬 (빠를수록 상위)
+      const sorted = snap.docs
+        .slice()
+        .sort((a, b) =>
+          (a.data() as HallOfFameEntry).clearTime -
+          (b.data() as HallOfFameEntry).clearTime
+        );
+
+      // 상위 TOP_K 개의 ID를 보호 목록에 등록
+      const protectedIds = new Set(sorted.slice(0, TOP_K).map(d => d.id));
+
+      // TOP_K 밖이면서 60일 초과된 기록만 삭제 후보
+      const toDelete: string[] = [];
+      for (const d of sorted.slice(TOP_K)) {
+        const ts = (d.data() as HallOfFameEntry).timestamp;
+        if (!protectedIds.has(d.id) && ts < cutoffMs) {
+          toDelete.push(d.id);
+        }
+      }
+
+      // 최대 5개씩만 삭제 (Firestore 쓰기 쿼터 보호)
+      const batch = toDelete.slice(0, 5);
+      await Promise.all(batch.map(id => deleteDoc(doc(db, 'hallOfFame', id))));
+
+      if (batch.length > 0) {
+        console.log(`[DB] cleanupOldHallOfFame: deleted ${batch.length} own entries for map ${mapId}`);
+      }
+    } catch (err) {
+      // 정리 실패는 무시 (게임 진행에 영향 없음)
+      console.warn('[DB] cleanupOldHallOfFame failed:', err);
+    }
   }
 
   async getUserHallOfFame(): Promise<HallOfFameEntry[]> {

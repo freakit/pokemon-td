@@ -534,7 +534,8 @@
     "colRating": " 레이팅",
     "rankSuffix": "{rank}위",
     "minuteSecond": "{m}분 {s}초",
-    "pokemonUsed": "사용한 포켓몬"
+    "pokemonUsed": "사용한 포켓몬",
+    "dataNotice": "맵당 클리어 시간 상위 10개 기록은 날짜에 관계없이 영구 보존됩니다. 11위 이하이면서 60일이 지난 기록은 자동으로 삭제될 수 있습니다."
   },
   "login": {
     "title": "Pokemon X Tower Defense X TFT",
@@ -596,7 +597,13 @@
     "confirmLeaveMsg": "정말로 방을 나가시겠습니까?",
     "confirmLeaveHostMsg": "방장이 나가면 다른 플레이어에게 자동으로 호스트가 이전됩니다.",
     "btnCancel": "취소",
-    "btnLeave": "나가기"
+    "btnLeave": "나가기",
+    "kickBtn": "강퇴",
+    "kickConfirmTitle": "플레이어 강퇴",
+    "kickConfirmMsg": "{name}님을 방에서 강퇴하시겠습니까?",
+    "kickConfirmYes": "강퇴",
+    "kickConfirmNo": "취소",
+    "kicked": "방장에 의해 강퇴되었습니다."
   },
   "battle": {
     "roundLabel": "ROUND {round}",
