@@ -4,7 +4,7 @@
 //   - 정리는 게임 클리어 후 20% 확률로 실행 (쿼터 낭비 방지)
 import {
   doc, setDoc, getDoc, collection, query, where, orderBy,
-  limit, getDocs, addDoc, updateDoc, deleteDoc
+  limit, getDocs, addDoc, updateDoc, deleteDoc, writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { HallOfFameEntry, LeaderboardEntry } from '../types/multiplayer';
@@ -256,14 +256,18 @@ class DatabaseService {
     const userValue = sortBy === 'clearTime' ? userData.clearTime : userData.highestWave;
     if (!userValue) return null;
 
+    // [FIX-QUOTA] 전체 컬렉션 스캔 대신 "나보다 나은 기록" 수만 쿼리 (limit 500).
+    // clearTime: 낮을수록 좋음 → 내 값보다 작은 것이 나보다 앞 순위
+    // highestWave: 높을수록 좋음 → 내 값보다 큰 것이 나보다 앞 순위
+    const betterOp = sortBy === 'clearTime' ? '<' : '>' as const;
     const q = query(
       collection(db, 'leaderboards'),
       where('mapId', '==', mapId),
-      orderBy(sortBy, sortBy === 'clearTime' ? 'asc' : 'desc')
+      where(sortBy, betterOp as any, userValue),
+      limit(500)
     );
     const snapshot = await getDocs(q);
-    const rank = snapshot.docs.findIndex(doc => doc.id === userDocRef.id) + 1;
-    return rank > 0 ? rank : null;
+    return snapshot.size + 1;
   }
 
   async updateUserRating(userId: string, newRating: number): Promise<void> {
@@ -271,18 +275,35 @@ class DatabaseService {
     await updateDoc(docRef, { rating: newRating });
   }
 
-  // ─── [리뉴얼] 업적 저장 — AP 포함 ──────────────────────────────────────────
+  // ─── [리뉴얼] 업적 저장 — AP 포함 (WriteBatch로 원자적 처리) ───────────────
+  // [FIX-QUOTA] 업적 쓰기 + AP 랭킹 갱신을 단일 WriteBatch로 묶어 Firestore 쓰기 횟수 절반 절감.
+  // 업적은 단조 증가(취소 불가)이므로 AP 랭킹도 항상 최신값으로 덮어써도 안전.
+  // updateAPRanking의 불필요한 read(getDoc)도 제거 — AP가 낮아지는 경우는 없기 때문.
   async updateUserAchievement(achievement: Achievement, totalAP?: number): Promise<void> {
     const user = authService.getCurrentUser();
     if (!user) return;
 
-    const docRef = doc(db, 'achievements', `${user.uid}_${achievement.id}`);
-    await setDoc(docRef, { userId: user.uid, ...achievement }, { merge: true });
+    const batch = writeBatch(db);
 
-    // totalAP가 전달되면 AP 랭킹도 동시에 갱신
+    // 1) 업적 문서 병합 쓰기
+    const achRef = doc(db, 'achievements', `${user.uid}_${achievement.id}`);
+    batch.set(achRef, { userId: user.uid, ...achievement }, { merge: true });
+
+    // 2) AP 랭킹 덮어쓰기 (totalAP가 전달된 경우만)
+    //    업적은 단조 증가이므로 기존값 확인 없이 항상 overwrite해도 안전
     if (totalAP !== undefined) {
-      await this.updateAPRanking(totalAP, achievement.completions ?? 1);
+      const apRef = doc(db, 'apRankings', user.uid);
+      const apEntry: APRankingEntry = {
+        userId: user.uid,
+        userName: user.displayName,
+        totalAP,
+        achievementCount: achievement.completions ?? 1,
+        updatedAt: Date.now(),
+      };
+      batch.set(apRef, apEntry);
     }
+
+    await batch.commit();
   }
 
   async getUserAchievements(): Promise<Achievement[]> {
@@ -299,14 +320,14 @@ class DatabaseService {
   // ─── AP 랭킹 ─────────────────────────────────────────────────────────────
 
   /**
-   * 내 AP 랭킹 문서 갱신 (상위 AP면 업데이트)
+   * 내 AP 랭킹 문서 갱신.
+   * [FIX-QUOTA] updateUserAchievement의 WriteBatch에서 일괄 처리되므로,
+   * 이 메서드는 외부(SaveService 등)에서 독립적으로 호출될 때만 사용.
+   * 업적은 단조 증가이므로 기존값 read 없이 항상 overwrite.
    */
   async updateAPRanking(totalAP: number, achievementCount: number): Promise<void> {
     const user = authService.getCurrentUser();
     if (!user) return;
-
-    const docRef = doc(db, 'apRankings', user.uid);
-    const docSnap = await getDoc(docRef);
 
     const entry: APRankingEntry = {
       userId: user.uid,
@@ -315,10 +336,7 @@ class DatabaseService {
       achievementCount,
       updatedAt: Date.now(),
     };
-
-    if (!docSnap.exists() || totalAP > (docSnap.data() as APRankingEntry).totalAP) {
-      await setDoc(docRef, entry);
-    }
+    await setDoc(doc(db, 'apRankings', user.uid), entry);
   }
 
   /**

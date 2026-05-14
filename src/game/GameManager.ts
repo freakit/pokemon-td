@@ -33,6 +33,11 @@ export class GameManager {
 
   private initialTotalMoney = 0;
 
+  // [FIX-ID] 단조 증가 ID 카운터 — Date.now()+Math.random() 조합 충돌 방지
+  // AOE 공격처럼 같은 ms 안에 다수의 투사체/데미지 번호가 생성될 때도 고유성 보장
+  private _nextId = 0;
+  private nextId(): number { return ++this._nextId; }
+
   static getInstance() {
     if (!GameManager.instance) {
       GameManager.instance = new GameManager();
@@ -54,6 +59,7 @@ export class GameManager {
       clearTimeout(this.statFlushTimer);
       this.statFlushTimer = null;
     }
+    this._nextId = 0;
     this.initialTotalMoney = saveService.load().stats.totalMoneyEarned;
   }
 
@@ -361,7 +367,7 @@ export class GameManager {
 
         // 스플래시 피해 수치 표시
         addDamageNumber({
-          id: `splash-${Date.now()}-${Math.random()}`,
+          id: `splash-${this.nextId()}`,
           value: splashDmg,
           position: { ...otherTower.position },
           isCrit: false,
@@ -421,7 +427,7 @@ export class GameManager {
       const hitChance = m.accuracy / 100;
       if (Math.random() > hitChance) {
         useGameStore.getState().addDamageNumber({
-          id: `miss-${Date.now()}-${Math.random()}`,
+          id: `miss-${this.nextId()}`,
           value: 0,
           position: { ...target.position },
           isCrit: false,
@@ -454,7 +460,7 @@ export class GameManager {
       move.damageClass === 'physical' ? buffedStats.attack : buffedStats.specialAttack;
 
     useGameStore.getState().addProjectile({
-      id: `proj-${Date.now()}-${Math.random()}`,
+      id: `proj-${this.nextId()}`,
       from: { ...tower.position },
       to: { ...target.position },
       current: { ...tower.position },
@@ -565,7 +571,7 @@ export class GameManager {
     }
 
     addDamageNumber({
-      id: `dmg-${Date.now()}-${Math.random()}`,
+      id: `dmg-${this.nextId()}`,
       value: dmg,
       position: { ...enemy.position },
       isCrit,

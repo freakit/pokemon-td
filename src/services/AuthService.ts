@@ -15,6 +15,22 @@ class AuthService {
   private currentUser: User | null = null;
   private listeners: ((user: User | null) => void)[] = [];
 
+  // [FIX-QUOTA] lastLogin Firestore 쓰기 24시간 쿨다운
+  // 매 auth 상태 변경마다 setDoc을 실행하는 낭비를 방지.
+  // uid → 마지막 기록 시각(ms) 맵. 앱 세션 내에서만 유효(재시작 시 리셋).
+  private _lastLoginWritten = new Map<string, number>();
+  private readonly LAST_LOGIN_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24h
+
+  private shouldWriteLastLogin(uid: string): boolean {
+    const last = this._lastLoginWritten.get(uid);
+    if (last === undefined) return true;
+    return Date.now() - last > this.LAST_LOGIN_COOLDOWN_MS;
+  }
+
+  private markLastLoginWritten(uid: string): void {
+    this._lastLoginWritten.set(uid, Date.now());
+  }
+
   constructor() {
     onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('AuthService(onAuthStateChanged):', firebaseUser?.displayName || 'null');
@@ -47,6 +63,7 @@ class AuthService {
           ...newUser,
           lastLogin: serverTimestamp()
         });
+        this.markLastLoginWritten(firebaseUser.uid);
         return newUser;
       }
       
@@ -59,17 +76,22 @@ class AuthService {
           : (firebaseUser.displayName || userData.displayName || 'Anonymous');
 
       if (resolvedDisplayName !== userData.displayName) {
-        // Firestore의 displayName을 최신화
+        // displayName 불일치: 최신화 + lastLogin 갱신 (항상 쓰기)
         await setDoc(doc(db, 'users', firebaseUser.uid), {
           displayName: resolvedDisplayName,
           lastLogin: serverTimestamp()
         }, { merge: true });
+        this.markLastLoginWritten(firebaseUser.uid);
         return { ...userData, displayName: resolvedDisplayName };
       }
 
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        lastLogin: serverTimestamp()
-      }, { merge: true });
+      // [FIX-QUOTA] lastLogin 쓰기: 24시간 이상 지났을 때만 실행
+      if (this.shouldWriteLastLogin(firebaseUser.uid)) {
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+        this.markLastLoginWritten(firebaseUser.uid);
+      }
       return userData;
     } catch (error) {
       console.error('Firestore Error in getUserData (Quota Exceeded?):', error);
