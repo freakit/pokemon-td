@@ -1,5 +1,5 @@
 // src/game/GameManager.ts
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, INITIAL_LIVES_SINGLE } from '../store/gameStore';
 import { GamePokemon, Enemy, Projectile, Position, GameMove } from '../types/game';
 import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
@@ -31,9 +31,12 @@ export class GameManager {
   };
   private statFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
+  private initialTotalMoney = 0;
+
   static getInstance() {
     if (!GameManager.instance) {
       GameManager.instance = new GameManager();
+      GameManager.instance.initialTotalMoney = saveService.load().stats.totalMoneyEarned;
     }
     return GameManager.instance;
   }
@@ -51,12 +54,9 @@ export class GameManager {
       clearTimeout(this.statFlushTimer);
       this.statFlushTimer = null;
     }
+    this.initialTotalMoney = saveService.load().stats.totalMoneyEarned;
   }
 
-  private loseLife(amount: number) {
-    const newLives = Math.max(0, useGameStore.getState().lives - amount);
-    useGameStore.setState({ lives: newLives });
-  }
 
   // stats를 배치로 모아서 0.5초마다 한 번에 저장
   private flushStats() {
@@ -113,131 +113,186 @@ export class GameManager {
     }));
   }
 
-  // [수정] 직접 객체 변이(mutation) 제거 → updateTower / updateEnemy 경유
   private updateStatusEffects(dt: number) {
-    const { towers, enemies, updateTower, updateEnemy } = useGameStore.getState();
+    const deadEnemyIds: string[] = [];
 
-    towers.forEach(t => {
-      if (!t.statusEffect) return;
-      const remaining = t.statusEffect.duration - dt;
+    useGameStore.setState(state => {
+      let towersUpdated = false;
+      const nextTowers = state.towers.map(t => {
+        if (!t.statusEffect) return t;
+        towersUpdated = true;
+        const remaining = t.statusEffect.duration - dt;
 
-      if (remaining <= 0) {
-        updateTower(t.id, {
-          statusEffect: undefined,
-          attack: t.statusEffect.type === 'burn' ? t.baseAttack : t.attack,
-        });
-      } else if (t.statusEffect.tickDamage) {
-        const dmg = t.statusEffect.tickDamage * dt;
-        const newHp = Math.max(0, t.currentHp - dmg);
-        if (newHp <= 0 && !t.isFainted) {
-          updateTower(t.id, {
-            currentHp: 0,
-            isFainted: true,
-            statusEffect: { ...t.statusEffect, duration: remaining },
-          });
+        if (remaining <= 0) {
+          return {
+            ...t,
+            statusEffect: undefined,
+            attack: t.statusEffect.type === 'burn' ? t.baseAttack : t.attack,
+          };
+        } else if (t.statusEffect.tickDamage) {
+          const dmg = t.statusEffect.tickDamage * dt;
+          const newHp = Math.max(0, t.currentHp - dmg);
+          if (newHp <= 0 && !t.isFainted) {
+            return {
+              ...t,
+              currentHp: 0,
+              isFainted: true,
+              statusEffect: { ...t.statusEffect, duration: remaining },
+            };
+          } else {
+            return {
+              ...t,
+              currentHp: newHp,
+              statusEffect: { ...t.statusEffect, duration: remaining },
+            };
+          }
         } else {
-          updateTower(t.id, {
-            currentHp: newHp,
+          return {
+            ...t,
             statusEffect: { ...t.statusEffect, duration: remaining },
-          });
+          };
         }
-      } else {
-        updateTower(t.id, {
-          statusEffect: { ...t.statusEffect, duration: remaining },
-        });
-      }
+      });
+
+      let enemiesUpdated = false;
+      const nextEnemies = state.enemies.map(e => {
+        if (!e.statusEffect) return e;
+        enemiesUpdated = true;
+        const remaining = e.statusEffect.duration - dt;
+
+        if (remaining <= 0) {
+          return { ...e, statusEffect: undefined };
+        } else if (e.statusEffect.tickDamage) {
+          const dmg = e.statusEffect.tickDamage * dt;
+          const newHp = Math.max(0, e.hp - dmg);
+          if (newHp <= 0) deadEnemyIds.push(e.id);
+          return {
+            ...e,
+            hp: newHp,
+            statusEffect: { ...e.statusEffect, duration: remaining },
+          };
+        } else {
+          return {
+            ...e,
+            statusEffect: { ...e.statusEffect, duration: remaining },
+          };
+        }
+      });
+
+      if (!towersUpdated && !enemiesUpdated) return state;
+
+      return {
+        towers: towersUpdated ? nextTowers : state.towers,
+        enemies: enemiesUpdated ? nextEnemies : state.enemies,
+      };
     });
 
-    enemies.forEach(e => {
-      if (!e.statusEffect) return;
-      const remaining = e.statusEffect.duration - dt;
-
-      if (remaining <= 0) {
-        updateEnemy(e.id, { statusEffect: undefined });
-      } else if (e.statusEffect.tickDamage) {
-        const dmg = e.statusEffect.tickDamage * dt;
-        const newHp = Math.max(0, e.hp - dmg);
-        updateEnemy(e.id, {
-          hp: newHp,
-          statusEffect: { ...e.statusEffect, duration: remaining },
-        });
-        if (newHp <= 0) this.killEnemy(e.id);
-      } else {
-        updateEnemy(e.id, {
-          statusEffect: { ...e.statusEffect, duration: remaining },
-        });
-      }
-    });
+    deadEnemyIds.forEach(id => this.killEnemy(id));
   }
 
   private updateEnemies(dt: number) {
     const { enemies, lives } = useGameStore.getState();
     if (lives <= 0) return;
 
+    let lifeLost = 0;
+    const toRemoveIds = new Set<string>();
+    const enemyUpdates = new Map<string, Partial<Enemy>>();
+
     enemies.forEach(enemy => {
       if (enemy.statusEffect?.type === 'sleep' || enemy.statusEffect?.type === 'freeze') return;
 
       const speedMult = enemy.statusEffect?.type === 'paralysis' ? 0.5 : 1;
+      let newPos = enemy.position;
+      let newPathIndex = enemy.pathIndex;
+      let isRemoved = false;
 
       if (enemy.pathIndex < enemy.path.length - 1) {
         const targetPos = enemy.path[enemy.pathIndex + 1];
-        const reached = this.moveEnemy(enemy, targetPos, dt, speedMult);
+        const { reached, newPos: computedPos } = this.moveEnemy(enemy, targetPos, dt, speedMult);
+        newPos = computedPos;
         if (reached) {
-          useGameStore.getState().updateEnemy(enemy.id, { pathIndex: enemy.pathIndex + 1 });
+          newPathIndex = enemy.pathIndex + 1;
         }
       } else {
         // 목표 지점 도달
-        useGameStore.getState().removeEnemy(enemy.id);
-        console.log(`[GameManager] Enemy reached end. Current lives: ${useGameStore.getState().lives}`);
-        this.loseLife(1);
-        if (useGameStore.getState().lives <= 0) {
-          const multiRoomId = multiplayerService.getCurrentRoomId();
-          if (!multiRoomId) {
-            useGameStore.setState({ gameOver: true, isWaveActive: false });
-            soundService.playDefeatSound();
+        toRemoveIds.add(enemy.id);
+        lifeLost++;
+        isRemoved = true;
+      }
+
+      if (!isRemoved) {
+        let newAttackCooldown = enemy.attackCooldown;
+        if (newAttackCooldown > 0) {
+          newAttackCooldown = Math.max(0, newAttackCooldown - dt);
+        } else {
+          const target = this.findTargetTower(enemy, newPos);
+          if (target) {
+            this.enemyAttackTower(enemy, target);
+            newAttackCooldown = 2.0;
           }
         }
-        // [BUG-C1] 목표 도달 후 return — 제거된 적이 같은 프레임에 타워를 공격하는 유령 공격 버그 수정
-        return;
-      }
-
-      // 적이 타워 공격
-      if (enemy.attackCooldown > 0) {
-        useGameStore.getState().updateEnemy(enemy.id, {
-          attackCooldown: Math.max(0, enemy.attackCooldown - dt),
+        
+        enemyUpdates.set(enemy.id, {
+          position: newPos,
+          pathIndex: newPathIndex,
+          attackCooldown: newAttackCooldown
         });
-      } else {
-        const target = this.findTargetTower(enemy);
-        if (target) {
-          this.enemyAttackTower(enemy, target);
-        }
       }
     });
+
+    if (toRemoveIds.size > 0 || enemyUpdates.size > 0) {
+      useGameStore.setState(state => {
+        let newLives = state.lives;
+        let isGameOver = state.gameOver;
+        let isWaveActive = state.isWaveActive;
+
+        if (lifeLost > 0) {
+          newLives = Math.max(0, state.lives - lifeLost);
+          console.log(`[GameManager] Enemy reached end. Current lives: ${newLives}`);
+          if (newLives <= 0 && state.lives > 0) {
+            const multiRoomId = multiplayerService.getCurrentRoomId();
+            if (!multiRoomId) {
+              isGameOver = true;
+              isWaveActive = false;
+              soundService.playDefeatSound();
+            }
+          }
+        }
+
+        return {
+          lives: newLives,
+          gameOver: isGameOver,
+          isWaveActive: isWaveActive,
+          enemies: state.enemies
+            .filter(e => !toRemoveIds.has(e.id))
+            .map(e => {
+              const updates = enemyUpdates.get(e.id);
+              return updates ? { ...e, ...updates } : e;
+            })
+        };
+      });
+    }
   }
 
-  private moveEnemy(enemy: Enemy, targetPos: Position, dt: number, speedMult: number): boolean {
+  private moveEnemy(enemy: Enemy, targetPos: Position, dt: number, speedMult: number): { reached: boolean; newPos: Position } {
     const dx = targetPos.x - enemy.position.x;
     const dy = targetPos.y - enemy.position.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 5) return true;
+    if (dist < 5) return { reached: true, newPos: targetPos };
 
     const move = enemy.moveSpeed * speedMult * dt;
     const ratio = Math.min(move / dist, 1);
-    useGameStore.getState().updateEnemy(enemy.id, {
-      position: {
+    return {
+      reached: false,
+      newPos: {
         x: enemy.position.x + dx * ratio,
         y: enemy.position.y + dy * ratio,
-      },
-    });
-    return false;
+      }
+    };
   }
 
-  private findTargetTower(enemy: Enemy): GamePokemon | undefined {
-    // [TARGETING] 매 공격마다 현재 스토어에서 최신 적 위치를 읽어 실시간 계산.
-    // 로컬 enemy 객체의 position은 이 프레임 시작 시점 스냅샷이므로
-    // moveEnemy()가 이미 위치를 갱신했을 수 있음 → 최신 위치로 재조회.
-    const currentEnemy = useGameStore.getState().enemies.find(e => e.id === enemy.id);
-    const pos = currentEnemy?.position ?? enemy.position;
+  private findTargetTower(enemy: Enemy, explicitPos?: Position): GamePokemon | undefined {
+    const pos = explicitPos ?? enemy.position;
 
     const { towers } = useGameStore.getState();
     let closest: GamePokemon | null = null;
@@ -314,8 +369,6 @@ export class GameManager {
         });
       });
     }
-
-    useGameStore.getState().updateEnemy(enemy.id, { attackCooldown: 2.0 });
   }
 
   private updateTowers(_dt: number) {
@@ -675,7 +728,7 @@ export class GameManager {
       if (!isMultiplayer) {
         try {
           // 도전 업적 (퍼펙트/스피드런/불패/난이도/속도) → AchievementService 위임
-          achievementService.onWaveComplete(wave, currentLives, clearWave, gameTime, difficulty, towers);
+          achievementService.onWaveComplete(wave, currentLives, INITIAL_LIVES_SINGLE, gameTime, difficulty, towers);
 
           // 전설 포켓몬 수집 업적
           for (const tower of towers) {
@@ -688,9 +741,10 @@ export class GameManager {
             }
           }
 
-          // 누적 골드 업적
-          const totalMoney = saveService.load().stats.totalMoneyEarned;
-          achievementService.onMoneyEarned(totalMoney);
+          // 누적 골드 업적 (한 게임 기준)
+          const currentTotalMoney = saveService.load().stats.totalMoneyEarned + this.pendingStats.totalMoneyEarned;
+          const inGameMoney = currentTotalMoney - this.initialTotalMoney;
+          achievementService.onMoneyEarned(inGameMoney);
 
           // 시너지 업적 (현재 활성 시너지 기준)
           const { activeSynergies } = useGameStore.getState();

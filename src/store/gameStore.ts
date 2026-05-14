@@ -6,7 +6,7 @@ import {
 } from '../types/game';
 import {
   EVOLUTION_CHAINS, FUSION_DATA,
-  canMegaEvolve, canGigantamax
+  canMegaEvolve, canGigantamax, canEvolve
 } from '../data/evolution';
 
 import { pokeAPI } from '../api/pokeapi';
@@ -513,6 +513,52 @@ export const useGameStore = create<GameStore>((set, get) => ({
         });
       } catch (err) {
         console.error('Failed to load moves during multi-level up:', err);
+      }
+
+      // ─── 레벨 진화 체크 ──────────────────────────────────────────
+      // 레벨업 후 현재 레벨에서 진화 가능한지 확인하여 모달 큐에 추가
+      const evoData = canEvolve(tower.pokemonId, currentLevel);
+      if (evoData) {
+        // 해당 포켓몬의 레벨 진화 옵션 전체 수집 (분기 진화 대응)
+        const levelEvoOptions = EVOLUTION_CHAINS.filter(
+          e => e.from === tower.pokemonId && e.level !== undefined && e.item === undefined && currentLevel >= e.level!
+        );
+        // 이미 큐에 동일 타워가 등록되어 있으면 중복 추가 방지
+        const currentQueue = get().evolutionConfirmQueue;
+        const alreadyQueued = currentQueue.some(q => q.towerId === towerId);
+        if (!alreadyQueued && levelEvoOptions.length > 0) {
+          const evolutionOptions = levelEvoOptions.map(e => ({
+            targetId: e.to,
+            targetName: `#${e.to}`,
+            method: `Lv.${e.level}`,
+          }));
+          set(state => ({
+            evolutionConfirmQueue: [
+              ...state.evolutionConfirmQueue,
+              { towerId, evolutionOptions },
+            ],
+          }));
+          // 진화 옵션의 포켓몬 이름을 비동기로 가져와서 큐 업데이트
+          Promise.all(
+            levelEvoOptions.map(e => pokeAPI.getPokemon(e.to).then(d => ({
+              targetId: e.to,
+              targetName: d.displayName,
+              method: `Lv.${e.level}`,
+            })).catch(() => ({
+              targetId: e.to,
+              targetName: `#${e.to}`,
+              method: `Lv.${e.level}`,
+            })))
+          ).then(resolvedOptions => {
+            set(state => ({
+              evolutionConfirmQueue: state.evolutionConfirmQueue.map(q =>
+                q.towerId === towerId
+                  ? { ...q, evolutionOptions: resolvedOptions }
+                  : q
+              ),
+            }));
+          }).catch(() => {});
+        }
       }
     }
   },

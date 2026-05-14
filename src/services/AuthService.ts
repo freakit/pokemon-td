@@ -31,10 +31,50 @@ class AuthService {
   }
 
   private async getUserData(firebaseUser: FirebaseUser): Promise<User> {
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-    if (!userDoc.exists()) {
-      // [수정 1] 신규 유저: Firebase Auth의 displayName 우선 사용 (게스트 닉네임 보존)
-      const newUser: User = {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (!userDoc.exists()) {
+        // [수정 1] 신규 유저: Firebase Auth의 displayName 우선 사용 (게스트 닉네임 보존)
+        const newUser: User = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || 'Anonymous',
+          photoURL: firebaseUser.photoURL || '',
+          rating: 1000,
+          createdAt: Date.now()
+        };
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          ...newUser,
+          lastLogin: serverTimestamp()
+        });
+        return newUser;
+      }
+      
+      // [수정 2] 기존 유저: Firestore 데이터 기반으로 반환하되,
+      // displayName이 비어있거나 'Anonymous'이면 Firebase Auth 값으로 보완
+      const userData = userDoc.data() as User;
+      const resolvedDisplayName =
+        (userData.displayName && userData.displayName !== 'Anonymous')
+          ? userData.displayName
+          : (firebaseUser.displayName || userData.displayName || 'Anonymous');
+
+      if (resolvedDisplayName !== userData.displayName) {
+        // Firestore의 displayName을 최신화
+        await setDoc(doc(db, 'users', firebaseUser.uid), {
+          displayName: resolvedDisplayName,
+          lastLogin: serverTimestamp()
+        }, { merge: true });
+        return { ...userData, displayName: resolvedDisplayName };
+      }
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        lastLogin: serverTimestamp()
+      }, { merge: true });
+      return userData;
+    } catch (error) {
+      console.error('Firestore Error in getUserData (Quota Exceeded?):', error);
+      // Firestore 에러 시 임시 유저 데이터 반환하여 로그인 차단 방지
+      return {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
         displayName: firebaseUser.displayName || 'Anonymous',
@@ -42,34 +82,7 @@ class AuthService {
         rating: 1000,
         createdAt: Date.now()
       };
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        ...newUser,
-        lastLogin: serverTimestamp()
-      });
-      return newUser;
     }
-    
-    // [수정 2] 기존 유저: Firestore 데이터 기반으로 반환하되,
-    // displayName이 비어있거나 'Anonymous'이면 Firebase Auth 값으로 보완
-    const userData = userDoc.data() as User;
-    const resolvedDisplayName =
-      (userData.displayName && userData.displayName !== 'Anonymous')
-        ? userData.displayName
-        : (firebaseUser.displayName || userData.displayName || 'Anonymous');
-
-    if (resolvedDisplayName !== userData.displayName) {
-      // Firestore의 displayName을 최신화
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
-        displayName: resolvedDisplayName,
-        lastLogin: serverTimestamp()
-      }, { merge: true });
-      return { ...userData, displayName: resolvedDisplayName };
-    }
-
-    await setDoc(doc(db, 'users', firebaseUser.uid), {
-      lastLogin: serverTimestamp()
-    }, { merge: true });
-    return userData;
   }
 
   async signInWithGoogle(): Promise<void> {
@@ -111,11 +124,16 @@ class AuthService {
         rating: 1000,
         createdAt: Date.now()
       };
-      await setDoc(doc(db, 'users', result.user.uid), {
-        ...guestUser,
-        isGuest: true,
-        lastLogin: serverTimestamp()
-      });
+      
+      try {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          ...guestUser,
+          isGuest: true,
+          lastLogin: serverTimestamp()
+        });
+      } catch (dbError) {
+        console.warn('Firestore quota exceeded or error, skipping DB save for guest', dbError);
+      }
 
       // 강제로 상태를 최신화하여 화면에 반영되도록 함
       if (this.currentUser) {

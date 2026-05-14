@@ -108,60 +108,50 @@ class SaveService {
     if (achievement.pointsPerCompletion === undefined) achievement.pointsPerCompletion = achievement.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[achievement.tier] ?? 3 : 3;
 
     const prevProgress = achievement.progress;
-    achievement.progress = progress;
+    let justUnlocked = false;
 
-    // 달성 조건: target 도달 (횟수 누적)
-    if (progress >= achievement.target) {
-      const isFirstTime = !achievement.unlocked;
-      achievement.unlocked = true;
-
-      // 새 달성 1회 카운트
-      achievement.completions = (achievement.completions ?? 0) + 1;
-      const earnedAP = achievement.pointsPerCompletion ?? 3;
-      achievement.totalPoints = (achievement.totalPoints ?? 0) + earnedAP;
-
-      // 전체 누적 AP 갱신
-      data.totalAP = (data.totalAP ?? 0) + earnedAP;
-
-      // progress 리셋 (다음 달성 준비 — 단 일회성 업적은 리셋 안 함)
-      // target이 1 이하인 업적(일회성) vs 반복 가능한 업적 구분
-      // 반복 가능: kills, boss, money, sell, evolve, wave, combo 등 누적형
-      // [NEW-2 FIX] 'wave' 제거 — wave 업적은 게임당 1회만 달성해야 함
-      // 기존: 'wave'가 repeatable에 포함 → 웨이브 50 클리어 시 wave3 업적이 48번 달성되어 ~30배 AP 인플레이션
-      const repeatable = ['kills', 'boss', 'money', 'sell', 'evolve', 'combo', 'multi_win', 'collect'].some(
-        c => achievement!.condition.includes(c)
-      );
-      if (repeatable) {
-        achievement.progress = 0; // 다음 사이클 준비
-      }
-
-
-
-      // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
-      import('../store/gameStore')
-        .then(m => m.useGameStore.getState().showAchievementToast(achievement.name, earnedAP, isFirstTime))
-        .catch(() => {});
-    } else {
-      // 미달성 — progress만 업데이트 (prevProgress보다 높은 경우만)
+    // 이미 달성된 업적이면 더 이상 처리하지 않음 (반복 달성 버그 방지)
+    if (!achievement.unlocked) {
       achievement.progress = Math.max(prevProgress, progress);
+
+      // 달성 조건: target 도달
+      if (achievement.progress >= achievement.target) {
+        achievement.unlocked = true;
+        justUnlocked = true;
+
+        // 새 달성 1회 카운트
+        achievement.completions = 1;
+        const earnedAP = achievement.pointsPerCompletion ?? 3;
+        achievement.totalPoints = earnedAP;
+
+        // 전체 누적 AP 갱신
+        data.totalAP = (data.totalAP ?? 0) + earnedAP;
+
+        // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
+        import('../store/gameStore')
+          .then(m => m.useGameStore.getState().showAchievementToast(achievement!.name, earnedAP, true))
+          .catch(() => {});
+      }
     }
 
     this.save(data);
 
-    // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
-    import('./AuthService')
-      .then(({ authService }) => {
-        if (authService.getCurrentUser()) {
-          databaseService
-            .updateUserAchievement(achievement!, data.totalAP)
-            .catch((err: any) => {
-              if (err?.code !== 'permission-denied') {
-                console.warn('[SaveService] Failed to persist achievement to DB:', err);
-              }
-            });
-        }
-      })
-      .catch(() => {});
+    // [FREE-TIER] 업적이 최초로 달성되었을 때만 Firestore에 저장 (쿼터 보호)
+    if (justUnlocked) {
+      import('./AuthService')
+        .then(({ authService }) => {
+          if (authService.getCurrentUser()) {
+            databaseService
+              .updateUserAchievement(achievement!, data.totalAP)
+              .catch((err: any) => {
+                if (err?.code !== 'permission-denied') {
+                  console.warn('[SaveService] Failed to persist achievement to DB:', err);
+                }
+              });
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   // ─── 총 AP 조회 ──────────────────────────────────────────────────────────
