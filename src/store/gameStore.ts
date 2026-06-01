@@ -652,8 +652,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       achievementService.onEvolve('normal');
 
       // 진화 확정 큐에서 제거
+      // [C1-FIX] slice(1)(첫 항목 제거) → towerId 필터.
+      //   메가/거다 진화는 큐를 거치지 않고 호출되는데, slice(1)이면 대기 중인
+      //   무관한 레벨진화 확인 항목을 잘못 삼키는 버그가 있었음.
+      //   towerId당 큐 항목은 최대 1개(addXpToTower의 alreadyQueued 가드)이므로
+      //   레벨진화 케이스에서도 동일하게 1개만 제거된다.
       set(state => ({
-        evolutionConfirmQueue: state.evolutionConfirmQueue.slice(1),
+        evolutionConfirmQueue: state.evolutionConfirmQueue.filter(q => q.towerId !== towerId),
       }));
 
       return true;

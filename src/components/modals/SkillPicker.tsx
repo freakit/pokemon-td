@@ -31,6 +31,14 @@ export const SkillPicker: React.FC = () => {
   const newMove = newMoves[0];
   const currentMove = tower.equippedMoves[0];
 
+  // [CRASH-FIX] 장착 기술이 없으면(빈 equippedMoves) 새 기술을 자동 학습 후 종료.
+  //   이전: currentMove undefined → currentMove.displayName 접근 시 TypeError(흰 화면).
+  if (!currentMove) {
+    updateTower(towerId, { equippedMoves: [newMove] });
+    removeCurrentSkillChoice();
+    return null;
+  }
+
   const handleLearnNewMove = () => {
     updateTower(towerId, { equippedMoves: [newMove] });
     removeCurrentSkillChoice();

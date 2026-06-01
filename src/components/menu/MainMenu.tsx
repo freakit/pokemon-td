@@ -1,6 +1,6 @@
 // src/components/menu/MainMenu.tsx
 import { useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen } from '../mo
 export const MainMenu = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
+  const isOffline = authService.isOfflineMode();
   const { t } = useTranslation();
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
@@ -31,8 +32,20 @@ export const MainMenu = () => {
   };
 
   const handleMultiPlay = () => {
+    // [FREE-TIER] 오프라인 모드: 멀티플레이 차단
+    if (isOffline) { alert(t('mainMenu.offlineMultiBlocked')); return; }
     if (!hasMultiTutorialSeen()) { setPendingNav('/lobby'); setTutorial('multi'); }
     else navigate('/lobby');
+  };
+
+  // [FREE-TIER] 오프라인 모드: 서버 의존 기능(랭킹/전당) 차단
+  const handleRankings = () => {
+    if (isOffline) { alert(t('mainMenu.offlineRankingBlocked')); return; }
+    setShowRankings(true);
+  };
+  const handleHallOfFame = () => {
+    if (isOffline) { alert(t('mainMenu.offlineRankingBlocked')); return; }
+    setShowHallOfFame(true);
   };
 
   const handleProceed = () => {
@@ -82,6 +95,14 @@ export const MainMenu = () => {
             <HeroTitle>{t('mainMenu.gameTitle')}</HeroTitle>
           </HeroSection>
 
+          {/* [FREE-TIER] 오프라인 모드 안내 배너 */}
+          {isOffline && (
+            <OfflineBanner>
+              <OfflineBadge>🔌 {t('mainMenu.offlineBadge')}</OfflineBadge>
+              <OfflineDesc>{t('mainMenu.offlineBannerDesc')}</OfflineDesc>
+            </OfflineBanner>
+          )}
+
           {/* Primary game mode cards */}
           <ModeGrid>
             <ModeCard $accent="#3b82f6" onClick={handleSinglePlay}>
@@ -110,7 +131,7 @@ export const MainMenu = () => {
               <ModeArrow>→</ModeArrow>
             </ModeCard>
 
-            <ModeCard $accent="#10b981" onClick={handleMultiPlay}>
+            <ModeCard $accent="#10b981" onClick={handleMultiPlay} $disabled={isOffline}>
               <ModeCardBg $color="rgba(16,185,129,0.06)" />
               <ModeCardBorder $color="#10b981" />
               <ModeIconWrap $bg="rgba(16,185,129,0.1)">
@@ -118,7 +139,7 @@ export const MainMenu = () => {
               </ModeIconWrap>
               <ModeInfo>
                 <ModeName>{t('mainMenu.multiPlay')}</ModeName>
-                <ModeDesc>{t('mainMenu.multiPlayDesc')}</ModeDesc>
+                <ModeDesc>{isOffline ? `🔒 ${t('mainMenu.offlineBadge')}` : t('mainMenu.multiPlayDesc')}</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>
@@ -131,10 +152,10 @@ export const MainMenu = () => {
               <UtilBtn onClick={() => setShowAchievements(true)}>
                 <UtilIcon>🏅</UtilIcon>{t('mainMenu.achievements')}
               </UtilBtn>
-              <UtilBtn onClick={() => setShowHallOfFame(true)}>
+              <UtilBtn onClick={handleHallOfFame} $dim={isOffline}>
                 <UtilIcon>🏆</UtilIcon>{t('mainMenu.hallOfFame')}
               </UtilBtn>
-              <UtilBtn onClick={() => setShowRankings(true)}>
+              <UtilBtn onClick={handleRankings} $dim={isOffline}>
                 <UtilIcon>📊</UtilIcon>{t('mainMenu.rankings')}
               </UtilBtn>
             </UtilRow>
@@ -287,7 +308,7 @@ const ModeGrid = styled.div`
   ${lMedia.phoneSm} { grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
 `;
 
-const ModeCard = styled.button<{ $accent: string }>`
+const ModeCard = styled.button<{ $accent: string; $disabled?: boolean }>`
   display:flex; align-items:center; gap:14px;
   padding:20px 18px;
   background:rgba(255,255,255,0.03);
@@ -295,6 +316,7 @@ const ModeCard = styled.button<{ $accent: string }>`
   border-radius:14px; cursor:pointer; text-align:left;
   position:relative; overflow:hidden;
   transition:all 0.22s ease; color:#fff;
+  ${p => p.$disabled && css`opacity:0.5; filter:grayscale(0.6);`}
 
   &:hover {
     border-color: ${p => p.$accent}55;
@@ -371,7 +393,7 @@ const UtilRow = styled.div`
   ${lMedia.phoneSm} { gap:6px; }
 `;
 
-const UtilBtn = styled.button`
+const UtilBtn = styled.button<{ $dim?: boolean }>`
   display:flex; align-items:center; justify-content:center; gap:7px;
   padding:12px 10px;
   background:rgba(255,255,255,0.03);
@@ -379,9 +401,28 @@ const UtilBtn = styled.button`
   border-radius:10px; cursor:pointer;
   font-size:14px; font-weight:500; color:rgba(255,255,255,0.6);
   transition:all 0.2s;
+  ${p => p.$dim && css`opacity:0.5;`}
   &:hover { background:rgba(255,255,255,0.07); border-color:rgba(255,255,255,0.14); color:#fff; }
   ${media.mobile} { font-size:13px; padding:10px 8px; }
   ${lMedia.phoneSm} { font-size:11px; padding:8px 6px; gap:5px; }
+`;
+
+// [FREE-TIER] 오프라인 모드 배너
+const OfflineBanner = styled.div`
+  margin:-12px 0 28px; padding:14px 18px;
+  background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.28);
+  border-radius:12px; display:flex; flex-direction:column; gap:6px;
+  ${media.mobile} { margin:-8px 0 18px; padding:12px 14px; }
+`;
+
+const OfflineBadge = styled.div`
+  font-size:13px; font-weight:700; color:#fbbf24;
+  ${media.mobile} { font-size:12px; }
+`;
+
+const OfflineDesc = styled.div`
+  font-size:12.5px; color:rgba(255,255,255,0.6); line-height:1.6;
+  ${media.mobile} { font-size:11.5px; }
 `;
 
 const UtilIcon = styled.span`font-size:16px; ${lMedia.phoneSm}{font-size:14px;}`;

@@ -841,7 +841,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       <SynergyDetails />
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
       <EvolutionConfirmModal />
-      {waveEndItemPick && <WaveEndPicker />}
+      {/* [D1-FIX] 클리어 모달(wave50/스토리)과 동시 표출 방지.
+          wave50Clear "계속" 선택 시 wave50Clear=false가 되면 그때 WaveEndPicker가 보여 보상도 수령. */}
+      {waveEndItemPick && !wave50Clear && !storyClear && <WaveEndPicker />}
       {storyClear && storyChapterId && (() => {
         const ch = AEGIS_STORY_CHAPTERS.find(c => c.id === storyChapterId);
         return ch ? (

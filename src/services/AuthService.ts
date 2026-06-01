@@ -15,6 +15,12 @@ class AuthService {
   private currentUser: User | null = null;
   private listeners: ((user: User | null) => void)[] = [];
 
+  // [FREE-TIER] 오프라인(로컬 전용) 세션 상태
+  //   Firebase 무료 사용량 초과 등으로 로그인이 불가능할 때 진입.
+  //   Firebase를 전혀 사용하지 않는 로컬 유저로 싱글/스토리 모드만 이용.
+  private _isOffline = false;
+  private readonly OFFLINE_KEY = 'pokemon-td-offline-user';
+
   // [FIX-QUOTA] lastLogin Firestore 쓰기 24시간 쿨다운
   // 매 auth 상태 변경마다 setDoc을 실행하는 낭비를 방지.
   // uid → 마지막 기록 시각(ms) 맵. 앱 세션 내에서만 유효(재시작 시 리셋).
@@ -31,42 +37,139 @@ class AuthService {
     this._lastLoginWritten.set(uid, Date.now());
   }
 
+  // [FREE-TIER] Firestore read 최대 대기 시간.
+  //   쿼터 초과(resource-exhausted)는 보통 빠르게 throw되지만,
+  //   백엔드 지연/네트워크 차단으로 hang하면 로그인이 영영 끝나지 않으므로 상한을 둔다.
+  private readonly FIRESTORE_READ_TIMEOUT_MS = 5000;
+
+  /** Promise에 타임아웃을 건다. 초과 시 reject. */
+  private withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`[timeout] ${label} > ${ms}ms`)), ms)
+      ),
+    ]);
+  }
+
+  /** Firestore 없이도 항상 만들 수 있는 임시 유저(로그인 비차단용). */
+  private buildFallbackUser(firebaseUser: FirebaseUser): User {
+    return {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      displayName: firebaseUser.displayName || 'Anonymous',
+      photoURL: firebaseUser.photoURL || '',
+      rating: 1000,
+      createdAt: Date.now(),
+    };
+  }
+
   constructor() {
+    // [FREE-TIER] 오프라인 세션을 동기적으로 먼저 복원.
+    //   Firebase 응답(onAuthStateChanged) 전에도 currentUser가 채워져
+    //   ProtectedRoute가 즉시 통과되고 싱글/스토리 모드를 이용할 수 있음.
+    this.restoreOfflineSession();
+
     onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('AuthService(onAuthStateChanged):', firebaseUser?.displayName || 'null');
-      
+
       if (firebaseUser) {
+        // 실제 Firebase 로그인 성공 → 오프라인 세션보다 우선
+        if (this._isOffline) this.clearOfflineSession();
         const user = await this.getUserData(firebaseUser);
         this.currentUser = user;
         this.notifyListeners(user);
       } else {
-        this.currentUser = null;
-        this.notifyListeners(null);
+        // Firebase 유저 없음: 오프라인 세션이 있으면 유지(로그아웃 처리하지 않음)
+        if (this._isOffline && this.currentUser) {
+          this.notifyListeners(this.currentUser);
+        } else {
+          this.currentUser = null;
+          this.notifyListeners(null);
+        }
       }
     });
   }
 
+  // ─── [FREE-TIER] 오프라인 모드 ────────────────────────────────────────────
+
+  /** 현재 오프라인(로컬 전용) 세션 여부 */
+  isOfflineMode(): boolean {
+    return this._isOffline;
+  }
+
+  /**
+   * 오프라인(로컬 전용) 모드 진입.
+   * Firebase 무료 사용량 초과/장애로 로그인이 불가능할 때 호출.
+   * Firebase를 전혀 호출하지 않는 로컬 유저를 생성하여 싱글/스토리 모드를 이용하게 한다.
+   * 멀티플레이/랭킹/전당 등 서버 기능은 비활성화된다.
+   */
+  enterOfflineMode(nickname?: string): void {
+    const name = nickname?.trim() || this.currentUser?.displayName || '플레이어';
+    // 기존 오프라인 uid가 있으면 재사용(로컬 진행 데이터 일관성), 없으면 새로 생성
+    const uid =
+      this._isOffline && this.currentUser?.uid
+        ? this.currentUser.uid
+        : `offline-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const offlineUser: User = {
+      uid,
+      email: '',
+      displayName: name,
+      photoURL: '',
+      rating: 0,
+      createdAt: Date.now(),
+    };
+    this._isOffline = true;
+    this.currentUser = offlineUser;
+    try {
+      localStorage.setItem(this.OFFLINE_KEY, JSON.stringify(offlineUser));
+    } catch { /* ignore */ }
+    this.notifyListeners(offlineUser);
+  }
+
+  /** localStorage에 저장된 오프라인 세션을 복원(앱 시작 시 1회). */
+  private restoreOfflineSession(): void {
+    try {
+      const raw = localStorage.getItem(this.OFFLINE_KEY);
+      if (!raw) return;
+      const user = JSON.parse(raw) as User;
+      if (user && user.uid) {
+        this._isOffline = true;
+        this.currentUser = user;
+      }
+    } catch { /* ignore */ }
+  }
+
+  /** 오프라인 세션 정리(실제 로그인 성공 또는 로그아웃 시). */
+  private clearOfflineSession(): void {
+    this._isOffline = false;
+    try { localStorage.removeItem(this.OFFLINE_KEY); } catch { /* ignore */ }
+  }
+
   private async getUserData(firebaseUser: FirebaseUser): Promise<User> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      // [FREE-TIER] read에 타임아웃을 걸어 Firestore가 throw하든 hang하든
+      //   로그인이 막히지 않게 한다(쿼터 초과 시 resource-exhausted 또는 지연).
+      const userDoc = await this.withTimeout(
+        getDoc(doc(db, 'users', firebaseUser.uid)),
+        this.FIRESTORE_READ_TIMEOUT_MS,
+        'getDoc(users)'
+      );
+
       if (!userDoc.exists()) {
         // [수정 1] 신규 유저: Firebase Auth의 displayName 우선 사용 (게스트 닉네임 보존)
-        const newUser: User = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || 'Anonymous',
-          photoURL: firebaseUser.photoURL || '',
-          rating: 1000,
-          createdAt: Date.now()
-        };
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
+        const newUser: User = this.buildFallbackUser(firebaseUser);
+        // [FREE-TIER] 쓰기는 fire-and-forget — 실패/지연해도 로그인은 즉시 진행
+        setDoc(doc(db, 'users', firebaseUser.uid), {
           ...newUser,
           lastLogin: serverTimestamp()
-        });
-        this.markLastLoginWritten(firebaseUser.uid);
+        })
+          .then(() => this.markLastLoginWritten(firebaseUser.uid))
+          .catch(err => console.warn('[Auth] new-user setDoc skipped:', err?.code || err?.message || err));
         return newUser;
       }
-      
+
       // [수정 2] 기존 유저: Firestore 데이터 기반으로 반환하되,
       // displayName이 비어있거나 'Anonymous'이면 Firebase Auth 값으로 보완
       const userData = userDoc.data() as User;
@@ -76,34 +179,30 @@ class AuthService {
           : (firebaseUser.displayName || userData.displayName || 'Anonymous');
 
       if (resolvedDisplayName !== userData.displayName) {
-        // displayName 불일치: 최신화 + lastLogin 갱신 (항상 쓰기)
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
+        // displayName 불일치: 최신화 + lastLogin 갱신 (fire-and-forget)
+        setDoc(doc(db, 'users', firebaseUser.uid), {
           displayName: resolvedDisplayName,
           lastLogin: serverTimestamp()
-        }, { merge: true });
-        this.markLastLoginWritten(firebaseUser.uid);
+        }, { merge: true })
+          .then(() => this.markLastLoginWritten(firebaseUser.uid))
+          .catch(err => console.warn('[Auth] displayName setDoc skipped:', err?.code || err?.message || err));
         return { ...userData, displayName: resolvedDisplayName };
       }
 
-      // [FIX-QUOTA] lastLogin 쓰기: 24시간 이상 지났을 때만 실행
+      // [FIX-QUOTA] lastLogin 쓰기: 24시간 이상 지났을 때만 실행 (fire-and-forget)
       if (this.shouldWriteLastLogin(firebaseUser.uid)) {
-        await setDoc(doc(db, 'users', firebaseUser.uid), {
+        setDoc(doc(db, 'users', firebaseUser.uid), {
           lastLogin: serverTimestamp()
-        }, { merge: true });
-        this.markLastLoginWritten(firebaseUser.uid);
+        }, { merge: true })
+          .then(() => this.markLastLoginWritten(firebaseUser.uid))
+          .catch(err => console.warn('[Auth] lastLogin setDoc skipped:', err?.code || err?.message || err));
       }
       return userData;
-    } catch (error) {
-      console.error('Firestore Error in getUserData (Quota Exceeded?):', error);
-      // Firestore 에러 시 임시 유저 데이터 반환하여 로그인 차단 방지
-      return {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || 'Anonymous',
-        photoURL: firebaseUser.photoURL || '',
-        rating: 1000,
-        createdAt: Date.now()
-      };
+    } catch (error: any) {
+      // [FREE-TIER] resource-exhausted(쿼터 초과) / 타임아웃 / 네트워크 차단 모두 여기로.
+      //   임시 유저를 반환해 로그인 차단을 방지한다. 싱글/스토리는 정상 이용 가능.
+      console.error('Firestore Error in getUserData (Quota Exceeded/timeout?):', error?.code || error?.message || error);
+      return this.buildFallbackUser(firebaseUser);
     }
   }
 
@@ -119,6 +218,16 @@ class AuthService {
   }
 
   async signOut(): Promise<void> {
+    // [FREE-TIER] 오프라인 모드: Firebase 호출 없이 로컬 세션만 정리.
+    //   onAuthStateChanged가 발생하지 않으므로 수동으로 리스너에 알림.
+    if (this._isOffline) {
+      this.clearOfflineSession();
+      localStorage.removeItem('currentRoomId');
+      this.currentUser = null;
+      this.notifyListeners(null);
+      return;
+    }
+
     // [A3] 로그아웃 전 방 정리 — dynamic import로 순환참조 회피
     const roomId = localStorage.getItem('currentRoomId');
     if (roomId) {

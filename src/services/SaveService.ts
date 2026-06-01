@@ -140,7 +140,8 @@ class SaveService {
     if (justUnlocked) {
       import('./AuthService')
         .then(({ authService }) => {
-          if (authService.getCurrentUser()) {
+          // [FREE-TIER] 오프라인 모드는 Firestore 쓰기를 건너뜀
+          if (authService.getCurrentUser() && !authService.isOfflineMode()) {
             databaseService
               .updateUserAchievement(achievement!, data.totalAP)
               .catch((err: any) => {
