@@ -108,9 +108,12 @@ function App() {
       setUser(authedUser);
       setIsAuthLoading(false);
       if (authedUser) {
-        saveService.syncAchievementsFromDB().catch(err =>
-          console.warn('[App] Failed to sync achievements:', err)
-        );
+        // [FREE-TIER] 오프라인 모드는 Firestore 동기화 시도하지 않음
+        if (!authService.isOfflineMode()) {
+          saveService.syncAchievementsFromDB().catch(err =>
+            console.warn('[App] Failed to sync achievements:', err)
+          );
+        }
         if (location.pathname === '/login') {
           navigate('/');
         }

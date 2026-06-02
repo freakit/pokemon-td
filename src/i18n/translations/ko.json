@@ -44,7 +44,11 @@
     "confirmReset": "정말 모든 데이터를 초기화하시겠습니까?",
     "fetchPokemonError": "포켓몬 {id} 정보 로딩 실패",
     "fetchMoveError": "기술 {name} 정보 로딩 실패",
-    "fetchLearnableMovesError": "기술 학습 정보 로딩 실패"
+    "fetchLearnableMovesError": "기술 학습 정보 로딩 실패",
+    "cannotFuseBase": "이 포켓몬은 합체의 베이스가 될 수 없습니다.",
+    "cannotSelectSamePokemon": "같은 포켓몬은 선택할 수 없습니다.",
+    "cannotFusePokemon": "이 조합으로는 합체할 수 없습니다.",
+    "skillLoadFailed": "스킬 정보를 불러오지 못했습니다. 다시 시도해주세요."
   },
   "nav": {
     "achievements": "업적",
@@ -555,7 +559,11 @@
     "errPopupClosed": "로그인 창이 닫혔습니다",
     "errNetwork": "네트워크 에러가 발생했습니다",
     "errCancelled": "로그인이 취소되었습니다",
-    "errNotAllowed": "허용되지 않은 로그인 방식입니다"
+    "errNotAllowed": "허용되지 않은 로그인 방식입니다",
+    "serverLimitedTitle": "⚠️ 무료 서버 한계 도달",
+    "serverLimitedDesc": "현재 무료 서버 사용량을 초과하여 로그인할 수 없습니다. 오늘은 싱글 플레이와 스토리 모드만 이용할 수 있습니다.",
+    "offlinePlay": "오프라인으로 플레이 (싱글·스토리)",
+    "offlineHint": "로그인 없이 싱글 플레이와 스토리 모드를 즐길 수 있어요"
   },
   "multiplayer": {
     "phase": {
@@ -686,7 +694,11 @@
     "helpSingle": "싱글 플레이 가이드",
     "helpMulti": "멀티 플레이 가이드",
     "gameTitle": "포켓몬 아이기스",
-    "ratingLabel": "⭐ Rating: {rating}"
+    "ratingLabel": "⭐ Rating: {rating}",
+    "offlineBadge": "오프라인 모드",
+    "offlineBannerDesc": "무료 서버 한계로 멀티플레이·랭킹은 일시적으로 이용할 수 없습니다. 싱글 플레이와 스토리 모드는 정상 이용 가능합니다.",
+    "offlineMultiBlocked": "오프라인 모드에서는 멀티플레이를 이용할 수 없습니다.\n무료 서버 한계로 인해 싱글 플레이와 스토리 모드만 이용 가능합니다.",
+    "offlineRankingBlocked": "오프라인 모드에서는 랭킹/전당을 이용할 수 없습니다."
   },
   "multiGameOver": {
     "title": "게임 종료!",

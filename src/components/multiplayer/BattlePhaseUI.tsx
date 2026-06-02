@@ -267,8 +267,15 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
   }, [gameState?.currentPhase, gameState?.currentRound]);
 
   // 타워 데이터 실시간 구독
+  // [FREE-TIER] battle/waiting_battle 페이즈에만 구독 — wave·shopping 페이즈의
+  //   towerDetails 다운로드를 제거(RTDB 다운로드 대폭 절감).
+  //   battle 진입 시 RTDB onValue가 현재값을 즉시 1회 콜백하므로(Firebase 보장 동작)
+  //   teamDataVersion 갱신 → showArena 트리거 + AI 시뮬은 executeBattles의 forceFetch로 보강되어
+  //   배틀 입력/결정론에 영향 없음.
   useEffect(() => {
     if (!roomId) return;
+    const phase = gameState?.currentPhase;
+    if (phase !== 'battle' && phase !== 'waiting_battle') return;
     const unsubscribe = multiplayerService.onAllTowerDetailsUpdate(roomId, (allTowers) => {
       let anyChanged = false;
       allTowers.forEach((towers, userId) => {
@@ -286,7 +293,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       if (anyChanged) setTeamDataVersion(v => v + 1);
     });
     return unsubscribe;
-  }, [roomId]);
+  }, [roomId, gameState?.currentPhase]);
 
   const forceFetchTowerDetails = useCallback((): Promise<void> => {
     return new Promise((resolve) => {

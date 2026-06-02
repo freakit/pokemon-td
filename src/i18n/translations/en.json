@@ -44,7 +44,11 @@
     "confirmReset": "Are you sure you want to reset all data?",
     "fetchPokemonError": "Failed to fetch Pokémon {id}",
     "fetchMoveError": "Failed to fetch move {name}",
-    "fetchLearnableMovesError": "Failed to fetch learnable moves"
+    "fetchLearnableMovesError": "Failed to fetch learnable moves",
+    "cannotFuseBase": "This Pokémon cannot be used as a fusion base.",
+    "cannotSelectSamePokemon": "You cannot select the same Pokémon.",
+    "cannotFusePokemon": "These Pokémon cannot be fused together.",
+    "skillLoadFailed": "Failed to load skill data. Please try again."
   },
   "nav": {
     "achievements": "Achievements",
@@ -422,8 +426,8 @@
     "phase": {
       "loading": " Loading resources...",
       "shopping": " Shopping",
-      "waitingWave": " Next Wave: {countdown}s",
-      "waitingWaveFirst": " Starting: {countdown}s",
+      "waitingWaveStart": " Starting: {countdown}s",
+      "waitingWaveNext": " Next Wave: {countdown}s",
       "wave": " Wave {round}",
       "waitingBattle": " Battle Prep: {countdown}s",
       "battle": " Battle!"
@@ -657,7 +661,11 @@
     "helpSingle": "Single Player Guide",
     "helpMulti": "Multiplayer Guide",
     "gameTitle": "Pokémon Aegis",
-    "ratingLabel": "⭐ Rating: {rating}"
+    "ratingLabel": "⭐ Rating: {rating}",
+    "offlineBadge": "Offline Mode",
+    "offlineBannerDesc": "Multiplayer and rankings are temporarily unavailable due to free-server limits. Single Player and Story Mode work normally.",
+    "offlineMultiBlocked": "Multiplayer is not available in offline mode.\nDue to free-server limits, only Single Player and Story Mode are available.",
+    "offlineRankingBlocked": "Rankings / Hall of Fame are not available in offline mode."
   },
   "multiGameOver": {
     "title": "Game Over!",
@@ -716,6 +724,10 @@
     "errPopupClosed": "Login window was closed.",
     "errNetwork": "A network error occurred.",
     "errCancelled": "Login was cancelled.",
-    "errNotAllowed": "This login method is not allowed."
+    "errNotAllowed": "This login method is not allowed.",
+    "serverLimitedTitle": "⚠️ Free Server Limit Reached",
+    "serverLimitedDesc": "The free server usage has been exceeded, so login is unavailable right now. For today, only Single Player and Story Mode can be played.",
+    "offlinePlay": "Play Offline (Single / Story)",
+    "offlineHint": "Enjoy Single Player and Story Mode without logging in."
   }
 }

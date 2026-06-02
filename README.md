@@ -18,7 +18,7 @@
 - **완벽한 포켓몬 구현**: PokeAPI 기반 실제 종족값, 타입 상성(18종), 특성(5종), 기술 구현
 - **레어도 시스템**: 종족값 총합 기준 6단계 (Bronze / Silver / Gold / Diamond / Master / Legend)
 - **상태이상**: 화상, 독, 마비, 냉동, 잠듦, 혼란 6종 — 적과 아군 모두 적용
-- **진화 & 성장**: 레벨업, 친밀도, 돌/통신/특수 조건 진화, **메가진화(47종)**, **거다이맥스(31종)**, **합체(6종)**
+- **진화 & 성장**: 레벨업 진화, 돌/친밀도/통신 등 아이템 진화(상점), **메가진화(48종)**, **거다이맥스(31종)**, **합체(6종)**
 - **로그라이크 요소**: 매 웨이브 종료 후 **스킬 선택(Skill Picker)** 및 **아이템 보상(WaveEndPicker)** 제공
 - **시너지 시스템**: TFT 스타일의 타입(18종) × 세대(9세대) × 특수 조합(23종) 삼중 시너지 효과
 
@@ -52,9 +52,9 @@
 
 | 결과 | 보상 |
 | :--- | :--- |
-| 승리 | 골드 +80 (기본) + 연승 보너스 최대 +80 + 잔여 포켓몬 보너스 +50 |
-| 패배 | 라이프 감소 (2 + 상대 잔여 포켓몬 수) + 연패 위로금 최대 +80 |
-| 바이(Bye) | 배틀 없이 다음 라운드 진행, 자동 골드 보너스 지급 |
+| 승리 | 골드 +40 (기본) + 연승 보너스 (2/3/4연승 → +15/+30/+50) + 잔여 포켓몬 3마리↑ 시 +20 |
+| 패배 | 라이프 감소 (3 + 상대 잔여 포켓몬 수) + 연패 위로금 (2~5연패 → +60~+200) + 저라이프 위로금 (≤20: +30, ≤10: +60) |
+| 바이(Bye) | 배틀 없이 다음 라운드 진행, 골드 +50 자동 지급 |
 
 #### 🎯 PvP 심화 시스템
 - **실시간 4분할 관전**: `BattlePhaseUI`에서 최대 4명의 상대 맵을 동시에 관전
@@ -67,15 +67,16 @@
 ### 🏆 도전과 경쟁
 - **랭킹 시스템**: 맵별 최단 클리어 타임 & 최고 웨이브 Firebase 리더보드
 - **전당 등록 (Hall of Fame)**: Wave 50 클리어 시 영구 보존 기록
-- **업적 시스템 (Achievement Points)**: 5단계 티어(Bronze/Silver/Gold/Diamond/Legendary), 총 **200종 이상** 업적
-  - 웨이브 진행, 전투, 경제, 성장, 시너지(타입/세대/특수), 도전, 멀티플레이 카테고리
+- **업적 시스템 (Achievement Points)**: 5단계 티어(Bronze/Silver/Gold/Diamond/Legendary), 총 **65종** 업적 (8카테고리)
+  - 웨이브(wave), 전투(combat), 경제(economy), 성장(growth), 수집(collect), 시너지(synergy), 도전(challenge), 멀티플레이(multi) 카테고리
   - 각 업적 달성 시 AP(Achievement Points) 누적 지급
 - **Wave 50 챌린지**: 싱글 플레이 궁극 목표 — 클리어 시 전당 등록 + 특수 모달
 
 ### 🌍 다국어 및 편의성 지원
-- **한국어 / 영어** 실시간 전환 (i18next 기반)
+- **한국어 / 영어** 실시간 전환 (React Context 기반 자체 i18n — `I18nProvider`)
 - 게임 내 모든 텍스트, 업적명, 아이템명 번역 지원
 - **플로팅 설정 (Floating Settings)**: 로비, 게임 중 어디서든 화면 내 설정 버튼을 통해 사운드, 속도, 언어 즉시 변경 가능
+- **오프라인 모드**: Firebase 무료 사용량 초과 등으로 로그인이 불가능할 때, 로그인 화면에서 "오프라인으로 플레이"로 진입하여 **싱글 플레이 / 스토리 모드를 로컬에서 정상 이용** 가능 (멀티플레이·랭킹·전당은 비활성). 모든 데이터는 LocalStorage에 보존
 
 ---
 
@@ -92,7 +93,7 @@
 | **Audio** | ![Howler.js](https://img.shields.io/badge/Howler.js-2.2-blueviolet) | BGM & 타입별 SFX |
 | **Routing** | ![React Router](https://img.shields.io/badge/React--Router-7.9-CA4245?logo=reactrouter) | SPA 라우팅 |
 | **HTTP** | ![Axios](https://img.shields.io/badge/Axios-1.6-5A29E4) | PokeAPI 통신 |
-| **i18n** | i18next | 한국어/영어 다국어 지원 |
+| **i18n** | 자체 구현 (React Context) | `I18nProvider` 기반 한국어/영어 다국어 지원 (외부 i18next 미사용) |
 
 ---
 
@@ -104,8 +105,8 @@ src/
 │   └── pokeapi.ts           # PokeAPI 통신 + 1025마리 레어도 캐시 + 프리로딩
 ├── components/
 │   ├── auth/
-│   │   ├── LoginScreen.tsx      # Firebase Auth 로그인 화면 (Google/이메일)
-│   │   └── ProtectedRoute.tsx   # 인증 라우트 가드
+│   │   ├── LoginScreen.tsx      # 로그인 화면 (Google / 게스트 / 오프라인 진입)
+│   │   └── ProtectedRoute.tsx   # 인증 라우트 가드 (오프라인 로컬 유저도 통과)
 │   ├── game/
 │   │   ├── GameCanvas.tsx       # 메인 게임 캔버스 (Konva 기반 렌더링)
 │   │   └── GameLayout.tsx       # 싱글/멀티/스토리 전환 레이아웃 + 게임루프 제어
@@ -146,8 +147,8 @@ src/
 ├── config/
 │   └── firebase.ts          # Firebase 초기화 + serverNow() + Presence
 ├── data/
-│   ├── achievements.ts      # 200종+ 업적 정의 (5티어, 8카테고리)
-│   ├── evolution.ts         # 진화 체인 + 메가진화(47종) + 거다이맥스(31종) + 합체(6종)
+│   ├── achievements.ts      # 65종 업적 정의 (5티어, 8카테고리)
+│   ├── evolution.ts         # 진화 체인 + 메가진화(48종) + 거다이맥스(31종) + 합체(6종)
 │   ├── evolutionItems.ts    # 진화 아이템 정의
 │   ├── maps.ts              # 8종 맵 데이터 (경로, 스폰, 오브젝티브)
 │   └── storyChapters.ts     # 스토리 모드 챕터, 대사, 보상, 난이도 데이터
@@ -155,15 +156,15 @@ src/
 │   ├── GameManager.ts       # 핵심 게임 루프 (적 이동, 타워 공격, 투사체, 웨이브 관리)
 │   └── WaveSystem.ts        # 웨이브 적 스폰 시스템 (보스 포함)
 ├── i18n/
-│   ├── I18nProvider.tsx     # i18next 프로바이더
-│   ├── index.ts             # i18n 초기화 설정
+│   ├── I18nProvider.tsx     # React Context 기반 i18n 프로바이더 (자체 구현)
+│   ├── index.ts             # I18nProvider / useTranslation re-export
 │   └── translations/
 │       ├── en.json          # 영어 번역
 │       └── ko.json          # 한국어 번역
 ├── services/
 │   ├── AIPlayer.ts          # AI 봇 로직 (Easy/Normal/Hard 전략)
 │   ├── AchievementService.ts # 업적 이벤트 중앙 처리기
-│   ├── AuthService.ts       # Firebase Auth 래퍼
+│   ├── AuthService.ts       # Firebase Auth 래퍼 (Google/게스트) + 오프라인 모드 세션
 │   ├── DatabaseService.ts   # Firestore (리더보드, 전당 등록)
 │   ├── MultiplayerService.ts # Firebase RTDB 기반 멀티플레이 동기화 (V7)
 │   ├── PvPBattleService.ts  # PvP 매치업 생성 및 배틀 결과 계산
@@ -229,7 +230,9 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_DATABASE_URL=https://your_project-default-rtdb.firebaseio.com
 ```
+> `VITE_FIREBASE_DATABASE_URL`은 멀티플레이(Realtime Database)에 필요합니다.
 
 ### 4. 개발 서버 실행
 ```bash
@@ -250,7 +253,7 @@ npm run build
 
 | 경로 | 컴포넌트 | 설명 |
 | :--- | :--- | :--- |
-| `/login` | `LoginScreen` | Firebase 로그인 |
+| `/login` | `LoginScreen` | Google / 게스트 로그인 + 오프라인 진입 |
 | `/` | `MainMenu` | 메인 메뉴 (싱글/멀티/스토리/랭킹 등) |
 | `/map-select` | `MapSelector` | 싱글 플레이 맵 선택 |
 | `/story` | `StorySelector` | 스토리 챕터 및 스테이지 선택 |
@@ -258,6 +261,7 @@ npm run build
 | `/game` | `GameLayout` | 실제 게임 화면 (싱글/멀티/스토리 공통) |
 
 > 모든 라우트는 `ProtectedRoute`로 보호되며, 비인증 사용자는 `/login`으로 리다이렉트됩니다.
+> 오프라인 모드에서는 로컬 유저 세션으로 `/`, `/map-select`, `/story`, `/game`은 이용 가능하나, `/lobby`(멀티)는 차단됩니다.
 
 ---
 

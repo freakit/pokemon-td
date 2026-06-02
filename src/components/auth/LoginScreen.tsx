@@ -13,6 +13,8 @@ export const LoginScreen = () => {
   const [guestMode, setGuestMode] = useState(false);
   const [nickname, setNickname] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  // [FREE-TIER] 무료 서버 한계로 로그인 실패 시 오프라인 안내/CTA 노출
+  const [serverLimited, setServerLimited] = useState(false);
 
   const getErrorMessage = (err: any) => {
     const code = err?.code;
@@ -21,10 +23,17 @@ export const LoginScreen = () => {
     return err?.message || t('login.errDefault');
   };
 
+  // 유저가 직접 팝업을 닫은 경우는 서버 한계가 아님 → 오프라인 안내 띄우지 않음
+  const isUserCancellation = (code?: string) =>
+    code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request';
+
   const handleGoogleLogin = async () => {
     setLoading(true); setError('');
     try { await authService.signInWithGoogle(); }
-    catch (err: any) { setError(getErrorMessage(err)); }
+    catch (err: any) {
+      setError(getErrorMessage(err));
+      if (!isUserCancellation(err?.code)) setServerLimited(true);
+    }
     finally { setLoading(false); }
   };
 
@@ -34,8 +43,18 @@ export const LoginScreen = () => {
     if (trimmed.length < 2 || trimmed.length > 12) { setError(t('login.errLength')); return; }
     setLoading(true); setError('');
     try { await authService.signInAsGuest(trimmed); }
-    catch (err: any) { setError(getErrorMessage(err)); }
+    catch (err: any) {
+      setError(getErrorMessage(err));
+      if (!isUserCancellation(err?.code)) setServerLimited(true);
+    }
     finally { setLoading(false); }
+  };
+
+  // [FREE-TIER] 오프라인(로컬 전용) 진입 — Firebase 호출 없음
+  const handleOfflinePlay = () => {
+    const name = guestMode ? nickname.trim() : '';
+    authService.enterOfflineMode(name || undefined);
+    // App의 onAuthStateChange 리스너가 '/'로 이동시킴
   };
 
   return (
@@ -105,7 +124,20 @@ export const LoginScreen = () => {
               )}
 
               {error && <ErrorBox>{error}</ErrorBox>}
-              <Notice>{guestMode ? t('login.noticeGuest') : t('login.noticeDefault')}</Notice>
+
+              {/* [FREE-TIER] 무료 서버 한계 안내 + 오프라인 진입 */}
+              {serverLimited && (
+                <LimitBox>
+                  <LimitTitle>{t('login.serverLimitedTitle')}</LimitTitle>
+                  <LimitDesc>{t('login.serverLimitedDesc')}</LimitDesc>
+                </LimitBox>
+              )}
+
+              <OfflineBtn onClick={handleOfflinePlay} disabled={loading} $highlight={serverLimited}>
+                ▶ {t('login.offlinePlay')}
+              </OfflineBtn>
+
+              <Notice>{serverLimited ? t('login.offlineHint') : guestMode ? t('login.noticeGuest') : t('login.noticeDefault')}</Notice>
             </FormCard>
           </FormPanel>
         </Layout>
@@ -296,6 +328,37 @@ const ErrorBox = styled.div`
   margin-top:16px; padding:12px 16px;
   background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25);
   border-radius:8px; color:#fca5a5; font-size:13px; line-height:1.5;
+`;
+
+// [FREE-TIER] 무료 서버 한계 안내 박스
+const LimitBox = styled.div`
+  margin-top:16px; padding:14px 16px;
+  background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3);
+  border-radius:10px;
+`;
+
+const LimitTitle = styled.div`
+  font-size:14px; font-weight:700; color:#fbbf24; margin-bottom:6px;
+`;
+
+const LimitDesc = styled.div`
+  font-size:12.5px; color:rgba(255,255,255,0.62); line-height:1.6;
+`;
+
+// [FREE-TIER] 오프라인 플레이 버튼 ($highlight: 서버 한계 시 강조)
+const OfflineBtn = styled.button<{ $highlight?: boolean }>`
+  width:100%; margin-top:16px; padding:14px 18px;
+  border-radius:10px; cursor:pointer; font-size:14px; font-weight:600;
+  transition:all 0.2s;
+  background:${p => p.$highlight ? 'rgba(245,158,11,0.16)' : 'rgba(255,255,255,0.04)'};
+  border:1px solid ${p => p.$highlight ? 'rgba(245,158,11,0.5)' : 'rgba(255,255,255,0.1)'};
+  color:${p => p.$highlight ? '#fcd34d' : 'rgba(255,255,255,0.55)'};
+  &:hover:not(:disabled) {
+    background:${p => p.$highlight ? 'rgba(245,158,11,0.24)' : 'rgba(255,255,255,0.08)'};
+    color:#fff;
+  }
+  &:disabled { opacity:.5; cursor:not-allowed; }
+  ${media.mobile} { padding:12px 16px; font-size:13px; }
 `;
 
 const Notice = styled.div`

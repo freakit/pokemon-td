@@ -5,6 +5,12 @@ import { GameMove, MoveEffect } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
+// [DEADLOCK-FIX] 모든 PokeAPI 요청에 타임아웃(10초).
+//   무응답(hang) 시 axios가 reject → spawnEnemy의 catch가 fallback 적을 스폰하여
+//   pendingSpawnCount가 정상 감소 → 웨이브가 멈추지 않도록 보장.
+//   (axios는 이 프로젝트에서 PokeAPI 전용으로만 사용되므로 전역 설정이 안전)
+axios.defaults.timeout = 10000;
+
 // ─── 로컬스토리지 캐시 키 ─────────────────────────────────────────
 const LS_STAT_CACHE_KEY = 'pokeapi_stat_cache_v2';
 const LS_WEIGHTED_LIST_KEY = 'pokeapi_weighted_list_v2';

@@ -45,7 +45,19 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
 
+  // [FREE-TIER] 오프라인 모드 직접 접근 방어 — RTDB 연결 시도 전에 즉시 복귀
   useEffect(() => {
+    if (authService.isOfflineMode()) {
+      alert(t('mainMenu.offlineMultiBlocked'));
+      onBack();
+    }
+    // 최초 1회만 검사
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // [FREE-TIER] 오프라인 모드면 RTDB 연결/구독을 시작하지 않음
+    if (authService.isOfflineMode()) { setIsCheckingRejoin(false); return; }
     // [FREE-3] 멀티플레이어 로비 진입 시 RTDB lazy 초기화 + 방 정리 시작
     // 싱글플레이어 유저는 RTDB에 연결되지 않아 무료 플랜 100연결 한도를 보존함
     multiplayerService.initForMultiplayer();

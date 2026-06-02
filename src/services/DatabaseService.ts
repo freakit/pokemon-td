@@ -25,6 +25,21 @@ export interface APRankingEntry {
 
 class DatabaseService {
 
+  // [FREE-TIER] 전역 랭킹/전당 조회 결과 메모리 캐시(TTL 60초).
+  //   모달을 반복해서 여닫을 때 동일 쿼리를 재실행하지 않아 Firestore read를 절감.
+  //   읽기 전용·표시용 데이터라 60초 stale은 게임 로직/멀티 통신과 무관.
+  private _readCache = new Map<string, { data: unknown; ts: number }>();
+  private readonly READ_CACHE_TTL = 60_000;
+
+  private async cachedRead<T>(key: string, loader: () => Promise<T>): Promise<T> {
+    const hit = this._readCache.get(key);
+    if (hit && Date.now() - hit.ts < this.READ_CACHE_TTL) {
+      return hit.data as T;
+    }
+    const data = await loader();
+    this._readCache.set(key, { data, ts: Date.now() });
+    return data;
+  }
 
   async addHallOfFameEntry(
     mapId: string,
@@ -34,7 +49,7 @@ class DatabaseService {
     clearTime: number
   ): Promise<void> {
     const user = authService.getCurrentUser();
-    if (!user) return;
+    if (!user || authService.isOfflineMode()) return; // [FREE-TIER] 오프라인은 Firestore 쓰기 안 함
 
     const entry: Omit<HallOfFameEntry, 'id'> = {
       userId: user.uid,
@@ -138,54 +153,58 @@ class DatabaseService {
     mapId?: string,
     sortBy: 'clearTime' | 'timestamp' = 'clearTime'
   ): Promise<HallOfFameEntry[]> {
-    try {
-      let q;
-      if (mapId) {
-        q = query(
-          collection(db, 'hallOfFame'),
-          where('mapId', '==', mapId),
-          orderBy(sortBy, 'asc'),
-          limit(20)
-        );
-      } else {
-        q = query(
-          collection(db, 'hallOfFame'),
-          orderBy(sortBy, 'asc'),
-          limit(20)
-        );
+    return this.cachedRead(`hof:${mapId ?? 'all'}:${sortBy}`, async () => {
+      try {
+        let q;
+        if (mapId) {
+          q = query(
+            collection(db, 'hallOfFame'),
+            where('mapId', '==', mapId),
+            orderBy(sortBy, 'asc'),
+            limit(20)
+          );
+        } else {
+          q = query(
+            collection(db, 'hallOfFame'),
+            orderBy(sortBy, 'asc'),
+            limit(20)
+          );
+        }
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        } as HallOfFameEntry));
+      } catch {
+        return [];
       }
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      } as HallOfFameEntry));
-    } catch {
-      return [];
-    }
+    });
   }
 
   async getGlobalHighestWave(mapId?: string): Promise<LeaderboardEntry[]> {
-    try {
-      let q;
-      if (mapId) {
-        q = query(
-          collection(db, 'leaderboards'),
-          where('mapId', '==', mapId),
-          orderBy('highestWave', 'desc'),
-          limit(20)
-        );
-      } else {
-        q = query(
-          collection(db, 'leaderboards'),
-          orderBy('highestWave', 'desc'),
-          limit(20)
-        );
+    return this.cachedRead(`highestWave:${mapId ?? 'all'}`, async () => {
+      try {
+        let q;
+        if (mapId) {
+          q = query(
+            collection(db, 'leaderboards'),
+            where('mapId', '==', mapId),
+            orderBy('highestWave', 'desc'),
+            limit(20)
+          );
+        } else {
+          q = query(
+            collection(db, 'leaderboards'),
+            orderBy('highestWave', 'desc'),
+            limit(20)
+          );
+        }
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as LeaderboardEntry);
+      } catch {
+        return [];
       }
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as LeaderboardEntry);
-    } catch {
-      return [];
-    }
+    });
   }
 
   async updateLeaderboard(
@@ -194,7 +213,7 @@ class DatabaseService {
     highestWave: number
   ): Promise<void> {
     const user = authService.getCurrentUser();
-    if (!user) return;
+    if (!user || authService.isOfflineMode()) return; // [FREE-TIER] 오프라인은 Firestore 쓰기 안 함
 
     const docRef = doc(db, 'leaderboards', `${user.uid}_${mapId}`);
     const docSnap = await getDoc(docRef);
@@ -231,14 +250,16 @@ class DatabaseService {
     mapId: string,
     sortBy: 'clearTime' | 'highestWave'
   ): Promise<LeaderboardEntry[]> {
-    const q = query(
-      collection(db, 'leaderboards'),
-      where('mapId', '==', mapId),
-      orderBy(sortBy, sortBy === 'clearTime' ? 'asc' : 'desc'),
-      limit(10)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as LeaderboardEntry);
+    return this.cachedRead(`mapLb:${mapId}:${sortBy}`, async () => {
+      const q = query(
+        collection(db, 'leaderboards'),
+        where('mapId', '==', mapId),
+        orderBy(sortBy, sortBy === 'clearTime' ? 'asc' : 'desc'),
+        limit(10)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data() as LeaderboardEntry);
+    });
   }
 
   async getUserRankForMap(
@@ -281,7 +302,7 @@ class DatabaseService {
   // updateAPRanking의 불필요한 read(getDoc)도 제거 — AP가 낮아지는 경우는 없기 때문.
   async updateUserAchievement(achievement: Achievement, totalAP?: number): Promise<void> {
     const user = authService.getCurrentUser();
-    if (!user) return;
+    if (!user || authService.isOfflineMode()) return; // [FREE-TIER] 오프라인은 Firestore 쓰기 안 함
 
     const batch = writeBatch(db);
 
@@ -343,17 +364,19 @@ class DatabaseService {
    * 전체 AP 랭킹 Top 100 조회
    */
   async getAPRanking(limitCount = 100): Promise<APRankingEntry[]> {
-    try {
-      const q = query(
-        collection(db, 'apRankings'),
-        orderBy('totalAP', 'desc'),
-        limit(limitCount)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as APRankingEntry);
-    } catch {
-      return [];
-    }
+    return this.cachedRead(`apRanking:${limitCount}`, async () => {
+      try {
+        const q = query(
+          collection(db, 'apRankings'),
+          orderBy('totalAP', 'desc'),
+          limit(limitCount)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as APRankingEntry);
+      } catch {
+        return [];
+      }
+    });
   }
 
   /**
@@ -369,9 +392,13 @@ class DatabaseService {
 
       const myAP = (myDoc.data() as APRankingEntry).totalAP;
       // 나보다 AP 높은 사람 수 + 1 = 내 순위
+      // [FREE-TIER] limit 상한: 유저 수가 많아져도 read가 폭증하지 않도록 스캔 상한을 둔다.
+      //   상한 도달 시 "상한+" 순위로 표시됨(정확한 순위 대신 하한 보장).
+      const RANK_SCAN_LIMIT = 500;
       const q = query(
         collection(db, 'apRankings'),
-        where('totalAP', '>', myAP)
+        where('totalAP', '>', myAP),
+        limit(RANK_SCAN_LIMIT)
       );
       const snapshot = await getDocs(q);
       return snapshot.size + 1;
