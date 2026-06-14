@@ -54,7 +54,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
     <Root>
       {/* ── Header ── */}
       <Header>
-        <BackBtn onClick={() => navigate('/')}>← 돌아가기</BackBtn>
+        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
         <HeaderCenter>
           <HeaderEyebrow>POKEMON AEGIS</HeaderEyebrow>
           <HeaderTitle>{t('mapSelector.subtitle')}</HeaderTitle>
@@ -154,10 +154,19 @@ const BackBtn = styled.button`
   border-radius:8px; color:rgba(255,255,255,0.55); padding:8px 14px;
   font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap;
   &:hover { background:rgba(255,255,255,0.1); color:#fff; }
+
+  .back-text {
+    ${media.mobile} { display: none; }
+  }
+
   ${media.mobile} { padding:6px 10px; font-size:12px; }
 `;
 
-const HeaderCenter = styled.div`text-align:center;`;
+const HeaderCenter = styled.div`
+  text-align:center;
+  flex:1;
+  min-width:0;
+`;
 
 const HeaderEyebrow = styled.div`
   font-size:10px; font-weight:700; letter-spacing:0.3em;
@@ -168,11 +177,18 @@ const HeaderEyebrow = styled.div`
 const HeaderTitle = styled.h1`
   font-size:18px; font-weight:800; color:#f8fafc;
   margin:0; letter-spacing:-0.01em;
-  ${media.mobile} { font-size:16px; }
-  ${lMedia.phoneSm} { font-size:14px; }
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  
+  ${media.mobile} { font-size:14px; }
+  ${lMedia.phoneSm} { font-size:12px; }
 `;
 
-const HeaderRight = styled.div`width:100px; ${media.mobile}{width:60px;}`;
+const HeaderRight = styled.div`
+  width:100px;
+  ${media.mobile} { width:32px; }
+`;
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
 

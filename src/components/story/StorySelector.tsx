@@ -239,9 +239,8 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
         ))}
       </ParticleLayer>
 
-      {/* Header */}
       <Header $visible={!showIntro}>
-        <BackBtn onClick={() => navigate('/')}>← 돌아가기</BackBtn>
+        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
         <HeaderCenter>
           <AegisLabel>POKEMON AEGIS</AegisLabel>
           <PageTitle>{language === 'en' ? "Captain's Johto Drift" : '포대장의 성도 표류기'}</PageTitle>
@@ -474,9 +473,9 @@ const Header = styled.header<{ $visible: boolean }>`
   opacity: ${(p) => (p.$visible ? 1 : 0)};
   transition: opacity 0.6s ease 0.4s;
 
-  ${media.mobile} { padding: 14px 16px 12px; flex-wrap: wrap; gap: 10px; }
+  ${media.mobile} { padding: 12px 16px; gap: 8px; }
   ${lMedia.tablet} { padding: 10px 20px 8px; }
-  ${lMedia.phoneSm} { padding: 6px 12px 6px; flex-wrap: wrap; gap: 6px; }
+  ${lMedia.phoneSm} { padding: 8px 12px; gap: 6px; }
 `;
 
 const BackBtn = styled.button`
@@ -496,13 +495,18 @@ const BackBtn = styled.button`
     color: #fff;
   }
 
-  ${media.mobile} { font-size: 12px; padding: 6px 12px; }
-  ${lMedia.phoneSm} { font-size: 11px; padding: 5px 10px; }
+  .back-text {
+    ${media.mobile} { display: none; }
+  }
+
+  ${media.mobile} { font-size: 12px; padding: 6px 10px; }
+  ${lMedia.phoneSm} { font-size: 11px; padding: 5px 8px; }
 `;
 
 const HeaderCenter = styled.div`
   text-align: center;
   flex: 1;
+  min-width: 0;
 `;
 
 const AegisLabel = styled.div`
@@ -511,6 +515,7 @@ const AegisLabel = styled.div`
   letter-spacing: 0.3em;
   color: #c8a020;
   margin-bottom: 4px;
+  ${media.mobile} { font-size: 9px; letter-spacing: 0.2em; margin-bottom: 2px; }
 `;
 
 const PageTitle = styled.h1`
@@ -523,11 +528,13 @@ const PageTitle = styled.h1`
   margin: 0;
   line-height: 1.2;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   ${media.tablet} { font-size: 22px; }
-  ${media.mobile} { font-size: 18px; }
+  ${media.mobile} { font-size: 16px; }
   ${lMedia.tablet} { font-size: 20px; }
-  ${lMedia.phoneSm} { font-size: 16px; }
+  ${lMedia.phoneSm} { font-size: 14px; }
 `;
 
 const PageSubtitle = styled.div`
@@ -536,16 +543,19 @@ const PageSubtitle = styled.div`
   letter-spacing: 0.12em;
   margin-top: 3px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-  ${media.mobile} { font-size: 11px; letter-spacing: 0.06em; }
+  ${media.mobile} { font-size: 10px; letter-spacing: 0.04em; }
 `;
 
 const ProgressSummary = styled.div`
   display: flex;
   gap: 20px;
   text-align: right;
+  flex-shrink: 0;
 
-  ${media.mobile} { gap: 12px; }
+  ${media.mobile} { gap: 10px; }
 `;
 
 const ProgressStat = styled.div``;
@@ -556,14 +566,15 @@ const ProgressNum = styled.div`
   color: #c8a020;
   line-height: 1;
 
-  ${media.mobile} { font-size: 18px; }
-  ${lMedia.phoneSm} { font-size: 15px; }
+  ${media.mobile} { font-size: 16px; }
+  ${lMedia.phoneSm} { font-size: 14px; }
 `;
 
 const ProgressLabel = styled.div`
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
+  ${media.mobile} { font-size: 9px; }
 `;
 
 const GlobalProgressBar = styled.div<{ $visible: boolean }>`

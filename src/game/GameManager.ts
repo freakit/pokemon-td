@@ -4,7 +4,6 @@ import { GamePokemon, Enemy, Projectile, Position, GameMove } from '../types/gam
 import { calculateDamage, getTypeEffectiveness, hasSTAB } from '../utils/typeEffectiveness';
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
 import { saveService } from '../services/SaveService';
-import { soundService } from '../services/SoundService';
 import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
 import { getBuffedStats } from '../utils/synergyManager';
 import { databaseService } from '../services/DatabaseService';
@@ -260,7 +259,6 @@ export class GameManager {
             if (!multiRoomId) {
               isGameOver = true;
               isWaveActive = false;
-              soundService.playDefeatSound();
             }
           }
         }
@@ -391,7 +389,6 @@ export class GameManager {
         const move = tower.equippedMoves.find(m => m.currentCooldown <= 0);
         if (move) {
           this.towerAttack(tower, target, move);
-          soundService.playAttackSound(move.type);
         }
       }
     });

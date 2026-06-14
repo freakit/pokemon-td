@@ -31,8 +31,37 @@ class SaveService {
       const saved = localStorage.getItem(SAVE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // totalAP 필드가 없는 구버전 데이터 마이그레이션
         if (parsed.totalAP === undefined) parsed.totalAP = 0;
+
+        let changed = false;
+        if (parsed.achievements && Array.isArray(parsed.achievements)) {
+          let recalculatedAP = 0;
+          parsed.achievements.forEach((a: any) => {
+            const tierPoints: Record<string, number> = { bronze: 3, silver: 10, gold: 25, diamond: 50, legendary: 100 };
+            const ptsPer = a.tier ? tierPoints[a.tier] ?? 3 : 3;
+            const unlocked = a.unlocked || (a.completions ?? 0) > 0 || a.progress >= a.target;
+            const targetCompletions = unlocked ? 1 : 0;
+            const targetTotalPoints = unlocked ? ptsPer : 0;
+
+            if (a.completions !== targetCompletions || a.totalPoints !== targetTotalPoints || a.unlocked !== unlocked) {
+              a.unlocked = unlocked;
+              a.completions = targetCompletions;
+              a.totalPoints = targetTotalPoints;
+              a.pointsPerCompletion = ptsPer;
+              changed = true;
+            }
+            recalculatedAP += a.totalPoints;
+          });
+
+          if (parsed.totalAP !== recalculatedAP) {
+            parsed.totalAP = recalculatedAP;
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          localStorage.setItem(SAVE_KEY, JSON.stringify(parsed));
+        }
         return parsed;
       }
     } catch (error) {
@@ -57,7 +86,6 @@ class SaveService {
       unlockedMaps: ['beginner'],
       settings: {
         musicVolume: 0.2,
-        sfxVolume: 0.7,
         gameSpeed: 1,
         showDamageNumbers: true,
         showGrid: true,
@@ -76,9 +104,7 @@ class SaveService {
   }
 
 
-  // ─── [리뉴얼] 업적 업데이트 — 횟수 누적 + AP 포인트 ─────────────────────
-  // progress >= target 달성 시마다 completions++ / totalPoints += pointsPerCompletion
-  // 기존 unlocked 플래그는 최초 달성 기록용으로 유지
+  // ─── [리뉴얼] 업적 업데이트 — 중복 달성 불가능하도록 completions 1로 고정 및 AP 정규화 ─────────────────
   updateAchievement(achievementId: string, progress: number) {
     const data = this.load();
     let achievement: Achievement | undefined = data.achievements.find(
@@ -102,10 +128,8 @@ class SaveService {
       }
     }
 
-    // 리뉴얼 필드 마이그레이션 (구버전 데이터 대응)
-    if (achievement.completions === undefined) achievement.completions = achievement.unlocked ? 1 : 0;
-    if (achievement.totalPoints === undefined) achievement.totalPoints = achievement.completions * (achievement.pointsPerCompletion ?? 3);
-    if (achievement.pointsPerCompletion === undefined) achievement.pointsPerCompletion = achievement.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[achievement.tier] ?? 3 : 3;
+    const pointsPerCompletion = achievement.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[achievement.tier] ?? 3 : 3;
+    achievement.pointsPerCompletion = pointsPerCompletion;
 
     const prevProgress = achievement.progress;
     let justUnlocked = false;
@@ -119,21 +143,22 @@ class SaveService {
         achievement.unlocked = true;
         justUnlocked = true;
 
-        // 새 달성 1회 카운트
         achievement.completions = 1;
-        const earnedAP = achievement.pointsPerCompletion ?? 3;
-        achievement.totalPoints = earnedAP;
-
-        // 전체 누적 AP 갱신
-        data.totalAP = (data.totalAP ?? 0) + earnedAP;
+        achievement.totalPoints = pointsPerCompletion;
 
         // [A5] Vite ESM 환경에서 require는 동작 불보장 → dynamic import로 전환
         import('../store/gameStore')
-          .then(m => m.useGameStore.getState().showAchievementToast(achievement!.name, earnedAP, true))
+          .then(m => m.useGameStore.getState().showAchievementToast(achievement!.name, pointsPerCompletion, true))
           .catch(() => {});
       }
+    } else {
+      // 이미 달성되었음에도 혹시 카운트가 잘못되어 있다면 정규화
+      achievement.completions = 1;
+      achievement.totalPoints = pointsPerCompletion;
     }
 
+    // 총 AP 누적 오류 방지를 위해 전체 합산 방식으로 재계산
+    data.totalAP = data.achievements.reduce((sum, a) => sum + (a.totalPoints ?? 0), 0);
     this.save(data);
 
     // [FREE-TIER] 업적이 최초로 달성되었을 때만 Firestore에 저장 (쿼터 보호)
@@ -142,8 +167,9 @@ class SaveService {
         .then(({ authService }) => {
           // [FREE-TIER] 오프라인 모드는 Firestore 쓰기를 건너뜀
           if (authService.getCurrentUser() && !authService.isOfflineMode()) {
+            const unlockedCount = data.achievements.filter(a => a.unlocked).length;
             databaseService
-              .updateUserAchievement(achievement!, data.totalAP)
+              .updateUserAchievement(achievement!, data.totalAP, unlockedCount)
               .catch((err: any) => {
                 if (err?.code !== 'permission-denied') {
                   console.warn('[SaveService] Failed to persist achievement to DB:', err);
@@ -168,39 +194,78 @@ class SaveService {
     }
   }
 
-  // ─── Firebase → localStorage 병합 ────────────────────────────────────────
+  // ─── Firebase → localStorage 병합 (중복 달성 데이터 강제 정규화 실행) ────────
   async syncAchievementsFromDB(): Promise<void> {
     try {
       const dbAchievements = await databaseService.getUserAchievements();
-      if (!dbAchievements || dbAchievements.length === 0) return;
-
       const data = this.load();
 
-      for (const dbAch of dbAchievements) {
-        const localIdx = data.achievements.findIndex(a => a.id === dbAch.id);
+      // [FIX] DB도 비어있고 로컬도 진척도가 전혀 없다면 굳이 Firestore 쓰기를 하지 않고 리턴 (쿼터 절약)
+      const localHasProgress = (data.totalAP ?? 0) > 0 || data.achievements.some(a => (a.progress ?? 0) > 0);
+      if ((!dbAchievements || dbAchievements.length === 0) && !localHasProgress) {
+        return;
+      }
 
-        if (localIdx === -1) {
-          data.achievements.push(dbAch);
-        } else {
-          const local = data.achievements[localIdx];
-          // DB가 더 많은 completions를 가지면 DB 우선
-          const dbCompletions = dbAch.completions ?? 0;
-          const localCompletions = local.completions ?? 0;
-          if (dbCompletions > localCompletions) {
+      if (dbAchievements && dbAchievements.length > 0) {
+        for (const dbAch of dbAchievements) {
+          const localIdx = data.achievements.findIndex(a => a.id === dbAch.id);
+          const pointsPerCompletion = dbAch.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[dbAch.tier] ?? 3 : 3;
+          const isUnlocked = dbAch.unlocked || (dbAch.completions ?? 0) > 0 || dbAch.progress >= dbAch.target;
+
+          const normalizedAch: Achievement = {
+            ...dbAch,
+            unlocked: isUnlocked,
+            completions: isUnlocked ? 1 : 0,
+            totalPoints: isUnlocked ? pointsPerCompletion : 0,
+            pointsPerCompletion
+          };
+
+          if (localIdx === -1) {
+            data.achievements.push(normalizedAch);
+          } else {
+            const local = data.achievements[localIdx];
+            const localPointsPer = local.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[local.tier] ?? 3 : 3;
+            const localUnlocked = local.unlocked || (local.completions ?? 0) > 0 || local.progress >= local.target;
+
             data.achievements[localIdx] = {
               ...local,
-              completions: dbCompletions,
-              totalPoints: dbAch.totalPoints ?? dbCompletions * (local.pointsPerCompletion ?? 3),
-              unlocked: local.unlocked || dbAch.unlocked,
+              unlocked: localUnlocked || isUnlocked,
+              completions: (localUnlocked || isUnlocked) ? 1 : 0,
+              totalPoints: (localUnlocked || isUnlocked) ? localPointsPer : 0,
+              pointsPerCompletion: localPointsPer,
               progress: Math.max(local.progress, dbAch.progress),
             };
           }
         }
       }
 
-      // 총 AP 재계산
+      // 모든 로컬 데이터의 Completions와 AP 정규화 강제 적용
+      for (let i = 0; i < data.achievements.length; i++) {
+        const a = data.achievements[i];
+        const ptsPer = a.tier ? { bronze:3, silver:10, gold:25, diamond:50, legendary:100 }[a.tier] ?? 3 : 3;
+        const unlocked = a.unlocked || (a.completions ?? 0) > 0 || a.progress >= a.target;
+        data.achievements[i] = {
+          ...a,
+          unlocked,
+          completions: unlocked ? 1 : 0,
+          totalPoints: unlocked ? ptsPer : 0,
+          pointsPerCompletion: ptsPer
+        };
+      }
+
       data.totalAP = data.achievements.reduce((sum, a) => sum + (a.totalPoints ?? 0), 0);
       this.save(data);
+
+      // 정규화된 최신 AP와 고유 업적 개수를 DB에 강제 반영하여 동기화 (단일 Bulk Batch)
+      import('./AuthService')
+        .then(async ({ authService }) => {
+          const user = authService.getCurrentUser();
+          if (user && !authService.isOfflineMode()) {
+            const unlockedCount = data.achievements.filter(a => a.unlocked).length;
+            await databaseService.updateUserAchievementsBulk(data.achievements, data.totalAP, unlockedCount);
+          }
+        })
+        .catch(() => {});
 
     } catch (err: any) {
       if (err?.code !== 'permission-denied') {

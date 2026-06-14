@@ -200,7 +200,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     <>
       <Root>
         <PageHeader>
-          <BackBtn onClick={onBack}>← {t('lobby.back')}</BackBtn>
+          <BackBtn onClick={onBack}>←<span className="back-text"> {t('lobby.back')}</span></BackBtn>
           <PageTitle>{t('lobby.title')}</PageTitle>
           <HeaderActions>
             <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
@@ -266,7 +266,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
     <>
       <Root>
         <PageHeader>
-          <BackBtn onClick={() => setView('list')}>← {t('lobby.back')}</BackBtn>
+          <BackBtn onClick={() => setView('list')}>←<span className="back-text"> {t('lobby.back')}</span></BackBtn>
           <PageTitle>{t('lobby.createTitle')}</PageTitle>
           <HeaderActions>
             <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
@@ -319,7 +319,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
       <>
         <Root>
           <PageHeader>
-            <BackBtn onClick={() => setLeaveConfirmOpen(true)}>← {t('lobby.leave')}</BackBtn>
+            <BackBtn onClick={() => setLeaveConfirmOpen(true)}>←<span className="back-text"> {t('lobby.leave')}</span></BackBtn>
             <PageTitle>{currentRoom.name}</PageTitle>
             <HeaderActions>
               <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
@@ -505,6 +505,11 @@ const BackBtn = styled.button`
   border-radius:8px; color:rgba(255,255,255,0.55); padding:8px 14px;
   font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap;
   &:hover { background:rgba(255,255,255,0.1); color:#fff; }
+
+  .back-text {
+    ${media.mobile} { display: none; }
+  }
+
   ${media.mobile} { padding:6px 10px; font-size:12px; }
 `;
 

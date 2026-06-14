@@ -91,7 +91,7 @@ export const MainMenu = () => {
         {/* ── Main content ── */}
         <Main>
           <HeroSection>
-            <HeroEyebrow>게임 모드 선택</HeroEyebrow>
+            <HeroEyebrow>{t('mainMenu.selectGameMode')}</HeroEyebrow>
             <HeroTitle>{t('mainMenu.gameTitle')}</HeroTitle>
           </HeroSection>
 
@@ -125,8 +125,8 @@ export const MainMenu = () => {
                 <ModeEmoji>⚔</ModeEmoji>
               </ModeIconWrap>
               <ModeInfo>
-                <ModeName>스토리 모드</ModeName>
-                <ModeDesc>포대장의 성도 표류기 · 8챕터</ModeDesc>
+                <ModeName>{t('mainMenu.storyPlay')}</ModeName>
+                <ModeDesc>{t('mainMenu.storyPlayDesc')}</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>
@@ -147,7 +147,7 @@ export const MainMenu = () => {
 
           {/* Utility row */}
           <UtilSection>
-            <UtilLabel>내 정보</UtilLabel>
+            <UtilLabel>{t('mainMenu.myInfo')}</UtilLabel>
             <UtilRow>
               <UtilBtn onClick={() => setShowAchievements(true)}>
                 <UtilIcon>🏅</UtilIcon>{t('mainMenu.achievements')}

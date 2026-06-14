@@ -65,7 +65,7 @@
 - **매치업 공정성**: 과거 대전 기록(`encounterRecord`) 기반으로 중복 매칭 최소화
 
 ### 🏆 도전과 경쟁
-- **랭킹 시스템**: 맵별 최단 클리어 타임 & 최고 웨이브 Firebase 리더보드
+- **랭킹 시스템**: 맵별 최단 클리어 타임, 최고 웨이브, 업적 포인트(AP), 그리고 실시간 멀티플레이 ELO 레이팅을 기록하는 Firebase 리더보드
 - **전당 등록 (Hall of Fame)**: Wave 50 클리어 시 영구 보존 기록
 - **업적 시스템 (Achievement Points)**: 5단계 티어(Bronze/Silver/Gold/Diamond/Legendary), 총 **65종** 업적 (8카테고리)
   - 웨이브(wave), 전투(combat), 경제(economy), 성장(growth), 수집(collect), 시너지(synergy), 도전(challenge), 멀티플레이(multi) 카테고리
@@ -75,7 +75,7 @@
 ### 🌍 다국어 및 편의성 지원
 - **한국어 / 영어** 실시간 전환 (React Context 기반 자체 i18n — `I18nProvider`)
 - 게임 내 모든 텍스트, 업적명, 아이템명 번역 지원
-- **플로팅 설정 (Floating Settings)**: 로비, 게임 중 어디서든 화면 내 설정 버튼을 통해 사운드, 속도, 언어 즉시 변경 가능
+- **플로팅 설정 (Floating Settings)**: 로비, 게임 중 어디서든 화면 내 설정 버튼을 통해 BGM 볼륨, 속도, 언어 즉시 변경 및 **실시간 버그 제보** 가능
 - **오프라인 모드**: Firebase 무료 사용량 초과 등으로 로그인이 불가능할 때, 로그인 화면에서 "오프라인으로 플레이"로 진입하여 **싱글 플레이 / 스토리 모드를 로컬에서 정상 이용** 가능 (멀티플레이·랭킹·전당은 비활성). 모든 데이터는 LocalStorage에 보존
 
 ---
@@ -90,7 +90,7 @@
 | **Graphics** | ![Konva](https://img.shields.io/badge/Konva-9.2-green) ![React Konva](https://img.shields.io/badge/React--Konva-18.2-green) | 고성능 2D 캔버스 렌더링 |
 | **Backend** | ![Firebase](https://img.shields.io/badge/Firebase-12.5-FFCA28?logo=firebase) | Auth + Firestore + Realtime Database |
 | **Data** | ![PokeAPI](https://img.shields.io/badge/PokeAPI-v2-EF5350) | 1025마리 포켓몬 데이터 캐시 및 레어도 산출 |
-| **Audio** | ![Howler.js](https://img.shields.io/badge/Howler.js-2.2-blueviolet) | BGM & 타입별 SFX |
+| **Audio** | ![Howler.js](https://img.shields.io/badge/Howler.js-2.2-blueviolet) | 배경음(BGM) |
 | **Routing** | ![React Router](https://img.shields.io/badge/React--Router-7.9-CA4245?logo=reactrouter) | SPA 라우팅 |
 | **HTTP** | ![Axios](https://img.shields.io/badge/Axios-1.6-5A29E4) | PokeAPI 통신 |
 | **i18n** | 자체 구현 (React Context) | `I18nProvider` 기반 한국어/영어 다국어 지원 (외부 i18next 미사용) |
@@ -114,10 +114,11 @@ src/
 │   │   └── MainMenu.tsx         # 메인 메뉴 (싱글/멀티/스토리/랭킹/업적 진입)
 │   ├── modals/
 │   │   ├── Achievements.tsx          # 업적 목록 (카테고리 필터, AP 표시)
+│   │   ├── BugReport.tsx             # 버그 제보 모달
 │   │   ├── EvolutionConfirmModal.tsx # 진화 확인 모달
 │   │   ├── HallOfFame.tsx            # 전당 등록 기록
-│   │   ├── Rankings.tsx              # 맵별 리더보드
-│   │   ├── Settings.tsx              # 음악/효과음/속도/언어 설정
+│   │   ├── Rankings.tsx              # 리더보드 (맵/AP/PVP 레이팅 랭킹)
+│   │   ├── Settings.tsx              # BGM/속도/언어 설정 및 버그 제보
 │   │   ├── SkillPicker.tsx           # 레벨업 스킬 선택
 │   │   ├── TutorialModal.tsx         # 게임 튜토리얼
 │   │   ├── Wave50ClearModal.tsx      # 웨이브 50 클리어 모달

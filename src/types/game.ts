@@ -252,7 +252,6 @@ export interface SaveData {
 
 export interface GameSettings {
   musicVolume: number;
-  sfxVolume: number;
   gameSpeed: number;
   showDamageNumbers: boolean;
   showGrid: boolean;
