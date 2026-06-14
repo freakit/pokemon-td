@@ -522,8 +522,10 @@ const PageTitle = styled.h1`
   background-clip: text;
   margin: 0;
   line-height: 1.2;
+  white-space: nowrap;
 
-  ${media.mobile} { font-size: 20px; }
+  ${media.tablet} { font-size: 22px; }
+  ${media.mobile} { font-size: 18px; }
   ${lMedia.tablet} { font-size: 20px; }
   ${lMedia.phoneSm} { font-size: 16px; }
 `;
@@ -533,6 +535,9 @@ const PageSubtitle = styled.div`
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.12em;
   margin-top: 3px;
+  white-space: nowrap;
+
+  ${media.mobile} { font-size: 11px; letter-spacing: 0.06em; }
 `;
 
 const ProgressSummary = styled.div`
