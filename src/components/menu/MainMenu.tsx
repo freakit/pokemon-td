@@ -126,7 +126,7 @@ export const MainMenu = () => {
               </ModeIconWrap>
               <ModeInfo>
                 <ModeName>스토리 모드</ModeName>
-                <ModeDesc>어둠의 감시자 · 8챕터</ModeDesc>
+                <ModeDesc>포대장의 성도 표류기 · 8챕터</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>

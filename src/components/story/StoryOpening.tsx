@@ -8,6 +8,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { StoryChapter, DialogueLine } from '../../data/storyChapters';
+import { useTranslation } from '../../i18n';
 
 interface StoryOpeningProps {
   chapter: StoryChapter;
@@ -61,6 +62,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
   chapter, onComplete, onSkip,
 }) => {
   const lines = chapter.openingDialogue;
+  const { language } = useTranslation();
   const [loading, setLoading]         = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const [phase, setPhase]             = useState<'title' | 'dialogue' | 'done'>('title');
@@ -74,6 +76,13 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
   const canProceedRef  = useRef(false);
 
   const currentLine: DialogueLine | undefined = lines[lineIdx];
+  // 언어(ko/en)에 따라 대사·화자 선택. textEn/speakerEn 없으면 한글로 폴백.
+  const lineText = currentLine
+    ? (language === 'en' && currentLine.textEn ? currentLine.textEn : currentLine.text)
+    : '';
+  const speakerName = currentLine
+    ? (language === 'en' ? currentLine.speakerEn : currentLine.speaker)
+    : '';
   const bgSrc = BG_IMAGES[chapter.mapId] ?? '';
   const spriteUrl = currentLine
     ? SPEAKER_SPRITES[currentLine.speaker]
@@ -117,15 +126,15 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
     let i = 0;
     const id = setInterval(() => {
       i++;
-      setDisplayed(currentLine.text.slice(0, i));
-      if (i >= currentLine.text.length) {
+      setDisplayed(lineText.slice(0, i));
+      if (i >= lineText.length) {
         clearInterval(id);
         setTyping(false);
         canProceedRef.current = true; // [FIX-2] 타이핑 완료 → 진행 허용
       }
     }, CHAR_SPEED);
     return () => clearInterval(id);
-  }, [phase, lineIdx, currentLine]);
+  }, [phase, lineIdx, currentLine, lineText]);
 
   // ── advance ──────────────────────────────────────────────────────────────────
   const advance = useCallback(() => {
@@ -140,7 +149,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
     if (phase === 'dialogue') {
       if (typing) {
         // 타이핑 스킵 → 전체 텍스트 즉시 표시
-        setDisplayed(currentLine?.text ?? '');
+        setDisplayed(lineText);
         setTyping(false);
         canProceedRef.current = true; // [FIX-2] 스킵 후에는 즉시 진행 허용
         return;
@@ -157,7 +166,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
         onComplete();
       }
     }
-  }, [loading, phase, typing, lineIdx, lines.length, currentLine, onComplete]);
+  }, [loading, phase, typing, lineIdx, lines.length, currentLine, lineText, onComplete]);
 
   // ── 키보드 단축키 ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -195,7 +204,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
 
       <TopInfo $visible={phase === 'dialogue'}>
         <ChapterBadge>CHAPTER {String(chapter.chapterNumber).padStart(2, '0')}</ChapterBadge>
-        <LocationText>{chapter.location}</LocationText>
+        <LocationText>{language === 'en' && chapter.locationEn ? chapter.locationEn : chapter.location}</LocationText>
       </TopInfo>
 
       <SkipBtn onClick={e => { e.stopPropagation(); onSkip(); }}>
@@ -206,8 +215,8 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
       {phase === 'title' && (
         <TitleScreen>
           <TitleChNum>CHAPTER {String(chapter.chapterNumber).padStart(2, '0')}</TitleChNum>
-          <TitleName $accent={chapter.theme.primary}>{chapter.title}</TitleName>
-          <TitleSub>{chapter.subtitle}</TitleSub>
+          <TitleName $accent={chapter.theme.primary}>{language === 'en' && chapter.titleEn ? chapter.titleEn : chapter.title}</TitleName>
+          <TitleSub>{language === 'en' && chapter.subtitleEn ? chapter.subtitleEn : chapter.subtitle}</TitleSub>
           <TitleCue>클릭 또는 스페이스바로 계속</TitleCue>
         </TitleScreen>
       )}
@@ -228,8 +237,8 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
           {/* [FIX-1] stopPropagation — Root까지 버블링 차단 */}
           <TextBox onClick={e => { e.stopPropagation(); advance(); }}>
             <TextBoxInner>
-              <SpeakerLabel $isDark={chapter.chapterNumber === 8 && currentLine.speaker === '군주'}>
-                {currentLine.speaker}
+              <SpeakerLabel $isDark={chapter.chapterNumber === 8 && currentLine.speaker === '칠색조'}>
+                {speakerName}
               </SpeakerLabel>
               <DialogueText>
                 {displayed}
@@ -307,6 +316,9 @@ const LoadingText = styled.div`font-size:12px;color:rgba(255,255,255,0.35);lette
 
 const Root = styled.div<{$fade:boolean}>`
   position:fixed;inset:0;z-index:3000;
+  /* 불투명 베이스 — 가로형 BgImg(opacity:0.55)가 세로 화면을 못 덮을 때
+     뒤의 셀렉터가 비쳐 보이던 문제 방지 */
+  background:#05060a;
   cursor:default;user-select:none;overflow:hidden;
   opacity:${p=>p.$fade?1:0};transition:opacity 0.6s ease;
 `;
