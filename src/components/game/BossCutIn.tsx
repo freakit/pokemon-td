@@ -12,8 +12,9 @@ interface BossCutInProps {
   bossName?: string;
 }
 
-// 챕터별 보스 도발 대사 (ko/en). Ch1은 보스 없음.
+// 챕터별 보스 도발 대사 (ko/en).
 const BOSS_TAUNT: Record<number, { ko: string; en: string }> = {
+  1: { ko: '바람을 가르는 내 날개짓을 버텨봐라.', en: 'Try to withstand my wind-cutting wings.' },
   2: { ko: '느려터졌군. 낫 맛 좀 볼래?',        en: 'Too slow. Care for a taste of my blades?' },
   3: { ko: '음메—— 굴러간다아아!',              en: 'Mooo—— here comes the rollout!' },
   4: { ko: '키히히... 그림자에선 못 빠져나가.',   en: "Kihihi... there's no escaping the shadows." },
