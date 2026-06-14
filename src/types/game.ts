@@ -152,6 +152,7 @@ export interface Enemy {
   attackCooldown: number;
   pokemonId: number;
   statusEffect?: StatusEffect;
+  livesTaken?: number;
 }
 
 export interface Projectile {
