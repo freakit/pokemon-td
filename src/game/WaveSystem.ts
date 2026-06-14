@@ -3,6 +3,7 @@ import { useGameStore } from "../store/gameStore";
 import { Enemy } from "../types/game";
 import { getMapById } from "../data/maps";
 import { pokeAPI } from "../api/pokeapi";
+import { AEGIS_STORY_CHAPTERS } from "../data/storyChapters";
 
 const DIFFICULTY_MULTIPLIERS: Record<
   string,
@@ -115,8 +116,11 @@ export class WaveSystem {
     const count = this.getEnemyCount(wave);
     const pathsToUse = map.paths;
 
-    // [수정①] 3의 배수 웨이브마다 보스 스폰 (기존 5의 배수 → 3의 배수)
-    const isBossWave = wave % 3 === 0;
+    // 스토리 모드이면 챕터의 bossWave에만 보스 스폰, 아니면 3의 배수 웨이브마다 스폰
+    const chapter = storyChapterNumber !== null
+      ? AEGIS_STORY_CHAPTERS.find(c => c.chapterNumber === storyChapterNumber)
+      : null;
+    const isBossWave = chapter ? wave === chapter.bossWave : wave % 3 === 0;
 
     // [버그3 수정] 보스 웨이브 시작 시 플래그 ON
     if (isBossWave) {
@@ -207,7 +211,24 @@ export class WaveSystem {
     // [FIX-RACE] 스폰 시작 시 epoch를 캡처 — await 후 epoch가 바뀌면 웨이브가 취소된 것
     const epochAtStart = this._spawnEpoch;
     try {
-      const pokemonId = this.getEnemyPokemonId(wave);
+      let pokemonId = this.getEnemyPokemonId(wave);
+      const { storyChapterNumber } = useGameStore.getState();
+      if (isBoss && storyChapterNumber !== null) {
+        // 스토리 모드 보스 고정 ID 매핑 (Ch 1 -> 피죤 등)
+        const bossIdMap: Record<number, number> = {
+          1: 17,  // 피죤 (Pidgeotto)
+          2: 123, // 스라크 (Scyther)
+          3: 241, // 밀탱크 (Miltank)
+          4: 94,  // 팬텀 (Gengar)
+          5: 62,  // 강챙이 (Poliwrath)
+          6: 208, // 강철톤 (Steelix)
+          7: 221, // 메꾸리 (Piloswine)
+          8: 230, // 킹드라 (Kingdra)
+        };
+        if (bossIdMap[storyChapterNumber]) {
+          pokemonId = bossIdMap[storyChapterNumber];
+        }
+      }
       const pokemonData = await pokeAPI.getPokemon(pokemonId);
 
       // [FIX-RACE] await 복귀 후 epoch 검증 — 바뀌었으면 새 웨이브가 시작된 것이므로 스폰 중단
