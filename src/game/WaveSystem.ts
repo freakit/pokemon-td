@@ -247,18 +247,24 @@ export class WaveSystem {
       // [수정] 보스 보상: 일반 적의 5배
       const reward = isBoss ? 50 : 10;
 
+      // [최종 보스(30웨이브) 대폭 강화 / 목숨 10개 감소, 3의 배수 보스 목숨 3개 감소]
+      const isFinalBoss = isBoss && wave === 30;
+      const hpMult = isFinalBoss ? 8 : (isBoss ? 4 : 1);
+      const statMult = isFinalBoss ? 4 : (isBoss ? 2 : 1);
+      const livesTaken = isFinalBoss ? 10 : (isBoss ? 3 : 1);
+
       // [보스 강화] HP 5배, 공격/특공/방어/특방 2.5배, 이동속도 40
       const enemy: Enemy = {
         id: `enemy-${this.enemyCounter++}`,
         name: pokemonData.name,
         pokemonId: pokemonData.id,
-        hp: isBoss ? baseHp * 4 : baseHp,
-        maxHp: isBoss ? baseHp * 4 : baseHp,
-        baseAttack: isBoss ? baseAttack * 2 : baseAttack,
-        attack: isBoss ? baseAttack * 2 : baseAttack,
-        defense: isBoss ? baseDefense * 2 : baseDefense,
-        specialAttack: isBoss ? baseSpecialAttack * 2 : baseSpecialAttack,
-        specialDefense: isBoss ? baseSpecialDefense * 2 : baseSpecialDefense,
+        hp: baseHp * hpMult,
+        maxHp: baseHp * hpMult,
+        baseAttack: baseAttack * statMult,
+        attack: baseAttack * statMult,
+        defense: baseDefense * statMult,
+        specialAttack: baseSpecialAttack * statMult,
+        specialDefense: baseSpecialDefense * statMult,
         speed: pokemonData.stats.speed,
         position: { ...path[0] },
         path: [...path],
@@ -271,6 +277,7 @@ export class WaveSystem {
         sprite: pokemonData.sprite,
         range: 80,
         attackCooldown: 0,
+        livesTaken,
       };
       addEnemy(enemy);
     } catch (e) {
@@ -325,18 +332,24 @@ export class WaveSystem {
     const baseDefense = 5 + wave;
     const reward = isBoss ? 50 : 10;
 
+    // [최종 보스(30웨이브) 대폭 강화 / 목숨 10개 감소, 3의 배수 보스 목숨 3개 감소]
+    const isFinalBoss = isBoss && wave === 30;
+    const hpMult = isFinalBoss ? 8 : (isBoss ? 4 : 1);
+    const statMult = isFinalBoss ? 4 : (isBoss ? 2 : 1);
+    const livesTaken = isFinalBoss ? 10 : (isBoss ? 3 : 1);
+
     // [보스 강화] fallback도 동일 배율 적용
     const enemy: Enemy = {
       id: `enemy-${this.enemyCounter++}`,
       name: isBoss ? `Boss ${wave}` : `Enemy ${wave}`,
       pokemonId: 0,
-      hp: isBoss ? baseHp * 4 : baseHp,
-      maxHp: isBoss ? baseHp * 4 : baseHp,
-      baseAttack: isBoss ? baseAttack * 2 : baseAttack,
-      attack: isBoss ? baseAttack * 2 : baseAttack,
-      defense: isBoss ? baseDefense * 2 : baseDefense,
-      specialAttack: isBoss ? baseAttack * 2 : baseAttack,
-      specialDefense: isBoss ? baseDefense * 2 : baseDefense,
+      hp: baseHp * hpMult,
+      maxHp: baseHp * hpMult,
+      baseAttack: baseAttack * statMult,
+      attack: baseAttack * statMult,
+      defense: baseDefense * statMult,
+      specialAttack: baseAttack * statMult,
+      specialDefense: baseDefense * statMult,
 
       speed: 50 + wave,
       position: { ...path[0] },
@@ -350,6 +363,7 @@ export class WaveSystem {
       sprite: '',
       range: 80,
       attackCooldown: 0,
+      livesTaken,
     };
     addEnemy(enemy);
   }

@@ -221,7 +221,7 @@ export class GameManager {
       } else {
         // 목표 지점 도달
         toRemoveIds.add(enemy.id);
-        lifeLost++;
+        lifeLost += enemy.livesTaken ?? 1;
         isRemoved = true;
       }
 

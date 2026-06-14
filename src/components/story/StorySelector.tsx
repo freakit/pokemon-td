@@ -198,7 +198,11 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
 
           {selected.bossName && (
             <Section>
-              <SectionLabel>보스 (매 3웨이브마다 등장)</SectionLabel>
+              <SectionLabel>
+                {language === 'en'
+                  ? `Boss (Appears at Wave ${selected.bossWave})`
+                  : `보스 (${selected.bossWave} 웨이브에 등장)`}
+              </SectionLabel>
               <BossName>{selected.bossName}</BossName>
             </Section>
           )}
