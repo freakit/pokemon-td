@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { StoryChapter, DialogueLine } from '../../data/storyChapters';
+import { useTranslation } from '../../i18n';
 
 interface StoryEndingProps {
   chapter: StoryChapter;
@@ -39,6 +40,7 @@ const BG_IMAGES: Record<string, string> = {
 
 export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete }) => {
   const lines = chapter.endingDialogue;
+  const { language } = useTranslation();
   const [lineIdx, setLineIdx] = useState(0);
   const [displayed, setDisplayed] = useState('');
   const [typing, setTyping] = useState(false);
@@ -47,6 +49,13 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
   const canProceedRef = useRef(false);
 
   const currentLine: DialogueLine | undefined = lines[lineIdx];
+  // 언어(ko/en)에 따라 대사·화자 선택. textEn/speakerEn 없으면 한글로 폴백.
+  const lineText = currentLine
+    ? (language === 'en' && currentLine.textEn ? currentLine.textEn : currentLine.text)
+    : '';
+  const speakerName = currentLine
+    ? (language === 'en' ? currentLine.speakerEn : currentLine.speaker)
+    : '';
 
   const bgSrc = BG_IMAGES[chapter.mapId] ?? '';
   const spriteUrl = currentLine
@@ -70,20 +79,20 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
     let i = 0;
     const id = setInterval(() => {
       i++;
-      setDisplayed(currentLine.text.slice(0, i));
-      if (i >= currentLine.text.length) {
+      setDisplayed(lineText.slice(0, i));
+      if (i >= lineText.length) {
         clearInterval(id);
         setTyping(false);
         canProceedRef.current = true; // [FIX-2] 타이핑 완료 → 진행 허용
       }
     }, CHAR_SPEED);
     return () => clearInterval(id);
-  }, [lineIdx, currentLine]);
+  }, [lineIdx, currentLine, lineText]);
 
   const advance = useCallback(() => {
     if (typing) {
       // 타이핑 스킵
-      setDisplayed(currentLine?.text ?? '');
+      setDisplayed(lineText);
       setTyping(false);
       canProceedRef.current = true; // [FIX-2] 스킵 후 즉시 진행 허용
       return;
@@ -97,7 +106,7 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
     } else {
       onComplete();
     }
-  }, [typing, lineIdx, lines.length, currentLine, onComplete]);
+  }, [typing, lineIdx, lines.length, currentLine, lineText, onComplete]);
 
   // 키보드 단축키
   useEffect(() => {
@@ -120,7 +129,7 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
       {/* 클리어 배너 */}
       <ClearBanner>
         <ClearEyebrow>CHAPTER {String(chapter.chapterNumber).padStart(2,'0')} CLEAR</ClearEyebrow>
-        <ClearTitle $accent={chapter.theme.primary}>{chapter.title}</ClearTitle>
+        <ClearTitle $accent={chapter.theme.primary}>{language === 'en' && chapter.titleEn ? chapter.titleEn : chapter.title}</ClearTitle>
       </ClearBanner>
 
       {/* 스킵 버튼 */}
@@ -143,8 +152,8 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
       {currentLine && (
         <TextBox onClick={e => { e.stopPropagation(); advance(); }}>
           <TextBoxInner>
-            <SpeakerLabel $isEnemy={currentLine.speaker === '군주'}>
-              {currentLine.speaker}
+            <SpeakerLabel $isEnemy={false}>
+              {speakerName}
             </SpeakerLabel>
             <DialogueText>
               {displayed}
@@ -178,6 +187,8 @@ const bannerReveal = keyframes`from{opacity:0;transform:translateY(-12px)}to{opa
 
 const Root = styled.div<{ $visible: boolean }>`
   position:fixed; inset:0; z-index:3000;
+  /* 불투명 베이스 — 가로형 BgImg가 세로 화면을 못 덮을 때 뒤 화면 비침 방지 */
+  background:#05060a;
   cursor:pointer; user-select:none; overflow:hidden;
   opacity:${p => p.$visible ? 1 : 0};
   transition:opacity 0.7s ease;

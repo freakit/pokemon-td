@@ -3,75 +3,61 @@ import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { lMedia, media } from '../../utils/responsive.utils';
 import { databaseService, APRankingEntry } from '../../services/DatabaseService';
-import { LeaderboardEntry } from '../../types/multiplayer';
-import { MAPS } from '../../data/maps';
+import { authService } from '../../services/AuthService';
+import { saveService } from '../../services/SaveService';
 import { useTranslation } from '../../i18n';
 import {
   ModalOverlay, ModalBox, ModalHeader, ModalTitle, ModalCloseBtn,
-  ModalBody, ModalSectionPad, MODAL_ACCENT,
+  ModalBody, MODAL_ACCENT,
 } from '../shared/modal.styles';
-
-type MainTab = 'map' | 'ap';
 
 interface RankingsProps { onClose: () => void; }
 
 export const Rankings = ({ onClose }: RankingsProps) => {
   const { t } = useTranslation();
 
-  // ── 메인 탭 ──
-  const [mainTab, setMainTab] = useState<MainTab>('map');
-
-  // ── 맵 랭킹 상태 ──
-  const [selectedMap, setSelectedMap] = useState(MAPS[0].id);
-  const [sortBy, setSortBy] = useState<'clearTime' | 'highestWave'>('clearTime');
-  const [mapRankings, setMapRankings] = useState<LeaderboardEntry[]>([]);
-  const [myMapRank, setMyMapRank] = useState<number | null>(null);
-  const [mapLoading, setMapLoading] = useState(false);
-
-  // ── AP 랭킹 상태 ──
+  const [activeTab, setActiveTab] = useState<'ap' | 'pvp'>('ap');
   const [apRankings, setApRankings] = useState<APRankingEntry[]>([]);
   const [myApRank, setMyApRank] = useState<number | null>(null);
-  const [apLoading, setApLoading] = useState(false);
+  const [pvpRankings, setPvpRankings] = useState<any[]>([]);
+  const [myPvpRank, setMyPvpRank] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
+
+  const loadRankings = async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'ap') {
+        const [data, rank] = await Promise.all([
+          databaseService.getAPRanking(100),
+          databaseService.getMyAPRank(),
+        ]);
+        setApRankings(data);
+        setMyApRank(rank);
+      } else {
+        const [data, rank] = await Promise.all([
+          databaseService.getPVPRanking(100),
+          databaseService.getMyPVPRank(),
+        ]);
+        setPvpRankings(data);
+        setMyPvpRank(rank);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (mainTab === 'map') loadMapRankings();
-  }, [selectedMap, sortBy, mainTab]);
+    setCurrentPage(0);
+    loadRankings();
+  }, [activeTab]);
 
-  useEffect(() => {
-    if (mainTab === 'ap') loadApRankings();
-  }, [mainTab]);
-
-  const loadMapRankings = async () => {
-    setMapLoading(true);
-    try {
-      const [data, rank] = await Promise.all([
-        databaseService.getMapLeaderboard(selectedMap, sortBy),
-        databaseService.getUserRankForMap(selectedMap, sortBy),
-      ]);
-      setMapRankings(data);
-      setMyMapRank(rank);
-    } catch (err) { console.error(err); }
-    finally { setMapLoading(false); }
-  };
-
-  const loadApRankings = async () => {
-    setApLoading(true);
-    try {
-      const [data, rank] = await Promise.all([
-        databaseService.getAPRanking(100),
-        databaseService.getMyAPRank(),
-      ]);
-      setApRankings(data);
-      setMyApRank(rank);
-    } catch (err) { console.error(err); }
-    finally { setApLoading(false); }
-  };
-
-  const formatTime = (ms: number | undefined) => {
-    if (!ms) return '-';
-    const s = Math.floor(ms / 1000);
-    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-  };
+  const currentRankings = activeTab === 'ap' ? apRankings : pvpRankings;
+  const totalPages = Math.ceil(currentRankings.length / PAGE_SIZE);
+  const displayedRankings = currentRankings.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   return (
     <ModalOverlay onClick={onClose}>
@@ -82,117 +68,95 @@ export const Rankings = ({ onClose }: RankingsProps) => {
           <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
         </ModalHeader>
 
-        {/* ── 메인 탭 ── */}
-        <MainTabRow>
-          <MainTabBtn $active={mainTab === 'map'} onClick={() => setMainTab('map')}>
-            🗺️ {t('rankings.tabMap') ?? '맵 기록'}
-          </MainTabBtn>
-          <MainTabBtn $active={mainTab === 'ap'} onClick={() => setMainTab('ap')}>
-            ⭐ {t('rankings.tabAP') ?? 'AP 랭킹'}
-          </MainTabBtn>
-        </MainTabRow>
+        {/* ── 탭 ── */}
+        <TabRow>
+          <Tab $active={activeTab === 'ap'} onClick={() => setActiveTab('ap')}>
+            {t('rankings.tabAP')}
+          </Tab>
+          <Tab $active={activeTab === 'pvp'} onClick={() => setActiveTab('pvp')}>
+            {t('rankings.tabRating')}
+          </Tab>
+        </TabRow>
 
-        {/* ══ 맵 랭킹 탭 ══ */}
-        {mainTab === 'map' && (
-          <>
-            <ModalSectionPad>
-              <Controls>
-                <MapRow>
-                  <ControlLabel>{t('rankings.mapLabel')}</ControlLabel>
-                  <StyledSelect value={selectedMap} onChange={(e) => setSelectedMap(e.target.value)}>
-                    {MAPS.map(map => (
-                      <option key={map.id} value={map.id}>
-                        {t(`mapData.${map.id}.name`) !== `mapData.${map.id}.name`
-                          ? t(`mapData.${map.id}.name`) : map.name}
-                      </option>
-                    ))}
-                  </StyledSelect>
-                </MapRow>
-                <SortRow>
-                  <SortBtn $active={sortBy === 'clearTime'} onClick={() => setSortBy('clearTime')}>
-                    ⏱️ {t('rankings.tabClearTime')}
-                  </SortBtn>
-                  <SortBtn $active={sortBy === 'highestWave'} onClick={() => setSortBy('highestWave')}>
-                    🌊 {t('rankings.tabHighestWave')}
-                  </SortBtn>
-                </SortRow>
-              </Controls>
-              {myMapRank && (
-                <MyRankBadge>🎯 {t('rankings.myRank', { rank: myMapRank })}</MyRankBadge>
-              )}
-            </ModalSectionPad>
-
-            <ModalBody>
-              {mapLoading ? (
-                <StatusMsg>{t('rankings.loading')}</StatusMsg>
-              ) : mapRankings.length === 0 ? (
-                <StatusMsg $dimmed>{t('rankings.empty')}</StatusMsg>
-              ) : (
-                <RankingTable>
-                  <TableHead>
-                    <ColRank>{t('rankings.colRank')}</ColRank>
-                    <ColPlayer>{t('rankings.colPlayer')}</ColPlayer>
-                    <ColRating>{t('rankings.colRating')}</ColRating>
-                    <ColScore>
-                      {sortBy === 'clearTime' ? t('rankings.colClearTime') : t('rankings.colHighestWave')}
-                    </ColScore>
-                  </TableHead>
-                  {mapRankings.map((entry, index) => (
-                    <TableRow key={`${entry.userId}_${entry.mapId}`} $top={index < 3}>
-                      <ColRank $idx={index}>
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉'
-                          : t('rankings.rankSuffix', { rank: index + 1 })}
-                      </ColRank>
-                      <ColPlayer>{entry.userName}</ColPlayer>
-                      <ColRating>⭐ {entry.rating}</ColRating>
-                      <ColScore $accent>
-                        {sortBy === 'clearTime' ? formatTime(entry.clearTime) : t('rankings.waveSuffix', { wave: entry.highestWave })}
-                      </ColScore>
-                    </TableRow>
-                  ))}
-                </RankingTable>
-              )}
-            </ModalBody>
-          </>
+        {activeTab === 'ap' && (
+          <MyRankBadgeWrapper>
+            <MyRankBadge>🎯 {t('rankings.myRank', { rank: myApRank !== null ? myApRank : '-' })} ({saveService.load().totalAP} AP)</MyRankBadge>
+          </MyRankBadgeWrapper>
         )}
 
-        {/* ══ AP 랭킹 탭 ══ */}
-        {mainTab === 'ap' && (
-          <>
-            {myApRank && (
-              <ModalSectionPad>
-                <MyRankBadge>🎯 {t('rankings.myRank', { rank: myApRank })}</MyRankBadge>
-              </ModalSectionPad>
-            )}
-            <ModalBody>
-              {apLoading ? (
-                <StatusMsg>{t('rankings.loading')}</StatusMsg>
-              ) : apRankings.length === 0 ? (
-                <StatusMsg $dimmed>{t('rankings.empty')}</StatusMsg>
-              ) : (
+        {activeTab === 'pvp' && (
+          <MyRankBadgeWrapper>
+            <MyRankBadge>🎯 {t('rankings.myRank', { rank: myPvpRank !== null ? myPvpRank : '-' })} ({authService.getCurrentUser()?.rating ?? 1000} Rating)</MyRankBadge>
+          </MyRankBadgeWrapper>
+        )}
+        
+        <ModalBody>
+          {loading ? (
+            <StatusMsg>{t('rankings.loading')}</StatusMsg>
+          ) : currentRankings.length === 0 ? (
+            <StatusMsg $dimmed>{t('rankings.empty')}</StatusMsg>
+          ) : (
+            <>
+              {activeTab === 'ap' ? (
                 <RankingTable>
-                  <TableHead>
+                  <TableHead $isAp={true}>
                     <ColRank>{t('rankings.colRank')}</ColRank>
                     <ColPlayer>{t('rankings.colPlayer')}</ColPlayer>
                     <ColRating>{t('rankings.colAchCount') ?? '달성 수'}</ColRating>
                     <ColScore>{t('rankings.colAP') ?? 'AP'}</ColScore>
                   </TableHead>
-                  {apRankings.map((entry, index) => (
-                    <TableRow key={entry.userId} $top={index < 3}>
-                      <ColRank $idx={index}>
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉'
-                          : t('rankings.rankSuffix', { rank: index + 1 })}
-                      </ColRank>
-                      <ColPlayer>{entry.userName ?? '???'}</ColPlayer>
-                      <ColRating>🏅 {entry.achievementCount}</ColRating>
-                      <ColScore $accent>{entry.totalAP.toLocaleString()} AP</ColScore>
-                    </TableRow>
-                  ))}
+                  {displayedRankings.map((entry, index) => {
+                    const rank = currentPage * PAGE_SIZE + index;
+                    return (
+                      <TableRow key={entry.userId} $top={rank < 3} $isAp={true}>
+                        <ColRank $idx={rank}>
+                          {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉'
+                            : t('rankings.rankSuffix', { rank: rank + 1 })}
+                        </ColRank>
+                        <ColPlayer>{entry.userName ?? '???'}</ColPlayer>
+                        <ColRating>🏅 {entry.achievementCount}</ColRating>
+                        <ColScore $accent>{entry.totalAP.toLocaleString()} AP</ColScore>
+                      </TableRow>
+                    );
+                  })}
+                </RankingTable>
+              ) : (
+                <RankingTable>
+                  <TableHead $isAp={false}>
+                    <ColRank>{t('rankings.colRank')}</ColRank>
+                    <ColPlayer>{t('rankings.colPlayer')}</ColPlayer>
+                    <ColScore>{t('rankings.colRating')}</ColScore>
+                  </TableHead>
+                  {displayedRankings.map((entry, index) => {
+                    const rank = currentPage * PAGE_SIZE + index;
+                    return (
+                      <TableRow key={entry.userId} $top={rank < 3} $isAp={false}>
+                        <ColRank $idx={rank}>
+                          {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉'
+                            : t('rankings.rankSuffix', { rank: rank + 1 })}
+                        </ColRank>
+                        <ColPlayer>{entry.userName ?? '???'}</ColPlayer>
+                        <ColScore $accent>⭐ {(entry.rating ?? 1000).toLocaleString()}</ColScore>
+                      </TableRow>
+                    );
+                  })}
                 </RankingTable>
               )}
-            </ModalBody>
-          </>
-        )}
+
+              {totalPages > 1 && (
+                <PaginationRow>
+                  <PageBtn onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))} disabled={currentPage === 0}>
+                    ◀
+                  </PageBtn>
+                  <PageInfo>{currentPage + 1} / {totalPages}</PageInfo>
+                  <PageBtn onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))} disabled={currentPage === totalPages - 1}>
+                    ▶
+                  </PageBtn>
+                </PaginationRow>
+              )}
+            </>
+          )}
+        </ModalBody>
 
       </ModalBox>
     </ModalOverlay>
@@ -201,64 +165,43 @@ export const Rankings = ({ onClose }: RankingsProps) => {
 
 // ─── Local Styled Components ──────────────────────────────────────────────────
 
-const MainTabRow = styled.div`
-  display: flex; gap: 0;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
+const PaginationRow = styled.div`
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 16px; margin-bottom: 8px;
 `;
 
-const MainTabBtn = styled.button<{ $active: boolean }>`
-  flex: 1; padding: 12px;
-  background: ${p => p.$active ? 'rgba(79,195,247,0.10)' : 'transparent'};
-  color: ${p => p.$active ? '#4fc3f7' : 'rgba(255,255,255,0.4)'};
-  font-weight: 700; font-size: 14px;
-  border: none;
-  border-bottom: 2px solid ${p => p.$active ? '#4fc3f7' : 'transparent'};
-  cursor: pointer; transition: all 0.2s;
-  @media (hover:hover) { &:hover { background: rgba(79,195,247,0.06); color: #4fc3f7; } }
-  ${media.mobile} { font-size: 13px; padding: 10px; }
+const PageBtn = styled.button`
+  padding: 6px 14px; border-radius: 8px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; cursor: pointer; font-size: 13px; font-weight: bold;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+  &:not(:disabled):hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+  ${media.mobile} { padding: 5px 12px; font-size: 12px; }
 `;
 
-const Controls = styled.div`
-  display: flex; flex-direction: column; gap: 10px;
-  ${media.mobile} { gap: 7px; }
+const PageInfo = styled.span`
+  font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  ${media.mobile} { font-size: 12px; }
 `;
 
-const MapRow = styled.div`
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-`;
+const MyRankBadgeWrapper = styled.div`
+  padding: 0 24px;
+  margin-bottom: 12px;
 
-const ControlLabel = styled.label`
-  font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); white-space: nowrap;
-`;
-
-const StyledSelect = styled.select`
-  flex: 1; min-width: 0; padding: 7px 12px; border-radius: 8px;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-  color: #fff; font-size: 13px; cursor: pointer; outline: none;
-  option { background: #1a2032; }
-  @media (hover:hover) { &:hover { border-color: rgba(255,255,255,0.22); } }
-`;
-
-const SortRow = styled.div`display:flex;gap:8px;`;
-
-const SortBtn = styled.button<{ $active: boolean }>`
-  flex:1; padding: 8px 12px;
-  background: ${p => p.$active ? 'rgba(79,195,247,0.14)' : 'rgba(255,255,255,0.04)'};
-  color: ${p => p.$active ? '#4fc3f7' : 'rgba(255,255,255,0.45)'};
-  font-weight: 700; font-size: 13px;
-  border: 1px solid ${p => p.$active ? 'rgba(79,195,247,0.40)' : 'rgba(255,255,255,0.08)'};
-  border-radius: 8px; cursor: pointer; transition: background 0.2s, color 0.2s;
-  @media (hover:hover) { &:hover { background: rgba(79,195,247,0.12); color: #4fc3f7; } }
-  ${media.mobile} { font-size: 12px; padding: 6px 8px; }
+  ${media.tablet} { padding: 0 18px; }
+  ${media.mobile} { padding: 0 14px; margin-bottom: 10px; }
+  ${lMedia.phoneSm} { padding: 0 12px; }
 `;
 
 const MyRankBadge = styled.div`
   display: flex; align-items: center; gap: 8px;
-  margin-top: 10px; padding: 9px 14px;
+  margin-top: 0; padding: 9px 14px;
   background: rgba(79,195,247,0.08); border: 1px solid rgba(79,195,247,0.22);
   border-radius: 8px; color: #4fc3f7; font-size: 14px; font-weight: 700;
-  ${media.mobile} { font-size: 13px; padding: 7px 12px; margin-top: 7px; }
+  ${media.mobile} { font-size: 13px; padding: 7px 12px; margin-top: 0; }
 `;
 
 const StatusMsg = styled.div<{ $dimmed?: boolean }>`
@@ -268,9 +211,36 @@ const StatusMsg = styled.div<{ $dimmed?: boolean }>`
   ${media.mobile} { padding: 32px; font-size: 13px; }
 `;
 
-const COLS_D = '72px 1fr 130px 150px';
-const COLS_T = '56px 1fr 100px 110px';
-const COLS_M = '40px 1fr 90px';
+const COLS_D_AP = '72px 1fr 130px 150px';
+const COLS_T_AP = '56px 1fr 100px 110px';
+const COLS_M_AP = '40px 1fr 90px';
+
+const COLS_D_PVP = '72px 1fr 150px';
+const COLS_T_PVP = '56px 1fr 110px';
+const COLS_M_PVP = '40px 1fr 90px';
+
+const TabRow = styled.div`
+  display: flex; gap: 4px; margin-bottom: 6px;
+  padding: 0 24px;
+
+  ${media.tablet} { padding: 0 18px; }
+  ${media.mobile} { margin-bottom: 4px; padding: 0 14px; }
+  ${lMedia.phoneSm} { padding: 0 12px; }
+`;
+
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 8px 18px; font-size: 14px; font-weight: bold;
+  border: none; border-radius: 10px 10px 0 0; cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  background: ${p => p.$active ? 'rgba(79,195,247,0.18)' : 'rgba(255,255,255,0.06)'};
+  color: ${p => p.$active ? '#4fc3f7' : 'rgba(255,255,255,0.5)'};
+  border-bottom: ${p => p.$active ? '2px solid #4fc3f7' : '2px solid transparent'};
+  @media (hover: hover) { &:hover { background: rgba(79,195,247,0.12); color: #4fc3f7; } }
+
+  ${media.tablet} { padding: 7px 14px; font-size: 13px; }
+  ${media.mobile} { padding: 6px 10px; font-size: 11.5px; border-radius: 8px 8px 0 0; }
+  ${lMedia.phoneSm} { padding: 5px 10px; font-size: 11px; }
+`;
 
 const RankingTable = styled.div`
   margin: 0 24px 20px;
@@ -279,31 +249,31 @@ const RankingTable = styled.div`
   ${media.mobile} { margin: 0 14px 16px; border-radius: 10px; }
 `;
 
-const TableHead = styled.div`
-  display: grid; grid-template-columns: ${COLS_D};
+const TableHead = styled.div<{ $isAp?: boolean }>`
+  display: grid; grid-template-columns: ${p => p.$isAp ? COLS_D_AP : COLS_D_PVP};
   gap: 12px; padding: 10px 16px;
   background: rgba(255,255,255,0.04);
   border-bottom: 1px solid rgba(255,255,255,0.07);
   font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.35);
   text-transform: uppercase; letter-spacing: 0.08em;
-  ${media.tablet} { grid-template-columns: ${COLS_T}; gap: 8px; }
-  ${media.mobile} { grid-template-columns: ${COLS_M}; gap: 6px; padding: 8px 12px; font-size: 10px; }
-  ${lMedia.phone} { grid-template-columns: ${COLS_T}; gap: 8px; }
-  ${lMedia.phoneSm} { grid-template-columns: ${COLS_M}; gap: 6px; font-size: 10px; }
+  ${media.tablet} { grid-template-columns: ${p => p.$isAp ? COLS_T_AP : COLS_T_PVP}; gap: 8px; }
+  ${media.mobile} { grid-template-columns: ${p => p.$isAp ? COLS_M_AP : COLS_M_PVP}; gap: 6px; padding: 8px 12px; font-size: 10px; }
+  ${lMedia.phone} { grid-template-columns: ${p => p.$isAp ? COLS_T_AP : COLS_T_PVP}; gap: 8px; }
+  ${lMedia.phoneSm} { grid-template-columns: ${p => p.$isAp ? COLS_M_AP : COLS_M_PVP}; gap: 6px; font-size: 10px; }
 `;
 
-const TableRow = styled.div<{ $top?: boolean }>`
-  display: grid; grid-template-columns: ${COLS_D};
+const TableRow = styled.div<{ $top?: boolean; $isAp?: boolean }>`
+  display: grid; grid-template-columns: ${p => p.$isAp ? COLS_D_AP : COLS_D_PVP};
   gap: 12px; padding: 10px 16px; align-items: center;
   border-bottom: 1px solid rgba(255,255,255,0.04);
   background: ${p => p.$top ? 'rgba(255,215,0,0.025)' : 'transparent'};
   transition: background 0.15s;
   @media (hover:hover) { &:hover { background: rgba(255,255,255,0.04); } }
   &:last-child { border-bottom: none; }
-  ${media.tablet} { grid-template-columns: ${COLS_T}; gap: 8px; }
-  ${media.mobile} { grid-template-columns: ${COLS_M}; gap: 6px; padding: 8px 12px; }
-  ${lMedia.phone} { grid-template-columns: ${COLS_T}; gap: 8px; }
-  ${lMedia.phoneSm} { grid-template-columns: ${COLS_M}; gap: 6px; padding: 7px 10px; }
+  ${media.tablet} { grid-template-columns: ${p => p.$isAp ? COLS_T_AP : COLS_T_PVP}; gap: 8px; }
+  ${media.mobile} { grid-template-columns: ${p => p.$isAp ? COLS_M_AP : COLS_M_PVP}; gap: 6px; padding: 8px 12px; }
+  ${lMedia.phone} { grid-template-columns: ${p => p.$isAp ? COLS_T_AP : COLS_T_PVP}; gap: 8px; }
+  ${lMedia.phoneSm} { grid-template-columns: ${p => p.$isAp ? COLS_M_AP : COLS_M_PVP}; gap: 6px; padding: 7px 10px; }
 `;
 
 const ColRank = styled.div<{ $idx?: number }>`

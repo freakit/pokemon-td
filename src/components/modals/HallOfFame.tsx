@@ -43,11 +43,14 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
   const [globalWaveEntries, setGlobalWaveEntries] = useState<LeaderboardEntry[]>([]);
   const [myEntries, setMyEntries] = useState<HallOfFameEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const PAGE_SIZE = 10;
 
   const user = authService.getCurrentUser();
   const selectedMapId = mapFilter === 'all' ? undefined : mapFilter;
 
   useEffect(() => {
+    setCurrentPage(0);
     load();
   }, [tab, mapFilter]);
 
@@ -70,6 +73,15 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
       setLoading(false);
     }
   };
+
+  const currentEntries = (() => {
+    if (tab === 'global_clear') return globalClearEntries;
+    if (tab === 'global_wave') return globalWaveEntries;
+    return myEntries;
+  })();
+
+  const totalPages = Math.ceil(currentEntries.length / PAGE_SIZE);
+  const displayedEntries = currentEntries.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
   return (
     <ModalOverlay onClick={onClose}>
@@ -120,12 +132,38 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
         <Body>
           {loading ? (
             <CenterMsg>{t('hallOfFame.loading')}</CenterMsg>
-          ) : tab === 'global_clear' ? (
-            <GlobalClearList entries={globalClearEntries} myUid={user?.uid} />
-          ) : tab === 'global_wave' ? (
-            <GlobalWaveList entries={globalWaveEntries} myUid={user?.uid} />
           ) : (
-            <MyRecordList entries={myEntries} />
+            <>
+              {tab === 'global_clear' && (
+                <GlobalClearList
+                  entries={displayedEntries as HallOfFameEntry[]}
+                  myUid={user?.uid}
+                  startRank={currentPage * PAGE_SIZE}
+                />
+              )}
+              {tab === 'global_wave' && (
+                <GlobalWaveList
+                  entries={displayedEntries as LeaderboardEntry[]}
+                  myUid={user?.uid}
+                  startRank={currentPage * PAGE_SIZE}
+                />
+              )}
+              {tab === 'mine' && (
+                <MyRecordList entries={displayedEntries as HallOfFameEntry[]} />
+              )}
+
+              {totalPages > 1 && (
+                <PaginationRow>
+                  <PageBtn onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))} disabled={currentPage === 0}>
+                    ◀
+                  </PageBtn>
+                  <PageInfo>{currentPage + 1} / {totalPages}</PageInfo>
+                  <PageBtn onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))} disabled={currentPage === totalPages - 1}>
+                    ▶
+                  </PageBtn>
+                </PaginationRow>
+              )}
+            </>
           )}
         </Body>
 
@@ -142,8 +180,8 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
 // ─── 전체 클리어 시간 랭킹 ──────────────────────────────────────────────────
 
 const GlobalClearList = ({
-  entries, myUid,
-}: { entries: HallOfFameEntry[]; myUid?: string }) => {
+  entries, myUid, startRank = 0,
+}: { entries: HallOfFameEntry[]; myUid?: string; startRank?: number }) => {
   const { t, language } = useTranslation();
   if (entries.length === 0) return <EmptyMsg>{t('hallOfFame.emptyClear')}</EmptyMsg>;
 
@@ -161,24 +199,27 @@ const GlobalClearList = ({
           </tr>
         </thead>
         <tbody>
-          {entries.map((e, i) => (
-            <Tr key={e.id} $isMe={e.userId === myUid} $rank={i}>
-              <Td $center>{MEDAL[i] ?? t('hallOfFame.rankSuffix', { rank: i + 1 })}</Td>
-              <Td $bold>{e.userName}</Td>
-              <Td className="hide-mobile">
-                {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
-                  ? t(`mapData.${e.mapId}.name`)
-                  : e.mapName}
-              </Td>
-              <Td $bold $accent>{formatTime(e.clearTime, t)}</Td>
-              <PokemonCell className="hide-mobile hide-tablet">
-                {e.pokemonUsed.slice(0, 4).map((name, j) => (
-                  <PokemonTag key={j}>{name}</PokemonTag>
-                ))}
-              </PokemonCell>
-              <Td $small className="hide-mobile">{formatDate(e.timestamp, language)}</Td>
-            </Tr>
-          ))}
+          {entries.map((e, i) => {
+            const rank = startRank + i;
+            return (
+              <Tr key={e.id} $isMe={e.userId === myUid} $rank={rank}>
+                <Td $center>{MEDAL[rank] ?? t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
+                <Td $bold>{e.userName}</Td>
+                <Td className="hide-mobile">
+                  {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
+                    ? t(`mapData.${e.mapId}.name`)
+                    : e.mapName}
+                </Td>
+                <Td $bold $accent>{formatTime(e.clearTime, t)}</Td>
+                <PokemonCell className="hide-mobile hide-tablet">
+                  {e.pokemonUsed.map((name, j) => (
+                    <PokemonTag key={j}>{name}</PokemonTag>
+                  ))}
+                </PokemonCell>
+                <Td $small className="hide-mobile">{formatDate(e.timestamp, language)}</Td>
+              </Tr>
+            );
+          })}
         </tbody>
       </Table>
     </TableWrapper>
@@ -188,8 +229,8 @@ const GlobalClearList = ({
 // ─── 전체 최고 웨이브 랭킹 ──────────────────────────────────────────────────
 
 const GlobalWaveList = ({
-  entries, myUid,
-}: { entries: LeaderboardEntry[]; myUid?: string }) => {
+  entries, myUid, startRank = 0,
+}: { entries: LeaderboardEntry[]; myUid?: string; startRank?: number }) => {
   const { t } = useTranslation();
   if (entries.length === 0) return <EmptyMsg>{t('hallOfFame.emptyWave')}</EmptyMsg>;
 
@@ -207,20 +248,23 @@ const GlobalWaveList = ({
           </tr>
         </thead>
         <tbody>
-          {entries.map((e, i) => (
-            <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={i}>
-              <Td $center>{MEDAL[i] ?? t('hallOfFame.rankSuffix', { rank: i + 1 })}</Td>
-              <Td $bold>{e.userName}</Td>
-              <Td className="hide-mobile">
-                {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
-                  ? t(`mapData.${e.mapId}.name`)
-                  : e.mapId}
-              </Td>
-              <WaveCell>{e.highestWave}</WaveCell>
-              <Td className="hide-mobile">{formatTime(e.clearTime, t)}</Td>
-              <Td className="hide-mobile">{e.rating}</Td>
-            </Tr>
-          ))}
+          {entries.map((e, i) => {
+            const rank = startRank + i;
+            return (
+              <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={rank}>
+                <Td $center>{MEDAL[rank] ?? t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
+                <Td $bold>{e.userName}</Td>
+                <Td className="hide-mobile">
+                  {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
+                    ? t(`mapData.${e.mapId}.name`)
+                    : e.mapId}
+                </Td>
+                <WaveCell>{e.highestWave}</WaveCell>
+                <Td className="hide-mobile">{formatTime(e.clearTime, t)}</Td>
+                <Td className="hide-mobile">{e.rating}</Td>
+              </Tr>
+            );
+          })}
         </tbody>
       </Table>
     </TableWrapper>
@@ -553,6 +597,28 @@ const SectionTitle = styled.h2`
 const HeaderSection = styled.div`
   border-bottom: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
+`;
+
+const PaginationRow = styled.div`
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  margin-top: 16px; margin-bottom: 8px;
+`;
+
+const PageBtn = styled.button`
+  padding: 6px 14px; border-radius: 8px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: #fff; cursor: pointer; font-size: 13px; font-weight: bold;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+  &:not(:disabled):hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); }
+  ${media.mobile} { padding: 5px 12px; font-size: 12px; }
+`;
+
+const PageInfo = styled.span`
+  font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  ${media.mobile} { font-size: 12px; }
 `;
 
 // ── 데이터 보존 안내 ──

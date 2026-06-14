@@ -1,7 +1,7 @@
 {
   "name": "pokemon-aegis",
   "private": true,
-  "version": "4.4.1",
+  "version": "4.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "axios": "^1.6.2",
     "dotenv": "^17.2.3",
     "firebase": "^12.5.0",

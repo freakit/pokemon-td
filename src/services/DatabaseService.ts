@@ -300,7 +300,7 @@ class DatabaseService {
   // [FIX-QUOTA] 업적 쓰기 + AP 랭킹 갱신을 단일 WriteBatch로 묶어 Firestore 쓰기 횟수 절반 절감.
   // 업적은 단조 증가(취소 불가)이므로 AP 랭킹도 항상 최신값으로 덮어써도 안전.
   // updateAPRanking의 불필요한 read(getDoc)도 제거 — AP가 낮아지는 경우는 없기 때문.
-  async updateUserAchievement(achievement: Achievement, totalAP?: number): Promise<void> {
+  async updateUserAchievement(achievement: Achievement, totalAP?: number, achievementCount?: number): Promise<void> {
     const user = authService.getCurrentUser();
     if (!user || authService.isOfflineMode()) return; // [FREE-TIER] 오프라인은 Firestore 쓰기 안 함
 
@@ -318,11 +318,37 @@ class DatabaseService {
         userId: user.uid,
         userName: user.displayName,
         totalAP,
-        achievementCount: achievement.completions ?? 1,
+        achievementCount: achievementCount ?? 1,
         updatedAt: Date.now(),
       };
       batch.set(apRef, apEntry);
     }
+
+    await batch.commit();
+  }
+
+  async updateUserAchievementsBulk(achievements: Achievement[], totalAP: number, achievementCount: number): Promise<void> {
+    const user = authService.getCurrentUser();
+    if (!user || authService.isOfflineMode()) return;
+
+    const batch = writeBatch(db);
+
+    for (const ach of achievements) {
+      if (ach.unlocked || (ach.progress ?? 0) > 0) {
+        const achRef = doc(db, 'achievements', `${user.uid}_${ach.id}`);
+        batch.set(achRef, { userId: user.uid, ...ach }, { merge: true });
+      }
+    }
+
+    const apRef = doc(db, 'apRankings', user.uid);
+    const apEntry: APRankingEntry = {
+      userId: user.uid,
+      userName: user.displayName,
+      totalAP,
+      achievementCount,
+      updatedAt: Date.now(),
+    };
+    batch.set(apRef, apEntry);
 
     await batch.commit();
   }
@@ -403,6 +429,51 @@ class DatabaseService {
       const snapshot = await getDocs(q);
       return snapshot.size + 1;
     } catch {
+      return null;
+    }
+  }
+
+  // ─── PVP 랭킹 ────────────────────────────────────────────────────────────
+  async getPVPRanking(limitCount = 100): Promise<any[]> {
+    return this.cachedRead(`pvpRanking:${limitCount}`, async () => {
+      try {
+        const q = query(
+          collection(db, 'users'),
+          orderBy('rating', 'desc'),
+          limit(limitCount)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+          userId: doc.id,
+          userName: doc.data().displayName,
+          rating: doc.data().rating ?? 1000,
+        }));
+      } catch (err) {
+        console.error('getPVPRanking failed:', err);
+        return [];
+      }
+    });
+  }
+
+  async getMyPVPRank(): Promise<number | null> {
+    const user = authService.getCurrentUser();
+    if (!user) return null;
+
+    try {
+      const myDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!myDoc.exists()) return null;
+
+      const myRating = myDoc.data().rating ?? 1000;
+      const RANK_SCAN_LIMIT = 500;
+      const q = query(
+        collection(db, 'users'),
+        where('rating', '>', myRating),
+        limit(RANK_SCAN_LIMIT)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.size + 1;
+    } catch (err) {
+      console.error('getMyPVPRank failed:', err);
       return null;
     }
   }

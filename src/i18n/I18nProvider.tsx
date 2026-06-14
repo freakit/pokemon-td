@@ -1,5 +1,5 @@
 // src/i18n/I18nProvider.tsx
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import ko from './translations/ko.json';
 import en from './translations/en.json';
 
@@ -11,7 +11,7 @@ interface TranslationContextType {
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
-const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
+export const TranslationContext = createContext<TranslationContextType | undefined>(undefined);
 
 const translations = { ko, en };
 
@@ -60,10 +60,3 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-export const useTranslation = () => {
-  const context = useContext(TranslationContext);
-  if (!context) {
-    throw new Error('useTranslation must be used within I18nProvider');
-  }
-  return context;
-};

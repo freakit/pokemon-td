@@ -1,1202 +1,792 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 📖 storyChapters.ts — Pokemon Aegis 스토리 모드 데이터 파일
+// 📖 storyChapters.ts — Pokemon Aegis 스토리 모드
+//    "포대장의 성도 표류기" (Captain's Johto Drift) — 에눈박놈 / 칠색조 미스터리
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
-// ✅ 이 파일에서 수정해도 되는 것:
-//   - 각 챕터의 openingDialogue, endingDialogue (대사 내용, 화자, 순서)
-//   - title, subtitle, location (챕터 표시 텍스트)
-//   - theme.primary 색상 (챕터 분위기 색상)
+// ✅ 수정 OK: openingDialogue, endingDialogue (text=한글, textEn=영어) /
+//             title·titleEn / subtitle·subtitleEn / location·locationEn /
+//             theme.primary / heroPool / enemyTypes / bossName
+// ❌ 수정 금지: id, chapterNumber, mapId, totalWaves(30), bossWave(0=보스없음),
+//             theme.secondary, theme.bg, unlockCondition, interface, export
 //
-// ❌ 이 파일에서 수정하면 안 되는 것 (게임 시스템과 직결됨):
-//   - id, chapterNumber (순서 및 식별자)
-//   - mapId (실제 게임 맵 파일과 연결됨)
-//   - totalWaves (항상 30 — 게임 엔진 고정값)
-//   - heroPool (포켓몬 번호 — 상점 로직과 연결됨)
-//   - enemyTypes (적 스폰 로직과 연결됨)
-//   - bossWave, bossName (보스 스폰 로직과 연결됨)
-//   - theme.secondary, theme.bg (UI 렌더링용)
-//   - unlockCondition (챕터 해금 시스템과 연결됨)
-//   - interface 정의, export 구문
+// ※ heroPool 은 반드시 "기본형(base form)"만. 진화체 금지.
+// ※ 언어(ko/en)에 따라 컴포넌트가 ko/En 필드를 자동 선택. En 없으면 ko 폴백.
 //
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🌍 세계관 설정 — 암베라(Ambera)
+// 🌍 세계관 — 사람이 사라진 성도(Johto)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
-// 인간이 없는 세계 "암베라". 포켓몬들이 마을을 세우고, 탐험대를 꾸리고,
-// 저마다의 방식으로 살아간다. 이 세계의 역사는 길고, 기억하는 자는 적다.
+// 사람이 전부 사라진 성도. 질서가 무너지자 가장 센 야생 포켓몬이 빈 체육관을
+// 차지해 날뛴다(야생 폭주). 수호신 '칠색조'는 포켓몬을 가장 사랑한 인간의 영혼을
+// 그들이 가장 깊이 유대한 포켓몬의 몸으로 불러들였다(정체는 Ch8에서 공개).
+// 소문: "여덟 배지를 모으면, 돌아갈 수 있다." 떡밥: 무지개 깃털·연두 글귀·목소리.
 //
-// ┌─ 군주(The Master) ────────────────────────────────────────────────────────
-// │  1만 년 전 아르세우스에 의해 암베라 심연에 봉인된 존재.
-// │  차원과 차원 사이에서 태어났기 때문에 이 세계에도, 어디에도 속하지 않는다.
-// │  "이질적(異質的)"이라는 이유로 봉인됐지만, 봉인 당시 저항하지 않고 받아들였다.
-// │  그 이유는 1만 년이 지난 지금도 아무도 모른다.
-// │
-// │  봉인 안에서 군주는 꿈처럼 바깥 세상을 내다본다.
-// │  잠들어있는 것도, 완전히 깨어있는 것도 아닌 상태로.
-// │  1만 년이 지나며 봉인이 서서히 약해졌고, 이제 그 의식이 조금씩 새어나오기
-// │  시작했다. 악의가 있어서가 아니다. 그냥 — 그렇게 됐다.
-// │
-// ├─ 감시자(Watcher) ─────────────────────────────────────────────────────────
-// │  군주의 의식이 스며든 포켓몬들. Aegis가 붙인 이름.
-// │
-// │  봉인이 약해지면서 군주의 파편이 세상으로 흘러나온다. 그 파편은 상처받거나
-// │  길을 잃은 포켓몬들 안으로 스며든다. 스며든 순간, 그 포켓몬의 눈에서 빛이
-// │  사라진다. 이름도, 두려움도, 기억도 없이 — 그냥 걷는다. 봉인석을 향해.
-// │
-// │  감시자는 죽은 것이 아니다. 그렇다고 살아있다고 말할 수도 없다.
-// │  Aegis의 대원들은 쓰러뜨린 감시자가 한때 이름을 가진 포켓몬이었음을 안다.
-// │  그게 이 싸움을 단순하지 않게 만든다.
-// │
-// └─ Aegis ────────────────────────────────────────────────────────────────────
-//    "방패"를 뜻하는 암베라 고어(古語)에서 유래한 이름.
-//    봉인을 연구하던 소수의 포켓몬들이 수백 년 전 자발적으로 결성한 조직.
+// 정확한 성도 8체육관(공식 순서 / 한글·영문 / 타입 / 관장 / 에이스):
+//   1 도라지시티 Violet · 비행 · 비상(Falkner) · 피죤투(보스 없음)
+//   2 고동마을   Azalea · 벌레 · 호일(Bugsy)  · 스라크(Scyther)
+//   3 금빛시티   Goldenrod · 노말 · 꼭두(Whitney) · 밀탱크(Miltank)
+//   4 인주시티   Ecruteak · 고스트 · 유빈(Morty) · 팬텀(Gengar) — 칠색조 탑 소재지
+//   5 진청시티   Cianwood · 격투 · 사도(Chuck) · 강챙이(Poliwrath)
+//   6 담청시티   Olivine · 강철 · 규리(Jasmine) · 강철톤(Steelix)
+//   7 황토마을   Mahogany · 얼음 · 류옹(Pryce) · 메꾸리(Piloswine)
+//   8 검은먹시티 Blackthorn · 드래곤 · 이향(Clair) · 킹드라(Kingdra)
+// (세계관상 관장은 사라졌으므로 보스는 그 체육관 에이스의 '야생 폭주' 개체)
 //
-//    Aegis의 임무는 단순하다: 8개의 봉인석을 지키는 것.
-//    봉인석이 모두 온전하면 군주는 잠든 채로 있다.
-//    하나라도 파괴되면 봉인의 균형이 흔들리고, 군주의 각성이 앞당겨진다.
-//
-//    Aegis는 군주를 처치하거나 몰아내려 하지 않는다.
-//    그럴 방법도, 그래야 할 이유도 확실하지 않기 때문이다.
-//    그저 오늘 밤 봉인석에 닿으려는 감시자를 막을 뿐이다.
-//    그리고 내일 밤도, 그다음 날 밤도.
-//
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎭 등장인물
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-// ┌─ 루카리오 (pokemonId: 448) ───────────────────────────────────────────────
-// │  Aegis 총사령관. 12년 경력. 아우라로 감시자의 텅 빈 내면을 읽는다.
-// │  확신보다 질문을 하는 사람. 잃은 사람이 있다.
-// │  말투: 짧고 직접적. "." 으로 끊는다. "......" 침묵이 많다.
-// │
-// ├─ 스라크 (pokemonId: 123) ─────────────────────────────────────────────────
-// │  Aegis 서부 지부 사령관. 냉소적이지만 의리 있다.
-// │  회의적으로 질문하고, 스스로 납득하면 끝까지 간다.
-// │  말투: 짧음. 감정을 숨기다가 가끔 드러낸다.
-// │
-// ├─ 라티아스 (pokemonId: 380) ───────────────────────────────────────────────
-// │  알토마레 성역 수호자. 오빠 라티오스가 사라졌다.
-// │  감정을 직접 드러낸다. 질문을 두려워하지 않는다.
-// │  말투: 솔직하고 감성적. "알아."로 끊는 대사가 많다.
-// │
-// ├─ 라티오스 (pokemonId: 381) ───────────────────────────────────────────────
-// │  Ch.3~7 동안 부재. Ch.8 엔딩에서 귀환. 늦은 이유는 바다 쪽에 별도 위협.
-// │  말투: 짧고 담담하다.
-// │
-// ├─ 레지락 (pokemonId: 377) ─────────────────────────────────────────────────
-// │  어둠 동굴 자원 수호자. 군주 봉인 현장 목격자.
-// │  군주를 악으로 단정 짓지 않는다. "선택이었다."가 핵심 대사.
-// │  말투: "......" 으로 시작하는 대사가 많다. 느리고 무겁다.
-// │
-// ├─ 레지아이스 (pokemonId: 378) ─────────────────────────────────────────────
-// │  눈설왕 산맥 수호자. 군주가 봉인될 때 저항하지 않았음을 알고 있다.
-// │  "슬픔처럼 보였다"는 군주 관찰이 핵심. 군주를 가장 이해하는 캐릭터.
-// │  말투: "......" 많음. 레지락과 비슷하나 더 사유적.
-// │
-// ├─ 프리져 (pokemonId: 144) ─────────────────────────────────────────────────
-// │  눈설왕 산맥 영역 수호자. 레지아이스와 함께 등장.
-// │  실용적이고 행동 지향적. 깊은 말보다 상황 정리를 한다.
-// │  말투: 명확하고 빠르다.
-// │
-// ├─ 엘레이드 (pokemonId: 475) ─────────────────────────────────────────────
-// │  Aegis 중부 지부장. 철학적 질문을 던지지만 현실주의자.
-// │  "오늘 밤에 살아있는 사람이 내일을 걱정할 수 있다" — 작품 전체 주제 대사.
-// │  Ch.8에서 이 대사를 다시 반복해 주제를 닫는다.
-// │  말투: 조용하지만 핵심을 찌른다.
-// │
-// └─ 군주 (pokemonId: 487, 기라티나) ─────────────────────────────────────────
-//    1만 년 봉인. 차원 사이에서 태어나 아무 데도 속하지 못한 존재.
-//    악의가 없다. 두렵고, 이름도 잊었다. 봉인을 받아들인 이유를 스스로도 모른다.
-//    Aegis를 적으로 보지 않는다. "잘 싸웠어."라고 말한다.
-//    말투: 느리고 무겁다. 질문으로 대화한다.
-//
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎯 스토리 전체 구조 (챕터별 테마)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-//  Ch.1  팔레트 평원   — "우리는 무엇을 지키는가"       감시자의 정체에 대한 첫 질문
-//  Ch.2  비리디안 외성 — "두려움을 임무라고 부를 때"     루카리오와 스라크의 회의와 공감
-//  Ch.3  알토마레 해안 — "사라진 사람을 기다리는 것"     라티아스의 부재와 선택
-//  Ch.4  어둠 동굴     — "선택한 것과 강요받은 것"       레지락의 자원 수호와 군주의 실체
-//  Ch.5  오레 사막     — "우리가 적을 닮아갈 때"         섀도우화의 공포와 도덕적 딜레마
-//  Ch.6  사파리 사바나 — "한 사람이 버틸 수 있는 것"     소진과 엘레이드의 현실주의
-//  Ch.7  눈설왕 산맥   — "기억한다는 것의 무게"          레지아이스의 목격자 책임
-//  Ch.8  차원의 제단   — "봉인한다는 것은 이해를 포기하는가" 군주와의 대화, 열린 결말
-//
-//  ✦ Ch.8 엔딩 구조: 엘레이드가 Ch.6의 대사를 다시 반복 → 주제가 고리처럼 닫힘
-//  ✦ 라티오스는 Ch.3에서 실종, Ch.8 엔딩에서 귀환 → 서브플롯 완결
-//
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ✍️  대사 작성 가이드
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-//  ▸ 한 대사 = 한 화면. 너무 길면 두 줄로 분리.
-//    (화면 폭 기준 약 40자 2줄 = 한 대사의 적정 분량)
-//
-//  ▸ 감정은 대사 안에 직접 쓰지 않는다. "슬프다" 대신 행동이나 침묵.
-//    좋은 예: '......그게 전부야.'
-//    나쁜 예: '나는 매우 슬프고 힘들어.'
-//
-//  ▸ "......" 은 레지락·레지아이스·군주의 대사 앞에 붙이는 침묵 표시.
-//    루카리오는 "......" 을 대사 중간에 삽입 (ex: '......맞아.')
-//
-//  ▸ 챕터 오프닝 대사: 전투 시작 전 상황 설명. 6~12줄 권장.
-//  ▸ 챕터 엔딩 대사:   전투 직후 여운. 4~8줄 권장.
-//
-//  ▸ speaker(한글)와 speakerEn(영문)을 반드시 함께 작성.
-//  ▸ pokemonId는 PokeAPI 기준 국가도감번호. 변경 금지.
-//
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎨 챕터 테마 색상 가이드 (theme.primary만 수정 가능)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-//  Ch.1 초록  #4ade80  팔레트 초원
-//  Ch.2 연초록 #86efac  비리디안 숲
-//  Ch.3 하늘  #38bdf8  알토마레 해안
-//  Ch.4 보라  #a78bfa  어둠 동굴
-//  Ch.5 주황  #fb923c  오레 사막
-//  Ch.6 연두  #a3e635  사파리 사바나
-//  Ch.7 청색  #7dd3fc  눈설왕 산맥
-//  Ch.8 황금  #f59e0b  차원의 제단
-//
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 📋 DialogueLine 형식
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-//  {
-//    speaker:   '루카리오',   // 화자 한글 이름 (화면에 표시됨)
-//    speakerEn: 'Lucario',   // 화자 영문 이름 (내부 식별용)
-//    pokemonId: 448,          // PokeAPI 국가도감번호 (스프라이트 로딩에 사용)
-//    text: '대사 내용',       // 실제 화면에 타이프라이터로 출력되는 텍스트
-//  }
-//
-//  pokemonId 주요 목록:
-//    448 루카리오  |  123 스라크   |  380 라티아스  |  381 라티오스
-//    377 레지락   |  378 레지아이스 |  144 프리져   |  475 엘레이드
-//    487 군주(기라티나)
-//
+// 등장인물(보이스): 윤가놈→귀뚤뚜기(401) 입담+자학 / 헤라크로스(214) 진심himbo /
+//   딜리버드(225) 허세+자폭 / 사랑동이(370) 햇살+데미지0 / 눈파티→냐스퍼(677) 건조+누오발작 /
+//   에투샤→대포무노(224) 능청도박꾼 / 박세준→파치리스(417) 과묵+약캐철학 / 칠색조(250) 장중.
+// 보스: 123 스라크 · 241 밀탱크 · 94 팬텀 · 62 강챙이 · 208 강철톤 · 221 메꾸리 · 230 킹드라
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface DialogueLine {
-  speaker: string;    // 화면에 표시되는 화자 이름 (한글)
-  speakerEn: string;  // 영문 화자 이름 (내부 식별)
-  text: string;       // 대사 본문
-  pokemonId?: number; // PokeAPI 국가도감번호 — 캐릭터 스프라이트 지정
+  speaker: string;
+  speakerEn: string;
+  text: string;
+  textEn?: string;
+  pokemonId?: number;
 }
 
 export interface StoryChapter {
-  // ── 게임 시스템 연결 필드 (수정 금지) ──────────────────────────────────────
-  id: string;           // 내부 식별자 (ex: 'ch1_pallet_plains')
-  chapterNumber: number; // 1~8 순서 (해금 체인에 사용)
-  mapId: string;         // 게임 맵 파일 ID (수정 시 맵 로딩 깨짐)
-  totalWaves: number;    // 항상 30 고정
-  heroPool: number[];    // 상점 우선 등장 포켓몬 번호 목록
-  enemyTypes: string[];  // 적 스폰 타입 편향 목록
-  bossName?: string;     // 보스 포켓몬 이름
-  bossWave: number;      // 보스가 등장하는 웨이브 번호
-  unlockCondition: string; // 해금 조건 텍스트
-
-  // ── 스토리 콘텐츠 필드 (자유롭게 수정 가능) ────────────────────────────────
-  title: string;         // 챕터 제목 (ex: '첫 번째 경보')
-  subtitle: string;      // 챕터 부제 (ex: '팔레트 평원 · 잠든 봉인 앞에서')
-  location: string;      // 장소 텍스트 (화면 좌상단에 표시)
-  theme: {
-    primary: string;     // 챕터 대표 색상 HEX (UI accent에 사용) — 수정 가능
-    secondary: string;   // 보조 색상 — 수정 금지
-    bg: string;          // 배경 그라데이션 CSS — 수정 금지
-  };
-  openingDialogue: DialogueLine[]; // 게임 시작 전 오프닝 대사 배열
-  endingDialogue: DialogueLine[];  // 게임 클리어 후 엔딩 대사 배열
+  // ── 시스템 필드 (수정 금지) ──
+  id: string;
+  chapterNumber: number;
+  mapId: string;
+  totalWaves: number;
+  heroPool: number[];
+  enemyTypes: string[];
+  bossName?: string;
+  bossWave: number;
+  unlockCondition: string;
+  // ── 콘텐츠 필드 (수정 가능) ──
+  title: string;
+  titleEn: string;
+  subtitle: string;
+  subtitleEn: string;
+  location: string;
+  locationEn: string;
+  theme: { primary: string; secondary: string; bg: string };
+  openingDialogue: DialogueLine[];
+  endingDialogue: DialogueLine[];
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 📚 챕터 데이터 — 여기서부터 스토리 내용을 수정하세요
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export const AEGIS_STORY_CHAPTERS: StoryChapter[] = [
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 1 — 방패가 태어난 밤
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 1 — 도라지시티 체육관 (비행) ──────────────────────────────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch1_pallet_plains',
   chapterNumber:  1,
   mapId:          'easiest_straight',
   totalWaves:     30,
-  heroPool:       [25, 133, 448],                 // 피카츄, 이브이, 루카리오
-  enemyTypes:     ['normal', 'bug', 'flying'],
+  heroPool:       [401, 214, 225, 127],
+  enemyTypes:     ['flying', 'normal'],
   bossWave:       0,
   unlockCondition: '게임을 시작하면 해금됩니다.',
-  theme: {
-    primary:   '#4ade80',
-    secondary: '#166534',
-    bg:        'linear-gradient(135deg, #052e16 0%, #14532d 100%)',
-  },
+  theme: { primary: '#93c5fd', secondary: '#166534', bg: 'linear-gradient(135deg, #052e16 0%, #14532d 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '방패가 태어난 밤',
-  subtitle: '팔레트 평원 · 이름 없는 첫 물결',
-  location: '팔레트 평원 · 최초 봉인석',
+  title:    '눈을 떠보니 귀뚤뚜기',
+  titleEn:  'Woke Up as a Kricketot',
+  subtitle: '도라지시티 체육관 · 비행 타입 폭주',
+  subtitleEn: 'Violet City Gym · Flying-type Rampage',
+  location: '도라지시티 체육관 · 첫 번째 배지',
+  locationEn: 'Violet City Gym · First Badge',
 
   openingDialogue: [
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '피카츄, 이브이. 오늘 밤부터 너희는 Aegis의 견습 대원이다.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: 'Aegis...? 그게 우리 팀 이름이야?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '방패라는 뜻이다. 우리는 8개의 봉인석을 지키기 위해 모인 포켓몬들의 조직.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '봉인석을 지킨다는 건... 저 돌을 지킨다는 거지? 그런데 뭘 막는 거야?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주. 1만 년 전 아르세우스가 세계의 심연에 봉인한 존재다.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '군주라면... 왕 같은 거야? 아니면 괴물?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '아직은 둘 다 아니다. 차원과 차원 사이에서 태어난, 어디에도 속하지 못한 포켓몬.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '그런데 왜 봉인된 거야?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '모른다. Aegis가 아는 건 하나뿐이다. 봉인이 약해지면, 군주의 꿈이 새어 나온다.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '꿈이 새어 나오면 어떻게 되는데?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그 꿈은 길을 잃은 포켓몬에게 스며든다. 이름도 기억도 빼앗고, 봉인석까지 걷게 만든다.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '그게... 감시자야?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그래. 감시자는 적이 아니다. 한때 이름을 가진 포켓몬이다. 그래서 더 정확하게 막아야 한다.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '미워하지 말고 막는다. 쓰러뜨리는 게 아니라, 봉인석에 닿지 못하게 하는 거네.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '맞아. 오늘 밤 우리가 지키는 건 돌이 아니다. 아직 빼앗기지 않은 모든 이름이다.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '알겠어. 무서워도 도망치지 않을게. 나도... 방패가 될게.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '통로는 하나. 망설임도 하나만 허락한다. 시작 전까지. 시작하면, 방패가 되어.',
-      },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......어. 분명 새벽까지 "우리 아버지 성도지방 도태되셨어~" 노래 부르다 잠들었는데.',
+      textEn: '......Huh. I swear I fell asleep singing "My father got left behind in Johto~".' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '천장이 왜 풀냄새가 나냐. 그리고 내 손이... 손이 아니라 더듬이야?',
+      textEn: 'Why does the ceiling smell like grass? And my hands... those are antennae?!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '거울 대신 웅덩이에 비친 얼굴 — 빨간 벌레. 종족값 194. 하필, 귀뚤뚜기.',
+      textEn: 'A puddle for a mirror — a red bug. Base stat 194. Of all things, a Kricketot.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '게임 속에 빨려들어온 거냐. 그것도 하필 이 병... 아니, 세상에서 제일 약한 벌레 몸으로.',
+      textEn: 'I got sucked into the game? In this usel... I mean, the weakest body in the entire world, no less.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '말한다! 귀뚤뚜기가 말을 해! ......그 말투, 그 한숨. 혹시 전설의 그분, 포대장님?!',
+      textEn: 'It talks! A talking Kricketot! ...That voice, that sigh— could it be... Captain?!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......잠깐, 넌 헤라크로스? 설마 동덕이냐? 근데 내가 왜 니 친구... 아니, 왜 니 대장이냐? 친구 아니라고!',
+      textEn: '......Wait, you\'re Heracross? Are you Dong-deok-i? But why am I your friend... I mean, your Captain?! We are not friends!' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '아니, 반가워서 그렇죠 대장! 근데 비행 타입 폭주라니... 저 4배 약점이라 너무 무서워요!',
+      textEn: 'Aww, I was just happy to see you, Captain! But a Flying-type rampage... I take 4x damage, I\'m terrified!' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '저 광장 시계 보세요. 3시 17분에 멈춰 있어요. 사람들이 사라진 바로 그 순간에.',
+      textEn: 'Look at the plaza clock. Frozen at 3:17 — the exact moment everyone vanished.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '그날 이후 세상이 어긋났어요. 주인 잃은 체육관을 야생 놈들이 차지하고 미쳐 날뛰죠.',
+      textEn: 'Since that day the world\'s been broken. Wild ones seized the masterless gyms and run rampant.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......배지 케이스에 먼지가 손가락 한 마디야. 진짜 오래도 비어 있었네.',
+      textEn: '......The badge case has dust a finger deep. It\'s been empty a long, long time.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '근데 딱 하나, 소문이 돌아요. "여덟 배지를 모으면, 원래 자리로 돌아간다"고.',
+      textEn: 'But there\'s one rumor: "Collect eight badges, and you return to where you belong."' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '여덟 배지를... 약캐로... 모은다. 야. 그거 그냥 내 채널 단골 콘텐츠인데?',
+      textEn: 'Eight badges... with trash mons... wait. That\'s literally my channel\'s bread and butter.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '딜리버드 한 마리로 얼음 체육관도 깬 사람이야 내가. 멘붕은 사치다. 판 짜자.',
+      textEn: 'I cleared an ice gym with a single Delibird. No time to panic. Let\'s set the board.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '오오... 벌써 눈빛이 다르세요! 저기 하늘 보세요, 비행 무리가 체육관으로 몰려와요!',
+      textEn: 'Whoa, your eyes already changed! Look up — a flock is swarming the gym!' },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '대장님! 마침 근처에 있었습니다! 프레젠트 장전 완료, 노목이 출동이요!',
+      textEn: 'Captain! I was right nearby! Present loaded — No-mok-i, reporting for duty!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '노목이 너까지... 프레젠트 한 번 잘못 터지면 피아식별 없이 터지는 거 내가 다 기억하거든?',
+      textEn: 'No-mok-i too... I remember how your Presents blow up regardless of friend or foe, okay?' },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '에이, 설마 이번엔 자폭 안 하겠죠! 프레젠트, 출발합니다!',
+      textEn: 'Aw, surely I won\'t blow myself up this time! Presents, away!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '벌써 둘이나 모였네. 통로는 하나뿐이야. 화력 겹치게 깔고 길목에서 끊는다.',
+      textEn: 'Two allies already. There\'s only one path. Stack our fire and cut them at the choke.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '첫 배지, 따러 간다. 종족값이 다가 아니란 거 — 또 한 번 증명하면 돼.',
+      textEn: 'First badge, here we come. Base stats aren\'t everything — let\'s prove it again.' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '해냈어! 봉인석이 살아있어, 루카리오!',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '......그래. 오늘 밤은 우리가 이겼다.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '그런데 마지막 감시자가 쓰러질 때, 잠깐 눈빛이 돌아온 것 같았어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '......봤어. 골뱃이었다. 북쪽 숲에서 별을 세던 녀석.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '우리가 구한 거야? 아니면 더 멀리 보내버린 거야?',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '모르겠어. 근데 한 가지는 알아. 봉인석이 무너졌으면 그 골뱃은 영영 돌아오지 못했을 거야.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그래서 막는 거야. 오늘 밤의 방패가 내일의 이름을 지킨다.',
-      },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '막았어요! 마지막 한 마리까지 전부 후퇴! 첫 배지, 손에 넣었어요!',
+      textEn: 'We held! Every last one retreated! The first badge is ours!' },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '제 프레젠트도 한몫했죠? ......그 중간에 터진 폭탄은 못 본 걸로 해주세요.',
+      textEn: 'My Presents helped, right? ...Let\'s pretend that one bomb never happened.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '거봐, 귀뚤뚜기로도 된다니까. ......어? 방금 하늘에 저거.',
+      textEn: 'See? Even a Kricketot can do it. ......Wait — what was that in the sky just now?' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '네? 아무것도 없는데요.',
+      textEn: 'Huh? There\'s nothing there.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '무지개빛 그림자가 스쳤어. 깃털 한 장 같은. ......하필 또 나만 봤네.',
+      textEn: 'A rainbow-colored shadow flickered. Like a single feather. ...And only I saw it. Again.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '기분 탓이라기엔 너무 또렷했어. 일단 기억해 두자. 다음은— 고동마을, 벌레 타입.',
+      textEn: 'Too vivid to be my imagination. File it away. Next — Azalea Town, Bug type.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '......고동마을이요. 제 고향이에요. 가면, 보여드릴 게 좀 있어요.',
+      textEn: '......Azalea Town. That\'s my hometown. When we get there, there\'s something I want to show you.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 2 — 초록 성벽의 새벽전선
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 2 — 고동마을 체육관 (벌레) · 첫 깃털 ─────────────────────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch2_viridian_walls',
   chapterNumber:  2,
   mapId:          'easy_loop',
   totalWaves:     30,
-  heroPool:       [94, 123, 25, 448],             // 팬텀, 스라크, 피카츄, 루카리오
-  enemyTypes:     ['ghost', 'psychic', 'poison'],
+  heroPool:       [401, 214, 225, 252, 96],
+  enemyTypes:     ['bug', 'poison', 'flying'],
   bossWave:       22,
-  bossName:       '어둠의 선봉 — 강화 팬텀',
+  bossName:       '체육관을 차지한 우두머리 — 야생 스라크',
   unlockCondition: '챕터 1을 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#86efac',
-    secondary: '#15803d',
-    bg:        'linear-gradient(135deg, #052e16 0%, #064e3b 100%)',
-  },
+  theme: { primary: '#a3e635', secondary: '#15803d', bg: 'linear-gradient(135deg, #052e16 0%, #064e3b 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '초록 성벽의 새벽전선',
-  subtitle: '비리디안 외성 · 두려움을 임무라 부르는 법',
-  location: '비리디안 외성 순환로',
+  title:    '벌레의 마을, 그리고 깃털',
+  titleEn:  'The Bug Town, and a Feather',
+  subtitle: '고동마을 체육관 · 벌레 타입 폭주',
+  subtitleEn: 'Azalea Town Gym · Bug-type Rampage',
+  location: '고동마을 체육관 순환로',
+  locationEn: 'Azalea Town Gym Loop',
 
   openingDialogue: [
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '늦었군, 총사령관. 외성의 나무문은 벌써 세 번 울었다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '주민 대피는?',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '끝냈다. 겁먹은 애들은 지하 저장고에, 버티겠다는 애들은 성벽 뒤에.',
-      },
-      {
-        speaker: '팬텀', speakerEn: 'Gengar', pokemonId: 94,
-        text: '크크... 뒤쪽 그림자도 내가 봤어. 이번엔 고스트 타입이 섞여 있더라.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '고스트면 벽을 돌아서 들어오는 거야?',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '아니. 더 싫은 방식이지. 성벽을 빙글빙글 돌면서 우리 집중력을 갉아먹는다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '순환 경로. 반복되는 공포는 실제 공격보다 오래 남는다. 저 눈이 보이나 — 빛이 없어.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '그래서 묻고 싶었다. 우리는 포켓몬들을 구하러 온 건가, 아니면 기억을 덮으러 온 건가.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '......둘 다 못 할 수도 있다. 그래도 오늘은 성문을 지킨다.',
-      },
-      {
-        speaker: '팬텀', speakerEn: 'Gengar', pokemonId: 94,
-        text: '좋아. 내가 그림자를 묶을게. 대신 멋진 대사는 너희가 해.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '대사는 필요 없어. 칼날이 성벽보다 먼저 닿으면 된다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '배치해. 두려움이 성벽 안으로 들어오기 전에.',
-      },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '여기가 제 고향, 고동마을이에요. 저 나무 수액통, 어릴 때 친구들이랑 줄 서서 마셨는데.',
+      textEn: 'This is my hometown, Azalea. That sap keg — as a kid I\'d line up with friends to drink from it.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '......지금은 통이 다 엎어져 있네요. 다들 폭주에 휩쓸려 도망쳤거든요.',
+      textEn: '......Now the kegs are all toppled. Everyone fled when the rampage hit.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '그래서 네가 따라온 거구나. 고향을 되찾고 싶어서.',
+      textEn: 'So that\'s why you came with me. You want your hometown back.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '......들켰네요. 포대장님이라면 할 수 있을 것 같았어요. 약한 걸로 강한 걸 이기는 사람이니까.',
+      textEn: '......Caught me. I figured if anyone could, it\'s you — the one who beats the strong with the weak.' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '안녕~! 물에서 듣다가 너무 찡해서 튀어나왔어! 나도 끼워줘, 사리스티아노... 아니, 사랑동이야!',
+      textEn: 'Hiii~! I heard that from the water and it was so touching I leapt out! Count me in — Luvdisc, or call me Saristiano!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '사리스티아노 너까지... 우리 셋 종족값 다 합쳐도 웬만한 보스 하나보다 낮겠다, 진짜.',
+      textEn: 'Saristiano too? Our three base totals combined are lower than one decent boss. Truly.' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '괜찮아~ 사랑은 종족값으로 안 재는 거니까! 내 하트 한 방이면 다 녹아!',
+      textEn: 'It\'s fine~ love isn\'t measured in base stats! One of my hearts melts anyone!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '사리스티아노 슛도 아니고 무슨... 너 데미지 두 자리도 안 나오는 거 내가 다 알거든?',
+      textEn: 'What is this, a Saristiano shoot? I know your damage doesn\'t even hit double digits.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '체육관을 차지한 건 야생 스라크예요. 낫 두 자루에, 눈으로 못 쫓을 만큼 빨라요.',
+      textEn: 'The gym was taken by a wild Scyther. Two scythes, and too fast for the eye to follow.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '빠른 놈은 길목에서 잡는다. 22물결에 나오니까 그전에 화력 모아둬.',
+      textEn: 'Fast ones get caught at the choke. It comes at wave 22 — bank our firepower before then.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......근데 저 스라크. 주변 공기가 무지개로 일렁여. 어제 본 그 빛이랑 똑같아.',
+      textEn: '......But that Scyther — the air around it shimmers like a rainbow. Same light I saw yesterday.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '폭주한 놈들 곁에 가끔 그런 게 보인대요. 다들 헛것이라던데, 포대장님은 자꾸 보시네요.',
+      textEn: 'They say it appears near the rampaging ones. Everyone calls it a trick of the eye, but you keep seeing it.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '헛것은 사람 가려서 안 보여. 저 스라크 쓰러뜨리고 직접 확인한다. 배치 시작.',
+      textEn: 'Tricks of the eye don\'t pick favorites. We down that Scyther and find out. Deploy.' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '마지막 팬텀이 사라졌어! 성벽 안쪽엔 아무것도 없어!',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '성벽은 버텼다. 하지만 저 팬텀... 마지막까지 웃고 있었어.',
-      },
-      {
-        speaker: '팬텀', speakerEn: 'Gengar', pokemonId: 94,
-        text: '웃음이 아니야. 입이 그렇게 생겼을 뿐이지. 그 안쪽은 비어 있었어.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '우리를 시험하는 것처럼?',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '시험이면 답안지를 찢어버리면 돼. 그런데 이건... 누가 답인지도 모르겠군.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주의 파편이 더 선명해지고 있어. 단순한 행진이 아니라 압박이다. 하지만 오늘은 마을을 지켰어.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '흥. 그런 말은 마음에 안 드는데, 이상하게 따라가고 싶어지네.',
-      },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '스라크 다운! 고동마을 체육관 탈환! 두 번째 배지예요!',
+      textEn: 'Scyther down! Azalea Gym reclaimed! That\'s the second badge!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......봐, 헛것 아니었지. 스라크가 쓰러진 자리에 이게 떨어졌어. 황금빛 깃털 한 장.',
+      textEn: '......See, not imagination. This dropped where the Scyther fell. A single golden feather.' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '우와~ 따뜻해! 손...지느러미를 대니까 마음이 막 차오르는 느낌이야!',
+      textEn: 'Wow~ it\'s warm! When I touch it with my fin, my heart just swells up!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '이거 칠색조 깃털이야. 성도 수호신의 무지개 깃털. ......왜 폭주한 보스가 이걸 쥐고 있지?',
+      textEn: 'This is a Ho-Oh feather. The guardian\'s rainbow plume. ......Why was a rampaging boss holding it?' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '수호신의 깃털이 적한테요? 그건 마치... 누가 일부러 놔둔 것 같은데요.',
+      textEn: 'The guardian\'s feather, on an enemy? It\'s almost like... someone left it there on purpose.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '바로 그거야. 빙의도, 깃털도, 소문도. 전부 우연이 아니야. 누군가 판을 깔았어.',
+      textEn: 'Exactly. The possession, the feather, the rumor — none of it\'s coincidence. Someone set this board.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '그럼 답은 하나. 끝까지 가서 그 누군가 얼굴을 본다. 깃털, 잘 챙겨둬.',
+      textEn: 'Then there\'s only one answer. Go all the way and see that someone\'s face. Keep the feather safe.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 3 — 바다 끝에서 울리는 남매의 맹세
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 3 — 금빛시티 체육관 (노말) · 눈파티 합류 [사이다1] ───────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch3_altomare_coast',
   chapterNumber:  3,
   mapId:          'extreme_aggro_shortcut',
   totalWaves:     30,
-  heroPool:       [380, 131, 54, 448],            // 라티아스, 라프라스, 고라파덕, 루카리오
-  enemyTypes:     ['water', 'poison', 'ice'],
+  heroPool:       [401, 214, 677, 194, 220],
+  enemyTypes:     ['normal'],
   bossWave:       25,
-  bossName:       '어둠의 폭류 — 어둠 갸라도스',
+  bossName:       '굴러오는 재앙 — 야생 밀탱크',
   unlockCondition: '챕터 2를 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#38bdf8',
-    secondary: '#0369a1',
-    bg:        'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
-  },
+  theme: { primary: '#fcd34d', secondary: '#0369a1', bg: 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '바다 끝에서 울리는 남매의 맹세',
-  subtitle: '알토마레 해안 · 돌아오지 않는 푸른 날개',
-  location: '알토마레 해안 방파제',
+  title:    '구르기, 그리고 난입',
+  titleEn:  'Rollout, and a Crasher',
+  subtitle: '금빛시티 체육관 · 노말 타입 폭주',
+  subtitleEn: 'Goldenrod City Gym · Normal-type Rampage',
+  location: '금빛시티 체육관 중앙홀',
+  locationEn: 'Goldenrod City Gym Atrium',
 
   openingDialogue: [
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '열흘째야. 오빠가 돌아오지 않은 지.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '라티오스는 마지막으로 어디서 사라졌지?',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '저 수평선. 바다가 하늘보다 검어지는 곳. 뭔가가 부른다고 했어.',
-      },
-      {
-        speaker: '라프라스', speakerEn: 'Lapras', pokemonId: 131,
-        text: '물길도 변했어. 어제까지 있던 조류가 오늘은 봉인석 쪽으로 거꾸로 흘러.',
-      },
-      {
-        speaker: '고라파덕', speakerEn: 'Psyduck', pokemonId: 54,
-        text: '머리 아파... 파도 소리가 말처럼 들려. “열어.” 계속 그렇게 말해.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '듣지 마. 그건 바다가 아니야.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '해안 경로와 중앙 지름길. 두 곳 모두 비우면 안 돼.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '알아. 그런데 싸우는 동안 오빠의 신호를 놓치면?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '지키는 동안에도 기다릴 수 있다. 기다림이 약한 선택은 아니야.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '...알아. 그래도 오늘은 내가 성역의 날개가 될게. 오빠가 돌아올 자리를 남겨둘 거야.',
-      },
-      {
-        speaker: '라프라스', speakerEn: 'Lapras', pokemonId: 131,
-        text: '파도가 올라온다. 첫 물결은 독을 품었어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '전원, 방파제 뒤로. 바다가 기억을 삼키기 전에 막는다.',
-      },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '금빛시티. 성도에서 제일 컸던 도시인데, 라디오탑 전광판이 다 꺼져 있네.',
+      textEn: 'Goldenrod City. The biggest city in Johto, and the Radio Tower screens are all dark.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '포대장님, 정면에 그게... 노말 타입 주제에 트레이너들 무덤을 만든 그 소.',
+      textEn: 'Captain, dead ahead... that cow. A Normal type that buried countless trainers.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......밀탱크. 어릴 때 꼭두 체육관에서 저 구르기에 6마리 전멸당했어. 트라우마야.',
+      textEn: '......Miltank. As a kid, Whitney\'s wiped my whole team of six with that Rollout. Pure trauma.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '구르기는 칠 때마다 빨라지고 세져. 구르기 시작하면 못 멈춰. 그전에 끝내야 해.',
+      textEn: 'Rollout speeds up and hits harder each hit. Once it rolls, you can\'t stop it. End it before that.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '게다가 지름길까지 뚫려서 빠른 놈들이 옆구리로 샌다. 화력 분산되면 끝장이야.',
+      textEn: 'There\'s a shortcut too, so fast ones leak through the flank. Split your fire and it\'s over.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '25물결! 밀탱크가... 벌써 굴러요! 가속이 붙었어요, 너무 빨라요!',
+      textEn: 'Wave 25! The Miltank... it\'s already rolling! It\'s accelerating, too fast!' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '하, 하트 안 통해! 그냥 튕겨나가!',
+      textEn: 'M-my hearts bounce right off!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '막아! ......안 돼, 화력이 모자라. 이대로면 체육관이 뚫린—',
+      textEn: 'Block it! ......No good, not enough firepower. At this rate the gym falls—' },
+    { speaker: '???', speakerEn: '???', pokemonId: 677,
+      text: '— 거 물 한 잔 마시고 오는 사이에 개판이 났네. 사이코키네시스.',
+      textEn: '— Left to get a glass of water for one second, and it\'s already a mess. Psychic.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '굴러오던 밀탱크가... 공중에서 그대로 멈췄어?! 누구야, 이 정신감응!',
+      textEn: 'The rolling Miltank... froze in midair?! Who\'s casting this telekinesis?!' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '어~ 마자마자. 오랜만이네, 포대장. 냐스퍼 몸으로 보니까 더 못생겼다, 너.',
+      textEn: 'Yeah, yeah, right. Long time, Captain. You\'re even uglier seen through Espurr eyes.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '그 까칠한 말투... 눈파티?! 너도 빨려들어왔어?! 그것도 시그니처 냐스퍼로?!',
+      textEn: 'That prickly tone... Nunparty?! You got pulled in too?! As your signature Espurr, no less?!' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '냐스퍼가 원래 내 원조 마스코트니까 그렇지. 근데 빙의되는 순간 무지개빛 깃털을 봤어. 너도 봤지.',
+      textEn: 'Because Espurr is my original mascot. But I saw a rainbow feather the moment I possessed this body. You did too.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '어, 봤지. 크루 전부 여기 어딘가 있다는 거네. ......근데 너 왜 누오가 아니냐?',
+      textEn: 'So the whole crew\'s here somewhere. ......Hey, but why aren\'t you Quagsire?' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '아, 누오단 새끼들 방송 밖에서도 지랄이네... 누오 얘기 한 번만 더 하면 이 밀탱크 너한테 던진다.',
+      textEn: 'Ugh, those Quag-cultists are a pain even outside streams... Say "Quagsire" one more time and I will throw this Miltank at you.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '알았어 알았어! ......대단하십니다, 동의합니다. 일단 이 소부터 끝내자. 내가 화력 몰 테니 묶어!',
+      textEn: 'Okay okay! ......Incredible, I agree. Let\'s finish this cow first. I\'ll mass fire — you hold it!' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '라프라스', speakerEn: 'Lapras', pokemonId: 131,
-        text: '검은 조류가 물러갔어. 방파제가 살아있어!',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '마지막 갸라도스가 쓰러질 때... 바다 밑에서 누가 내 이름을 불렀어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '라티오스였나?',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '모르겠어. 오빠의 목소리 같았는데, 너무 멀었어. 너무 차가웠어.',
-      },
-      {
-        speaker: '고라파덕', speakerEn: 'Psyduck', pokemonId: 54,
-        text: '머리는 덜 아파. 대신 마음이 아파.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '알아. 그래도 오늘은 우리가 해안을 지켰어. 오빠가 돌아올 자리를 남겼어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '네가 지킨 자리가 돌아올 길이 된다. 동굴로 간다.',
-      },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '밀탱크 다운. 구르기도 못 끝내고 갔네. 세 번째 배지.',
+      textEn: 'Miltank down. Didn\'t even finish its roll. Third badge.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......20년 묵은 트라우마, 오늘 갚았다. 그것도 너랑 같이. 고맙다, 진심으로.',
+      textEn: '......Twenty years of trauma, settled today. With you, no less. Thanks. I mean it.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '...아니, 정정한다. 이쯤 되면 인정하자 — 난 역시 영웅이야.',
+      textEn: '...Actually, correction. Let\'s just admit it — I really am a hero.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '나왔다, 포대장님 영웅 드립! 크루 일동, 놈—멘!',
+      textEn: 'There it is — Captain\'s "hero" line! Crew, all together — Nomen!' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '됐어, 닭살. 정리하자. 사람이 사라졌고, 우린 시그니처로 소환됐고, 보스가 깃털을 쥐고 있었어.',
+      textEn: 'Spare me the sap. Let\'s recap: humans vanished, we were summoned as our signatures, the boss held a feather.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '셋 다 따로 보면 우연. 겹쳐 보면 설계야. 누군가 우릴 이 판에 올려놨어.',
+      textEn: 'Each alone is coincidence. Stacked, it\'s design. Someone placed us on this board.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '"8배지 모으면 돌아간다"는 소문도 그 누군가가 흘렸겠지. 미끼인지 진실인지는 모르지만.',
+      textEn: 'That same someone probably spread the "eight badges" rumor. Bait or truth, I can\'t tell yet.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '그럼 목표가 둘이네요. 나머지 크루 찾기, 그리고 깃털의 주인 찾기.',
+      textEn: 'Then we have two goals: find the rest of the crew, and find the feather\'s owner.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '다음은 인주시티. ......거기, 칠색조의 탑이 있는 도시야. 깃털 주인 단서가 있을지도.',
+      textEn: 'Next is Ecruteak. ......The city of Ho-Oh\'s tower. The feather\'s owner may leave a clue there.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 4 — 암석 수호자의 오래된 죄
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 4 — 인주시티 체육관 (고스트) · 칠색조의 탑 ───────────────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch4_dark_cave',
   chapterNumber:  4,
   mapId:          'medium_multi_s',
   totalWaves:     30,
-  heroPool:       [377, 123, 380, 448],           // 레지락, 스라크, 라티아스, 루카리오
-  enemyTypes:     ['rock', 'ground', 'poison', 'dark'],
+  heroPool:       [401, 677, 194, 361, 133, 225],
+  enemyTypes:     ['ghost', 'poison'],
   bossWave:       25,
-  bossName:       '동굴의 파견대장 — 어둠의 레지락 복제',
+  bossName:       '체육관을 삼킨 그림자 — 야생 팬텀',
   unlockCondition: '챕터 3을 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#a78bfa',
-    secondary: '#6d28d9',
-    bg:        'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-  },
+  theme: { primary: '#c4b5fd', secondary: '#6d28d9', bg: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '암석 수호자의 오래된 죄',
-  subtitle: '어둠 동굴 · 선택한 침묵과 강요된 봉인',
-  location: '어둠 동굴 제5층 봉인 회랑',
+  title:    '탑에서 새어나오는 빛',
+  titleEn:  'Light from the Tower',
+  subtitle: '인주시티 체육관 · 고스트 타입 폭주',
+  subtitleEn: 'Ecruteak City Gym · Ghost-type Rampage',
+  location: '인주시티 체육관 안개 회랑',
+  locationEn: 'Ecruteak City Gym Foggy Corridor',
 
   openingDialogue: [
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......발소리가 많다. 산 자의 것과, 산 자였던 것의 것.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '레지락. 이 동굴의 수호자라고 들었다.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......수호자라기보다 증인이다. 나는 군주가 봉인되던 날, 돌 하나가 되어 여기에 서 있었다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '아르세우스가 당신을 세운 거예요?',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......아니다. 선택이었다. 누구도 내게 남으라 하지 않았다.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '수천 년을 동굴 안에서? 그걸 선택이라고 부를 수 있나.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......강요와 선택의 차이는 작다. 그러나 그 작음이 나를 버티게 했다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주는 정말 악이었나?',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......아니. 이질적이었다. 세계는 이해하지 못하는 것을 위험이라 부른다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '그럼 우리가 지금 지키는 봉인은... 누구를 위한 거죠?',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......양쪽 모두를 위한 것이었다고 믿고 싶다. 믿지 않으면, 나는 여기서 너무 오래 서 있었다.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '감시자들이 S자 회랑으로 들어온다. 돌은 길을 기억한다. 너희는 그 길을 끊어라.',
-      },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '저기 봐. 체육관 너머, 탑 꼭대기. 무지개빛이 새어나오고 있어.',
+      textEn: 'Look — beyond the gym, the tower\'s peak. Rainbow light is leaking out of it.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '깃털이랑 똑같은 색이야. 소문의 출처, 저 탑이 맞는 것 같다.',
+      textEn: 'Same color as the feather. That tower is the source of the rumor, I\'d bet.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '근데 탑 가는 길을 고스트 체육관이 막고 있어요. 안개가 자욱한 미로예요.',
+      textEn: 'But the ghost gym blocks the way to the tower. A maze thick with fog.' },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '귀신은 제 프레젠트가 무서워서— 아, 저 얼음/비행이라 고스트한텐 별로네요. 민망.',
+      textEn: 'Ghosts fear my Presents— ah, I\'m Ice/Flying, not great against Ghost. How embarrassing.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '고스트는 정면승부 안 해. 빙 돌아 약한 곳을 친다. 갈림길마다 빈틈을 지워야 해.',
+      textEn: 'Ghosts don\'t fight head-on. They circle and strike the weak spot. Seal every gap at the forks.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '안개 속에서 옛 트레이너 목소리가 들리는 것 같지 않냐. ......진짜 사람 그리운 도시네.',
+      textEn: 'Don\'t you almost hear old trainers\' voices in the fog? ......This city really misses its people.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '감상은 나중에. 우두머리는 팬텀, 25물결. 그림자 자체야. 한곳에 몰아 실체화될 때 박살내.',
+      textEn: 'Sentiment later. The boss is a Gengar, wave 25. Pure shadow. Corner it and smash it when it solidifies.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '이 체육관만 뚫으면 탑이다. 거기 가면 누가 우릴 불렀는지 알아낸다. 배치 시작.',
+      textEn: 'Clear this gym and the tower\'s next. There we learn who called us. Deploy.' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '회랑 봉쇄 성공. 동굴 봉인석은 온전해.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '저건 레지락의 복제였나. 아니면 군주가 네 기억으로 만든 허수아비였나.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......둘 다다. 군주는 꿈속에서 보는 것을 흉내 낸다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그러면 우리도 이미 보고 있다는 뜻이군.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......그래. 너희의 망설임도, 분노도, 미안함도. 그리고... 오늘의 의지도.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '그런 걸 보고도 군주는 왜 말하지 않죠?',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......오래 갇힌 존재는 말하는 법보다 꿈꾸는 법을 먼저 잊는다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '사막으로 간다. 군주가 꿈을 흉내 낸다면, 다음엔 악몽을 보낼 거야.',
-      },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '팬텀이 안개째 걷혔어요! 네 번째 배지! 그리고... 또 깃털이 떨어졌어요!',
+      textEn: 'The Gengar lifted with the fog! Fourth badge! And... another feather dropped!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '이걸로 세 장. 색이 조금씩 달라. 빨강, 주황, 노랑... 모으면 무지개가 되겠는데.',
+      textEn: 'Three now. Each a different shade. Red, orange, yellow... collect them and you\'d get a rainbow.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '탑에 올라가 봤어. 비어 있더라. 대신 제단에 글귀가 새겨져 있었어.',
+      textEn: 'I climbed the tower. Empty. But there was an inscription on the altar.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '"여덟 빛이 모이면, 길이 열린다." ......여덟 빛. 우리 배지 여덟 개랑 정확히 맞아.',
+      textEn: '"When eight lights gather, the path opens." ......Eight lights. Exactly our eight badges.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '소문이 거짓은 아니란 뜻이네. 배지 여덟 + 깃털 무지개. 둘이 열쇠야.',
+      textEn: 'So the rumor isn\'t a lie. Eight badges plus the feather rainbow. Both are the key.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '거짓이 아닌 거랑, 그게 전부인 거랑은 달라. 누가, 왜 우릴 불렀는지는 여전히 빈칸이야.',
+      textEn: '"Not a lie" and "the whole truth" are different. Who called us, and why, is still a blank.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '그러니까 빈칸 채우러 간다. 다음은 진청시티 — 격투. 힘으로 밀어붙이는 동네야.',
+      textEn: 'So we go fill that blank. Next is Cianwood — Fighting. A town that bulldozes you with muscle.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 5 — 보라색 눈동자의 사막
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 5 — 진청시티 체육관 (격투) · 에투샤 합류 [사이다2] ───────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch5_orre_desert',
   chapterNumber:  5,
   mapId:          'medium_merge',
   totalWaves:     30,
-  heroPool:       [359, 377, 380, 123, 448],      // 앱솔, 레지락, 라티아스, 스라크, 루카리오
-  enemyTypes:     ['rock', 'ground', 'fire', 'dark'],
+  heroPool:       [401, 677, 223, 81, 132, 287],
+  enemyTypes:     ['fighting'],
   bossWave:       27,
-  bossName:       '섀도우 마기라스 — 군주의 첫 번째 전령',
+  bossName:       '주먹과 격류의 폭군 — 야생 강챙이',
   unlockCondition: '챕터 4를 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#fb923c',
-    secondary: '#c2410c',
-    bg:        'linear-gradient(135deg, #431407 0%, #7c2d12 100%)',
-  },
+  theme: { primary: '#f87171', secondary: '#c2410c', bg: 'linear-gradient(135deg, #431407 0%, #7c2d12 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '보라색 눈동자의 사막',
-  subtitle: '오레 협곡 · 우리가 적을 닮아가는 순간',
-  location: '오레 사막 쌍풍 협곡',
+  title:    '먹물 한 발의 등장',
+  titleEn:  'Enter: One Shot of Ink',
+  subtitle: '진청시티 체육관 · 격투 타입 폭주',
+  subtitleEn: 'Cianwood City Gym · Fighting-type Rampage',
+  location: '진청시티 체육관 수련장',
+  locationEn: 'Cianwood City Gym Dojo',
 
   openingDialogue: [
-      {
-        speaker: '앱솔', speakerEn: 'Absol', pokemonId: 359,
-        text: '재앙의 냄새가 난다. 모래가 타오르기 전에 피처럼 식어 있어.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '좋은 예언이군. 이미 최악이라는 뜻이니까.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '저기... 눈이 보라색이야. 감시자보다 더 선명해. 몸에서 열기가 나.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '섀도우화. 군주가 직접 의식을 찢어 넣은 흔적이다.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......저들은 비어 있지 않다. 남아 있기 때문에 괴로워한다.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '남아 있다면 구할 수 있나?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '지금은 막는 법밖에 모른다.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '그 대답이 점점 싫어진다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '나도 그래.',
-      },
-      {
-        speaker: '앱솔', speakerEn: 'Absol', pokemonId: 359,
-        text: '두 바람이 합류한다. 위쪽은 빠르고, 아래쪽은 무겁다. 놓치면 성역 앞에서 하나가 된다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '그 전에 끊자. 저 아이들이 완전히 사라지기 전에.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: 'Aegis, 전개. 오늘 우리는 방패이고, 동시에 칼날이다.',
-      },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '진청시티. 바다 건너 외딴 수련의 도시. 모래주머니가 아직도 천장에 매달려 흔들리네.',
+      textEn: 'Cianwood. A remote training town across the sea. The sandbags still sway from the ceiling.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '우두머리는 물과 주먹을 쓰는 강챙이, 27물결. 저도 격투가 섞였지만... 저 맷집은 솔직히 무리예요.',
+      textEn: 'The boss is a Poliwrath — fists and water, wave 27. I\'m part Fighting too, but... that bulk is honestly too much.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '두 갈래 길이 가운데서 합쳐져. 합류 지점에서 한꺼번에 맞으면 끝이야. 우리 둘 화력으론 빠듯해.',
+      textEn: 'Two paths merge in the center. Take a hit there all at once and it\'s over. Just us two is too thin.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '강챙이는 물/격투라 전기·풀·비행·에스퍼·페어리에 약해. 약점 위주로 짜고— 윽, 벌써 밀린다!',
+      textEn: 'Poliwrath\'s Water/Fighting — weak to Electric, Grass, Flying, Psychic, Fairy. Build around it— ugh, already buckling!' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '합류점이 무너져요! 한 명만, 딱 한 명만 더 있으면 막을 텐데—!',
+      textEn: 'The merge point is collapsing! One more, just one more body and we\'d hold—!' },
+    { speaker: '???', speakerEn: '???', pokemonId: 224,
+      text: '— 라인 뚫리기 일보 직전이지만, 52려 좋아! 먹물 발사아아!',
+      textEn: '— Just about to collapse, but all the better! Ink Shot, fire!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '강챙이가 먹물 뒤집어쓰고 눈 못 떠?! ......저 포알못 문어, 설마.',
+      textEn: 'The Poliwrath\'s blinded by ink?! ......That Pokemon-noob octopus, no way.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '포알못이라니! 나 이래 봬도 대포무노 1마리 켠왕 깬 사람이야! 에투샤 등장이요!',
+      textEn: 'Noob?! I cleared a solo Octillery challenge, you know! Etusha has arrived!' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '......역시 너도 끌려왔구나. 그것도 별명이랑 똑같은 몸으로. 이걸로 셋.',
+      textEn: '......So you got dragged in too. In the body of your own nickname, no less. That makes three.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '반갑다 얘들아! 근데 나 빙의되는 순간, 목소리를 들었어. 굵고 따뜻한.',
+      textEn: 'Good to see you all! But the moment I was pulled in, I heard a voice. Deep and warm.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '"성도를 되돌려라." 딱 그 한마디. 명령이 아니라... 부탁하는 톤이었어.',
+      textEn: '"Restore Johto." Just that. Not a command... more like a plea.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '부탁... 깃털, 탑, 글귀, 그리고 목소리. 흩어진 조각이 한 그림으로 맞춰진다.',
+      textEn: 'A plea... feather, tower, inscription, and now a voice. The scattered pieces form one picture.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '우릴 부른 게 "의지"를 가진 존재라는 거지. 적이 아니라, 도와달라는 쪽.',
+      textEn: 'Whatever summoned us has a "will." Not an enemy — something asking for help.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '추리는 이따! 오늘 주사위 운 좀 따라주는데 — 일단 저 떡대부터 재운다. 물대포, 풀충전!',
+      textEn: 'Detective work later! The dice are rolling my way today — first, that bruiser sleeps. Hydro Pump, full charge!' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '앱솔', speakerEn: 'Absol', pokemonId: 359,
-        text: '협곡을 봉쇄했어. 두 물결 모두 끊었다.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '섀도우 마기라스가 마지막에 손을 멈췄다. 아주 잠깐.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '들었어. “미안해.” 그렇게 말했어. 목소리는 없었는데 들렸어.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '......',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '우리가 저들과 달라지는 선은 어디지? 더 효율적으로 막기 시작하는 순간?',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......선을 묻는 자는 아직 선 밖에 있다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '우리가 잊지 않으면, 아직 닮아간 건 아니야. 알아.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '잊지 마. 사바나로 간다.',
-      },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '강챙이 다운! 맷집이고 뭐고 먹물 앞에선 장사 없지! 다섯 번째 배지!',
+      textEn: 'Poliwrath down! All that bulk means nothing against the ink! Fifth badge!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '에투샤 화력 미쳤다. 우리 약캐 팀에 드디어 제대로 된 딜러 생겼어.',
+      textEn: 'Etusha\'s damage is insane. Our trash-mon squad finally has a real dealer.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '정리하면 — 그 목소리는 "되돌리라"고 했어. 우릴 도구로 쓴 게 아니라, 부탁한 거야.',
+      textEn: 'To sum up — the voice said "restore." It didn\'t use us as tools; it asked us.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '부탁할 마음은 있는데 직접 손은 못 쓰는 존재. 약해진 수호신... 칠색조라면 전부 들어맞아.',
+      textEn: 'Something willing to ask but unable to act itself. A weakened guardian... Ho-Oh fits perfectly.' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '수호신이 우릴 골랐다니~ 왠지 어깨가 으쓱해진다!',
+      textEn: 'A guardian chose us~ I feel my chest puffing up with pride!' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '근데 한 명 비잖아. 에눈박놈인데. 박세준 형은 어디서 뭐 하고 있는 거야?',
+      textEn: 'But we\'re one short. It\'s the whole crew. Where\'s big bro Sejun, what\'s he up to?' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '월챔 우승자도 빨려들어왔다면... 분명 어딘가서 혼자 다 때려잡고 있겠지. 다음, 담청 강철 체육관이다.',
+      textEn: 'If the world champ got pulled in too... he\'s probably soloing something somewhere. Next: Olivine\'s steel gym.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 6 — 세 갈래 지평선과 검의 대답
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 6 — 담청시티 체육관 (강철) · 7색 깃털 완성 ───────────────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch6_safari_savanna',
   chapterNumber:  6,
   mapId:          'hard_straight_wide',
   totalWaves:     30,
-  heroPool:       [475, 149, 380, 123, 448],      // 엘레이드, 망나뇽, 라티아스, 스라크, 루카리오
-  enemyTypes:     ['normal', 'grass', 'fighting', 'dark'],
+  heroPool:       [401, 677, 223, 276, 446, 194],
+  enemyTypes:     ['steel', 'electric'],
   bossWave:       28,
-  bossName:       '섀도우 삼삼바우',
+  bossName:       '녹슨 거구 — 야생 강철톤',
   unlockCondition: '챕터 5를 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#a3e635',
-    secondary: '#4d7c0f',
-    bg:        'linear-gradient(135deg, #1a2e05 0%, #365314 100%)',
-  },
+  theme: { primary: '#94a3b8', secondary: '#4d7c0f', bg: 'linear-gradient(135deg, #1a2e05 0%, #365314 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '세 갈래 지평선과 검의 대답',
-  subtitle: '사파리 사바나 · 버티는 자들의 작전회의',
-  location: '사파리 사바나 삼중 전선',
+  title:    '일곱 빛이 모이다',
+  titleEn:  'Seven Lights Gather',
+  subtitle: '담청시티 체육관 · 강철 타입 폭주',
+  subtitleEn: 'Olivine City Gym · Steel-type Rampage',
+  location: '담청시티 체육관 강철 회랑',
+  locationEn: 'Olivine City Gym Steel Hall',
 
   openingDialogue: [
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '지평선이 셋으로 갈라졌다. 아니, 정확히는 셋 모두 지평선이 됐다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '숫자는?',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '세는 순간 늦어. 오늘은 수량전이 아니라 분산전이다.',
-      },
-      {
-        speaker: '망나뇽', speakerEn: 'Dragonite', pokemonId: 149,
-        text: '하늘에서 봐도 끝이 안 보여. 하지만 겁먹은 대열은 아니야. 너무 조용해.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '조용한 군대가 제일 싫다. 이쪽 비명까지 대신 들리거든.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '루카리오. 하나 물어보자. 봉인을 전부 지키면 군주는 다시 잠든다. 그다음은?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '다음 약화가 올 때까지 버틴다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '결국 미루는 거군.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그래. 살아남는 일의 대부분은 미루는 일이다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '좋아. 그럼 나는 그 미룸에 찬성한다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '오늘 밤에 살아있는 사람이 내일을 걱정할 수 있다. 이 문장은 전술보다 강해.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '세 줄을 동시에 막는다. 중앙은 내가. 좌우는 엘레이드와 스라크. 하늘은 망나뇽.',
-      },
-      {
-        speaker: '망나뇽', speakerEn: 'Dragonite', pokemonId: 149,
-        text: '알았어. 지평선이 움직이면, 내가 먼저 움직일게.',
-      },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '담청시티. 등대로 유명한 항구였는데, 등댓불이 꺼져서 배 한 척 안 들어오네.',
+      textEn: 'Olivine. A port famous for its lighthouse — but the beacon\'s dark, and not one ship comes in.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '강철이라 그런가 내 물대포가 좀 튕겨. 한 마리 잡는 데 한세월이겠는데?',
+      textEn: 'Steel must be why my Hydro Pump keeps glancing off. Gonna take forever per kill, huh?' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '강철은 불·격투·땅에 약해. 그쪽 화력 위주로 짜야 해. 폭이 넓어서 한 번에 셋씩 밀려와.',
+      textEn: 'Steel\'s weak to Fire, Fighting, Ground. Build around those. The lane\'s wide — they come three at a time.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '광역 화력이 핵심이야. 우두머리는 강철톤, 28물결. HP가 산만 해. 못 뚫으면 깎아.',
+      textEn: 'Area damage is key. Boss is a Steelix, wave 28. HP like a mountain. Can\'t pierce it? Whittle it.' },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '포대장님, 모은 깃털 보세요. 빨강 주황 노랑 초록 파랑 남색... 여섯 색이에요.',
+      textEn: 'Captain, look at our feathers. Red, orange, yellow, green, blue, indigo... six colors.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '여기서 한 장 더 나오면 일곱 색 — 무지개 완성이야. 글귀가 말한 "빛"이 이거였어.',
+      textEn: 'One more here makes seven — a full rainbow. This is the "light" the inscription meant.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '깃털 일곱 + 배지 여덟. 마지막 체육관에서 둘 다 채워지는 계산이야. 우연치곤 너무 깔끔해.',
+      textEn: 'Seven feathers, eight badges. Both complete at the final gym. Too clean to be chance.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '판을 짠 놈이 우리한테 동선까지 깔아준 거지. 좋아, 그 손바닥 위에서 일단 이 고철부터 깎는다!',
+      textEn: 'Whoever set the board laid out our route too. Fine — we\'ll dance on their palm and grind this scrap heap first!' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '망나뇽', speakerEn: 'Dragonite', pokemonId: 149,
-        text: '끝났어! 세 갈래 전선 전부 막았어. 지평선이 다시 선이 됐다!',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '세 갈래를 동시에 막는 건 미친 짓이었어. 그러니까 성공했겠지.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '오늘 밤에 살아있는 사람이 내일을 걱정할 수 있다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '12년 동안 나는 “언젠가”를 지키고 있다고 생각했다. 사실은 “내일”이었군.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '거창하게 부르면 지친다. 내일 정도면 들고 갈 수 있어.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '북쪽에서 눈바람이 와. 차갑지만... 누군가 기다리는 느낌이야.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '눈설왕 산맥으로 간다. 오래된 증인이 우리를 부르고 있어.',
-      },
+    { speaker: '헤라크로스', speakerEn: 'Heracross', pokemonId: 214,
+      text: '강철톤 다운! 9미터 고철이 무너졌어요! 여섯 번째 배지, 그리고 일곱 번째 깃털!',
+      textEn: 'Steelix down! Nine meters of scrap collapsed! Sixth badge — and the seventh feather!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '무지개 일곱 색, 완성. ......깃털들이 서로 끌어당겨. 마지막 한 조각을 부르는 것처럼.',
+      textEn: 'Seven colors, complete. ......The feathers pull toward each other. Like they\'re calling one last piece.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '마지막 조각은 누가 갖고 있으려나? 왠지 불길한 예감이 드는데.',
+      textEn: 'Who\'s holding the final piece, I wonder? I\'ve got a bad feeling about this.' },
+    { speaker: '???', speakerEn: '???', pokemonId: 417,
+      text: '— 마지막 조각은 검은먹시티 너머에 있어. 그리고 거기서, 너희를 부른 분이 기다린다.',
+      textEn: '— The last piece is beyond Blackthorn. And there, the one who called you waits.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '이 작고 빠른 발소리, 군더더기 없는 한마디... 형, 박세준 형이지?!',
+      textEn: 'Those small, quick footsteps, that no-frills line... it\'s you — big bro Sejun?!' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '......벌써 우리보다 앞서 가 있었네. 역시 월챔 우승자. 황토마을 얼음 체육관에서 합류하재.',
+      textEn: '......Already ahead of us. Of course, the world champ. He says he\'ll join at Mahogany\'s ice gym.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '에눈박놈 마지막 한 명. 가자. 우리 넷이 다 모이면, 못 깰 판이 없어.',
+      textEn: 'The crew\'s last member. Let\'s go. Once all four of us are together, no board is unbeatable.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 7 — 눈의 왕좌와 얼어붙은 증언
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 7 — 황토마을 체육관 (얼음) · 박세준 합류 [사이다3] ───────────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch7_snowpeak_twins',
   chapterNumber:  7,
   mapId:          'hard_dual_path',
   totalWaves:     30,
-  heroPool:       [378, 144, 380, 475, 448],      // 레지아이스, 프리져, 라티아스, 엘레이드, 루카리오
-  enemyTypes:     ['ice', 'steel', 'dark', 'ghost'],
+  heroPool:       [401, 677, 223, 417, 129, 280],
+  enemyTypes:     ['ice', 'ground'],
   bossWave:       30,
-  bossName:       '섀도우 눈설왕 ×2 — 쌍둥이 감시자',
+  bossName:       '눈보라의 엄니 — 야생 메꾸리',
   unlockCondition: '챕터 6을 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#7dd3fc',
-    secondary: '#0284c7',
-    bg:        'linear-gradient(135deg, #0c2948 0%, #164e63 100%)',
-  },
+  theme: { primary: '#7dd3fc', secondary: '#0284c7', bg: 'linear-gradient(135deg, #0c2948 0%, #164e63 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '눈의 왕좌와 얼어붙은 증언',
-  subtitle: '눈설왕 산맥 · 기억한다는 것의 무게',
-  location: '눈설왕 산맥 쌍둥이 봉우리',
+  title:    '갓치리스, 전설의 합류',
+  titleEn:  'God-chirisu Joins the Fray',
+  subtitle: '황토마을 체육관 · 얼음 타입 폭주',
+  subtitleEn: 'Mahogany Town Gym · Ice-type Rampage',
+  location: '황토마을 체육관 빙판 양갈래',
+  locationEn: 'Mahogany Town Gym Icy Fork',
 
   openingDialogue: [
-      {
-        speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
-        text: '발을 낮춰. 이 산에서는 오만한 소리부터 얼어붙어.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......왔구나. 봉인이 흔들릴 때마다 눈은 먼저 기억한다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '레지아이스. 군주가 봉인되던 날을 봤다고 들었다.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......봤다. 그리고 아무에게도 충분히 말하지 못했다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '왜요?',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......말하면 편해질까 봐. 증인은 편해지면 안 된다고 생각했다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '그건 책임이 아니라 형벌에 가깝군.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......군주는 저항하지 않았다. 아르세우스의 빛이 몸을 가를 때도, 그저 눈을 감았다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '분노가 아니었다고?',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......슬픔에 가까웠다. 너무 오래 떠돌다 마침내 멈춘 자의 얼굴.',
-      },
-      {
-        speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
-        text: '감상은 여기까지. 경로는 둘이다. 왼쪽 봉우리와 오른쪽 봉우리는 서로 돕지 못한다.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......기억도 둘로 갈라진다. 어느 쪽도 버리지 마라.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '전선을 나눈다. 오늘은 누구도 혼자 오래 견디게 두지 않는다.',
-      },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '왔구나. 늦었어. 빙판이 위아래로 갈라져 있다. 서로 못 돕는 구조야.',
+      textEn: 'You made it. You\'re late. The ice splits top and bottom. The two sides can\'t support each other.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '박세준 형... 2014년에 약캐 파치리스로 세계 1등 찍은 그 갓치리스로 빙의했네.',
+      textEn: 'Big bro Sejun... possessed by the very God-chirisu that won 2014 Worlds with a "trash" Pachirisu.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '실물 영접이다... 아니, 실 파치리스 영접인가? 아무튼 형 진짜 그 몸이네!',
+      textEn: 'Meeting the legend in person... well, in Pachirisu? Either way, bro, that\'s really the body!' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '강한 포켓몬, 약한 포켓몬. 그런 건 사람들이 멋대로 정하는 거야. 진짜 강한 트레이너라면 좋아하는 포켓몬으로 이길 수 있도록 노력해야지.',
+      textEn: 'Strong Pokémon, weak Pokémon. That is only the selfish perception of people. Truly skilled trainers should try to win with their favorites.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '......네 약캐 챌린지, 늘 보고 있었다. 종족값 194로 여기까지 온 거, 인정한다.',
+      textEn: '......I always watched your trash-mon runs. Coming this far on base stat 194 — respect.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......형한테 그 말 들으니까 좀 뭉클하네. 근데 감동은 잠깐 접자. 메꾸리가 30물결, 마지막에 나와.',
+      textEn: '......Hearing that from you actually gets me. But save the feels — the Piloswine comes at wave 30, the last.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '양쪽을 끝까지 동시에 막아야 해. 넷이어도 빠듯한 그림이야.',
+      textEn: 'We hold both sides at once, to the end. Even with four, it\'s tight.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '벌써 아래쪽 밀린다! 라인 무너져—!',
+      textEn: 'The bottom\'s already buckling! The lane\'s collapsing—!' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '— 날따름. 적 시선을 전부 내 파치리스로 끌어모은다. 2014년에 세계를 먹은 그 기술이다.',
+      textEn: '— Follow Me. Every enemy\'s eyes drawn to my Pachirisu. The very move that took Worlds in 2014.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '한 수에 아래 라인 전체가 멈췄어. ......이게 월챔 우승자구나. 손이 안 보여.',
+      textEn: 'One move froze the whole bottom lane. ......This is a world champ. I can\'t even see his hands.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '나도 빙의 순간 목소리를 들었다. "마지막 배지 앞에서 만나자." 검은먹시티에 답이 있어.',
+      textEn: 'I heard the voice too: "Meet me before the final badge." The answer\'s in Blackthorn.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '에눈박놈, 드디어 풀멤. 이 판은 지는 그림이 안 나와. 양갈래 다 사수, 일곱 번째 배지 간다!',
+      textEn: 'The crew, finally complete. There\'s no losing this board. Hold both lanes — seventh badge, here we go!' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
-        text: '쌍둥이 봉우리 둘 다 지켰어. 두 전선 모두 버텼다.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '둘이 동시에 무너질 때, 서로를 찾는 것 같았어.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......기억은 차갑다. 하지만 차가워야 썩지 않는다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주가 쉬고 싶어서 봉인을 받아들였다면, 왜 지금 깨어나려 하지?',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......쉬는 동안에도 꿈은 자란다. 외로움은 얼음 밑에서도 뿌리를 내린다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '이해한다고 해서 열어줄 수는 없다.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......그래. 이해는 열쇠가 아니다. 때로는 더 무거운 자물쇠다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '차원의 제단으로 간다. 이제 군주가 직접 말할 차례야.',
-      },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '메꾸리 다운. 양쪽 다 지켰다. 일곱 번째 배지.',
+      textEn: 'Piloswine down. Both sides held. Seventh badge.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '형 진짜 사기다... 파치리스 한 마리로 라인 하나를 통째로 잠가버렸어.',
+      textEn: 'Bro\'s straight-up broken... locked an entire lane with one Pachirisu.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '약캐 넷이 모이니까 군단이 됐네. 종족값 다 합쳐도 갸라도스 하나보다 낮은데 말이야.',
+      textEn: 'Four trash mons together make an army. Even though our totals don\'t add up to one Gyarados.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '......그게 핵심이야. 한 마리가 약하면, 판으로 이기면 돼. 너희가 이미 증명했잖아.',
+      textEn: '......That\'s the point. If one is weak, win with the whole board. You already proved it.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '배지 일곱, 깃털 일곱. 검은먹시티에서 마지막 배지와 마지막 깃털이 동시에 채워져.',
+      textEn: 'Seven badges, seven feathers. The last of each completes at Blackthorn, at once.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '그리고 거기서, 우릴 부른 존재를 만난다. ......각오해 둬. 답이 마냥 따뜻하진 않을 수도 있어.',
+      textEn: 'And there we meet the one who called us. ......Brace yourselves. The answer may not be all warmth.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '드디어 빈칸을 채운다. 마지막, 검은먹시티 드래곤 체육관으로 간다.',
+      textEn: 'Time to fill the blank at last. Final stop — Blackthorn\'s dragon gym.' },
   ],
 },
 
-// ┌─────────────────────────────────────────────────────────────────────────────
-// │ CHAPTER 8 — 차원 제단의 마지막 대본
-// └─────────────────────────────────────────────────────────────────────────────
+// ┌─ CHAPTER 8 — 검은먹시티 체육관 (드래곤) · 클라이맥스 + 칠색조 회수 ─────────
 {
-  // ── 시스템 필드 (수정 금지) ───────────────────────────────────────────────
   id:             'ch8_masters_sanctum',
   chapterNumber:  8,
   mapId:          'extreme_central',
   totalWaves:     30,
-  heroPool:       [487, 448, 381, 380, 25, 133, 377, 378, 123, 144, 475], // 기라티나, 루카리오, 라티오스, 라티아스, 피카츄, 이브이, 레지락, 레지아이스, 스라크, 프리져, 엘레이드
-  enemyTypes:     ['ghost', 'dragon', 'dark', 'psychic'],
+  heroPool:       [401, 677, 223, 417, 129, 443, 661, 574, 280, 214, 225],
+  enemyTypes:     ['dragon', 'water'],
   bossWave:       30,
-  bossName:       '군주의 화신 — 기라티나 (Origin Forme)',
+  bossName:       '심해의 용 — 야생 킹드라',
   unlockCondition: '챕터 7을 클리어하면 해금됩니다.',
-  theme: {
-    primary:   '#f59e0b',
-    secondary: '#92400e',
-    bg:        'linear-gradient(135deg, #1c0a00 0%, #431407 50%, #0f0720 100%)',
-  },
+  theme: { primary: '#f59e0b', secondary: '#92400e', bg: 'linear-gradient(135deg, #1c0a00 0%, #431407 50%, #0f0720 100%)' },
 
-  // ── 스토리 콘텐츠 (자유롭게 수정 가능) ──────────────────────────────────
-  title:    '차원 제단의 마지막 대본',
-  subtitle: '암베라 심연 · 이해와 봉인 사이에서',
-  location: '차원의 제단 중앙 성소',
+  title:    '마지막 배지, 그리고 부른 자',
+  titleEn:  'The Last Badge, and the One Who Called',
+  subtitle: '검은먹시티 체육관 · 드래곤 타입 폭주',
+  subtitleEn: 'Blackthorn City Gym · Dragon-type Rampage',
+  location: '검은먹시티 체육관 중앙 제단',
+  locationEn: 'Blackthorn City Gym Central Altar',
 
   openingDialogue: [
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '여기가... 제단이야? 공기가 달라. 숨이 무거워.',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '팔레트 평원에서 처음 싸우던 날이 기억나. 그때랑 같은 무서움이야. 근데 도망치고 싶지 않아.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그 마음이 방패야. 여기다. 네 방향의 길이 모두 제단으로 모인다.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......돌이 떨고 있다. 1만 년 만에 처음으로 두려움을 배웠다.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......얼음도 녹지 않고 울 수 있다는 걸 오늘 알았다.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '......너희는 여전히 시끄럽구나. 살아있는 것들은 늘 이름을 부르며 온다.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '기다리고 있었나, 군주.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '기다림인지, 꿈인지, 벌인지. 너무 오래 지나서 구분이 안 돼.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '라티오스는 어디 있어? 바다에서 당신 목소리가 들렸어.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '푸른 날개 하나가 내 꿈의 가장자리에서 싸우고 있다. 잃지 않으려 애쓰더구나.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '오빠는 살아 있어.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '살아있다는 말은 아름답다. 그래서 잔인하지.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '군주. 당신은 이 세계를 부수고 싶은 건가?',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '모르겠어. 나는 나를 꺼내고 싶은 건지, 나를 끝내고 싶은 건지도 기억하지 못한다.',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '그 모름 때문에 다른 이들의 내일을 가져갈 수는 없다.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '그래서 너희가 왔구나. 방패를 들고, 이해라는 칼을 숨긴 채.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '숨기지 않아. 이해하고 싶어. 그래도 봉인석을 지킬 거야.',
-      },
-      {
-        speaker: '프리져', speakerEn: 'Articuno', pokemonId: 144,
-        text: '네 방향에서 온다. 말은 충분해.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: 'Aegis 전원. 마지막 배치. 봉인석이 아니라, 내일을 지킨다.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '......좋아. 막아봐. 너희의 이름이 내 꿈보다 오래가는지 보자.',
-      },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '검은먹시티. 성도 마지막 체육관. 용의 굴 입구에서 더운 김이 올라온다.',
+      textEn: 'Blackthorn. Johto\'s final gym. Hot steam rises from the Dragon\'s Den entrance.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '사방에서 동시에 밀려온다. 네 방향 다 길이야. 지금까지 중 제일 험해.',
+      textEn: 'They surge in from all sides. All four directions are open. The roughest yet.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '그리고 우두머리가... 킹드라야. 검은먹시티를 차지한 용의 화신.',
+      textEn: 'And the boss... is a Kingdra. The dragon incarnate that seized Blackthorn.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '......킹드라는 물/드래곤이라 전기 타입은 반감되지만, 내 파치리스는 애초에 딜러가 아니니까 상관없어. 볼부비부비로 마비를 걸고, 날따름으로 적의 공격을 다 빨아들이면 그만이다. 2014년에 용성군을 견뎌냈던 것처럼.',
+      textEn: '......Kingdra is Water/Dragon, so electric moves are halved. But it doesn\'t matter, since my Pachirisu isn\'t a dealer anyway. I\'ll paralyze it with Nuzzle, and draw all attacks with Follow Me. Just like we withstood Draco Meteor in 2014.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '크으, 역시 월챔의 분석력! 킹드라가 반감으로 버텨도 우리 화력까지 얹으면 52려 좋아! 전원 화력 보태자!',
+      textEn: 'Whoa, as expected of the world champ\'s analysis! Even if Kingdra resists, with our combined firepower, it\'s all the better! Everyone, let\'s back him up!' },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '용 사냥엔 얼음이죠! 드디어 제 차례! 프레젠트 풀장전!',
+      textEn: 'Ice for dragon-hunting! Finally my turn! Presents fully loaded!' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '나, 나도?! 한 챕터 내내 응원만 했는데... 드디어 내 사랑을 보여줄 때야!',
+      textEn: 'M-me too?! I\'ve been cheering all this time... finally, time to show my love!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '사랑동이 데미지 두 자리만 나와도 오늘 우는 거다 나. ......자, 깃털 일곱 장이 떨고 있어.',
+      textEn: 'If Luvdisc cracks double-digit damage I\'m crying today. ......Now, the seven feathers are trembling.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '마지막 한 장이 이 너머에 있다고 외치는 것 같아. 전원 배치. 약캐 풀파티, 마지막 한 판이다!',
+      textEn: 'Like they\'re screaming the last one\'s just beyond. All hands deploy. Full trash-mon party — final round!' },
   ],
-
   endingDialogue: [
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '봉인이 복원되고 있어. 빛이 다시 제단 아래로 내려간다.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '......따뜻하구나. 봉인은 차가운 것인 줄 알았는데.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '군주. 바다의 가장자리에서 싸우는 푸른 날개... 지금 어디야?',
-      },
-      {
-        speaker: '???', speakerEn: 'Unknown', pokemonId: 381,
-        text: '여기. 늦어서 미안.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '오빠! 정말... 정말 너야?',
-      },
-      {
-        speaker: '라티오스', speakerEn: 'Latios', pokemonId: 381,
-        text: '응. 꿈의 바깥쪽을 막고 있었어. 네가 안쪽을 지켜줄 거라고 믿었으니까.',
-      },
-      {
-        speaker: '스라크', speakerEn: 'Scyther', pokemonId: 123,
-        text: '이걸 승리라고 불러도 되나? 군주는 악이 아니었고, 우리는 다시 가둔 거잖아.',
-      },
-      {
-        speaker: '레지락', speakerEn: 'Regirock', pokemonId: 377,
-        text: '......가둔 것이 아니라, 오늘의 균열을 닫았다. 그 차이는 작지만 중요하다.',
-      },
-      {
-        speaker: '레지아이스', speakerEn: 'Regice', pokemonId: 378,
-        text: '......그리고 우리는 봤다. 이해하려는 자들이 봉인 앞에 설 수도 있다는 걸.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '루카리오. 다음에 내가 깨어나면, 너희가 또 있을까?',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '나는 없을 거야. 스라크도, 라티아스도, 오늘의 우리는 언젠가 사라진다.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '그럼 누가 나를 기억하지?',
-      },
-      {
-        speaker: '엘레이드', speakerEn: 'Gallade', pokemonId: 475,
-        text: '오늘 밤에 살아있는 사람이 내일을 걱정할 수 있다.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: '그 내일의 누군가가 기억할 거야. 군주가 적이기 전에, 이름을 잃은 존재였다는 걸.',
-      },
-      {
-        speaker: '군주', speakerEn: 'The Master', pokemonId: 487,
-        text: '......잘 싸웠어. 방패의 아이들.',
-      },
-      {
-        speaker: '라티오스', speakerEn: 'Latios', pokemonId: 381,
-        text: '돌아가자, 라티아스. 네가 지킨 길로.',
-      },
-      {
-        speaker: '라티아스', speakerEn: 'Latias', pokemonId: 380,
-        text: '응. 알아. 오늘은 울어도 되는 날이야.',
-      },
-      {
-        speaker: '피카츄', speakerEn: 'Pikachu', pokemonId: 25,
-        text: '루카리오. 우리, 방패가 됐지?',
-      },
-      {
-        speaker: '이브이', speakerEn: 'Eevee', pokemonId: 133,
-        text: '그래. 내일도. 그 다음 날도.',
-      },
-      {
-        speaker: '루카리오', speakerEn: 'Lucario', pokemonId: 448,
-        text: 'Aegis는 계속한다. 승리해서가 아니라, 내일이 아직 우리를 기다리니까.',
-      },
+    { speaker: '딜리버드', speakerEn: 'Delibird', pokemonId: 225,
+      text: '킹드라 다운! 네 방향 전부 막았어요! 여덟 번째... 마지막 배지!',
+      textEn: 'Kingdra down! All four directions held! The eighth... the final badge!' },
+    { speaker: '사랑동이', speakerEn: 'Luvdisc', pokemonId: 370,
+      text: '나 방금 봤어?! 내 하트가 세 자리 데미지 박았어! 사랑은 종족값으로 안 잰다니까~!',
+      textEn: 'Did you see that?! My heart hit triple digits! Told you — love isn\'t measured in base stats~!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......진짜로 박았네. 약속대로 좀 울컥하다. 그보다, 마지막 깃털이 떠올라!',
+      textEn: '......You actually did. As promised, I\'m a little choked up. More importantly — the last feather rises!' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '일곱 색이 하나로 합쳐지고— 제단 위로 무지개 기둥이 솟는다!',
+      textEn: 'Seven colors fuse into one— a pillar of rainbow erupts above the altar!' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '......잘 해냈다. 무지개의 끝까지 와줘서 고맙구나, 작은 자들이여.',
+      textEn: '......Well done. Thank you for reaching the rainbow\'s end, little ones.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '칠색조... 역시 당신이었어. 사람을 사라지게 한 것도, 우릴 부른 것도 당신이야?',
+      textEn: 'Ho-Oh... it was you after all. Did you erase the humans, and call us, both?' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '사람을 지운 건 내가 아니다. 균형이 무너지며, 인간이 이 세계에서 미끄러진 것. 나조차 붙잡지 못했다.',
+      textEn: 'I did not erase them. As balance broke, humans slipped from this world. Even I could not hold them.' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '약해진 나는 폭주를 직접 멈출 수 없었다. 그래서 불렀다 — 포켓몬을 가장 사랑한 인간의 영혼을.',
+      textEn: 'Weakened, I could not stop the rampage myself. So I called — the souls of those who loved Pokémon most.' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '그리고 각자, 가장 깊이 마음을 나눈 포켓몬의 몸에 깃들게 했다.',
+      textEn: 'And let each of you dwell in the body of the Pokémon you shared your heart with most.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '......그래서 시그니처였군. 내가 파치리스인 이유. 윤가놈이 귀뚤뚜기인 이유.',
+      textEn: '......So that\'s why our signatures. Why I\'m Pachirisu. Why Yunganom is Kricketot.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '제일 약한 몸을 준 게 아니라, 제일 아끼던 몸을 준 거였어. ......나쁘지 않네, 그 인선.',
+      textEn: 'It wasn\'t the weakest body — it was the one I cherished most. ......Not a bad pick, honestly.' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '여덟 배지로 질서가 다시 점화되었다. 인간들도 곧 돌아올 것이다. 그리고 너희도 — 원한다면, 돌려보내 주마.',
+      textEn: 'Eight badges have rekindled the order. The humans will soon return. And you too — if you wish, I shall send you back.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '"원한다면"이라. ......굳이 그렇게 말한다는 건, 선택은 우리 몫이라는 거네.',
+      textEn: '"If you wish," huh. ......Phrasing it that way means the choice is ours.' },
+    { speaker: '에투샤', speakerEn: 'Etusha', pokemonId: 224,
+      text: '솔직히 나 이 대포무노 몸 좀 마음에 들었는데. 먹물 쏘는 거 개꿀잼이란 말이지.',
+      textEn: 'Honestly, I kinda love this Octillery body. Spraying ink is way too much fun.' },
+    { speaker: '박세준', speakerEn: 'Sejun', pokemonId: 417,
+      text: '......나도. 파치리스로 한 판 더 해보고 싶긴 해.',
+      textEn: '......Same. I wouldn\'t mind one more run as Pachirisu.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '크루 다 모였지, 약캐로 세상 다 씹었지, 클리어할 컨텐츠가 무한이지.',
+      textEn: 'Crew\'s all here, we crushed the world with trash mons, and there\'s endless content to clear.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......이거 그냥, 내 인생 최고 본방 아니냐?',
+      textEn: '......Isn\'t this just the best live stream of my life?' },
+    { speaker: '칠색조', speakerEn: 'Ho-Oh', pokemonId: 250,
+      text: '......후훗. 그 대답, 마음에 든다. 문은 늘 열어 두마. 떠나고 싶거든, 무지개를 부르거라.',
+      textEn: '......Heh. I like that answer. The door stays open. When you wish to leave, call the rainbow.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '자, 다음 컨텐츠 가자. 사람 없는 성도, 약캐 포대장이랑 에눈박놈이 전부 접수한다.',
+      textEn: 'Alright, on to the next. A humanless Johto, taken over by the trash-mon Captain and his crew.' },
+    { speaker: '윤가놈', speakerEn: 'Yunganom', pokemonId: 401,
+      text: '......우리 아버지 성도지방~ 도태되셨어~ ♪ ...야, 눈파티 너 지금 따라불렀지.',
+      textEn: '......My father got left behind~ in Johto~ ♪ ...Hey, Nunparty, you just sang along, didn\'t you.' },
+    { speaker: '눈파티', speakerEn: 'Nunparty', pokemonId: 677,
+      text: '......누오.',
+      textEn: '......Quag.' },
   ],
 },
 

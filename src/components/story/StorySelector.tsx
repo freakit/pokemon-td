@@ -13,6 +13,7 @@ import {
 import { MAPS } from '../../data/maps';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { StoryOpening } from './StoryOpening';
+import { useTranslation } from '../../i18n';
 
 export interface StoryStartData {
   mapId: string;
@@ -48,12 +49,19 @@ const StarRating: React.FC<{ stars: number; max?: number }> = ({
 
 export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
   const navigate = useNavigate();
+  const { language } = useTranslation();
+  // 언어별 챕터 텍스트 헬퍼 (En 없으면 Ko 폴백)
+  const chTitle = (c: StoryChapter) => (language === 'en' && c.titleEn ? c.titleEn : c.title);
+  const chSub = (c: StoryChapter) => (language === 'en' && c.subtitleEn ? c.subtitleEn : c.subtitle);
+  const chLoc = (c: StoryChapter) => (language === 'en' && c.locationEn ? c.locationEn : c.location);
   const [progress] = useState(() => storyProgressService.getProgress());
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [showOpening, setShowOpening] = useState(false);
   const [pendingChapter, setPendingChapter] = useState<StoryChapter | null>(null);
 
   const [showIntro, setShowIntro] = useState(true);
+  // 스택(단일 열) 레이아웃 여부 — 이때 상세패널을 누른 카드 바로 밑에 인라인 삽입
+  const [isStacked, setIsStacked] = useState(false);
 
   // Find first unlocked-but-uncleared chapter for highlight
   const suggestedIdx = AEGIS_STORY_CHAPTERS.findIndex((ch) => {
@@ -65,6 +73,18 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
   useEffect(() => {
     const timer = setTimeout(() => setShowIntro(false), 1800);
     return () => clearTimeout(timer);
+  }, []);
+
+  // 단일 열(스택) 레이아웃 감지: 좁은 폭 또는 낮은 가로화면(폰 가로)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia(
+      '(max-width: 900px), (orientation: landscape) and (max-height: 520px)'
+    );
+    const update = () => setIsStacked(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
   }, []);
 
   const handleSelect = useCallback(
@@ -122,6 +142,94 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
   const selectedProgress =
     selected ? storyProgressService.getChapterProgress(selected.id) : null;
 
+  // 상세패널 내용 — 사이드(와이드) / 인라인(스택) 양쪽에서 재사용
+  const renderDetail = () =>
+    selected ? (
+      <>
+        <DetailHeader $bg={selected.theme.bg}>
+          <DetailChNum $accent={selected.theme.primary}>
+            CHAPTER {String(selected.chapterNumber).padStart(2, '0')}
+          </DetailChNum>
+          <DetailTitle>{chTitle(selected)}</DetailTitle>
+          <DetailSubtitle>{chSub(selected)}</DetailSubtitle>
+          <DetailLocation>📍 {chLoc(selected)}</DetailLocation>
+        </DetailHeader>
+
+        <DetailBody>
+          {selectedProgress?.cleared && (
+            <RecordBox>
+              <RecordRow>
+                <RecordLabel>클리어 등급</RecordLabel>
+                <StarRating stars={selectedProgress.stars} />
+              </RecordRow>
+              {selectedProgress.bestWave > 0 && (
+                <RecordRow>
+                  <RecordLabel>최고 웨이브</RecordLabel>
+                  <RecordVal>Wave {selectedProgress.bestWave}</RecordVal>
+                </RecordRow>
+              )}
+            </RecordBox>
+          )}
+
+          <Section>
+            <SectionLabel>등장 포켓몬 (상점 우선)</SectionLabel>
+            <SpriteRow>
+              {selected.heroPool.slice(0, 6).map((id) => (
+                <HeroSprite
+                  key={id}
+                  src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`}
+                  alt={`#${id}`}
+                  title={`#${id}`}
+                />
+              ))}
+            </SpriteRow>
+          </Section>
+
+          <Section>
+            <SectionLabel>체육관 타입</SectionLabel>
+            <TypeBadgeRow>
+              {selected.enemyTypes.map((t) => (
+                <TypeBadge key={t} $type={t}>
+                  {t}
+                </TypeBadge>
+              ))}
+            </TypeBadgeRow>
+          </Section>
+
+          {selected.bossName && (
+            <Section>
+              <SectionLabel>보스 (매 3웨이브마다 등장)</SectionLabel>
+              <BossName>{selected.bossName}</BossName>
+            </Section>
+          )}
+
+          <Section>
+            <SectionLabel>오프닝 미리보기</SectionLabel>
+            <PreviewDialogue>
+              <PreviewSpeaker>{selected.openingDialogue[0].speaker}</PreviewSpeaker>
+              <PreviewText>
+                "{language === 'en' && selected.openingDialogue[0].textEn
+                  ? selected.openingDialogue[0].textEn
+                  : selected.openingDialogue[0].text}"
+              </PreviewText>
+            </PreviewDialogue>
+          </Section>
+        </DetailBody>
+
+        <DetailFooter>
+          <StartBtn onClick={handleStart} $accent={selected.theme.primary}>
+            {selectedProgress?.cleared ? '▶ 다시 플레이' : '▶ 시작하기'}
+          </StartBtn>
+        </DetailFooter>
+      </>
+    ) : (
+      <EmptyDetail>
+        <EmptyIcon>⚔</EmptyIcon>
+        <EmptyText>챕터를 선택하세요</EmptyText>
+        <EmptyHint>{language === 'en' ? 'Reclaim Johto\'s 8 gyms with underdogs' : '약캐로 성도 8체육관을 탈환하라'}</EmptyHint>
+      </EmptyDetail>
+    );
+
   return (
     <Root>
       {/* Animated background particles */}
@@ -131,13 +239,12 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
         ))}
       </ParticleLayer>
 
-      {/* Header */}
       <Header $visible={!showIntro}>
-        <BackBtn onClick={() => navigate('/')}>← 돌아가기</BackBtn>
+        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
         <HeaderCenter>
           <AegisLabel>POKEMON AEGIS</AegisLabel>
-          <PageTitle>어둠의 감시자</PageTitle>
-          <PageSubtitle>The Dark Watchers · Story Mode</PageSubtitle>
+          <PageTitle>{language === 'en' ? "Captain's Johto Drift" : '포대장의 성도 표류기'}</PageTitle>
+          <PageSubtitle>{language === 'en' ? 'Captain\'s Johto Drift · Story Mode' : '사람이 사라진 성도 · Story Mode'}</PageSubtitle>
         </HeaderCenter>
         <ProgressSummary>
           <ProgressStat>
@@ -169,8 +276,8 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
             
 
             return (
+              <React.Fragment key={ch.id}>
               <ChapterCard
-                key={ch.id}
                 $unlocked={unlocked}
                 $cleared={cp.cleared}
                 $selected={isSelected}
@@ -210,10 +317,10 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
                     <ChapterNum $accent={ch.theme.primary}>
                       CH.{String(ch.chapterNumber).padStart(2, '0')}
                     </ChapterNum>
-                    <LocationTag>{ch.location.split('·')[0].trim()}</LocationTag>
+                    <LocationTag>{chLoc(ch).split('·')[0].trim()}</LocationTag>
                   </CardMeta>
-                  <CardTitle $unlocked={unlocked}>{ch.title}</CardTitle>
-                  <CardSubtitle $unlocked={unlocked}>{ch.subtitle}</CardSubtitle>
+                  <CardTitle $unlocked={unlocked}>{chTitle(ch)}</CardTitle>
+                  <CardSubtitle $unlocked={unlocked}>{chSub(ch)}</CardSubtitle>
                   {cp.cleared ? (
                     <StarRating stars={cp.stars} />
                   ) : unlocked ? (
@@ -226,99 +333,21 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
                 {/* Selection glow */}
                 {isSelected && <SelectGlow $accent={ch.theme.primary} />}
               </ChapterCard>
+              {/* 스택 모드: 누른 카드 바로 밑에 상세패널 인라인 삽입 */}
+              {isStacked && isSelected && (
+                <InlineDetail $accent={ch.theme.primary}>{renderDetail()}</InlineDetail>
+              )}
+              </React.Fragment>
             );
           })}
         </ChapterList>
 
-        {/* Detail panel */}
-        <DetailPanel $visible={selected !== null}>
-          {selected ? (
-            <>
-              <DetailHeader $bg={selected.theme.bg}>
-                <DetailChNum $accent={selected.theme.primary}>
-                  CHAPTER {String(selected.chapterNumber).padStart(2, '0')}
-                </DetailChNum>
-                <DetailTitle>{selected.title}</DetailTitle>
-                <DetailSubtitle>{selected.subtitle}</DetailSubtitle>
-                <DetailLocation>📍 {selected.location}</DetailLocation>
-              </DetailHeader>
-
-              <DetailBody>
-                {selectedProgress?.cleared && (
-                  <RecordBox>
-                    <RecordRow>
-                      <RecordLabel>클리어 등급</RecordLabel>
-                      <StarRating stars={selectedProgress.stars} />
-                    </RecordRow>
-                    {selectedProgress.bestWave > 0 && (
-                      <RecordRow>
-                        <RecordLabel>최고 웨이브</RecordLabel>
-                        <RecordVal>Wave {selectedProgress.bestWave}</RecordVal>
-                      </RecordRow>
-                    )}
-                  </RecordBox>
-                )}
-
-                <Section>
-                  <SectionLabel>등장 포켓몬 (상점 우선)</SectionLabel>
-                  <SpriteRow>
-                    {selected.heroPool.slice(0, 6).map((id) => (
-                      <HeroSprite
-                        key={id}
-                        src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`}
-                        alt={`#${id}`}
-                        title={`#${id}`}
-                      />
-                    ))}
-                  </SpriteRow>
-                </Section>
-
-                <Section>
-                  <SectionLabel>감시자 타입</SectionLabel>
-                  <TypeBadgeRow>
-                    {selected.enemyTypes.map((t) => (
-                      <TypeBadge key={t} $type={t}>
-                        {t}
-                      </TypeBadge>
-                    ))}
-                  </TypeBadgeRow>
-                </Section>
-
-                {selected.bossName && (
-                  <Section>
-                    <SectionLabel>보스 (매 3웨이브마다 등장)</SectionLabel>
-                    <BossName>{selected.bossName}</BossName>
-                  </Section>
-                )}
-
-                <Section>
-                  <SectionLabel>오프닝 미리보기</SectionLabel>
-                  <PreviewDialogue>
-                    <PreviewSpeaker>{selected.openingDialogue[0].speaker}</PreviewSpeaker>
-                    <PreviewText>
-                      "{selected.openingDialogue[0].text}"
-                    </PreviewText>
-                  </PreviewDialogue>
-                </Section>
-              </DetailBody>
-
-              <DetailFooter>
-                <StartBtn
-                  onClick={handleStart}
-                  $accent={selected.theme.primary}
-                >
-                  {selectedProgress?.cleared ? '▶ 다시 플레이' : '▶ 시작하기'}
-                </StartBtn>
-              </DetailFooter>
-            </>
-          ) : (
-            <EmptyDetail>
-              <EmptyIcon>⚔</EmptyIcon>
-              <EmptyText>챕터를 선택하세요</EmptyText>
-              <EmptyHint>Aegis — 암베라의 방패가 되어라</EmptyHint>
-            </EmptyDetail>
-          )}
-        </DetailPanel>
+        {/* Detail panel — 와이드: 사이드 고정 패널. 스택: 카드 밑 인라인(InlineDetail)으로 대체 */}
+        {!isStacked && (
+          <DetailPanel $visible={selected !== null}>
+            {renderDetail()}
+          </DetailPanel>
+        )}
       </MainLayout>
 
       {/* Story opening overlay */}
@@ -334,8 +363,8 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
       {showIntro && (
         <IntroOverlay>
           <IntroAegis>POKEMON AEGIS</IntroAegis>
-          <IntroTitle>어둠의 감시자</IntroTitle>
-          <IntroSub>The Dark Watchers</IntroSub>
+          <IntroTitle>{language === 'en' ? "Captain's Johto Drift" : '포대장의 성도 표류기'}</IntroTitle>
+          <IntroSub>{language === 'en' ? 'Captain\'s Johto Drift' : '사람이 사라진 성도'}</IntroSub>
         </IntroOverlay>
       )}
     </Root>
@@ -444,9 +473,9 @@ const Header = styled.header<{ $visible: boolean }>`
   opacity: ${(p) => (p.$visible ? 1 : 0)};
   transition: opacity 0.6s ease 0.4s;
 
-  ${media.mobile} { padding: 14px 16px 12px; flex-wrap: wrap; gap: 10px; }
+  ${media.mobile} { padding: 12px 16px; gap: 8px; }
   ${lMedia.tablet} { padding: 10px 20px 8px; }
-  ${lMedia.phoneSm} { padding: 6px 12px 6px; flex-wrap: wrap; gap: 6px; }
+  ${lMedia.phoneSm} { padding: 8px 12px; gap: 6px; }
 `;
 
 const BackBtn = styled.button`
@@ -466,13 +495,18 @@ const BackBtn = styled.button`
     color: #fff;
   }
 
-  ${media.mobile} { font-size: 12px; padding: 6px 12px; }
-  ${lMedia.phoneSm} { font-size: 11px; padding: 5px 10px; }
+  .back-text {
+    ${media.mobile} { display: none; }
+  }
+
+  ${media.mobile} { font-size: 12px; padding: 6px 10px; }
+  ${lMedia.phoneSm} { font-size: 11px; padding: 5px 8px; }
 `;
 
 const HeaderCenter = styled.div`
   text-align: center;
   flex: 1;
+  min-width: 0;
 `;
 
 const AegisLabel = styled.div`
@@ -481,6 +515,7 @@ const AegisLabel = styled.div`
   letter-spacing: 0.3em;
   color: #c8a020;
   margin-bottom: 4px;
+  ${media.mobile} { font-size: 9px; letter-spacing: 0.2em; margin-bottom: 2px; }
 `;
 
 const PageTitle = styled.h1`
@@ -492,10 +527,14 @@ const PageTitle = styled.h1`
   background-clip: text;
   margin: 0;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-  ${media.mobile} { font-size: 20px; }
+  ${media.tablet} { font-size: 22px; }
+  ${media.mobile} { font-size: 16px; }
   ${lMedia.tablet} { font-size: 20px; }
-  ${lMedia.phoneSm} { font-size: 16px; }
+  ${lMedia.phoneSm} { font-size: 14px; }
 `;
 
 const PageSubtitle = styled.div`
@@ -503,14 +542,20 @@ const PageSubtitle = styled.div`
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.12em;
   margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  ${media.mobile} { font-size: 10px; letter-spacing: 0.04em; }
 `;
 
 const ProgressSummary = styled.div`
   display: flex;
   gap: 20px;
   text-align: right;
+  flex-shrink: 0;
 
-  ${media.mobile} { gap: 12px; }
+  ${media.mobile} { gap: 10px; }
 `;
 
 const ProgressStat = styled.div``;
@@ -521,14 +566,15 @@ const ProgressNum = styled.div`
   color: #c8a020;
   line-height: 1;
 
-  ${media.mobile} { font-size: 18px; }
-  ${lMedia.phoneSm} { font-size: 15px; }
+  ${media.mobile} { font-size: 16px; }
+  ${lMedia.phoneSm} { font-size: 14px; }
 `;
 
 const ProgressLabel = styled.div`
   font-size: 11px;
   color: rgba(255, 255, 255, 0.4);
   margin-top: 2px;
+  ${media.mobile} { font-size: 9px; }
 `;
 
 const GlobalProgressBar = styled.div<{ $visible: boolean }>`
@@ -790,6 +836,18 @@ const Star = styled.span<{ $filled: boolean }>`
 
 // ─── Detail panel ─────────────────────────────────────────────────────────────
 
+// 스택(단일 열) 레이아웃에서 선택한 카드 바로 밑에 끼워넣는 인라인 상세패널
+const InlineDetail = styled.div<{ $accent: string }>`
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: -2px 0 12px;
+  border: 1.5px solid ${(p) => p.$accent}66;
+  background: rgba(255, 255, 255, 0.02);
+  animation: ${fadeUp} 0.35s ease both;
+`;
+
 const DetailPanel = styled.div<{ $visible: boolean }>`
   border-left: 1px solid rgba(255, 255, 255, 0.07);
   display: flex;
@@ -878,7 +936,10 @@ const DetailLocation = styled.div`
 `;
 
 const DetailBody = styled.div`
-  flex: 1;
+  /* flex:1 이면 본문이 패널 높이만큼 늘어나 시작 버튼이 맨 아래로 밀림.
+     0 1 auto + min-height:0 → 본문은 내용 높이만, 길면 스크롤. 버튼이 내용 바로 밑에 붙음. */
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 24px;
   display: flex;

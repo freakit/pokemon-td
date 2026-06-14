@@ -17,17 +17,17 @@ const DIFFICULTY_MULTIPLIERS: Record<
 };
 
 // ─── 스토리 모드 챕터별 난이도 배율 ────────────────────────────────────────────
-// 30웨이브 기준, 챕터가 올라갈수록 적이 강해짐
-// 참고: wave 30에서 1.08^29 ≈ 10x 이므로, 챕터 1은 쉽게, 챕터 8은 도전적으로
+// 30웨이브 기준. 후반 체감 난이도가 과해 곡선을 완만하게 낮춤(상한 1.0).
+// 실효 난이도 = 챕터배율 × 1.05^(wave-1). ch8 wave30 ≈ 1.0×4.1 = 4.1x (기존 11.2x).
 const STORY_CHAPTER_MULTIPLIERS: Record<number, { hp: number; attack: number; reward: number }> = {
   1: { hp: 0.50, attack: 0.50, reward: 1.0 },
-  2: { hp: 0.60, attack: 0.60, reward: 1.0 },
-  3: { hp: 0.70, attack: 0.70, reward: 1.0 },
-  4: { hp: 0.80, attack: 0.80, reward: 1.0 },
-  5: { hp: 0.90, attack: 0.90, reward: 1.0 },
-  6: { hp: 1.00, attack: 1.00, reward: 1.0 },
-  7: { hp: 1.10, attack: 1.10, reward: 1.0 },
-  8: { hp: 1.20, attack: 1.20, reward: 1.0 },
+  2: { hp: 0.55, attack: 0.55, reward: 1.0 },
+  3: { hp: 0.60, attack: 0.60, reward: 1.0 },
+  4: { hp: 0.65, attack: 0.65, reward: 1.0 },
+  5: { hp: 0.70, attack: 0.70, reward: 1.0 },
+  6: { hp: 0.75, attack: 0.75, reward: 1.0 },
+  7: { hp: 0.80, attack: 0.80, reward: 1.0 },
+  8: { hp: 0.85, attack: 0.85, reward: 1.0 },
 };
 
 // 웨이브별 종족값 범위 (스폰 포켓몬 강도 조절)
@@ -213,8 +213,9 @@ export class WaveSystem {
       // [FIX-RACE] await 복귀 후 epoch 검증 — 바뀌었으면 새 웨이브가 시작된 것이므로 스폰 중단
       if (this._spawnEpoch !== epochAtStart) return;
 
-      // 지수적 스케일링 (1.08^(wave-1) 으로 조금 완화)
-      const waveMultiplier = Math.pow(1.08, wave - 1);
+      // 지수적 스케일링 (전 모드 1.05^(wave-1) — 후반 난이도 완화).
+      // wave30: 1.05^29≈4.1x, wave50: 1.05^49≈11x.
+      const waveMultiplier = Math.pow(1.05, wave - 1);
 
       const baseHp = pokemonData.stats.hp * waveMultiplier * mult.hp;
       const baseAttack = pokemonData.stats.attack * waveMultiplier * mult.attack;

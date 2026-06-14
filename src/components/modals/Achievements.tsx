@@ -15,52 +15,12 @@ import { Achievement, AchievementTier, TIER_POINTS } from '../../types/game';
 import { useTranslation } from '../../i18n';
 import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
 
-// ─── 번역 헬퍼 ───────────────────────────────────────────────────────────────
-const GEN_NAMES: Record<number, string> = {
-  1:'관동', 2:'성도', 3:'호연', 4:'신오', 5:'하나', 6:'칼로스', 7:'알로라', 8:'가라르', 9:'팔데아',
-};
-
-function getAchName(ach: AchievementWithCategory, t: (k: string, p?: Record<string, string | number>) => string): string {
-  const direct = t(`achData.${ach.id}.name`);
-  if (direct !== `achData.${ach.id}.name`) return direct;
-
-  const id = ach.id;
-  if (id.startsWith('syn_type_')) {
-    const parts = id.split('_');
-    const typeKey = parts[2];
-    const count = parts[3];
-    const typeName = t(`types.${typeKey}`);
-    return t(`achData.pat_type_${count}.name`, { typeName });
-  }
-  if (id.startsWith('syn_gen_')) {
-    const parts = id.split('_');
-    const genNum = Number(parts[2]);
-    const count = parts[3];
-    const genName = `${genNum}세대(${GEN_NAMES[genNum] ?? ''})`.trim();
-    return t(`achData.pat_gen_${count}.name`, { genName, genNum });
-  }
+// ─── 번역 헬퍼 (업적은 다국어화하지 않고 한국어로 고정하여 translation missing 방지) ───────────────
+function getAchName(ach: AchievementWithCategory): string {
   return ach.name;
 }
 
-function getAchDesc(ach: AchievementWithCategory, t: (k: string, p?: Record<string, string | number>) => string): string {
-  const direct = t(`achData.${ach.id}.description`);
-  if (direct !== `achData.${ach.id}.description`) return direct;
-
-  const id = ach.id;
-  if (id.startsWith('syn_type_')) {
-    const parts = id.split('_');
-    const typeKey = parts[2];
-    const count = parts[3];
-    const typeName = t(`types.${typeKey}`);
-    return t(`achData.pat_type_${count}.description`, { typeName });
-  }
-  if (id.startsWith('syn_gen_')) {
-    const parts = id.split('_');
-    const genNum = Number(parts[2]);
-    const count = parts[3];
-    const genName = `${genNum}세대(${GEN_NAMES[genNum] ?? ''})`.trim();
-    return t(`achData.pat_gen_${count}.description`, { genName, genNum });
-  }
+function getAchDesc(ach: AchievementWithCategory): string {
   return ach.description;
 }
 
@@ -77,7 +37,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
   const [loading, setLoading] = useState(true);
   const [myAP, setMyAP] = useState(0);
 
-  // 업적 데이터 로드 (localStorage 우선, DB 보조 병합)
+  // 업적 데이터 로드 (localStorage 우선, DB 보조 병합 + 강제 정규화)
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -97,8 +57,29 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
           }
         } catch { /* DB 실패 시 로컬만 사용 */ }
 
-        setProgressData(localMap);
-        setMyAP(localData.totalAP ?? 0);
+        // UI에 노출하기 전 1회 달성 기준으로 강제 정규화 진행
+        let recalculatedAP = 0;
+        const normalizedMap = new Map<string, Achievement>();
+
+        for (const [id, a] of localMap.entries()) {
+          const tierPoints: Record<string, number> = { bronze: 3, silver: 10, gold: 25, diamond: 50, legendary: 100 };
+          const ptsPer = a.tier ? tierPoints[a.tier] ?? 3 : 3;
+          const unlocked = a.unlocked || (a.completions ?? 0) > 0 || a.progress >= a.target;
+
+          const normalized: Achievement = {
+            ...a,
+            unlocked,
+            completions: unlocked ? 1 : 0,
+            totalPoints: unlocked ? ptsPer : 0,
+            pointsPerCompletion: ptsPer,
+          };
+
+          normalizedMap.set(id, normalized);
+          recalculatedAP += normalized.totalPoints;
+        }
+
+        setProgressData(normalizedMap);
+        setMyAP(recalculatedAP);
       } finally {
         setLoading(false);
       }
@@ -218,7 +199,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                               <CardBody>
                                 <CardNameRow>
                                   <CardName $unlocked={isUnlocked} $color={meta.color}>
-                                    {ach.hidden && !isUnlocked ? '???' : getAchName(ach, t)}
+                                    {ach.hidden && !isUnlocked ? '???' : getAchName(ach)}
                                   </CardName>
                                   {isUnlocked && completions > 1 && (
                                     <CompletionBadge $color={meta.color}>×{completions}</CompletionBadge>
@@ -228,7 +209,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                                 <CardDesc>
                                   {ach.hidden && !isUnlocked
                                     ? t('achievementsPanel.hiddenDesc')
-                                    : getAchDesc(ach, t)}
+                                    : getAchDesc(ach)}
                                 </CardDesc>
                                 <CardBottom>
                                   {!isUnlocked ? (

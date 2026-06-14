@@ -9,26 +9,21 @@ import {
 import { useTranslation } from '../../i18n';
 import { saveService } from '../../services/SaveService';
 import { soundService } from '../../services/SoundService';
+import { BugReport } from './BugReport';
 
 export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t, language, setLanguage } = useTranslation();
 
   const saved = saveService.load().settings;
   const [musicVolume, setMusicVolume] = useState(saved.musicVolume);
-  const [sfxVolume, setSfxVolume]     = useState(saved.sfxVolume);
   const [showDamage, setShowDamage]   = useState(saved.showDamageNumbers);
   const [showGrid, setShowGrid]       = useState(saved.showGrid);
+  const [showBugReport, setShowBugReport] = useState(false);
 
   const handleMusicVolume = (v: number) => {
     setMusicVolume(v);
     soundService.setMusicVolume(v);
     saveService.save({ settings: { ...saveService.load().settings, musicVolume: v } });
-  };
-
-  const handleSfxVolume = (v: number) => {
-    setSfxVolume(v);
-    soundService.setSFXVolume(v);
-    saveService.save({ settings: { ...saveService.load().settings, sfxVolume: v } });
   };
 
   const handleShowDamage = (v: boolean) => {
@@ -42,7 +37,8 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <ModalOverlay onClick={onClose}>
+    <>
+      <ModalOverlay onClick={onClose}>
       <ModalBox $size="sm" $accent={MODAL_ACCENT.cyan} onClick={(e) => e.stopPropagation()}>
 
         <ModalHeader>
@@ -70,22 +66,6 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             </SliderWrapper>
           </SettingItem>
 
-          <SettingItem>
-            <SettingLabel>
-              <LabelIcon>🔊</LabelIcon>
-              <LabelText>{t('settings.sfxVolume')}</LabelText>
-            </SettingLabel>
-            <SliderWrapper>
-              <SliderTrack>
-                <input
-                  type="range" min="0" max="1" step="0.1"
-                  value={sfxVolume}
-                  onChange={(e) => handleSfxVolume(parseFloat(e.target.value))}
-                />
-              </SliderTrack>
-              <SliderVal>{Math.round(sfxVolume * 100)}%</SliderVal>
-            </SliderWrapper>
-          </SettingItem>
 
           <SettingItem>
             <SettingLabel>
@@ -128,6 +108,10 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </SettingItem>
         </SettingsList>
 
+        <BugReportButton onClick={() => setShowBugReport(true)}>
+          🐛 {t('settings.bugReport')}
+        </BugReportButton>
+
         <DangerZone>
           <DangerLabel>⚠️ 위험 구역</DangerLabel>
           <DangerButton onClick={() => {
@@ -142,6 +126,8 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </ModalScrollBody>
       </ModalBox>
     </ModalOverlay>
+    {showBugReport && <BugReport onClose={() => setShowBugReport(false)} />}
+    </>
   );
 };
 
@@ -339,6 +325,30 @@ const CloseButton = styled.button`
   transition: background 0.2s, color 0.2s;
   @media (hover: hover) {
     &:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  }
+
+  ${media.mobile} { padding: 10px; font-size: 13px; }
+  ${lMedia.phoneSm} { padding: 8px; font-size: 12px; }
+`;
+
+const BugReportButton = styled.button`
+  width: 100%;
+  padding: 12px;
+  background: rgba(79, 195, 247, 0.1);
+  color: #4fc3f7;
+  border: 1.5px solid rgba(79, 195, 247, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 16px;
+  letter-spacing: 0.04em;
+  transition: background 0.2s, border-color 0.2s;
+  @media (hover: hover) {
+    &:hover {
+      background: rgba(79, 195, 247, 0.2);
+      border-color: rgba(79, 195, 247, 0.6);
+    }
   }
 
   ${media.mobile} { padding: 10px; font-size: 13px; }

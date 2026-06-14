@@ -91,7 +91,7 @@ export const MainMenu = () => {
         {/* ── Main content ── */}
         <Main>
           <HeroSection>
-            <HeroEyebrow>게임 모드 선택</HeroEyebrow>
+            <HeroEyebrow>{t('mainMenu.selectGameMode')}</HeroEyebrow>
             <HeroTitle>{t('mainMenu.gameTitle')}</HeroTitle>
           </HeroSection>
 
@@ -125,8 +125,8 @@ export const MainMenu = () => {
                 <ModeEmoji>⚔</ModeEmoji>
               </ModeIconWrap>
               <ModeInfo>
-                <ModeName>스토리 모드</ModeName>
-                <ModeDesc>어둠의 감시자 · 8챕터</ModeDesc>
+                <ModeName>{t('mainMenu.storyPlay')}</ModeName>
+                <ModeDesc>{t('mainMenu.storyPlayDesc')}</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>
@@ -147,7 +147,7 @@ export const MainMenu = () => {
 
           {/* Utility row */}
           <UtilSection>
-            <UtilLabel>내 정보</UtilLabel>
+            <UtilLabel>{t('mainMenu.myInfo')}</UtilLabel>
             <UtilRow>
               <UtilBtn onClick={() => setShowAchievements(true)}>
                 <UtilIcon>🏅</UtilIcon>{t('mainMenu.achievements')}
@@ -222,8 +222,9 @@ const LogoText = styled.div``;
 
 const LogoMain = styled.div`
   font-size:13px; font-weight:800; letter-spacing:0.12em;
-  color:rgba(255,255,255,0.85);
-  ${media.mobile} { font-size:11px; }
+  color:rgba(255,255,255,0.85); white-space:nowrap;
+  /* 모바일: 상단바 우측(유저/로그아웃) 공간 확보 위해 브랜드 텍스트 숨김(로고 이미지 유지) */
+  ${media.mobile} { display:none; }
 `;
 
 const TopBarRight = styled.div`display:flex; align-items:center; gap:12px;`;
@@ -233,7 +234,7 @@ const UserChip = styled.div`
   background:rgba(255,255,255,0.05);
   border:1px solid rgba(255,255,255,0.08);
   border-radius:100px; padding:5px 12px 5px 6px;
-  position:relative;
+  position:relative; min-width:0;
 `;
 
 const Avatar = styled.img`
@@ -254,12 +255,13 @@ const AvatarFallback = styled.div`
 const UserName = styled.span`
   font-size:13px; font-weight:600; color:#f8fafc;
   max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  ${media.mobile} { max-width:72px; font-size:12px; }
+  ${media.mobile} { max-width:110px; font-size:12px; }
   ${lMedia.phoneSm} { display:none; }
 `;
 
 const RatingChip = styled.span`
   font-size:12px; font-weight:700; color:#f59e0b;
+  flex-shrink:0; white-space:nowrap;
   ${media.mobile} { font-size:11px; }
 `;
 
@@ -268,6 +270,7 @@ const SignOutBtn = styled.button`
   border:1px solid rgba(255,255,255,0.1); border-radius:8px;
   color:rgba(255,255,255,0.45); font-size:13px;
   cursor:pointer; transition:all 0.2s;
+  white-space:nowrap; flex-shrink:0;
   &:hover { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#fca5a5; }
   ${media.mobile} { padding:6px 10px; font-size:12px; }
   ${lMedia.phoneSm} { display:none; }

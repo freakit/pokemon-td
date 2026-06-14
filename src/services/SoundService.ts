@@ -7,21 +7,11 @@ class SoundService {
   private static instance: SoundService;
   
   private musicVolume = 0.5;
-  private sfxVolume = 0.7;
-  
   private currentBGM: Howl | null = null;
-  
-  // 공격 사운드는 제거됨 — 투사체가 타입 아이콘으로 대체
-  private sfxMap: Record<string, string> = {
-    'evolution': '/sounds/sfx/evolution.wav',
-    'victory': '/sounds/sfx/victory.wav',
-    'defeat': '/sounds/sfx/defeat.wav',
-  };
 
   private constructor() {
     const settings = saveService.load().settings;
     this.musicVolume = settings.musicVolume;
-    this.sfxVolume = settings.sfxVolume;
     
     Howler.volume(1.0);
     this.playBGM();
@@ -39,10 +29,6 @@ class SoundService {
     if (this.currentBGM) {
       this.currentBGM.volume(this.musicVolume);
     }
-  }
-  
-  setSFXVolume(volume: number) {
-    this.sfxVolume = Math.max(0, Math.min(1, volume));
   }
   
   playBGM() {
@@ -75,34 +61,6 @@ class SoundService {
       this.currentBGM.unload();
       this.currentBGM = null;
     }
-  }
-  
-  playSFX(soundName: string) {
-    const track = this.sfxMap[soundName];
-    if (track) {
-      const sfx = new Howl({
-        src: [track],
-        volume: this.sfxVolume,
-      });
-      sfx.play();
-    }
-  }
-
-  // 공격 사운드는 타입 아이콘 투사체로 대체되어 no-op 처리
-  playAttackSound(_type: string) {
-    // 사운드 없음 — 투사체가 타입 아이콘 GIF로 시각적 피드백 제공
-  }
-  
-  playEvolutionSound() {
-    this.playSFX('evolution');
-  }
-  
-  playVictorySound() {
-    this.playSFX('victory');
-  }
-  
-  playDefeatSound() {
-    this.playSFX('defeat');
   }
 }
 

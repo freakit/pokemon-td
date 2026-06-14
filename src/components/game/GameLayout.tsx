@@ -48,6 +48,7 @@ import { SkillPicker } from "../modals/SkillPicker";
 import { WaveEndPicker } from "../modals/WaveEndPicker";
 import { Wave50ClearModal } from "../modals/Wave50ClearModal";
 import { StoryEnding } from "../story/StoryEnding";
+import { BossCutIn } from "./BossCutIn";
 import { storyProgressService } from "../../services/StoryProgressService";
 import { AEGIS_STORY_CHAPTERS } from "../../data/storyChapters";
 import { EvolutionConfirmModal } from "../modals/EvolutionConfirmModal";
@@ -838,6 +839,9 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
 
       {/* ─── Floating overlays ──────────────────────────────── */}
+      {isStoryMode && (
+        <BossCutIn chapterNumber={storyChapterNumber} bossName={locationState.bossName} />
+      )}
       <SynergyDetails />
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
       <EvolutionConfirmModal />
