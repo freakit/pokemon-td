@@ -1104,6 +1104,9 @@ const CenterPanel = styled.div`
   min-width: 0;
   min-height: 0;
   width: 100%;
+  /* [FIX] 큰 화면에서 grid cell 높이가 aspect-ratio 높이보다 클 때
+     맵이 수직 중앙으로 밀려 내려가는 버그 방지 — 상단에 고정 */
+  align-self: start;
 `;
 
 // ── Right Panel ───────────────────────────────────────────────────

@@ -267,10 +267,10 @@ const ProjectileOverlay: React.FC<ProjectileOverlayProps> = ({ projectiles, canv
       height={MAP_HEIGHT * TILE_SIZE}
       style={{
         position: 'absolute',
-        top: '50%',
+        top: '16px',
         left: '50%',
-        transform: `translate(-50%, -50%) scale(${canvasScale})`,
-        transformOrigin: 'center',
+        transform: `translate(-50%, 0) scale(${canvasScale})`,
+        transformOrigin: 'center top',
         pointerEvents: 'none',
       }}
     />
@@ -360,10 +360,10 @@ const BossGlowOverlay: React.FC<BossGlowOverlayProps> = ({ enemies, canvasScale 
       height={MAP_HEIGHT * TILE_SIZE}
       style={{
         position: 'absolute',
-        top: '50%',
+        top: '16px',
         left: '50%',
-        transform: `translate(-50%, -50%) scale(${canvasScale})`,
-        transformOrigin: 'center',
+        transform: `translate(-50%, 0) scale(${canvasScale})`,
+        transformOrigin: 'center top',
         pointerEvents: 'none',
         zIndex: 1,
       }}
@@ -741,7 +741,7 @@ export const GameCanvas: React.FC = () => {
         </Tooltip>
       )}
 
-      <StageWrapper style={{ transform: `translate(-50%, -50%) scale(${canvasScale})` }}>
+      <StageWrapper style={{ transform: `translate(-50%, 0) scale(${canvasScale})` }}>
         <Stage ref={stageRef} width={MAP_WIDTH * TILE_SIZE} height={MAP_HEIGHT * TILE_SIZE}
           onMouseMove={handleMouseMove} onClick={handleClick} onContextMenu={handleRightClick}
           onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -928,8 +928,8 @@ const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${lMedia.phoneSm
 const StageWrapper = styled.div`
   /* [FIX] position:absolute → 레이아웃 흐름에서 제거, 960px 고정 크기가 부모를 밀지 않음 */
   position: absolute;
-  top: 50%; left: 50%;
-  transform-origin: center center;
+  top: 16px; left: 50%;
+  transform-origin: center top;
   border: 2px solid #1a242f; border-radius: 8px; overflow: hidden;
   box-shadow: 0 8px 16px rgba(0,0,0,0.2); transition: transform 0.3s ease;
   ${lMedia.phoneSm} { border: 1px solid #1a242f; border-radius: 4px; }
