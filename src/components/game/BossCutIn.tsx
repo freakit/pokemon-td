@@ -1,7 +1,8 @@
 // src/components/game/BossCutIn.tsx
-// 스토리 모드 전용 보스 등장 컷인 연출.
-// gameStore의 enemies를 구독해 보스(isBoss) 등장을 감지하면, 해당 웨이브당 1회
-// 슬라이드-인 컷인을 띄운다. 게임 루프를 막지 않는 비차단(pointer-events:none) 오버레이.
+// 보스 등장 연출 (전 모드). gameStore의 enemies를 구독해 보스(isBoss) 등장을 감지.
+//  - grand: 스토리 최종 보스(wave30 고정 에이스) → 웅장한 슬라이드 컷인 + 도발 대사
+//  - light: 그 외 모든 보스(스토리 중간 보스 3·6·…·27 / 싱글·멀티) → 상단 작은 알림 배너
+// 게임 루프를 막지 않는 비차단(pointer-events:none) 오버레이.
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { useGameStore } from '../../store/gameStore';
@@ -32,34 +33,48 @@ export const BossCutIn: React.FC<BossCutInProps> = ({ chapterNumber, bossName })
   const enemies = useGameStore(s => s.enemies);
   const wave = useGameStore(s => s.wave);
 
-  const [active, setActive]   = useState(false);
-  const [sprite, setSprite]   = useState<string>('');
-  const shownWavesRef         = useRef<Set<number>>(new Set());
-  const hideTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // grand: 스토리 최종 보스(wave30 고정 에이스) 웅장 컷인 / light: 그 외 모든 보스(중간 보스·싱글·멀티)
+  const [tier, setTier]   = useState<'grand' | 'light' | null>(null);
+  const [sprite, setSprite] = useState<string>('');
+  const shownWavesRef       = useRef<Set<number>>(new Set());
+  const hideTimerRef        = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (chapterNumber === null || !bossName) return;
-    // 웅장한 컷인은 '최종 보스'(wave30 고정 에이스)만. 중간 보스(3·6·…·27)는 컷인 없음 — 차별화.
-    if (wave !== 30) return;
-    // 현재 웨이브에서 아직 컷인을 안 띄웠고, 보스가 등장했으면 트리거
+    // 현재 웨이브에서 아직 안 띄웠고, 보스가 등장했으면 트리거
     if (shownWavesRef.current.has(wave)) return;
     const boss = enemies.find(e => e.isBoss);
     if (!boss) return;
-
     shownWavesRef.current.add(wave);
+
+    // 최종 보스(스토리 wave30 + 고정 에이스 bossName) = grand, 그 외 모든 보스 = light
+    const isGrand = chapterNumber !== null && !!bossName && wave === 30;
     setSprite(boss.pokemonId ? officialArt(boss.pokemonId) : boss.sprite);
-    setActive(true);
+    setTier(isGrand ? 'grand' : 'light');
 
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => setActive(false), 3400);
+    hideTimerRef.current = setTimeout(() => setTier(null), isGrand ? 3400 : 1900);
   }, [enemies, wave, chapterNumber, bossName]);
 
   useEffect(() => () => {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
   }, []);
 
-  if (chapterNumber === null || !bossName || !active) return null;
+  if (!tier) return null;
 
+  // ── 라이트 배너: 중간 보스 / 싱글·멀티 모든 보스 (상단 작은 알림) ──
+  if (tier === 'light') {
+    const label = language === 'en' ? 'BOSS INCOMING' : '보스 출현';
+    return (
+      <LightRoot>
+        <LightBanner>
+          {sprite && <LightArt src={sprite} alt="boss" />}
+          <LightText>⚠ {label}</LightText>
+        </LightBanner>
+      </LightRoot>
+    );
+  }
+
+  // ── 웅장 컷인: 스토리 최종 보스 ──
   const taunt = chapterNumber && BOSS_TAUNT[chapterNumber]
     ? BOSS_TAUNT[chapterNumber][language === 'en' ? 'en' : 'ko']
     : '';
@@ -190,4 +205,48 @@ const Taunt = styled.div`
   color: #fcd34d;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   animation: ${textRise} 0.4s ease-out 0.52s both;
+`;
+
+// ── 라이트 배너 (중간 보스 / 싱글·멀티 모든 보스) — 상단 중앙 작은 알림 ──
+const lightIn = keyframes`
+  0%   { transform: translateY(-18px); opacity: 0; }
+  15%  { transform: translateY(0);     opacity: 1; }
+  80%  { transform: translateY(0);     opacity: 1; }
+  100% { transform: translateY(-12px); opacity: 0; }
+`;
+
+const LightRoot = styled.div`
+  position: fixed;
+  top: 14px; left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1390;
+`;
+
+const LightBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 16px 5px 7px;
+  background: rgba(22,8,8,0.9);
+  border: 1px solid rgba(245,158,11,0.55);
+  border-radius: 999px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.45), 0 0 16px rgba(245,158,11,0.2);
+  animation: ${lightIn} 1.9s ease both;
+`;
+
+const LightArt = styled.img`
+  width: 34px; height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+`;
+
+const LightText = styled.div`
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #fcd34d;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+  white-space: nowrap;
 `;

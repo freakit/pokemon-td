@@ -839,9 +839,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       )}
 
       {/* ─── Floating overlays ──────────────────────────────── */}
-      {isStoryMode && (
-        <BossCutIn chapterNumber={storyChapterNumber} bossName={locationState.bossName} />
-      )}
+      {/* 전 모드 보스 연출: 스토리 최종 보스=웅장 컷인 / 그 외 모든 보스=라이트 배너 */}
+      <BossCutIn
+        chapterNumber={isStoryMode ? storyChapterNumber : null}
+        bossName={isStoryMode ? locationState.bossName : undefined}
+      />
       <SynergyDetails />
       {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
       <EvolutionConfirmModal />
