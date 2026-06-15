@@ -208,11 +208,12 @@ const Taunt = styled.div`
 `;
 
 // ── 라이트 배너 (중간 보스 / 싱글·멀티 모든 보스) — 상단 중앙 작은 알림 ──
+// grand 컷인처럼 "딱" 들어왔다 "딱" 사라지게: 빠른 in(0~9%)·홀드·빠른 out(88~100%).
 const lightIn = keyframes`
-  0%   { transform: translateY(-18px); opacity: 0; }
-  15%  { transform: translateY(0);     opacity: 1; }
-  80%  { transform: translateY(0);     opacity: 1; }
-  100% { transform: translateY(-12px); opacity: 0; }
+  0%   { transform: translateY(-26px) scale(0.9); opacity: 0; }
+  9%   { transform: translateY(0)     scale(1);   opacity: 1; }
+  88%  { transform: translateY(0)     scale(1);   opacity: 1; }
+  100% { transform: translateY(-14px) scale(0.95); opacity: 0; }
 `;
 
 const LightRoot = styled.div`
@@ -233,7 +234,7 @@ const LightBanner = styled.div`
   border: 1px solid rgba(245,158,11,0.55);
   border-radius: 999px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.45), 0 0 16px rgba(245,158,11,0.2);
-  animation: ${lightIn} 1.9s ease both;
+  animation: ${lightIn} 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 `;
 
 const LightArt = styled.img`

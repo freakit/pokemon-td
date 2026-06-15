@@ -604,7 +604,7 @@ export class GameManager {
     if (this.killedEnemyIds.has(id)) return;
     this.killedEnemyIds.add(id);
 
-    const { enemies, removeEnemy, addMoney, addXpToTower } = useGameStore.getState();
+    const { enemies, removeEnemy, addMoney, addXpToTower, storyChapterNumber } = useGameStore.getState();
     const enemy = enemies.find(e => e.id === id);
     if (!enemy) return;
 
@@ -615,7 +615,11 @@ export class GameManager {
 
     // [BUG-1 FIX] isFainted 타워는 XP 지급 제외
     // 쓰러진 상태에서 레벨이 오르는 비정상 동작 방지
-    const xpAmount = enemy.isBoss ? 50 : 10;
+    // [스토리 XP 부스트] 스토리는 30웨이브(싱글 50)로 짧아 레벨이 덜 오름 + 보스가
+    //   ×8로 탱키 → 타워 레벨이 못 따라감. 스토리에서만 XP ×STORY_XP_MULT.
+    const STORY_XP_MULT = 1.5;
+    const baseXp = enemy.isBoss ? 50 : 10;
+    const xpAmount = storyChapterNumber !== null ? Math.round(baseXp * STORY_XP_MULT) : baseXp;
     useGameStore.getState().towers
       .filter(t => !t.isFainted)
       .forEach(t => {
