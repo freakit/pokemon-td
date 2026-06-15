@@ -21,6 +21,11 @@ export const MAX_LIVES_CAP = 50;
 // 싱글플레이 초기 라이프 (업적 체크 기준값으로 사용)
 export const INITIAL_LIVES_SINGLE = MAX_LIVES_CAP;
 
+// 레벨업에 필요한 XP — 10레벨 구간마다 100씩 증가
+//   Lv1~10: 100 / 11~20: 200 / 21~30: 300 / … / 91~100: 1000
+export const xpToNextLevel = (level: number) =>
+  (Math.floor((level - 1) / 10) + 1) * 100;
+
 interface GameStore extends GameState {
   addTower: (tower: GamePokemon) => void;
   updateTower: (id: string, updates: Partial<GamePokemon>) => void;
@@ -360,7 +365,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (target && !target.isFainted && target.level < 100) {
         const cost = target.level * 25;
         if (!get().spendMoney(cost)) return false;
-        get().addXpToTower(targetTowerId, target.level * 100);
+        // 가격은 레벨×25 그대로. XP는 새 곡선 기준으로 정확히 +1레벨만큼 지급.
+        get().addXpToTower(targetTowerId, xpToNextLevel(target.level));
         return true;
       }
       return false;
@@ -384,10 +390,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const cost = nextTargetLevel * 50;
       if (!get().spendMoney(cost)) return false;
 
-      // 목표 레벨까지 필요한 정확한 경험치 계산
+      // 목표 레벨까지 필요한 정확한 경험치 계산 (새 곡선 기준 — 딱 목표레벨까지)
       let totalXpNeeded = 0;
       for (let lvl = target.level; lvl < nextTargetLevel; lvl++) {
-        totalXpNeeded += lvl * 100;
+        totalXpNeeded += xpToNextLevel(lvl);
       }
       const xpToApply = Math.max(0, totalXpNeeded - target.experience);
 
@@ -406,7 +412,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!target) return false;
 
     if (itemType === 'candy') {
-      get().addXpToTower(targetTowerId, target.level * 100);
+      get().addXpToTower(targetTowerId, xpToNextLevel(target.level)); // 정확히 +1레벨
       return true;
     }
 
@@ -450,31 +456,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // [FIX] 방어·특방·스피드도 레벨업 시 성장
     let currentDefense = tower.defense;
     let currentSpecialDefense = tower.specialDefense;
-    let currentSpeed = tower.speed;
+    const currentSpeed = tower.speed; // 속도는 레벨업으로 변하지 않음 (고정)
 
     const levelUps: number[] = [];
 
     while (currentLevel < 100) {
-      const xpToNextLevel = currentLevel * 100;
-      if (newXp >= xpToNextLevel) {
-        newXp -= xpToNextLevel;
+      const need = xpToNextLevel(currentLevel);
+      if (newXp >= need) {
+        newXp -= need;
         currentLevel++;
         levelUps.push(currentLevel);
 
-        const hpIncrease     = Math.floor(currentMaxHp * 0.1);
+        // 레벨당 성장: 속도 제외 전 스탯 ×1.05(+5%). 속도는 고정.
+        const hpIncrease     = Math.floor(currentMaxHp * 0.05);
         const atkIncrease    = Math.floor(currentAttack * 0.05);
         const defIncrease    = Math.floor(currentDefense * 0.05);
+        const spAtkIncrease  = Math.floor(currentSpecialAttack * 0.05);
         const spDefIncrease  = Math.floor(currentSpecialDefense * 0.05);
-        const spdIncrease    = Math.floor(currentSpeed * 0.03); // 스피드는 소폭 성장
 
         currentMaxHp           += hpIncrease;
         currentHp              += hpIncrease;
         currentAttack          += atkIncrease;
         currentBaseAttack      += atkIncrease;
-        currentSpecialAttack   += atkIncrease;
+        currentSpecialAttack   += spAtkIncrease;
         currentDefense         += defIncrease;
         currentSpecialDefense  += spDefIncrease;
-        currentSpeed           += spdIncrease;
+        // 속도(currentSpeed)는 레벨업 성장 없음 (고정)
       } else {
         break;
       }
