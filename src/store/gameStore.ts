@@ -365,7 +365,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (target && !target.isFainted && target.level < 100) {
         const cost = target.level * 25;
         if (!get().spendMoney(cost)) return false;
-        get().addXpToTower(targetTowerId, xpToNextLevel(target.level)); // 정확히 +1레벨
+        // 가격은 레벨×25 그대로. XP는 새 곡선 기준으로 정확히 +1레벨만큼 지급.
+        get().addXpToTower(targetTowerId, xpToNextLevel(target.level));
         return true;
       }
       return false;
@@ -389,7 +390,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const cost = nextTargetLevel * 50;
       if (!get().spendMoney(cost)) return false;
 
-      // 목표 레벨까지 필요한 정확한 경험치 계산
+      // 목표 레벨까지 필요한 정확한 경험치 계산 (새 곡선 기준 — 딱 목표레벨까지)
       let totalXpNeeded = 0;
       for (let lvl = target.level; lvl < nextTargetLevel; lvl++) {
         totalXpNeeded += xpToNextLevel(lvl);
