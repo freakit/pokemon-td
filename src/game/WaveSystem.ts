@@ -274,7 +274,7 @@ export class WaveSystem {
         moveSpeed: isFinalBoss ? 20 : (isBoss ? 40 : 60),
         types: pokemonData.types,
         sprite: pokemonData.sprite,
-        range: 100,
+        range: 80,
         attackCooldown: 0,
         livesTaken,
       };
@@ -351,7 +351,7 @@ export class WaveSystem {
       moveSpeed: isFinalBoss ? 20 : (isBoss ? 40 : 60),
       types: ['normal'],
       sprite: '',
-      range: 100,
+      range: 80,
       attackCooldown: 0,
       livesTaken,
     };
