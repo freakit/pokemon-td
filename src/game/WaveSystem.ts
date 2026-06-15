@@ -296,15 +296,6 @@ export class WaveSystem {
     await this.spawnEnemy(wave, path, true, mult, addEnemy);
   }
 
-  spawnDebuffBoss(wave: number) {
-    const { currentMap, addEnemy } = useGameStore.getState();
-    const map = getMapById(currentMap);
-    if (!map || map.paths.length === 0) return;
-
-    const mult = DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal'];
-    this.spawnEnemy(wave + 5, map.paths[0], true, mult, addEnemy);
-  }
-
   /**
    * [수정] 경량 스탯 캐시 사용 - 추가 API 호출 없음
    * 스토리 모드에서는 챕터 enemyTypes로 타입 편향 필터링 적용
