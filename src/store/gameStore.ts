@@ -123,7 +123,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set(state => ({
       towers: state.towers.map(t => {
         if (t.id !== id) return t;
-        if (updates.isFainted !== undefined && t.isFainted !== updates.isFainted) {
+        // 시너지 재계산 트리거: 기절 상태 변경 OR 진화/합체로 종족·타입 변경 시
+        // (기존엔 isFainted만 봤어서 진화 후 새 타입/세대 시너지가 갱신 안 되던 버그)
+        if (
+          (updates.isFainted !== undefined && t.isFainted !== updates.isFainted) ||
+          (updates.pokemonId !== undefined && t.pokemonId !== updates.pokemonId) ||
+          (updates.types !== undefined && t.types !== updates.types)
+        ) {
           needsSynergyUpdate = true;
         }
         return { ...t, ...updates };
@@ -607,17 +613,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
 
       const newData = await pokeAPI.getPokemon(evolutionTarget);
+      // 진화 전 종족값 — 현재 타워의 '레벨 보정 배율'을 역산하기 위함
+      const curData = await pokeAPI.getPokemon(tower.pokemonId);
 
-      // 현재 레벨에 따른 스탯 스케일링 계산 (1.1^level-1)
-      const scaleFactor = Math.pow(1.1, tower.level - 1);
-      
-      const newMaxHp = Math.floor(newData.stats.hp * scaleFactor);
-      const newAttack = Math.floor(newData.stats.attack * scaleFactor);
-      const newSpecialAttack = Math.floor(newData.stats.specialAttack * scaleFactor);
-      const newDefense = Math.floor(newData.stats.defense * scaleFactor);
-      // [BUG-FIX] specialDefense도 scaleFactor 적용 (기존 누락)
-      const newSpecialDefense = Math.floor(newData.stats.specialDefense * scaleFactor);
-      // speed는 진화 후 포켓몬의 기본 스피드를 그대로 사용 (의도된 불변값)
+      // 현재 스탯 / 진화 전 종족값 = 레벨업으로 누적된 배율. 진화 후에도 그 배율을 유지.
+      //   예) 공격 종족값 100 → 레벨업 ×1.2(=120) → 종족값 200으로 진화 → 240(×1.2 유지)
+      const ratio = (cur: number, base: number) => (base > 0 ? cur / base : 1);
+      const newMaxHp          = Math.max(1, Math.floor(newData.stats.hp * ratio(tower.maxHp, curData.stats.hp)));
+      const newAttack         = Math.max(1, Math.floor(newData.stats.attack * ratio(tower.baseAttack, curData.stats.attack)));
+      const newSpecialAttack  = Math.max(1, Math.floor(newData.stats.specialAttack * ratio(tower.specialAttack, curData.stats.specialAttack)));
+      const newDefense        = Math.max(1, Math.floor(newData.stats.defense * ratio(tower.defense, curData.stats.defense)));
+      const newSpecialDefense = Math.max(1, Math.floor(newData.stats.specialDefense * ratio(tower.specialDefense, curData.stats.specialDefense)));
+      // speed는 진화 후 포켓몬의 기본 스피드를 그대로 사용 (레벨업도 속도 고정)
       const newSpeed = newData.stats.speed;
 
       const hpRatio = tower.currentHp / tower.maxHp;

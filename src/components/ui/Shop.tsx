@@ -96,6 +96,19 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
     if (!tower) return;
 
     if (["potion","potion_good","potion_super","revive","candy","exp_candy"].includes(itemMode)) {
+      // 대상 레벨에 따라 비용이 달라지는 사탕/부활/경험치사탕 — 적용 직전 돈 부족 체크.
+      // (물약류는 버튼 클릭 시 이미 체크되므로 cost 0 유지)
+      let cost = 0;
+      if (itemMode === "candy" && !tower.isFainted && tower.level < 100) {
+        cost = tower.level * 25;
+      } else if (itemMode === "revive" && tower.isFainted) {
+        cost = tower.level * 10;
+      } else if (itemMode === "exp_candy") {
+        const alive = towers.filter(tt => !tt.isFainted);
+        const higher = [...new Set(alive.map(tt => tt.level))].filter(l => l > tower.level).sort((a, b) => a - b);
+        cost = higher.length ? higher[0] * 50 : 0;
+      }
+      if (cost > 0 && money < cost) { alert(t("alerts.notEnoughMoney")); return; }
       useItem(itemMode, towerId);
       setItemMode("none");
     } else {

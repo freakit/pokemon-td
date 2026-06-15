@@ -8,7 +8,7 @@ const DIFFICULTY_MULTIPLIERS: Record<
   string,
   { hp: number; attack: number; reward: number }
 > = {
-  easiest: { hp: 0.1,  attack: 0.1,  reward: 1.0 },
+  easiest: { hp: 0.3,  attack: 0.3,  reward: 1.0 },
   easy:    { hp: 0.6,  attack: 0.6,  reward: 1.0 },
   medium:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // maps.ts 'medium' 대응
   normal:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // gameStore 기본값 대응
@@ -20,14 +20,14 @@ const DIFFICULTY_MULTIPLIERS: Record<
 // 30웨이브 기준. 후반 체감 난이도가 과해 곡선을 완만하게 낮춤(상한 1.0).
 // 실효 난이도 = 챕터배율 × 1.05^(wave-1). ch8 wave30 ≈ 1.0×4.1 = 4.1x (기존 11.2x).
 const STORY_CHAPTER_MULTIPLIERS: Record<number, { hp: number; attack: number; reward: number }> = {
-  1: { hp: 0.50, attack: 0.50, reward: 1.0 },
-  2: { hp: 0.55, attack: 0.55, reward: 1.0 },
-  3: { hp: 0.60, attack: 0.60, reward: 1.0 },
-  4: { hp: 0.65, attack: 0.65, reward: 1.0 },
-  5: { hp: 0.70, attack: 0.70, reward: 1.0 },
-  6: { hp: 0.75, attack: 0.75, reward: 1.0 },
-  7: { hp: 0.80, attack: 0.80, reward: 1.0 },
-  8: { hp: 0.85, attack: 0.85, reward: 1.0 },
+  1: { hp: 0.60, attack: 0.60, reward: 1.0 },
+  2: { hp: 0.60, attack: 0.60, reward: 1.0 },
+  3: { hp: 0.70, attack: 0.70, reward: 1.0 },
+  4: { hp: 0.70, attack: 0.70, reward: 1.0 },
+  5: { hp: 0.80, attack: 0.80, reward: 1.0 },
+  6: { hp: 0.80, attack: 0.80, reward: 1.0 },
+  7: { hp: 0.90, attack: 0.90, reward: 1.0 },
+  8: { hp: 0.90, attack: 0.90, reward: 1.0 },
 };
 
 // 웨이브별 종족값 범위 (스폰 포켓몬 강도 조절)
@@ -274,7 +274,7 @@ export class WaveSystem {
         moveSpeed: isFinalBoss ? 20 : (isBoss ? 40 : 60),
         types: pokemonData.types,
         sprite: pokemonData.sprite,
-        range: 80,
+        range: 100,
         attackCooldown: 0,
         livesTaken,
       };
@@ -351,7 +351,7 @@ export class WaveSystem {
       moveSpeed: isFinalBoss ? 20 : (isBoss ? 40 : 60),
       types: ['normal'],
       sprite: '',
-      range: 80,
+      range: 100,
       attackCooldown: 0,
       livesTaken,
     };
