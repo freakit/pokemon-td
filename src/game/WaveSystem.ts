@@ -245,8 +245,9 @@ export class WaveSystem {
       // [수정] 보스 보상: 일반 적의 5배
       const reward = isBoss ? 50 : 10;
 
-      // [최종 보스(30웨이브) 대폭 강화 / 목숨 10개 감소, 3의 배수 보스 목숨 3개 감소]
-      const isFinalBoss = isBoss && wave === 30;
+      // [최종 보스] 스토리 한정 wave30 보스만 대폭 강화(×8hp/×4stat/−10라이프).
+      //   싱글/멀티는 wave30도 일반 보스(×4/×2/−3) — 스토리 전용 스파이크 누출 방지.
+      const isFinalBoss = isBoss && wave === 30 && storyChapterNumber !== null;
       const hpMult = isFinalBoss ? 8 : (isBoss ? 4 : 1);
       const statMult = isFinalBoss ? 4 : (isBoss ? 2 : 1);
       const livesTaken = isFinalBoss ? 10 : (isBoss ? 3 : 1);
@@ -330,8 +331,8 @@ export class WaveSystem {
     const baseDefense = 5 + wave;
     const reward = isBoss ? 50 : 10;
 
-    // [최종 보스(30웨이브) 대폭 강화 / 목숨 10개 감소, 3의 배수 보스 목숨 3개 감소]
-    const isFinalBoss = isBoss && wave === 30;
+    // [최종 보스] 스토리 한정 wave30만 대폭 강화. 싱글/멀티는 일반 보스 유지.
+    const isFinalBoss = isBoss && wave === 30 && useGameStore.getState().storyChapterNumber !== null;
     const hpMult = isFinalBoss ? 8 : (isBoss ? 4 : 1);
     const statMult = isFinalBoss ? 4 : (isBoss ? 2 : 1);
     const livesTaken = isFinalBoss ? 10 : (isBoss ? 3 : 1);
