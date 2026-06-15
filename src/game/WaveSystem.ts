@@ -3,7 +3,6 @@ import { useGameStore } from "../store/gameStore";
 import { Enemy } from "../types/game";
 import { getMapById } from "../data/maps";
 import { pokeAPI } from "../api/pokeapi";
-import { AEGIS_STORY_CHAPTERS } from "../data/storyChapters";
 
 const DIFFICULTY_MULTIPLIERS: Record<
   string,
@@ -116,11 +115,9 @@ export class WaveSystem {
     const count = this.getEnemyCount(wave);
     const pathsToUse = map.paths;
 
-    // 스토리 모드이면 챕터의 bossWave에만 보스 스폰, 아니면 3의 배수 웨이브마다 스폰
-    const chapter = storyChapterNumber !== null
-      ? AEGIS_STORY_CHAPTERS.find(c => c.chapterNumber === storyChapterNumber)
-      : null;
-    const isBossWave = chapter ? wave === chapter.bossWave : wave % 3 === 0;
+    // 전 모드 3의 배수 웨이브마다 보스(중간 보스). 스토리도 동일.
+    // 단 wave30 보스는 '최종 보스'(고정 에이스 + 대폭 강화) — spawnEnemy에서 분기.
+    const isBossWave = wave % 3 === 0;
 
     // [버그3 수정] 보스 웨이브 시작 시 플래그 ON
     if (isBossWave) {
@@ -213,8 +210,9 @@ export class WaveSystem {
     try {
       let pokemonId = this.getEnemyPokemonId(wave);
       const { storyChapterNumber } = useGameStore.getState();
-      if (isBoss && storyChapterNumber !== null) {
-        // 스토리 모드 보스 고정 ID 매핑 (Ch 1 -> 피죤 등)
+      // 최종 보스(wave30)만 챕터 고정 에이스. 중간 보스(3·6·…·27)는 랜덤 타입 적.
+      if (isBoss && wave === 30 && storyChapterNumber !== null) {
+        // 스토리 모드 최종 보스 고정 ID 매핑 (Ch1 -> 피죤 등)
         const bossIdMap: Record<number, number> = {
           1: 17,  // 피죤 (Pidgeotto)
           2: 123, // 스라크 (Scyther)
