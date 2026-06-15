@@ -232,9 +232,9 @@ export class WaveSystem {
       // [FIX-RACE] await 복귀 후 epoch 검증 — 바뀌었으면 새 웨이브가 시작된 것이므로 스폰 중단
       if (this._spawnEpoch !== epochAtStart) return;
 
-      // 지수적 스케일링 (전 모드 1.05^(wave-1) — 후반 난이도 완화).
-      // wave30: 1.05^29≈4.1x, wave50: 1.05^49≈11x.
-      const waveMultiplier = Math.pow(1.05, wave - 1);
+      // 지수적 스케일링 (전 모드 1.08^(wave-1)).
+      // wave30: 1.08^29≈9.3x, wave50: 1.08^49≈43x.
+      const waveMultiplier = Math.pow(1.08, wave - 1);
 
       const baseHp = pokemonData.stats.hp * waveMultiplier * mult.hp;
       const baseAttack = pokemonData.stats.attack * waveMultiplier * mult.attack;

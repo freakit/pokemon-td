@@ -337,10 +337,9 @@ export class GameManager {
     }
 
     const dmg = calculateDamage(enemy.attack, buffedStats.defense, 40, eff, false);
-    // 적 딜 20% 감소 (난이도 조정)
     // [BUG-FIX] ability.effect === 'tank' 적용: 피해 감소 특성 반영
     const tankMultiplier = tower.ability?.effect === 'tank' ? (tower.ability.value ?? 0.75) : 1.0;
-    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * 0.8 * tankMultiplier));
+    const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * tankMultiplier));
     const newHp = Math.max(0, tower.currentHp - finalDmg);
 
     if (newHp <= 0) {
