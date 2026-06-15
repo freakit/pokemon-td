@@ -39,6 +39,8 @@ export const BossCutIn: React.FC<BossCutInProps> = ({ chapterNumber, bossName })
 
   useEffect(() => {
     if (chapterNumber === null || !bossName) return;
+    // 웅장한 컷인은 '최종 보스'(wave30 고정 에이스)만. 중간 보스(3·6·…·27)는 컷인 없음 — 차별화.
+    if (wave !== 30) return;
     // 현재 웨이브에서 아직 컷인을 안 띄웠고, 보스가 등장했으면 트리거
     if (shownWavesRef.current.has(wave)) return;
     const boss = enemies.find(e => e.isBoss);
