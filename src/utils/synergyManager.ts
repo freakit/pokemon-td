@@ -454,7 +454,16 @@ const getGenSynergy = (gen: number, count: number): Synergy | null => {
 };
 
 // ─── Full Synergy Calculation ────────────────────────────────────────────────
-export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
+// 스토리 모드에서 비활성화할 스트리머(에눈박놈) 파티 시너지
+const STREAMER_SYNERGY_IDS = new Set<string>([
+  'special:yoonga', 'special:nunparty', 'special:etusha', 'special:sejun',
+]);
+
+// excludeStreamerSynergies: 스토리 모드면 true → 에/눈/박/놈 파티 시너지 미적용
+export const calculateActiveSynergies = (
+  towers: GamePokemon[],
+  excludeStreamerSynergies = false,
+): Synergy[] => {
   const typeCounts = new Map<string, number>();
   const genCounts = new Map<number, number>();
   const specialCounts = new Map<string, number>();
@@ -491,6 +500,8 @@ export const calculateActiveSynergies = (towers: GamePokemon[]): Synergy[] => {
 
   specialCounts.forEach((count, synergyId) => {
     if (count < 2) return;
+    // 스토리 모드: 스트리머(에눈박놈) 파티 시너지는 활성화하지 않음
+    if (excludeStreamerSynergies && STREAMER_SYNERGY_IDS.has(synergyId)) return;
     const def = SPECIAL_SYNERGY_DEFS.find(d => d.id === synergyId);
     if (!def) return;
     const level = getSpecialSynergyLevel(count);

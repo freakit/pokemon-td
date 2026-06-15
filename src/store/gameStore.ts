@@ -737,9 +737,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   updateActiveSynergies: () => {
-    const { towers } = get();
+    const { towers, storyChapterNumber } = get();
     const activeTowers = towers.filter(t => !t.isFainted);
-    const synergies = calculateActiveSynergies(activeTowers);
+    // 스토리 모드: 스트리머(에눈박놈) 파티 시너지 비활성화
+    const synergies = calculateActiveSynergies(activeTowers, storyChapterNumber !== null);
     set({ activeSynergies: synergies });
   },
 
