@@ -9,7 +9,7 @@ import { useTranslation } from '../../i18n';
 import { AchievementsPanel } from '../modals/Achievements';
 import { HallOfFame } from '../modals/HallOfFame';
 import { Rankings } from '../modals/Rankings';
-import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen } from '../modals/TutorialModal';
+import { TutorialModal, hasTowerTutorialSeen, hasMultiTutorialSeen, hasStoryTutorialSeen } from '../modals/TutorialModal';
 
 export const MainMenu = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export const MainMenu = () => {
   const [showAchievements, setShowAchievements] = useState(false);
   const [showHallOfFame, setShowHallOfFame] = useState(false);
   const [showRankings, setShowRankings] = useState(false);
-  const [tutorial, setTutorial] = useState<'tower' | 'multi' | null>(null);
+  const [tutorial, setTutorial] = useState<'tower' | 'multi' | 'story' | null>(null);
   const [pendingNav, setPendingNav] = useState<string | null>(null);
 
   const handleSignOut = async () => {
@@ -29,6 +29,11 @@ export const MainMenu = () => {
   const handleSinglePlay = () => {
     if (!hasTowerTutorialSeen()) { setPendingNav('/map-select'); setTutorial('tower'); }
     else navigate('/map-select');
+  };
+
+  const handleStoryPlay = () => {
+    if (!hasStoryTutorialSeen()) { setPendingNav('/story'); setTutorial('story'); }
+    else navigate('/story');
   };
 
   const handleMultiPlay = () => {
@@ -118,7 +123,7 @@ export const MainMenu = () => {
               <ModeArrow>→</ModeArrow>
             </ModeCard>
 
-            <ModeCard $accent="#f59e0b" onClick={() => navigate('/story')}>
+            <ModeCard $accent="#f59e0b" onClick={handleStoryPlay}>
               <ModeCardBg $color="rgba(245,158,11,0.06)" />
               <ModeCardBorder $color="#f59e0b" />
               <ModeIconWrap $bg="rgba(245,158,11,0.1)">
@@ -165,6 +170,9 @@ export const MainMenu = () => {
           <HelpRow>
             <HelpBtn onClick={() => { setPendingNav(null); setTutorial('tower'); }}>
               ? {t('mainMenu.helpSingle')}
+            </HelpBtn>
+            <HelpBtn onClick={() => { setPendingNav(null); setTutorial('story'); }}>
+              ? {t('mainMenu.helpStory')}
             </HelpBtn>
             <HelpBtn onClick={() => { setPendingNav(null); setTutorial('multi'); }}>
               ? {t('mainMenu.helpMulti')}
@@ -431,7 +439,8 @@ const OfflineDesc = styled.div`
 const UtilIcon = styled.span`font-size:16px; ${lMedia.phoneSm}{font-size:14px;}`;
 
 const HelpRow = styled.div`
-  display:grid; grid-template-columns:repeat(2,1fr); gap:8px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  ${media.mobile} { gap:6px; }
   ${lMedia.phoneSm} { gap:6px; }
 `;
 
@@ -442,7 +451,9 @@ const HelpBtn = styled.button`
   border-radius:8px; cursor:pointer;
   font-size:12px; color:rgba(255,255,255,0.28);
   transition:all 0.2s;
+  /* 3열이라 모바일에서 긴 한글 라벨이 단어 단위로 깔끔히 줄바꿈되도록 */
+  text-align:center; line-height:1.3; word-break:keep-all;
   &:hover { background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.55); border-color:rgba(255,255,255,0.1); }
-  ${media.mobile} { font-size:11px; padding:8px 10px; }
-  ${lMedia.phoneSm} { font-size:10px; padding:6px 8px; }
+  ${media.mobile} { font-size:10.5px; padding:8px 6px; }
+  ${lMedia.phoneSm} { font-size:9.5px; padding:6px 5px; }
 `;

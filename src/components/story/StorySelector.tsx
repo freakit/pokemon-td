@@ -247,8 +247,8 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
         <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
         <HeaderCenter>
           <AegisLabel>POKEMON AEGIS</AegisLabel>
-          <PageTitle>{language === 'en' ? "Captain's Johto Drift" : '포대장의 성도 표류기'}</PageTitle>
-          <PageSubtitle>{language === 'en' ? 'Captain\'s Johto Drift · Story Mode' : '사람이 사라진 성도 · Story Mode'}</PageSubtitle>
+          <PageTitle>{language === 'en' ? 'Johto, Where People Vanished' : '사람이 사라진 성도지방'}</PageTitle>
+          <PageSubtitle>{language === 'en' ? "The Captain's Johto Drift · Story Mode" : '포대장의 성도 표류기 · Story Mode'}</PageSubtitle>
         </HeaderCenter>
         <ProgressSummary>
           <ProgressStat>
@@ -367,8 +367,8 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
       {showIntro && (
         <IntroOverlay>
           <IntroAegis>POKEMON AEGIS</IntroAegis>
-          <IntroTitle>{language === 'en' ? "Captain's Johto Drift" : '포대장의 성도 표류기'}</IntroTitle>
-          <IntroSub>{language === 'en' ? 'Captain\'s Johto Drift' : '사람이 사라진 성도'}</IntroSub>
+          <IntroTitle>{language === 'en' ? 'Johto, Where People Vanished' : '사람이 사라진 성도지방'}</IntroTitle>
+          <IntroSub>{language === 'en' ? "The Captain's Johto Drift" : '포대장의 성도 표류기'}</IntroSub>
         </IntroOverlay>
       )}
     </Root>
