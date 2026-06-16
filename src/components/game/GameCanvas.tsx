@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Stage,
   Layer,
+  Group,
   Rect,
   Line,
   Circle,
@@ -609,11 +610,15 @@ export const GameCanvas: React.FC = () => {
     const set = new Set<string>();
     const zones = map?.buildZones;
     // 입구/출구 타일 (맵 밖 좌표는 화면상 마커처럼 맵 안으로 클램프해서 거리 측정)
-    const endpoints = [...(map?.spawns ?? []), ...(map?.objectives ?? [])]
-      .map(p => ({
-        tx: Math.max(0, Math.min(MAP_WIDTH - 1, Math.floor(p.x / TILE_SIZE))),
-        ty: Math.max(0, Math.min(MAP_HEIGHT - 1, Math.floor(p.y / TILE_SIZE))),
-      }));
+    // objectiveKeepout === false 면 출구 3칸 제한 미적용(중앙 방어형 맵)
+    const clamp = (p: { x: number; y: number }) => ({
+      tx: Math.max(0, Math.min(MAP_WIDTH - 1, Math.floor(p.x / TILE_SIZE))),
+      ty: Math.max(0, Math.min(MAP_HEIGHT - 1, Math.floor(p.y / TILE_SIZE))),
+    });
+    const endpoints = [
+      ...(map?.spawns ?? []).map(clamp),
+      ...(map?.objectiveKeepout === false ? [] : (map?.objectives ?? []).map(clamp)),
+    ];
     const pathEdgeAdjacent = (tx: number, ty: number) =>
       pathTileSet.has(`${tx-1}-${ty}`) || pathTileSet.has(`${tx+1}-${ty}`) ||
       pathTileSet.has(`${tx}-${ty-1}`) || pathTileSet.has(`${tx}-${ty+1}`);
@@ -732,23 +737,30 @@ export const GameCanvas: React.FC = () => {
     return tiles;
   }, [pathTileSet, theme]);
 
+  // 원래의 둥근 곡선 + 그림자(입체) 도로 디자인. 단, 여러 경로가 교차로에서 겹쳐도
+  // 반투명 알파가 누적돼 진해지지 않도록 불투명 색 + Group 불투명도로 한 번만 합성한다.
   const pathOverlayLines = React.useMemo(() => {
     if (!map) return null;
     const bgType = (map.backgroundType ?? 'grass') as BackgroundType;
-    const PATH_COLORS: Record<BackgroundType, string> = { grass: 'rgba(82,55,18,0.62)', cave: 'rgba(22,18,15,0.70)', water: 'rgba(118,85,28,0.65)', desert: 'rgba(102,64,16,0.60)', snow: 'rgba(75,98,130,0.54)' };
+    const PATH_COLORS: Record<BackgroundType, string> = { grass: '#523712', cave: '#16120f', water: '#76551c', desert: '#664010', snow: '#4b6282' };
     const SHADOW_COLORS: Record<BackgroundType, string> = { grass: '#1a0e04', cave: '#050404', water: '#1c1005', desert: '#180c03', snow: '#141e2e' };
-    const W = TILE_SIZE - 2; // 통로 너비를 타일에 거의 꽉 차게 (울타리와 gap 제거)
-    return map.paths.map((path, pi) => {
-      const pts = path.flatMap(p => [p.x, p.y]);
-      return (
-        <React.Fragment key={`pathOverlay-${pi}`}>
-          <Line points={pts} stroke={PATH_COLORS[bgType]} strokeWidth={W} lineJoin="round" lineCap="round"
-            shadowColor={SHADOW_COLORS[bgType]} shadowBlur={10} shadowOffsetX={2} shadowOffsetY={6} shadowOpacity={0.50} />
-          <Line points={pts} stroke="rgba(255,255,255,0.11)" strokeWidth={W - 14} lineJoin="round" lineCap="round" />
-        </React.Fragment>
-      );
-    });
-  }, [map]);
+    const GROUP_OPACITY: Record<BackgroundType, number> = { grass: 0.62, cave: 0.70, water: 0.65, desert: 0.60, snow: 0.54 };
+    const W = TILE_SIZE; // 타일에 꽉 차게 → 가장자리 틈 없음 (곡선·입체는 stroke로 유지)
+    return (
+      <Group opacity={GROUP_OPACITY[bgType]}>
+        {map.paths.map((path, pi) => {
+          const pts = path.flatMap(p => [p.x, p.y]);
+          return (
+            <React.Fragment key={`pathOverlay-${pi}`}>
+              <Line points={pts} stroke={PATH_COLORS[bgType]} strokeWidth={W} lineJoin="round" lineCap="round"
+                shadowColor={SHADOW_COLORS[bgType]} shadowBlur={10} shadowOffsetX={2} shadowOffsetY={6} shadowOpacity={0.5} />
+              <Line points={pts} stroke="rgba(255,255,255,0.18)" strokeWidth={W - 14} lineJoin="round" lineCap="round" />
+            </React.Fragment>
+          );
+        })}
+      </Group>
+    );
+  }, [map, pathTileSet]);
 
   const placementOverlay = React.useMemo(() => {
     if (!pokemonToPlace && !selectedTowerForReposition) return null;
@@ -903,6 +915,9 @@ export const GameCanvas: React.FC = () => {
             {/* 타워 */}
             {towers.map((tower) => (
               <React.Fragment key={tower.id}>
+                {/* 받침판: 배치된 칸 전체를 회색 반투명 판으로 덮음 (라운드·여백 없이 풀타일) */}
+                <Rect x={tower.position.x - TILE_SIZE / 2} y={tower.position.y - TILE_SIZE / 2} width={TILE_SIZE} height={TILE_SIZE}
+                  fill="rgba(120,124,130,0.42)" />
                 {selectedTowerForReposition?.id === tower.id && (
                   <Circle x={tower.position.x} y={tower.position.y} radius={40} stroke="#4cafff" strokeWidth={3} dash={[10,5]} opacity={0.8} />
                 )}

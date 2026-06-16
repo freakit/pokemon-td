@@ -90,6 +90,8 @@ export interface MapData {
   /** 타워 배치 가능 구역 (타일 단위 사각형들). 미지정 시 길 제외 전역 허용.
    *  길 타일과 겹치는 부분은 자동 제외된다. */
   buildZones?: { x: number; y: number; w: number; h: number }[];
+  /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
+  objectiveKeepout?: boolean;
 }
 
 export type Gender = "male" | "female" | "genderless";
