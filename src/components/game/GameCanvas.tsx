@@ -603,25 +603,64 @@ export const GameCanvas: React.FC = () => {
     return set;
   }, [map]);
 
-  const validPlacementSet = React.useMemo(() => {
+  // 배치 가능 구역(타일). buildZones 지정 시 그 안에서만, 미지정 시 길 제외 전역.
+  // 입구(spawns)·출구(objectives)에서 3칸(체비셰프) 이내는 항상 제외.
+  const buildableTileSet = React.useMemo(() => {
     const set = new Set<string>();
+    const zones = map?.buildZones;
+    // 입구/출구 타일 (맵 밖 좌표는 화면상 마커처럼 맵 안으로 클램프해서 거리 측정)
+    const endpoints = [...(map?.spawns ?? []), ...(map?.objectives ?? [])]
+      .map(p => ({
+        tx: Math.max(0, Math.min(MAP_WIDTH - 1, Math.floor(p.x / TILE_SIZE))),
+        ty: Math.max(0, Math.min(MAP_HEIGHT - 1, Math.floor(p.y / TILE_SIZE))),
+      }));
+    const pathEdgeAdjacent = (tx: number, ty: number) =>
+      pathTileSet.has(`${tx-1}-${ty}`) || pathTileSet.has(`${tx+1}-${ty}`) ||
+      pathTileSet.has(`${tx}-${ty-1}`) || pathTileSet.has(`${tx}-${ty+1}`);
     for (let ty = 0; ty < MAP_HEIGHT; ty++) {
       for (let tx = 0; tx < MAP_WIDTH; tx++) {
         const key = `${tx}-${ty}`;
-        if (pathTileSet.has(key)) continue;
-        const cx = tx * TILE_SIZE + TILE_SIZE / 2;
-        const cy = ty * TILE_SIZE + TILE_SIZE / 2;
-        if (!towers.some(t => Math.abs(t.position.x - cx) < TILE_SIZE && Math.abs(t.position.y - cy) < TILE_SIZE)) set.add(key);
+        if (pathTileSet.has(key)) continue; // 길은 항상 제외
+        if (zones && !zones.some(z => tx >= z.x && tx < z.x + z.w && ty >= z.y && ty < z.y + z.h)) continue;
+        if (endpoints.some(e => Math.max(Math.abs(tx - e.tx), Math.abs(ty - e.ty)) < 3)) continue; // 입출구 3칸 이내 금지
+        if (!pathEdgeAdjacent(tx, ty)) continue; // 길과 변(상하좌우)으로 인접한 칸만 (꼭짓점 인접 제외)
+        set.add(key);
       }
     }
     return set;
-  }, [pathTileSet, towers]);
+  }, [map, pathTileSet]);
 
-  const isPathTile = (x: number, y: number) => pathTileSet.has(`${Math.floor(x / TILE_SIZE)}-${Math.floor(y / TILE_SIZE)}`);
+  // 인접 직선 3개 금지: 새 타일을 놓으면 좌우 또는 상하로 3연속이 되는지 검사.
+  // occ = 점유 타일 집합. true면 일직선 3+ 형성 → 배치 불가.
+  const wouldFormLine = (ntx: number, nty: number, occ: Set<string>) => {
+    const run = (dx: number, dy: number) => { let n = 0, cx = ntx + dx, cy = nty + dy; while (occ.has(`${cx}-${cy}`)) { n++; cx += dx; cy += dy; } return n; };
+    return (1 + run(-1, 0) + run(1, 0) >= 3) || (1 + run(0, -1) + run(0, 1) >= 3);
+  };
+
+  const occupiedTileSet = React.useMemo(() =>
+    new Set(towers.map(t => `${Math.floor(t.position.x / TILE_SIZE)}-${Math.floor(t.position.y / TILE_SIZE)}`)),
+    [towers]);
+
+  const validPlacementSet = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const key of buildableTileSet) {
+      const [tx, ty] = key.split('-').map(Number);
+      if (occupiedTileSet.has(key)) continue;
+      if (wouldFormLine(tx, ty, occupiedTileSet)) continue; // 일직선 3연속 방지
+      set.add(key);
+    }
+    return set;
+  }, [buildableTileSet, occupiedTileSet]);
+
   const isValidPlacement = (x: number, y: number, excludeId?: string) => {
     if (x < 0 || x >= MAP_WIDTH * TILE_SIZE || y < 0 || y >= MAP_HEIGHT * TILE_SIZE) return false;
-    if (isPathTile(x, y)) return false;
-    return !towers.some(t => (!excludeId || t.id !== excludeId) && Math.abs(t.position.x - x) < TILE_SIZE && Math.abs(t.position.y - y) < TILE_SIZE);
+    const ntx = Math.floor(x / TILE_SIZE), nty = Math.floor(y / TILE_SIZE);
+    if (!buildableTileSet.has(`${ntx}-${nty}`)) return false;
+    const occ = new Set(towers.filter(t => !excludeId || t.id !== excludeId)
+      .map(t => `${Math.floor(t.position.x / TILE_SIZE)}-${Math.floor(t.position.y / TILE_SIZE)}`));
+    if (occ.has(`${ntx}-${nty}`)) return false;
+    if (wouldFormLine(ntx, nty, occ)) return false;
+    return true;
   };
 
   const handleClick = (e: any) => {
@@ -632,8 +671,18 @@ export const GameCanvas: React.FC = () => {
 
     if (repositionMode && !pokemonToPlace) {
       if (selectedTowerForReposition) {
-        if (!isValidPlacement(snappedX, snappedY, selectedTowerForReposition.id)) { alert(t('alerts.cannotPlaceHere')); return; }
-        useGameStore.getState().updateTower(selectedTowerForReposition.id, { position: { x: snappedX, y: snappedY } });
+        const A = selectedTowerForReposition;
+        // 클릭 칸에 다른 타워(B)가 있으면 A·B 위치 교환
+        const B = towers.find(t => t.id !== A.id && Math.floor(t.position.x / TILE_SIZE) === Math.floor(snappedX / TILE_SIZE) && Math.floor(t.position.y / TILE_SIZE) === Math.floor(snappedY / TILE_SIZE));
+        if (B) {
+          const updateTower = useGameStore.getState().updateTower;
+          updateTower(A.id, { position: { x: B.position.x, y: B.position.y } });
+          updateTower(B.id, { position: { x: A.position.x, y: A.position.y } });
+          setSelectedTowerForReposition(null);
+          return;
+        }
+        if (!isValidPlacement(snappedX, snappedY, A.id)) { alert(t('alerts.cannotPlaceHere')); return; }
+        useGameStore.getState().updateTower(A.id, { position: { x: snappedX, y: snappedY } });
         setSelectedTowerForReposition(null);
       } else {
         const clicked = towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32);
@@ -688,7 +737,7 @@ export const GameCanvas: React.FC = () => {
     const bgType = (map.backgroundType ?? 'grass') as BackgroundType;
     const PATH_COLORS: Record<BackgroundType, string> = { grass: 'rgba(82,55,18,0.62)', cave: 'rgba(22,18,15,0.70)', water: 'rgba(118,85,28,0.65)', desert: 'rgba(102,64,16,0.60)', snow: 'rgba(75,98,130,0.54)' };
     const SHADOW_COLORS: Record<BackgroundType, string> = { grass: '#1a0e04', cave: '#050404', water: '#1c1005', desert: '#180c03', snow: '#141e2e' };
-    const W = TILE_SIZE - 16;
+    const W = TILE_SIZE - 2; // 통로 너비를 타일에 거의 꽉 차게 (울타리와 gap 제거)
     return map.paths.map((path, pi) => {
       const pts = path.flatMap(p => [p.x, p.y]);
       return (
@@ -704,15 +753,68 @@ export const GameCanvas: React.FC = () => {
   const placementOverlay = React.useMemo(() => {
     if (!pokemonToPlace && !selectedTowerForReposition) return null;
     const overlays: React.ReactNode[] = [];
-    for (let y = 0; y < MAP_HEIGHT; y++)
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const key = `${x}-${y}`;
-        if (pathTileSet.has(key)) continue;
-        overlays.push(<Rect key={`overlay-${key}`} x={x*TILE_SIZE} y={y*TILE_SIZE} width={TILE_SIZE} height={TILE_SIZE}
-          fill={validPlacementSet.has(key) ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)'} />);
-      }
+    for (const key of buildableTileSet) {
+      const [x, y] = key.split('-').map(Number);
+      overlays.push(<Rect key={`overlay-${key}`} x={x*TILE_SIZE} y={y*TILE_SIZE} width={TILE_SIZE} height={TILE_SIZE}
+        fill={validPlacementSet.has(key) ? 'rgba(46,204,113,0.25)' : 'rgba(231,76,60,0.25)'} />);
+    }
     return overlays;
-  }, [pokemonToPlace, selectedTowerForReposition, pathTileSet, validPlacementSet]);
+  }, [pokemonToPlace, selectedTowerForReposition, buildableTileSet, validPlacementSet]);
+
+  // 모든 맵 = 초원 울타리(말뚝+가로대) 디자인, 색만 테마별.
+  // 말뚝: 그라데이션+그림자로 입체감. 가로대(변): 살짝 투명. 길과 맞닿은 변·그 꼭짓점은 생략.
+  const markerNodes = React.useMemo(() => {
+    if (buildableTileSet.size === 0) return null;
+    const bgType = (map?.backgroundType ?? 'grass') as BackgroundType;
+    // pLight/pBase/pDark = 말뚝 입체 그라데이션, rail = 가로대 색
+    const STYLE: Record<BackgroundType, { rail: string; pLight: string; pBase: string; pDark: string }> = {
+      grass:  { rail: '#5e421f', pLight: '#a9793f', pBase: '#7d5630', pDark: '#432c14' },
+      desert: { rail: '#8a6332', pLight: '#e2c388', pBase: '#c2924f', pDark: '#7c5526' },
+      snow:   { rail: '#6f93ad', pLight: '#eaf5fc', pBase: '#bcd6e6', pDark: '#6a8ba3' },
+      cave:   { rail: '#33414a', pLight: '#7c8794', pBase: '#565d68', pDark: '#2b313a' },
+      water:  { rail: '#4a3217', pLight: '#9b7341', pBase: '#6b4f2c', pDark: '#382712' },
+    };
+    const S = STYLE[bgType];
+    const nodes: React.ReactNode[] = [];
+    const has = (tx: number, ty: number) => buildableTileSet.has(`${tx}-${ty}`);
+    const isPath = (tx: number, ty: number) => pathTileSet.has(`${tx}-${ty}`);
+    const cornerSet = new Set<string>();
+    const suppress = new Set<string>(); // 길과 맞닿는 변의 꼭짓점 → 말뚝 금지
+    // 가로대(변): 두꺼운 어두운 선 + 밝은 하이라이트, 둘 다 살짝 투명
+    const rail = (k: string, pts: number[]) => {
+      nodes.push(<Line key={`rl${k}`} points={pts} stroke={S.rail}   strokeWidth={5} lineCap="round" opacity={0.72} />);
+      nodes.push(<Line key={`rh${k}`} points={pts} stroke={S.pLight} strokeWidth={2} lineCap="round" opacity={0.6} />);
+    };
+    for (const key of buildableTileSet) {
+      const [tx, ty] = key.split('-').map(Number);
+      const x0 = tx*TILE_SIZE, y0 = ty*TILE_SIZE, x1 = x0+TILE_SIZE, y1 = y0+TILE_SIZE;
+      const open = (dx: number, dy: number) => !has(tx+dx, ty+dy) && !isPath(tx+dx, ty+dy);
+      if (open(0,-1)) { rail(`t${key}`, [x0,y0,x1,y0]); cornerSet.add(`${x0},${y0}`); cornerSet.add(`${x1},${y0}`); }
+      if (open(0, 1)) { rail(`b${key}`, [x0,y1,x1,y1]); cornerSet.add(`${x0},${y1}`); cornerSet.add(`${x1},${y1}`); }
+      if (open(-1,0)) { rail(`l${key}`, [x0,y0,x0,y1]); cornerSet.add(`${x0},${y0}`); cornerSet.add(`${x0},${y1}`); }
+      if (open( 1,0)) { rail(`r${key}`, [x1,y0,x1,y1]); cornerSet.add(`${x1},${y0}`); cornerSet.add(`${x1},${y1}`); }
+      if (isPath(tx,ty-1)) { suppress.add(`${x0},${y0}`); suppress.add(`${x1},${y0}`); }
+      if (isPath(tx,ty+1)) { suppress.add(`${x0},${y1}`); suppress.add(`${x1},${y1}`); }
+      if (isPath(tx-1,ty)) { suppress.add(`${x0},${y0}`); suppress.add(`${x0},${y1}`); }
+      if (isPath(tx+1,ty)) { suppress.add(`${x1},${y0}`); suppress.add(`${x1},${y1}`); }
+    }
+    // 말뚝(입체): 가로 그라데이션(밝음→기본→어둠) + 드롭섀도 + 상단 하이라이트
+    for (const c of cornerSet) {
+      if (suppress.has(c)) continue;
+      const [cx, cy] = c.split(',').map(Number);
+      nodes.push(
+        <React.Fragment key={`c${c}`}>
+          <Rect x={cx-4} y={cy-9} width={8} height={18} cornerRadius={3}
+            fillLinearGradientStartPoint={{x:0,y:0}} fillLinearGradientEndPoint={{x:8,y:0}}
+            fillLinearGradientColorStops={[0, S.pLight, 0.42, S.pBase, 1, S.pDark]}
+            stroke={S.pDark} strokeWidth={1}
+            shadowColor="black" shadowBlur={2.5} shadowOffsetX={1.2} shadowOffsetY={2.5} shadowOpacity={0.45} />
+          <Rect x={cx-2.5} y={cy-8} width={2} height={5} cornerRadius={1} fill={S.pLight} opacity={0.85} />
+        </React.Fragment>
+      );
+    }
+    return nodes;
+  }, [buildableTileSet, pathTileSet, map]);
 
   return (
     <CanvasContainer ref={containerRef}>
@@ -757,10 +859,13 @@ export const GameCanvas: React.FC = () => {
                 {staticTiles}
                 {map && map.paths.map((path, i) => (
                   <Line key={`path-${i}`} points={path.flatMap(p => [p.x, p.y])} stroke={theme.pathLineStroke}
-                    strokeWidth={42} lineJoin="round" lineCap="round" opacity={theme.pathLineOpacity} />
+                    strokeWidth={TILE_SIZE - 2} lineJoin="round" lineCap="round" opacity={theme.pathLineOpacity} />
                 ))}
               </>
             )}
+
+            {/* 배치 구역 테마 마커 (초록 오버레이 아래) */}
+            {markerNodes}
 
             {placementOverlay}
 
