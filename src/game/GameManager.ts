@@ -693,35 +693,36 @@ export class GameManager {
       setWaveEndItemPick(itemChoices);
 
       // 웨이브 클리어 (싱글플레이 전용)
+      // 멀티플레이는 PvP 모드라 "50웨이브 클리어" 개념 자체가 없다.
       // 스토리 모드: storyTotalWaves 기준 / 일반 모드: 50웨이브
       const { storyTotalWaves, storyChapterNumber } = useGameStore.getState();
       const clearWave = storyTotalWaves ?? 50;
-      const isStoryClear = storyChapterNumber !== null && wave === clearWave;
-      const isNormalClear = storyChapterNumber === null && wave === 50;
+      const isStoryClear = !isMultiplayer && storyChapterNumber !== null && wave === clearWave;
+      const isNormalClear = !isMultiplayer && storyChapterNumber === null && wave === 50;
 
-      if (!isMultiplayer && (isStoryClear || isNormalClear)) {
+      if (isStoryClear || isNormalClear) {
         useGameStore.setState({
           wave50Clear: !isStoryClear,  // 일반 모드만 wave50Clear
           storyClear: isStoryClear,    // 스토리 모드 클리어
         });
-        try {
-          const map = getMapById(currentMap);
-          const pokemonUsed = towers.map(t => t.displayName);
-          await databaseService.addHallOfFameEntry(
-            currentMap,
-            map?.name || 'Unknown Map',
-            wave,
-            pokemonUsed,
-            gameTime
-          );
-          await databaseService.updateLeaderboard(currentMap, gameTime, wave);
-          // wave50 업적은 일반 50웨이브 클리어 시에만 기록
-          if (isNormalClear) {
+        // [전당등록] 싱글 플레이(일반 모드) 결과만 전당/리더보드에 반영.
+        // 스토리 모드 클리어는 전당등록 대상이 아니다.
+        if (isNormalClear) {
+          try {
+            const map = getMapById(currentMap);
+            const pokemonUsed = towers.map(t => t.displayName);
+            await databaseService.addHallOfFameEntry(
+              currentMap,
+              map?.name || 'Unknown Map',
+              wave,
+              pokemonUsed,
+              gameTime
+            );
+            await databaseService.updateLeaderboard(currentMap, gameTime, wave);
             saveService.updateAchievement('wave50', 50);
+          } catch (err) {
+            console.error('Failed to save Wave 50 clear data:', err);
           }
-
-        } catch (err) {
-          console.error('Failed to save Wave 50 clear data:', err);
         }
         return;
       }
