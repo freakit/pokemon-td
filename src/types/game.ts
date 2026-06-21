@@ -87,9 +87,12 @@ export interface MapData {
   description: string;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
   backgroundImage?: string;
-  /** 타워 배치 가능 구역 (타일 단위 사각형들). 미지정 시 길 제외 전역 허용.
-   *  길 타일과 겹치는 부분은 자동 제외된다. */
+  /** @deprecated 울타리 배치제한 폐기(자유배치 전환). 데이터는 남아있으나 미사용. */
   buildZones?: { x: number; y: number; w: number; h: number }[];
+  /** 테라스탈 타일: 점유한 타워의 타입을 type으로 변환(원전 충실형: 방어상성+자속). */
+  teraTiles?: { x: number; y: number; type: string }[];
+  /** 프렌들리숍 타일: 점원을 올려두면 웨이브 누적으로 상점 등급↑, 지닌도구 구매. */
+  shopTiles?: { x: number; y: number }[];
   /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
   objectiveKeepout?: boolean;
 }
@@ -130,6 +133,12 @@ export interface GamePokemon {
   critDamage?: number;
   lifesteal?: number;
   aoeBonus?: number;
+  /** 테라스탈 타일 점유 시 세팅되는 변환 타입. 타일을 떠나면 제거된다. */
+  teraType?: string;
+  /** 장착한 지닌 도구 id(프렌들리숍에서 구매). 1포켓몬 1도구. */
+  heldItem?: string;
+  /** 프렌들리숍 타일에서 점원으로 머문 누적 웨이브 수(상점 등급 산정용). */
+  shopWavesHeld?: number;
 }
 
 export interface Enemy {

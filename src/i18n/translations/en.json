@@ -643,14 +643,14 @@
     "tower": {
       "label": "Single Player",
       "slide0": { "title": "Pokémon Tower Defense", "desc": "Place Pokémon to stop the incoming enemies!\nSurvive until Wave 50 before your lives run out.", "d0": "Lives: decrease by 1 each time an enemy breaks through", "d1": "Gold: earned by defeating enemies and clearing waves", "d2": "Goal: Clear all 50 waves!" },
-      "slide1": { "title": "Buy & Place Pokémon", "desc": "Use the button on the bottom-right to buy Pokémon,\nthen click a green-highlighted fenced cell to place them.", "d0": "Entry fee 20G + Pokémon cost deducted (up to 6)", "d1": "Place only on each map's fenced cells (up to 10) — not near the path/entrance/exit", "d2": "Reposition freely between waves; pick two towers to swap their spots" },
+      "slide1": { "title": "Buy & Place Pokémon", "desc": "Use the button on the bottom-right to buy Pokémon,\nthen click any green-highlighted cell to place them freely. (not near the path/entrance/exit)", "d0": "Entry fee 20G + Pokémon cost deducted (up to 6); reposition & swap freely between waves", "d1": "💎 Terastal tile: a Pokémon standing on it changes type, boosting STAB & defensive matchups", "d2": "🏪 Friendly Shop tile: park a clerk to raise its shop tier over waves and buy/equip rare held items" },
       "slide2": { "title": "Type Matchups & Synergies", "desc": "Exploit type weaknesses for bonus damage!\nGroup same-type or same-generation Pokémon for synergy buffs!", "d0": "Attacking a weakness deals up to 2× damage", "d1": "2/4/6 same-type Pokémon  stat buffs", "d2": "Evolve & Mega Evolve for even more power" },
       "slide3": { "title": "Wave Rewards", "desc": "Choose a reward item after clearing each wave.", "d0": "Rare Candy: level up one Pokémon", "d1": "Ether: revive a fainted Pokémon at 50% HP", "d2": "Mega Stone/Max Soup: Mega Evolve or Gigantamax" }
     },
     "multi": {
       "label": " Multiplayer",
       "slide0": { "title": "Multiplayer Mode", "desc": "Up to 8 players compete in tower defense simultaneously\nin a PvP battle mode!", "d0": "Create a room or join an existing one", "d1": "Fill slots with AI bots", "d2": "Game starts when all players are ready" },
-      "slide1": { "title": "Phase Flow", "desc": "Shop  Wave  Battle repeats every round.", "d0": "Shop: buy, place on fenced cells, and upgrade Pokémon", "d1": "Wave: all players run tower defense simultaneously", "d2": "Battle: auto-battle your team vs a random opponent" },
+      "slide1": { "title": "Phase Flow", "desc": "Shop  Wave  Battle repeats every round.", "d0": "Shop: buy, place freely, and upgrade Pokémon", "d1": "Wave: all players run tower defense simultaneously", "d2": "Battle: auto-battle your team vs a random opponent" },
       "slide2": { "title": "Battle & Lives", "desc": "Losing a battle costs lives equal to the opponent's surviving Pokémon.\nReach 0 lives and you're eliminated!", "d0": "Start with 50 lives  reduced each battle loss", "d1": "Last player with lives remaining wins", "d2": "Rating changes based on wins and losses" },
       "slide3": { "title": "TFT Battle Arena", "desc": "During the battle phase, Pokémon move and fight on a 7×4 board in real time!", "d0": "Top 2 rows: opponent's team / Bottom 2 rows: your team", "d1": "Reposition Pokémon during prep time before battle", "d2": "Type matchups and stats apply  synergies matter!" }
     },
@@ -659,7 +659,7 @@
       "slide0": { "title": "Johto, Where People Vanished", "desc": "The Captain's Johto Drift — reclaim its 8 gyms (chapters)\none by one from rampaging wild Pokémon!", "d0": "A story campaign played chapter by chapter, in order", "d1": "Clear a chapter by surviving its set number of waves", "d2": "A rampaging 'wild' boss appears on certain waves" },
       "slide1": { "title": "Captain Yun & Friends", "desc": "Fight alongside Captain Yun and his Pokémon partners.\nEach chapter has its own set of usable Pokémon (heroes).", "d0": "The shop only offers that chapter's hero Pokémon", "d1": "Story dialogue plays at the start and on clear", "d2": "Type synergies are disabled in Story Mode" },
       "slide2": { "title": "Each Gym's Enemy Type", "desc": "Each gym is overrun by a specific Pokémon type.\nPrepare the right type matchups in advance!", "d0": "Build a team strong against the chapter's enemy type", "d1": "Hit a weakness for up to 2× damage", "d2": "The boss is that gym ace's rampaging form — very tanky" },
-      "slide3": { "title": "Progress & Basics", "desc": "Clearing a chapter unlocks the next one.\nPlacement, evolution, and controls match Single Play.", "d0": "Clear the previous chapter to unlock the next", "d1": "Place only on each map's fenced cells (same as Single)", "d2": "Strengthen heroes via level-ups, evolution, and moves" }
+      "slide3": { "title": "Progress & Basics", "desc": "Clearing a chapter unlocks the next one.\nPlacement, evolution, and controls match Single Play.", "d0": "Clear the previous chapter to unlock the next", "d1": "Free placement except near path/entrance/exit; use Terastal & Friendly Shop tiles (same as Single)", "d2": "Strengthen heroes via level-ups, evolution, and moves" }
     }
   },
   "mainMenu": {

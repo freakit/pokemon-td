@@ -13,6 +13,11 @@ export const MAPS: MapData[] = [
     description: "폭이 1줄(실제 3칸)인 기본 맵입니다. 화력 집중이 용이합니다.",
     backgroundType: "grass",
     backgroundImage: "/images/maps/easiest_straight.png",
+    shopTiles: [{ x: 13, y: 9 }],
+    teraTiles: [
+      { x: 5, y: 3, type: "fire" },
+      { x: 10, y: 5, type: "water" },
+    ],
     spawns: [{ x: -T, y: 4.5 * T }],
     objectives: [{ x: 16 * T, y: 4.5 * T }],
     paths: [
@@ -36,6 +41,8 @@ export const MAPS: MapData[] = [
     description: "맵 외곽을 순환합니다. 타워를 배치할 내부 공간이 한정됩니다.",
     backgroundType: "grass",
     backgroundImage: "/images/maps/easy_loop.png",
+    shopTiles: [{ x: 5, y: 5 }],
+    teraTiles: [{ x: 7, y: 2, type: "water" }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: -T, y: 3.5 * T }], // 스폰 바로 아래가 골인
     paths: [
@@ -65,6 +72,8 @@ export const MAPS: MapData[] = [
       "기본 경로는 매우 깁니다. 중앙에 타워를 배치해 적의 경로를 바꾸세요.",
     backgroundType: "water",
     backgroundImage: "/images/maps/extreme_aggro_shortcut.png",
+    shopTiles: [{ x: 7, y: 4 }],
+    teraTiles: [{ x: 6, y: 7, type: "electric" }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 1.5 * T }],
     paths: [
@@ -95,6 +104,8 @@ export const MAPS: MapData[] = [
     description: "경로가 길게 굽이쳐, 타워가 공격할 수 있는 시간이 깁니다.",
     backgroundType: "cave",
     backgroundImage: "/images/maps/medium_multi_s.png",
+    shopTiles: [{ x: 1, y: 7 }],
+    teraTiles: [{ x: 7, y: 4, type: "ground" }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 8.5 * T }],
     paths: [
@@ -125,6 +136,8 @@ export const MAPS: MapData[] = [
     description: "두 갈래의 길이 중앙에서 합쳐집니다. 초반 방어가 중요합니다.",
     backgroundType: "desert",
     backgroundImage: "/images/maps/medium_merge.png",
+    shopTiles: [{ x: 2, y: 5 }],
+    teraTiles: [{ x: 9, y: 3, type: "water" }],
     spawns: [
       { x: -T, y: 2.5 * T },
       { x: -T, y: 7.5 * T },
@@ -160,6 +173,11 @@ export const MAPS: MapData[] = [
     description: "중앙의 넓은 통로(폭 3칸)로 적이 지나갑니다. 딜로스에 주의하세요.",
     backgroundType: "grass",
     backgroundImage: "/images/maps/hard_straight_wide.png",
+    shopTiles: [{ x: 12, y: 9 }],
+    teraTiles: [
+      { x: 8, y: 2, type: "fire" },
+      { x: 8, y: 6, type: "grass" },
+    ],
     spawns: [
       { x: -T, y: 3.5 * T },
       { x: -T, y: 4.5 * T },
@@ -199,6 +217,11 @@ export const MAPS: MapData[] = [
     description: "두 경로가 완전히 분리되어, 양쪽을 따로 방어해야 합니다.",
     backgroundType: "snow",
     backgroundImage: "/images/maps/hard_dual_path.png",
+    shopTiles: [{ x: 7, y: 4 }],
+    teraTiles: [
+      { x: 8, y: 2, type: "fire" },
+      { x: 8, y: 7, type: "ice" },
+    ],
     spawns: [
       { x: -T, y: 1.5 * T },
       { x: -T, y: 8.5 * T },
@@ -232,6 +255,11 @@ export const MAPS: MapData[] = [
     description: "네 방향에서 적들이 생성되어 중앙으로 돌격합니다.",
     backgroundType: "cave",
     backgroundImage: "/images/maps/extreme_central.png",
+    shopTiles: [{ x: 11, y: 7 }],
+    teraTiles: [
+      { x: 5, y: 3, type: "fighting" },
+      { x: 9, y: 5, type: "fighting" },
+    ],
     spawns: [
       { x: -T, y: 4.5 * T },
       { x: 16 * T, y: 4.5 * T },
