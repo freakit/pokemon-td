@@ -16,11 +16,10 @@ import styled, { keyframes } from "styled-components";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
-import { getMapById } from "../../data/maps";
+import { getMapById, activeTeraTiles } from "../../data/maps";
 import { GamePokemon } from "../../types/game";
 import { lMedia, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
-import { buyableHeldItems, shopGradeFromWaves, getHeldItem } from "../../data/heldItems";
-import { multiplayerService } from "../../services/MultiplayerService";
+import { buyableHeldItems, shopTier, wavesToNextTier, getHeldItem } from "../../data/heldItems";
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -480,32 +479,36 @@ export const GameCanvas: React.FC = () => {
   const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [hoveredTower, setHoveredTower] = useState<GamePokemon | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<{ kind: 'tera' | 'shop' | 'rarity'; type?: string } | null>(null);
   const [repositionMode, setRepositionMode] = useState(false);
   const [selectedTowerForReposition, setSelectedTowerForReposition] = useState<GamePokemon | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
   const [mapBgImage, setMapBgImage] = useState<HTMLImageElement | null>(null);
-  const [shopTowerId, setShopTowerId] = useState<string | null>(null);
+  const [manageTowerId, setManageTowerId] = useState<string | null>(null);
   const money = useGameStore(s => s.money);
+  const heldItemInventory = useGameStore(s => s.heldItemInventory);
+  const wave = useGameStore(s => s.wave);
 
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
   const map = React.useMemo(() => getMapById(currentMap), [currentMap]);
-  // 테라스탈·프렌들리숍 타일은 싱글/스토리 전용 (멀티 PvP 밸런스 보호)
-  const isMultiplayer = !!multiplayerService.getCurrentRoomId();
+  // 활성 테라 타일(위치는 N웨이브마다 후보 spots 사이로 순환; 쉬는 시간에 미리 이동)
+  const activeTera = React.useMemo(
+    () => activeTeraTiles(map, wave, isWaveActive),
+    [map, wave, isWaveActive]
+  );
 
-  // 테라스탈 타일 점유 동기화: 타워가 teraTile 위에 있으면 teraType 세팅, 벗어나면 해제.
+  // 테라스탈 타일 점유 동기화: 타워가 (현재 활성) teraTile 위에 있으면 teraType 세팅, 벗어나면 해제.
   useEffect(() => {
-    if (isMultiplayer) return;
-    const teraTiles = map?.teraTiles ?? [];
     const updateTower = useGameStore.getState().updateTower;
     for (const tower of towers) {
       const tx = Math.floor(tower.position.x / TILE_SIZE);
       const ty = Math.floor(tower.position.y / TILE_SIZE);
-      const want = teraTiles.find((t) => t.x === tx && t.y === ty)?.type;
+      const want = activeTera.find((t) => t.x === tx && t.y === ty)?.type;
       if (tower.teraType !== want) updateTower(tower.id, { teraType: want });
     }
-  }, [towers, map, isMultiplayer]);
+  }, [towers, activeTera]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -613,7 +616,20 @@ export const GameCanvas: React.FC = () => {
       setMousePos({ x: Math.floor(pos.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2, y: Math.floor(pos.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2 });
     } else {
       setMousePos(pos || { x: 0, y: 0 });
-      if (pos) setHoveredTower(towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32) || null);
+      if (pos) {
+        const tower = towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32) || null;
+        setHoveredTower(tower);
+        // 타워가 없을 때만 특수 타일(테라/숍) 힌트 표시
+        if (!tower) {
+          const tx = Math.floor(pos.x / TILE_SIZE), ty = Math.floor(pos.y / TILE_SIZE);
+          const tera = activeTera.find(t => t.x === tx && t.y === ty);
+          const shop = (map?.shopTiles ?? []).some(s => s.x === tx && s.y === ty);
+          const rarity = (map?.rarityTiles ?? []).some(s => s.x === tx && s.y === ty);
+          setHoveredTile(tera ? { kind: 'tera', type: tera.type } : shop ? { kind: 'shop' } : rarity ? { kind: 'rarity' } : null);
+        } else {
+          setHoveredTile(null);
+        }
+      }
     }
   };
 
@@ -730,14 +746,11 @@ export const GameCanvas: React.FC = () => {
       return;
     }
 
-    // 프렌들리숍: 배치/재배치 중이 아닐 때, 점원이 올라간 숍 타일 클릭 → 도구 상점 열기 (싱글/스토리 전용)
-    if (!pokemonToPlace && !repositionMode && !isMultiplayer) {
+    // 배치/재배치 중이 아닐 때 타워 클릭 → 관리 모달(상점/지닌도구). 점원이면 상점 섹션 노출.
+    if (!pokemonToPlace && !repositionMode) {
       const ctx = Math.floor(snappedX / TILE_SIZE), cty = Math.floor(snappedY / TILE_SIZE);
-      const onShopTile = (map?.shopTiles ?? []).some(s => s.x === ctx && s.y === cty);
-      if (onShopTile) {
-        const clerk = towers.find(tw => Math.floor(tw.position.x / TILE_SIZE) === ctx && Math.floor(tw.position.y / TILE_SIZE) === cty);
-        if (clerk) { setShopTowerId(clerk.id); return; }
-      }
+      const clicked = towers.find(tw => Math.floor(tw.position.x / TILE_SIZE) === ctx && Math.floor(tw.position.y / TILE_SIZE) === cty);
+      if (clicked) { setManageTowerId(clicked.id); return; }
     }
 
     if (!pokemonToPlace) return;
@@ -816,50 +829,73 @@ export const GameCanvas: React.FC = () => {
 
   // ─── 테라스탈 타일 (크리스털) ──────────────────────────────────────────────
   const teraTileNodes = React.useMemo(() => {
-    if (isMultiplayer) return null;
-    const tiles = map?.teraTiles ?? [];
+    const tiles = activeTera;
     if (tiles.length === 0) return null;
+    // 은은하게: 얇은 점선 테두리 + 작은 모서리 결정만.
     return tiles.map((tile, i) => {
       const c = typeColor(tile.type);
       const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
-      const cx = x0 + TILE_SIZE / 2, cy = y0 + TILE_SIZE / 2;
+      const gx = x0 + 11, gy = y0 + 11; // 좌상단 모서리 결정
       return (
         <Group key={`tera-${i}`}>
-          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={c} opacity={0.26} cornerRadius={6} />
-          <Rect x={x0 + 2} y={y0 + 2} width={TILE_SIZE - 4} height={TILE_SIZE - 4}
-            stroke={c} strokeWidth={2} cornerRadius={6} opacity={0.9} dash={[6, 4]} />
-          {/* 테라스탈 결정(다이아몬드) */}
-          <Line points={[cx, cy - 15, cx + 12, cy, cx, cy + 15, cx - 12, cy]} closed
-            fillLinearGradientStartPoint={{ x: 0, y: cy - 15 }} fillLinearGradientEndPoint={{ x: 0, y: cy + 15 }}
-            fillLinearGradientColorStops={[0, '#ffffff', 0.5, c, 1, c]}
-            stroke="#ffffff" strokeWidth={1.5} opacity={0.96} shadowColor={c} shadowBlur={12} />
-          <Line points={[cx, cy - 15, cx - 12, cy, cx, cy, cx + 12, cy]} closed fill="#ffffff" opacity={0.25} />
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={c} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={c} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Line points={[gx, gy - 6, gx + 5, gy, gx, gy + 6, gx - 5, gy]} closed
+            fill={c} stroke="#ffffff" strokeWidth={0.8} opacity={0.9} shadowColor={c} shadowBlur={5} />
         </Group>
       );
     });
-  }, [map]);
+  }, [activeTera]);
 
   // ─── 프렌들리숍 타일 ───────────────────────────────────────────────────────
   const shopTileNodes = React.useMemo(() => {
-    if (isMultiplayer) return null;
     const tiles = map?.shopTiles ?? [];
     if (tiles.length === 0) return null;
     const SHOP = '#e0a030';
+    // 은은하게: 얇은 점선 테두리 + 작은 모서리 🏪. 점유 시에만 상태 라벨.
     return tiles.map((tile, i) => {
       const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
       const clerk = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
-      const grade = clerk ? shopGradeFromWaves(clerk.shopWavesHeld ?? 0) : 0;
+      const waves = clerk?.shopWavesHeld ?? 0;
+      const tier = shopTier(waves);
+      const label = !clerk ? '' : tier === 0 ? `알바 ${wavesToNextTier(waves)}` : `영업 Lv${tier}`;
       return (
         <Group key={`shop-${i}`}>
-          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={SHOP} opacity={0.22} cornerRadius={6} />
-          <Rect x={x0 + 2} y={y0 + 2} width={TILE_SIZE - 4} height={TILE_SIZE - 4}
-            stroke={SHOP} strokeWidth={2} cornerRadius={6} opacity={0.85} dash={[5, 4]} />
-          <Text text="🏪" fontSize={26} x={x0} y={y0 + 4} width={TILE_SIZE} align="center" />
-          {clerk
-            ? <Text text={`영업중 Lv.${grade}`} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
-                fill="#ffe9b0" fontStyle="bold" shadowColor="#000" shadowBlur={3} />
-            : <Text text="점원 배치" fontSize={9} x={x0 - 6} y={y0 + TILE_SIZE - 12} width={TILE_SIZE + 12} align="center"
-                fill="#ffe9b0" opacity={0.8} shadowColor="#000" shadowBlur={3} />}
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={SHOP} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={SHOP} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Text text="🏪" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
+          {label && (
+            <Text text={label} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
+              fill={tier === 0 ? '#ffb0b0' : '#ffe9b0'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
+          )}
+        </Group>
+      );
+    });
+  }, [map, towers]);
+
+  // ─── 레어도 칸 ─────────────────────────────────────────────────────────────
+  const rarityTileNodes = React.useMemo(() => {
+    const tiles = map?.rarityTiles ?? [];
+    if (tiles.length === 0) return null;
+    const RAR = '#b06fe0';
+    return tiles.map((tile, i) => {
+      const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
+      const scout = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
+      const waves = scout?.shopWavesHeld ?? 0;
+      const tier = shopTier(waves);
+      const label = !scout ? '' : tier === 0 ? `탐색 ${wavesToNextTier(waves)}` : `레어↑ Lv${tier}`;
+      return (
+        <Group key={`rarity-${i}`}>
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={RAR} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={RAR} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Text text="✨" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
+          {label && (
+            <Text text={label} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
+              fill={tier === 0 ? '#d8b8ff' : '#eaccff'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
+          )}
         </Group>
       );
     });
@@ -905,6 +941,42 @@ export const GameCanvas: React.FC = () => {
         </Tooltip>
       )}
 
+      {/* 특수 타일 호버 힌트 (테라/숍) — 타워가 없을 때만. 우측 타일은 툴팁을 왼쪽으로 띄워 패널에 안 가리게. */}
+      {hoveredTile && !hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
+        <Tooltip style={mousePos.x > MAP_WIDTH * TILE_SIZE * 0.6
+          ? { right: `${(MAP_WIDTH * TILE_SIZE - mousePos.x) * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }
+          : { left: `${mousePos.x * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }}>
+          {hoveredTile.kind === 'tera' ? (
+            <>
+              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}>💎 테라스탈 타일</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>올라간 포켓몬이 <b style={{ color: typeColor(hoveredTile.type) }}>{typeLabelKo(hoveredTile.type)}</b> 타입으로 변환</TooltipStatRow>
+                <TooltipStatRow>같은 타입 기술이면 자속↑, 방어 상성도 변환</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 위치는 5웨이브마다 이동해요</TooltipStatRow>
+              </TooltipStats>
+            </>
+          ) : hoveredTile.kind === 'shop' ? (
+            <>
+              <TooltipTitle style={{ color: '#f0b840' }}>🏪 프렌들리숍 타일</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>포켓몬에게 알바를 시키면 도구 상점이 열려요</TooltipStatRow>
+                <TooltipStatRow>누적 5 / 10 / 15웨이브 → Lv1 / 2 / 3 해금</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 알바 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
+              </TooltipStats>
+            </>
+          ) : (
+            <>
+              <TooltipTitle style={{ color: '#c79bf0' }}>✨ 레어도 칸</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>포켓몬을 올려두면 상점에 고레어가 더 잘 나와요</TooltipStatRow>
+                <TooltipStatRow>누적 5 / 10 / 15웨이브 → 확률 조금씩↑</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 올라간 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
+              </TooltipStats>
+            </>
+          )}
+        </Tooltip>
+      )}
+
       <StageWrapper style={{ transform: `translate(-50%, 0) scale(${canvasScale})` }}>
         <Stage ref={stageRef} width={MAP_WIDTH * TILE_SIZE} height={MAP_HEIGHT * TILE_SIZE}
           onMouseMove={handleMouseMove} onClick={handleClick} onContextMenu={handleRightClick}
@@ -931,6 +1003,9 @@ export const GameCanvas: React.FC = () => {
 
             {/* 프렌들리숍 타일 */}
             {shopTileNodes}
+
+            {/* 레어도 칸 */}
+            {rarityTileNodes}
 
             {placementOverlay}
 
@@ -1062,49 +1137,107 @@ export const GameCanvas: React.FC = () => {
       {/* [수정③] 투사체 유리구슬 오버레이 */}
       <ProjectileOverlay projectiles={projectiles} canvasScale={canvasScale} />
 
-      {/* 프렌들리숍: 지닌 도구 상점 모달 */}
+      {/* 포켓몬 관리: 프렌들리숍(점원) + 지닌 도구 장착 */}
       {(() => {
-        const clerk = towers.find(t => t.id === shopTowerId);
-        if (!clerk) return null;
-        const grade = shopGradeFromWaves(clerk.shopWavesHeld ?? 0);
-        const items = buyableHeldItems(grade);
-        const close = () => setShopTowerId(null);
+        const tower = towers.find(t => t.id === manageTowerId);
+        if (!tower) return null;
+        const tTx = Math.floor(tower.position.x / TILE_SIZE), tTy = Math.floor(tower.position.y / TILE_SIZE);
+        const isClerk = (map?.shopTiles ?? []).some(s => s.x === tTx && s.y === tTy);
+        const isScout = (map?.rarityTiles ?? []).some(s => s.x === tTx && s.y === tTy);
+        const waves = tower.shopWavesHeld ?? 0;
+        const tier = (isClerk || isScout) ? shopTier(waves) : 0;
+        const buyable = isClerk && tier > 0 ? buyableHeldItems(tier) : [];
+        const canEquip = !isWaveActive;
+        const close = () => setManageTowerId(null);
         const buy = (id: string, cost: number) => {
-          if (clerk.heldItem === id) return;
-          if (!spendMoney(cost)) { alert(t('alerts.notEnoughMoneyWithCost', { cost })); return; }
-          useGameStore.getState().updateTower(clerk.id, { heldItem: id });
+          if (money < cost) { alert(t('alerts.notEnoughMoneyWithCost', { cost })); return; }
+          if (!spendMoney(cost)) return;
+          useGameStore.getState().addHeldItem(id);
         };
+        // 보관함을 id별로 그룹화
+        const invCounts = heldItemInventory.reduce<Record<string, number>>((m, id) => { m[id] = (m[id] ?? 0) + 1; return m; }, {});
+        const equipped = getHeldItem(tower.heldItem);
         return (
           <ShopOverlay onClick={close}>
             <ShopModal onClick={e => e.stopPropagation()}>
               <ShopHeader>
-                <h3>🏪 프렌들리숍</h3>
+                <h3>{isClerk ? '🏪 프렌들리숍' : isScout ? '✨ 레어도 칸' : '🎒 지닌 도구'}</h3>
                 <ShopCloseBtn onClick={close}>✕</ShopCloseBtn>
               </ShopHeader>
               <ShopSub>
-                점원: <b>{clerk.displayName}</b>
-                <ShopGradeBadge>상점 Lv.{grade}</ShopGradeBadge>
+                <b>{tower.displayName}</b>
+                {isClerk && <ShopGradeBadge>{tier > 0 ? `영업 Lv.${tier}` : '알바 중'}</ShopGradeBadge>}
+                {isScout && <ShopGradeBadge>{tier > 0 ? `레어↑ Lv.${tier}` : '탐색 중'}</ShopGradeBadge>}
                 <span style={{ marginLeft: 8, color: '#f0b840' }}>💰 {money}원</span>
               </ShopSub>
-              <ShopGradeNote>
-                점원으로 머문 누적 웨이브 {clerk.shopWavesHeld ?? 0} · 오래 둘수록 상점 등급이 올라 더 좋은 도구가 해금됩니다(Lv2: 3웨이브, Lv3: 6웨이브).
-              </ShopGradeNote>
-              {items.map(item => {
-                const owned = clerk.heldItem === item.id;
-                const poor = money < item.cost;
-                return (
-                  <ShopItemRow key={item.id} $owned={owned}>
-                    <span className="icon">{item.icon}</span>
-                    <div className="info">
-                      <div className="name">{item.name} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}</span></div>
-                      <div className="desc">{item.desc}</div>
-                    </div>
-                    <ShopBuyBtn $disabled={owned || poor} onClick={() => buy(item.id, item.cost)}>
-                      {owned ? '장착됨' : `${item.cost}원`}
-                    </ShopBuyBtn>
-                  </ShopItemRow>
-                );
-              })}
+
+              {/* 레어도 칸 상태 */}
+              {isScout && (
+                tier === 0
+                  ? <ShopLockNote>🔬 탐색 중 — 효과 발동까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                  : <ShopGradeNote>누적 {waves}웨이브 근무 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).</ShopGradeNote>
+              )}
+
+              {/* 상점 (점원만) */}
+              {isClerk && (
+                <>
+                  {tier === 0 ? (
+                    <ShopLockNote>🧹 알바 중 — 상점 개점까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                  ) : (
+                    <ShopGradeNote>
+                      누적 알바 {waves}웨이브 · 더 오래 둘수록 등급↑(Lv2:10, Lv3:15웨이브). 산 도구는 보관함에 들어갑니다.
+                    </ShopGradeNote>
+                  )}
+                  {buyable.map(item => {
+                    const poor = money < item.cost;
+                    return (
+                      <ShopItemRow key={item.id} $locked={poor}>
+                        <span className="icon">{item.icon}</span>
+                        <div className="info">
+                          <div className="name">{item.name} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}{item.consumable ? '·1회' : ''}</span></div>
+                          <div className="desc">{item.desc}</div>
+                        </div>
+                        <ShopBuyBtn $disabled={poor} onClick={() => buy(item.id, item.cost)}>{item.cost}원</ShopBuyBtn>
+                      </ShopItemRow>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* 지닌 도구 (장착/교체/회수) */}
+              <ShopSectionTitle>이 포켓몬의 지닌 도구</ShopSectionTitle>
+              <ShopItemRow $owned={!!equipped}>
+                <span className="icon">{equipped?.icon ?? '—'}</span>
+                <div className="info">
+                  <div className="name">{equipped ? equipped.name : '장착된 도구 없음'}</div>
+                  <div className="desc">{equipped ? equipped.desc : '보관함에서 장착하세요'}</div>
+                </div>
+                {equipped && (
+                  <ShopGhostBtn disabled={!canEquip} style={{ opacity: canEquip ? 1 : 0.4 }}
+                    onClick={() => canEquip && useGameStore.getState().unequipHeldItem(tower.id)}>회수</ShopGhostBtn>
+                )}
+              </ShopItemRow>
+
+              <ShopSectionTitle>보관함 {canEquip ? '' : '(장착은 웨이브 사이에만)'}</ShopSectionTitle>
+              {Object.keys(invCounts).length === 0 ? (
+                <ShopGradeNote>보관함이 비어 있습니다. 프렌들리숍에서 도구를 구매하세요.</ShopGradeNote>
+              ) : (
+                Object.entries(invCounts).map(([id, n]) => {
+                  const it = getHeldItem(id); if (!it) return null;
+                  return (
+                    <ShopItemRow key={id}>
+                      <span className="icon">{it.icon}</span>
+                      <div className="info">
+                        <div className="name">{it.name} {n > 1 && <span style={{ color: '#7e8da0' }}>×{n}</span>}</div>
+                        <div className="desc">{it.desc}</div>
+                      </div>
+                      <ShopBuyBtn $disabled={!canEquip} onClick={() => canEquip && useGameStore.getState().equipHeldItem(tower.id, id)}>
+                        {tower.heldItem ? '교체' : '장착'}
+                      </ShopBuyBtn>
+                    </ShopItemRow>
+                  );
+                })
+              )}
             </ShopModal>
           </ShopOverlay>
         );
@@ -1143,12 +1276,12 @@ const EvolutionToastButton = styled.button`
 
 const Tooltip = styled.div`
   position: absolute;
-  background: linear-gradient(145deg, rgba(30,40,60,0.98), rgba(15,20,35,0.98));
-  border: 2px solid rgba(76,175,255,0.5); border-radius: 10px; padding: 6px 10px;
-  color: #e8edf3; font-size: 10px; font-weight: bold;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6); pointer-events: none; z-index: 1001;
+  background: rgba(22,28,42,0.92);
+  border: 1px solid rgba(120,150,190,0.28); border-radius: 10px; padding: 7px 11px;
+  color: #e8edf3; font-size: 10px; font-weight: 400;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35); pointer-events: none; z-index: 1001;
   min-width: 160px; max-width: 200px;
-  ${lMedia.phoneSm} { font-size: 9px; padding: 4px 8px; min-width: 140px; }
+  ${lMedia.phoneSm} { font-size: 9px; padding: 5px 9px; min-width: 140px; }
 `;
 
 const TooltipTitle = styled.div`
@@ -1166,14 +1299,14 @@ const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${lMedia.phoneSm
 
 // ─── 프렌들리숍(지닌 도구) 모달 ──────────────────────────────────────────────
 const ShopOverlay = styled.div`
-  position: absolute; inset: 0; background: rgba(0,0,0,0.6);
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
   display: flex; align-items: center; justify-content: center; z-index: 1200;
 `;
 const ShopModal = styled.div`
   width: min(440px, 92%); max-height: 86%; overflow-y: auto;
-  background: linear-gradient(150deg, #1b2436, #11161f);
-  border: 2px solid rgba(224,160,48,0.55); border-radius: 14px;
-  padding: 16px 18px; color: #e8edf3; box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  background: rgba(28,35,52,0.96);
+  border: 1px solid rgba(224,160,48,0.3); border-radius: 14px;
+  padding: 16px 18px; color: #e8edf3; box-shadow: 0 10px 28px rgba(0,0,0,0.38);
 `;
 const ShopHeader = styled.div`
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
@@ -1207,6 +1340,18 @@ const ShopCloseBtn = styled.button`
 `;
 const ShopGradeNote = styled.div`
   font-size: 10px; color: #7e8da0; margin: 6px 0 12px; line-height: 1.4;
+`;
+const ShopSectionTitle = styled.div`
+  font-size: 12px; font-weight: bold; color: #cdd7e2; margin: 14px 0 8px;
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;
+`;
+const ShopGhostBtn = styled.button`
+  border: 1px solid rgba(255,255,255,0.18); background: transparent; color: #cdd7e2;
+  border-radius: 8px; padding: 6px 10px; font-size: 11px; cursor: pointer; white-space: nowrap;
+`;
+const ShopLockNote = styled.div`
+  font-size: 12px; color: #ffb0b0; background: rgba(192,57,43,0.12);
+  border: 1px solid rgba(192,57,43,0.4); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
 `;
 
 const StageWrapper = styled.div`

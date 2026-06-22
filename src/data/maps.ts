@@ -14,9 +14,10 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/easiest_straight.png",
     shopTiles: [{ x: 13, y: 9 }],
+    rarityTiles: [{ x: 2, y: 0 }],
     teraTiles: [
-      { x: 5, y: 3, type: "fire" },
-      { x: 10, y: 5, type: "water" },
+      { type: "fire", spots: [{ x: 5, y: 3 }, { x: 9, y: 3 }, { x: 3, y: 5 }] },
+      { type: "water", spots: [{ x: 10, y: 5 }, { x: 12, y: 3 }, { x: 6, y: 5 }] },
     ],
     spawns: [{ x: -T, y: 4.5 * T }],
     objectives: [{ x: 16 * T, y: 4.5 * T }],
@@ -42,7 +43,8 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/easy_loop.png",
     shopTiles: [{ x: 5, y: 5 }],
-    teraTiles: [{ x: 7, y: 2, type: "water" }],
+    rarityTiles: [{ x: 9, y: 6 }],
+    teraTiles: [{ type: "water", spots: [{ x: 7, y: 2 }, { x: 9, y: 2 }, { x: 4, y: 7 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: -T, y: 3.5 * T }], // 스폰 바로 아래가 골인
     paths: [
@@ -73,7 +75,8 @@ export const MAPS: MapData[] = [
     backgroundType: "water",
     backgroundImage: "/images/maps/extreme_aggro_shortcut.png",
     shopTiles: [{ x: 7, y: 4 }],
-    teraTiles: [{ x: 6, y: 7, type: "electric" }],
+    rarityTiles: [{ x: 4, y: 4 }],
+    teraTiles: [{ type: "electric", spots: [{ x: 6, y: 7 }, { x: 8, y: 7 }, { x: 11, y: 4 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 1.5 * T }],
     paths: [
@@ -105,7 +108,8 @@ export const MAPS: MapData[] = [
     backgroundType: "cave",
     backgroundImage: "/images/maps/medium_multi_s.png",
     shopTiles: [{ x: 1, y: 7 }],
-    teraTiles: [{ x: 7, y: 4, type: "ground" }],
+    rarityTiles: [{ x: 13, y: 0 }],
+    teraTiles: [{ type: "ground", spots: [{ x: 7, y: 4 }, { x: 4, y: 2 }, { x: 10, y: 4 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 8.5 * T }],
     paths: [
@@ -137,7 +141,8 @@ export const MAPS: MapData[] = [
     backgroundType: "desert",
     backgroundImage: "/images/maps/medium_merge.png",
     shopTiles: [{ x: 2, y: 5 }],
-    teraTiles: [{ x: 9, y: 3, type: "water" }],
+    rarityTiles: [{ x: 12, y: 0 }],
+    teraTiles: [{ type: "water", spots: [{ x: 9, y: 3 }, { x: 3, y: 3 }, { x: 9, y: 5 }] }],
     spawns: [
       { x: -T, y: 2.5 * T },
       { x: -T, y: 7.5 * T },
@@ -174,9 +179,10 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/hard_straight_wide.png",
     shopTiles: [{ x: 12, y: 9 }],
+    rarityTiles: [{ x: 2, y: 0 }],
     teraTiles: [
-      { x: 8, y: 2, type: "fire" },
-      { x: 8, y: 6, type: "grass" },
+      { type: "fire", spots: [{ x: 8, y: 2 }, { x: 4, y: 2 }, { x: 11, y: 2 }] },
+      { type: "grass", spots: [{ x: 8, y: 6 }, { x: 4, y: 6 }, { x: 11, y: 6 }] },
     ],
     spawns: [
       { x: -T, y: 3.5 * T },
@@ -218,9 +224,10 @@ export const MAPS: MapData[] = [
     backgroundType: "snow",
     backgroundImage: "/images/maps/hard_dual_path.png",
     shopTiles: [{ x: 7, y: 4 }],
+    rarityTiles: [{ x: 7, y: 5 }],
     teraTiles: [
-      { x: 8, y: 2, type: "fire" },
-      { x: 8, y: 7, type: "ice" },
+      { type: "fire", spots: [{ x: 8, y: 2 }, { x: 4, y: 2 }, { x: 11, y: 2 }] },
+      { type: "ice", spots: [{ x: 8, y: 7 }, { x: 4, y: 7 }, { x: 11, y: 7 }] },
     ],
     spawns: [
       { x: -T, y: 1.5 * T },
@@ -256,9 +263,10 @@ export const MAPS: MapData[] = [
     backgroundType: "cave",
     backgroundImage: "/images/maps/extreme_central.png",
     shopTiles: [{ x: 11, y: 7 }],
+    rarityTiles: [{ x: 3, y: 2 }],
     teraTiles: [
-      { x: 5, y: 3, type: "fighting" },
-      { x: 9, y: 5, type: "fighting" },
+      { type: "fighting", spots: [{ x: 5, y: 3 }, { x: 3, y: 5 }, { x: 11, y: 5 }] },
+      { type: "fighting", spots: [{ x: 9, y: 5 }, { x: 11, y: 3 }, { x: 5, y: 5 }] },
     ],
     spawns: [
       { x: -T, y: 4.5 * T },
@@ -295,3 +303,20 @@ export const MAPS: MapData[] = [
 ];
 
 export const getMapById = (id: string) => MAPS.find((m) => m.id === id);
+
+// 테라스탈 타일 위치는 N웨이브마다 후보(spots) 사이로 순환한다.
+export const TERA_MOVE_INTERVAL = 5;
+
+/** 현재(또는 곧 시작할) 웨이브 기준 활성 테라 타일 위치를 해석한다.
+ *  쉬는 시간(!isWaveActive)엔 다음 웨이브 기준으로 미리 이동시켜 재배치할 시간을 준다. */
+export const activeTeraTiles = (
+  map: MapData | undefined,
+  wave: number,
+  isWaveActive: boolean
+): { x: number; y: number; type: string }[] => {
+  const epoch = Math.floor((isWaveActive ? wave : wave + 1) / TERA_MOVE_INTERVAL);
+  return (map?.teraTiles ?? []).map((t) => {
+    const s = t.spots[epoch % t.spots.length];
+    return { x: s.x, y: s.y, type: t.type };
+  });
+};

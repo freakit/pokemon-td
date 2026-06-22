@@ -89,10 +89,13 @@ export interface MapData {
   backgroundImage?: string;
   /** @deprecated 울타리 배치제한 폐기(자유배치 전환). 데이터는 남아있으나 미사용. */
   buildZones?: { x: number; y: number; w: number; h: number }[];
-  /** 테라스탈 타일: 점유한 타워의 타입을 type으로 변환(원전 충실형: 방어상성+자속). */
-  teraTiles?: { x: number; y: number; type: string }[];
-  /** 프렌들리숍 타일: 점원을 올려두면 웨이브 누적으로 상점 등급↑, 지닌도구 구매. */
+  /** 테라스탈 타일: 점유한 타워의 타입을 type으로 변환(원전 충실형: 방어상성+자속).
+   *  type은 맵별 고정, 위치는 spots 후보들 사이로 N웨이브마다 순환(쉬는 시간에 이동). */
+  teraTiles?: { type: string; spots: { x: number; y: number }[] }[];
+  /** 프렌들리숍 타일: 포켓몬에게 알바를 시키면(올려두면) 웨이브 누적으로 상점 등급↑, 지닌도구 구매. */
   shopTiles?: { x: number; y: number }[];
+  /** 레어도 칸: 포켓몬을 올려두면 근무 웨이브 누적으로 포켓몬 상점의 고레어 등장 확률↑. */
+  rarityTiles?: { x: number; y: number }[];
   /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
   objectiveKeepout?: boolean;
 }
@@ -137,7 +140,7 @@ export interface GamePokemon {
   teraType?: string;
   /** 장착한 지닌 도구 id(프렌들리숍에서 구매). 1포켓몬 1도구. */
   heldItem?: string;
-  /** 프렌들리숍 타일에서 점원으로 머문 누적 웨이브 수(상점 등급 산정용). */
+  /** 알바 칸(프렌들리숍·레어도)에서 근무한 누적 웨이브 수(상점 등급·레어도 부스트 산정용). */
   shopWavesHeld?: number;
 }
 
@@ -296,6 +299,8 @@ export interface GameState {
   victory: boolean;
   selectedTowerSlot: Position | null;
   availableItems: Item[];
+  /** 프렌들리숍에서 구매했지만 아직 장착하지 않은 지닌 도구 id 목록(보관함). */
+  heldItemInventory: string[];
   currentMap: string;
   difficulty: Difficulty;
   gameSpeed: number;

@@ -5,6 +5,12 @@ import { GameMove, MoveEffect } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
+// 레어도 랭크(0=Bronze … 5=Legend) — 가중치로 역산. 레어도 칸 부스트에 사용.
+const RARITY_ORDER: Rarity[] = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Master', 'Legend'];
+const WEIGHT_TO_RANK: Record<number, number> = Object.fromEntries(
+  RARITY_ORDER.map((r, i) => [RARITY_WEIGHTS[r], i])
+);
+
 // [DEADLOCK-FIX] 모든 PokeAPI 요청에 타임아웃(10초).
 //   무응답(hang) 시 axios가 reject → spawnEnemy의 catch가 fallback 적을 스폰하여
 //   pendingSpawnCount가 정상 감소 → 웨이브가 멈추지 않도록 보장.
@@ -361,18 +367,21 @@ class PokeAPIService {
     );
   }
 
-  async getRandomPokemonIdWithRarity(): Promise<number> {
+  // rarityBoost>0이면 고레어(높은 랭크) 가중치를 끌어올린다(레어도 칸). 0이면 기본 분포.
+  async getRandomPokemonIdWithRarity(rarityBoost = 0): Promise<number> {
     if (this.weightedPokemonList.length === 0) {
       await this.preloadRarities();
     }
 
-    const totalWeight = this.weightedPokemonList.reduce(
-      (sum, p) => sum + p.weight,
-      0
-    );
+    const eff = (p: { id: number; weight: number }) =>
+      rarityBoost > 0
+        ? p.weight * (1 + rarityBoost * (WEIGHT_TO_RANK[p.weight] ?? 0))
+        : p.weight;
+
+    const totalWeight = this.weightedPokemonList.reduce((sum, p) => sum + eff(p), 0);
     let random = Math.random() * totalWeight;
     for (const pokemon of this.weightedPokemonList) {
-      random -= pokemon.weight;
+      random -= eff(pokemon);
       if (random <= 0) return pokemon.id;
     }
     return this.weightedPokemonList[0]?.id || 1;

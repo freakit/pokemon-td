@@ -54,6 +54,9 @@ interface GameStore extends GameState {
   setWaveEndItemPick: (items: Item[] | null) => void;
   useItem: (itemType: string, targetTowerId?: string) => boolean;
   useRewardItem: (itemType: string, targetTowerId: string) => boolean;
+  addHeldItem: (id: string) => void;
+  equipHeldItem: (towerId: string, id: string) => void;
+  unequipHeldItem: (towerId: string) => void;
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
   evolvePokemon: (towerId: string, item?: string, targetId?: number) => Promise<boolean>;
@@ -89,6 +92,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   victory: false,
   selectedTowerSlot: null,
   availableItems: [],
+  heldItemInventory: [],
   currentMap: 'beginner',
   difficulty: 'normal',
   gameSpeed: saveService.load().settings.gameSpeed || 1,
@@ -258,7 +262,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hoveredSynergy: null,
       isPreloading: false,
       isShopDisabled: false,
+      heldItemInventory: [],
     });
+  },
+
+  // ─── 지닌 도구 보관함 ──────────────────────────────────────────────
+  addHeldItem: (id) => set(state => ({ heldItemInventory: [...state.heldItemInventory, id] })),
+  equipHeldItem: (towerId, id) => {
+    const { towers, heldItemInventory } = get();
+    const idx = heldItemInventory.indexOf(id);
+    if (idx === -1) return;
+    const tower = towers.find(t => t.id === towerId);
+    if (!tower) return;
+    // 보관함에서 1개 빼고, 기존 장착품이 있으면 보관함으로 되돌린다.
+    const nextInv = [...heldItemInventory];
+    nextInv.splice(idx, 1);
+    if (tower.heldItem) nextInv.push(tower.heldItem);
+    set({ heldItemInventory: nextInv });
+    get().updateTower(towerId, { heldItem: id });
+  },
+  unequipHeldItem: (towerId) => {
+    const tower = get().towers.find(t => t.id === towerId);
+    if (!tower?.heldItem) return;
+    set(state => ({ heldItemInventory: [...state.heldItemInventory, tower.heldItem!] }));
+    get().updateTower(towerId, { heldItem: undefined });
   },
 
   incrementGameTime: (dt) =>

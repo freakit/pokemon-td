@@ -3,7 +3,7 @@ import { useGameStore, INITIAL_LIVES_SINGLE } from '../store/gameStore';
 import { GamePokemon, Enemy, Projectile, Position, GameMove } from '../types/game';
 import { calculateDamage, getTypeEffectiveness, stabMultiplier } from '../utils/typeEffectiveness';
 import {
-  heldDamageMultiplier, heldCritBonus, heldLifesteal, heldDefenseMultiplier,
+  heldDamageMultiplier, heldCritBonus, heldLifesteal,
   heldRecoilRatio, heldRegenPerSec,
 } from '../data/heldItems';
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
@@ -41,9 +41,15 @@ export class GameManager {
   private _nextId = 0;
   private nextId(): number { return ++this._nextId; }
 
-  // [메트로놈] 타워별 연속 공격 누적(transient). 기절·재시작 시 리셋.
-  private metroStacks = new Map<string, number>();
-  // [먹다남은음식] 초당 회복을 위한 누적 시간(타워별)
+  // 알바 칸(프렌들리숍 ∪ 레어도) 점유 여부 — 공격·경험치 차단에 사용.
+  private isOnWorkTile(tw: GamePokemon, currentMap: string): boolean {
+    const map = getMapById(currentMap);
+    const tiles = [...(map?.shopTiles ?? []), ...(map?.rarityTiles ?? [])];
+    const tx = Math.floor(tw.position.x / 64), ty = Math.floor(tw.position.y / 64);
+    return tiles.some(s => s.x === tx && s.y === ty);
+  }
+
+  // [먹다남은음식] 초당 회복을 위한 누적(타워별)
   private regenAccum = new Map<string, number>();
 
   static getInstance() {
@@ -68,7 +74,6 @@ export class GameManager {
       this.statFlushTimer = null;
     }
     this._nextId = 0;
-    this.metroStacks.clear();
     this.regenAccum.clear();
     this.initialTotalMoney = saveService.load().stats.totalMoneyEarned;
   }
@@ -349,8 +354,7 @@ export class GameManager {
       }
     }
 
-    const defenseValue = buffedStats.defense * heldDefenseMultiplier(tower.heldItem); // 진화의휘석
-    const dmg = calculateDamage(enemy.attack, defenseValue, 40, eff, false, 1);
+    const dmg = calculateDamage(enemy.attack, buffedStats.defense, 40, eff, false, 1);
     // [BUG-FIX] ability.effect === 'tank' 적용: 피해 감소 특성 반영
     const tankMultiplier = tower.ability?.effect === 'tank' ? (tower.ability.value ?? 0.75) : 1.0;
     const finalDmg = Math.max(1, Math.floor(dmg * finalDamageMultiplier * tankMultiplier));
@@ -358,22 +362,18 @@ export class GameManager {
 
     if (newHp <= 0) {
       updateTower(tower.id, { currentHp: 0, isFainted: true });
-      this.metroStacks.delete(tower.id);
       useGameStore.getState().updateEnemy(enemy.id, { targetTowerId: undefined });
     } else {
       updateTower(tower.id, { currentHp: newHp });
 
-      // ── 지닌 도구: 피격 반응 ──────────────────────────────────────
-      // 약점보험: 효과가 굉장한 공격을 맞으면 공격·특공 ×1.5 (1회 소모)
-      if (tower.heldItem === 'weakness-policy' && eff > 1) {
-        updateTower(tower.id, {
-          attack: Math.floor(tower.attack * 1.5),
-          specialAttack: Math.floor(tower.specialAttack * 1.5),
-          heldItem: undefined,
-        });
-      } else if (tower.heldItem === 'sitrus-berry' && newHp / tower.maxHp < 0.5) {
-        // 자뭉열매: HP 50% 미만으로 떨어지면 25% 회복 후 소모
+      // ── 지닌 도구(일회성 열매): 피격 반응 ─────────────────────────
+      // 한카포열매: 효과가 굉장한 공격을 맞으면 HP 25% 회복(1회 소모)
+      if (tower.heldItem === 'enigma-berry' && eff > 1) {
         const healed = Math.min(tower.maxHp, newHp + Math.floor(tower.maxHp * 0.25));
+        updateTower(tower.id, { currentHp: healed, heldItem: undefined });
+      } else if (tower.heldItem === 'sitrus-berry' && newHp / tower.maxHp < 0.5) {
+        // 자뭉열매: HP 50% 미만으로 떨어지면 20% 회복 후 소모
+        const healed = Math.min(tower.maxHp, newHp + Math.floor(tower.maxHp * 0.20));
         updateTower(tower.id, { currentHp: healed, heldItem: undefined });
       }
     }
@@ -404,11 +404,12 @@ export class GameManager {
   }
 
   private updateTowers(dt: number) {
-    const { towers, enemies, updateTower } = useGameStore.getState();
+    const { towers, enemies, updateTower, currentMap } = useGameStore.getState();
+    // 알바 포켓몬(프렌들리숍·레어도 칸 점유)은 근무 중이라 공격하지 않는다.
+    const isWorking = (tw: GamePokemon) => this.isOnWorkTile(tw, currentMap);
     towers.forEach(tower => {
       if (tower.currentHp <= 0 && !tower.isFainted) {
         updateTower(tower.id, { currentHp: 0, isFainted: true });
-        this.metroStacks.delete(tower.id);
         return;
       }
       if (tower.isFainted) return;
@@ -425,6 +426,8 @@ export class GameManager {
           this.regenAccum.set(tower.id, acc);
         }
       }
+
+      if (isWorking(tower)) return; // 알바는 공격 생략
 
       const target = this.findTarget(tower, enemies);
       if (target) {
@@ -503,7 +506,8 @@ export class GameManager {
       from: { ...tower.position },
       to: { ...target.position },
       current: { ...tower.position },
-      damage: move.power,
+      // 리샘열매: 이번 1회 공격 위력 ×1.5
+      damage: move.power * (tower.heldItem === 'liechi-berry' ? 1.5 : 1),
       type: move.type,
       effect: move.effect,
       speed: 400,
@@ -517,9 +521,9 @@ export class GameManager {
     } as any);
 
     // ── 지닌 도구: 발사 시점 효과 ───────────────────────────────────
-    // 메트로놈: 연속 공격 누적(최대 5 → ×2.0)
-    if (tower.heldItem === 'metronome') {
-      this.metroStacks.set(tower.id, Math.min(5, (this.metroStacks.get(tower.id) ?? 0) + 1));
+    // 리샘열매: 1회 사용 후 소모
+    if (tower.heldItem === 'liechi-berry') {
+      useGameStore.getState().updateTower(tower.id, { heldItem: undefined });
     }
     // 생명의구슬: 공격마다 최대 HP의 일부 소모(HP 1 하한)
     const recoil = heldRecoilRatio(tower.heldItem);
@@ -606,10 +610,9 @@ export class GameManager {
       proj.damageClass === 'physical' ? enemy.defense : enemy.specialDefense;
     let dmg = calculateDamage(proj.attackPower, defense, proj.damage, eff, isCrit, stab);
 
-    // 지닌 도구 데미지 배율 (생명의구슬/달인의띠/근육밴드/신비의구슬/메트로놈)
-    if (held && attacker) {
-      const metro = held === 'metronome' ? (this.metroStacks.get(attacker.id) ?? 0) : 0;
-      dmg = Math.floor(dmg * heldDamageMultiplier(held, eff > 1, proj.damageClass, metro));
+    // 지닌 도구 데미지 배율 (생명의구슬/달인의띠/근육밴드/신비의구슬)
+    if (held) {
+      dmg = Math.floor(dmg * heldDamageMultiplier(held, eff > 1, proj.damageClass));
     }
 
     if (proj.isAOE && attacker?.ability) {
@@ -678,11 +681,12 @@ export class GameManager {
     removeEnemy(id);
     useGameStore.setState(state => ({ combo: state.combo + 1 }));
 
-    // [BUG-1 FIX] isFainted 타워는 XP 지급 제외
-    // 쓰러진 상태에서 레벨이 오르는 비정상 동작 방지
+    // [BUG-1 FIX] isFainted 타워는 XP 지급 제외(쓰러진 상태 레벨업 방지).
+    // 알바 포켓몬(숍·레어도 칸)도 근무 중이라 경험치를 받지 않는다.
     const xpAmount = enemy.isBoss ? 50 : 10;
+    const curMap = useGameStore.getState().currentMap;
     useGameStore.getState().towers
-      .filter(t => !t.isFainted)
+      .filter(t => !t.isFainted && !this.isOnWorkTile(t, curMap))
       .forEach(t => {
         addXpToTower(t.id, xpAmount);
       });
@@ -756,15 +760,10 @@ export class GameManager {
 
       healAllTowers();
 
-      // [프렌들리숍] 점원으로 숍 타일에 머문 타워의 누적 점유 웨이브 +1 → 상점 등급 상승 (싱글/스토리 전용)
-      const shopTiles = isMultiplayer ? [] : (getMapById(currentMap)?.shopTiles ?? []);
-      if (shopTiles.length > 0) {
-        for (const tw of towers) {
-          const tx = Math.floor(tw.position.x / 64);
-          const ty = Math.floor(tw.position.y / 64);
-          if (shopTiles.some(s => s.x === tx && s.y === ty)) {
-            useGameStore.getState().updateTower(tw.id, { shopWavesHeld: (tw.shopWavesHeld ?? 0) + 1 });
-          }
+      // [알바] 프렌들리숍·레어도 칸에 올라간 타워의 누적 근무 웨이브 +1 → 상점 등급/레어도 부스트 해금
+      for (const tw of towers) {
+        if (this.isOnWorkTile(tw, currentMap)) {
+          useGameStore.getState().updateTower(tw.id, { shopWavesHeld: (tw.shopWavesHeld ?? 0) + 1 });
         }
       }
 
