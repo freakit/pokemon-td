@@ -39,6 +39,8 @@ import { HallOfFame } from "../modals/HallOfFame";
 import { Rankings } from "../modals/Rankings";
 import { Settings } from "../modals/Settings";
 import { useGameStore } from "../../store/gameStore";
+import { getMapById } from "../../data/maps";
+import { shopTier } from "../../data/heldItems";
 import { WaveSystem } from "../../game/WaveSystem";
 import { multiplayerService } from "../../services/MultiplayerService";
 import { MultiplayerView } from "../multiplayer/MultiplayerView";
@@ -210,9 +212,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const {
     money, lives, wave, isWaveActive, towers, gameSpeed,
     timeOfDay, gameTime, skillChoiceQueue, waveEndItemPick, wave50Clear, storyClear, gameOver,
-    nextWave, spendMoney,
+    nextWave, spendMoney, currentMap,
   } = useGameStore(s => ({
     money:          s.money,
+    currentMap:     s.currentMap,
     lives:          s.lives,
     wave:           s.wave,
     isWaveActive:   s.isWaveActive,
@@ -233,6 +236,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   // ── Pulse cues ────────────────────────────────────────────────
   const pulseWave    = !isWaveActive && wave >= 0 && !gameOver;
   const pulsePokemon = towers.length === 0 && !isWaveActive;
+
+  // 시설(프렌들리숍·콘테스트 홀) 등급 — 해당 타일에 올라간 알바 포켓몬의 근무 누적 웨이브 기준
+  const facilityMap = getMapById(currentMap);
+  const facilityTier = (tiles?: { x: number; y: number }[]) => {
+    const tw = (tiles ?? []).length
+      ? towers.find(t => tiles!.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)))
+      : undefined;
+    return tw ? shopTier(tw.shopWavesHeld ?? 0) : 0;
+  };
+  const shopLv    = facilityTier(facilityMap?.shopTiles);
+  const contestLv = facilityTier(facilityMap?.contestTiles);
 
   // ── Refs ──────────────────────────────────────────────────────
   const lastAppliedRoundRef    = useRef<number>(-1);
@@ -673,6 +687,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             <SynergyTracker embedded />
           </SynergyArea>
           <HudSep />
+          {/* 시설 등급(프렌들리숍·콘테스트 홀) */}
+          <FacilityBox>
+            <FacilityRow>
+              <span>🏪 프렌들리숍</span>
+              <FacilityLv $on={shopLv > 0}>{shopLv > 0 ? `Lv.${shopLv}` : "—"}</FacilityLv>
+            </FacilityRow>
+            <FacilityRow>
+              <span>🎀 콘테스트 홀</span>
+              <FacilityLv $on={contestLv > 0}>{contestLv > 0 ? `Lv.${contestLv}` : "—"}</FacilityLv>
+            </FacilityRow>
+          </FacilityBox>
           <HudArea>
             <HudGrid>
               <HudTile>
@@ -1026,6 +1051,26 @@ const HudArea = styled.div`
   display: flex; flex-direction: column; gap: 6px;
   ${L1024} { padding: 7px 8px; gap: 5px; }
   ${L768}  { padding: 4px 5px; gap: 3px; }
+`;
+
+const FacilityBox = styled.div`
+  flex-shrink: 0;
+  background: #0d1520;
+  padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 5px;
+  border-top: 1px solid rgba(80,140,220,0.1);
+  ${L1024} { padding: 6px 8px; gap: 4px; }
+  ${L768}  { padding: 4px 6px; gap: 3px; }
+`;
+const FacilityRow = styled.div`
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: #a8b8c8; font-weight: 600;
+  ${L768} { font-size: 10px; }
+`;
+const FacilityLv = styled.span<{ $on: boolean }>`
+  font-size: 11px; font-weight: 800;
+  color: ${p => (p.$on ? "#f0b840" : "#566374")};
+  ${L768} { font-size: 10px; }
 `;
 
 const HudGrid = styled.div`

@@ -14,7 +14,7 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/easiest_straight.png",
     shopTiles: [{ x: 13, y: 9 }],
-    rarityTiles: [{ x: 2, y: 0 }],
+    contestTiles: [{ x: 2, y: 0 }],
     teraTiles: [
       { type: "fire", spots: [{ x: 5, y: 3 }, { x: 9, y: 3 }, { x: 3, y: 5 }] },
       { type: "water", spots: [{ x: 10, y: 5 }, { x: 12, y: 3 }, { x: 6, y: 5 }] },
@@ -43,7 +43,7 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/easy_loop.png",
     shopTiles: [{ x: 5, y: 5 }],
-    rarityTiles: [{ x: 9, y: 6 }],
+    contestTiles: [{ x: 9, y: 6 }],
     teraTiles: [{ type: "water", spots: [{ x: 7, y: 2 }, { x: 9, y: 2 }, { x: 4, y: 7 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: -T, y: 3.5 * T }], // 스폰 바로 아래가 골인
@@ -75,7 +75,7 @@ export const MAPS: MapData[] = [
     backgroundType: "water",
     backgroundImage: "/images/maps/extreme_aggro_shortcut.png",
     shopTiles: [{ x: 7, y: 4 }],
-    rarityTiles: [{ x: 4, y: 4 }],
+    contestTiles: [{ x: 4, y: 4 }],
     teraTiles: [{ type: "electric", spots: [{ x: 6, y: 7 }, { x: 8, y: 7 }, { x: 11, y: 4 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 1.5 * T }],
@@ -108,7 +108,7 @@ export const MAPS: MapData[] = [
     backgroundType: "cave",
     backgroundImage: "/images/maps/medium_multi_s.png",
     shopTiles: [{ x: 1, y: 7 }],
-    rarityTiles: [{ x: 13, y: 0 }],
+    contestTiles: [{ x: 13, y: 0 }],
     teraTiles: [{ type: "ground", spots: [{ x: 7, y: 4 }, { x: 4, y: 2 }, { x: 10, y: 4 }] }],
     spawns: [{ x: -T, y: 1.5 * T }],
     objectives: [{ x: 16 * T, y: 8.5 * T }],
@@ -141,7 +141,7 @@ export const MAPS: MapData[] = [
     backgroundType: "desert",
     backgroundImage: "/images/maps/medium_merge.png",
     shopTiles: [{ x: 2, y: 5 }],
-    rarityTiles: [{ x: 12, y: 0 }],
+    contestTiles: [{ x: 12, y: 0 }],
     teraTiles: [{ type: "water", spots: [{ x: 9, y: 3 }, { x: 3, y: 3 }, { x: 9, y: 5 }] }],
     spawns: [
       { x: -T, y: 2.5 * T },
@@ -179,7 +179,7 @@ export const MAPS: MapData[] = [
     backgroundType: "grass",
     backgroundImage: "/images/maps/hard_straight_wide.png",
     shopTiles: [{ x: 12, y: 9 }],
-    rarityTiles: [{ x: 2, y: 0 }],
+    contestTiles: [{ x: 2, y: 0 }],
     teraTiles: [
       { type: "fire", spots: [{ x: 8, y: 2 }, { x: 4, y: 2 }, { x: 11, y: 2 }] },
       { type: "grass", spots: [{ x: 8, y: 6 }, { x: 4, y: 6 }, { x: 11, y: 6 }] },
@@ -224,7 +224,7 @@ export const MAPS: MapData[] = [
     backgroundType: "snow",
     backgroundImage: "/images/maps/hard_dual_path.png",
     shopTiles: [{ x: 7, y: 4 }],
-    rarityTiles: [{ x: 7, y: 5 }],
+    contestTiles: [{ x: 7, y: 5 }],
     teraTiles: [
       { type: "fire", spots: [{ x: 8, y: 2 }, { x: 4, y: 2 }, { x: 11, y: 2 }] },
       { type: "ice", spots: [{ x: 8, y: 7 }, { x: 4, y: 7 }, { x: 11, y: 7 }] },
@@ -263,7 +263,7 @@ export const MAPS: MapData[] = [
     backgroundType: "cave",
     backgroundImage: "/images/maps/extreme_central.png",
     shopTiles: [{ x: 11, y: 7 }],
-    rarityTiles: [{ x: 3, y: 2 }],
+    contestTiles: [{ x: 3, y: 2 }],
     teraTiles: [
       { type: "fighting", spots: [{ x: 5, y: 3 }, { x: 3, y: 5 }, { x: 11, y: 5 }] },
       { type: "fighting", spots: [{ x: 9, y: 5 }, { x: 11, y: 3 }, { x: 5, y: 5 }] },

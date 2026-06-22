@@ -5,7 +5,7 @@ import { GameMove, MoveEffect } from '../types/game';
 
 const API_BASE = 'https://pokeapi.co/api/v2';
 
-// 레어도 랭크(0=Bronze … 5=Legend) — 가중치로 역산. 레어도 칸 부스트에 사용.
+// 레어도 랭크(0=Bronze … 5=Legend) — 가중치로 역산. 콘테스트 홀 부스트에 사용.
 const RARITY_ORDER: Rarity[] = ['Bronze', 'Silver', 'Gold', 'Diamond', 'Master', 'Legend'];
 const WEIGHT_TO_RANK: Record<number, number> = Object.fromEntries(
   RARITY_ORDER.map((r, i) => [RARITY_WEIGHTS[r], i])
@@ -367,7 +367,7 @@ class PokeAPIService {
     );
   }
 
-  // rarityBoost>0이면 고레어(높은 랭크) 가중치를 끌어올린다(레어도 칸). 0이면 기본 분포.
+  // rarityBoost>0이면 고레어(높은 랭크) 가중치를 끌어올린다(콘테스트 홀). 0이면 기본 분포.
   async getRandomPokemonIdWithRarity(rarityBoost = 0): Promise<number> {
     if (this.weightedPokemonList.length === 0) {
       await this.preloadRarities();

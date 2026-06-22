@@ -479,7 +479,7 @@ export const GameCanvas: React.FC = () => {
   const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [hoveredTower, setHoveredTower] = useState<GamePokemon | null>(null);
-  const [hoveredTile, setHoveredTile] = useState<{ kind: 'tera' | 'shop' | 'rarity'; type?: string } | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<{ kind: 'tera' | 'shop' | 'contest'; type?: string } | null>(null);
   const [repositionMode, setRepositionMode] = useState(false);
   const [selectedTowerForReposition, setSelectedTowerForReposition] = useState<GamePokemon | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
@@ -624,8 +624,8 @@ export const GameCanvas: React.FC = () => {
           const tx = Math.floor(pos.x / TILE_SIZE), ty = Math.floor(pos.y / TILE_SIZE);
           const tera = activeTera.find(t => t.x === tx && t.y === ty);
           const shop = (map?.shopTiles ?? []).some(s => s.x === tx && s.y === ty);
-          const rarity = (map?.rarityTiles ?? []).some(s => s.x === tx && s.y === ty);
-          setHoveredTile(tera ? { kind: 'tera', type: tera.type } : shop ? { kind: 'shop' } : rarity ? { kind: 'rarity' } : null);
+          const contest = (map?.contestTiles ?? []).some(s => s.x === tx && s.y === ty);
+          setHoveredTile(tera ? { kind: 'tera', type: tera.type } : shop ? { kind: 'shop' } : contest ? { kind: 'contest' } : null);
         } else {
           setHoveredTile(null);
         }
@@ -875,26 +875,26 @@ export const GameCanvas: React.FC = () => {
     });
   }, [map, towers]);
 
-  // ─── 레어도 칸 ─────────────────────────────────────────────────────────────
-  const rarityTileNodes = React.useMemo(() => {
-    const tiles = map?.rarityTiles ?? [];
+  // ─── 콘테스트 홀 타일 ──────────────────────────────────────────────────────
+  const contestTileNodes = React.useMemo(() => {
+    const tiles = map?.contestTiles ?? [];
     if (tiles.length === 0) return null;
-    const RAR = '#b06fe0';
+    const CON = '#e070b0';
     return tiles.map((tile, i) => {
       const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
       const scout = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
       const waves = scout?.shopWavesHeld ?? 0;
       const tier = shopTier(waves);
-      const label = !scout ? '' : tier === 0 ? `탐색 ${wavesToNextTier(waves)}` : `레어↑ Lv${tier}`;
+      const label = !scout ? '' : tier === 0 ? `준비 ${wavesToNextTier(waves)}` : `콘테스트 Lv${tier}`;
       return (
-        <Group key={`rarity-${i}`}>
-          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={RAR} opacity={0.1} cornerRadius={8} />
+        <Group key={`contest-${i}`}>
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={CON} opacity={0.1} cornerRadius={8} />
           <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
-            stroke={RAR} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
-          <Text text="✨" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
+            stroke={CON} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Text text="🎀" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
           {label && (
             <Text text={label} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
-              fill={tier === 0 ? '#d8b8ff' : '#eaccff'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
+              fill={tier === 0 ? '#ffc0e0' : '#ffd6ec'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
           )}
         </Group>
       );
@@ -966,11 +966,11 @@ export const GameCanvas: React.FC = () => {
             </>
           ) : (
             <>
-              <TooltipTitle style={{ color: '#c79bf0' }}>✨ 레어도 칸</TooltipTitle>
+              <TooltipTitle style={{ color: '#f0a0d0' }}>🎀 콘테스트 홀</TooltipTitle>
               <TooltipStats>
-                <TooltipStatRow>포켓몬을 올려두면 상점에 고레어가 더 잘 나와요</TooltipStatRow>
+                <TooltipStatRow>포켓몬을 콘테스트에 내보내면 상점에 고레어가 더 잘 나와요</TooltipStatRow>
                 <TooltipStatRow>누적 5 / 10 / 15웨이브 → 확률 조금씩↑</TooltipStatRow>
-                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 올라간 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 출전 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
               </TooltipStats>
             </>
           )}
@@ -1004,8 +1004,8 @@ export const GameCanvas: React.FC = () => {
             {/* 프렌들리숍 타일 */}
             {shopTileNodes}
 
-            {/* 레어도 칸 */}
-            {rarityTileNodes}
+            {/* 콘테스트 홀 타일 */}
+            {contestTileNodes}
 
             {placementOverlay}
 
@@ -1143,7 +1143,7 @@ export const GameCanvas: React.FC = () => {
         if (!tower) return null;
         const tTx = Math.floor(tower.position.x / TILE_SIZE), tTy = Math.floor(tower.position.y / TILE_SIZE);
         const isClerk = (map?.shopTiles ?? []).some(s => s.x === tTx && s.y === tTy);
-        const isScout = (map?.rarityTiles ?? []).some(s => s.x === tTx && s.y === tTy);
+        const isScout = (map?.contestTiles ?? []).some(s => s.x === tTx && s.y === tTy);
         const waves = tower.shopWavesHeld ?? 0;
         const tier = (isClerk || isScout) ? shopTier(waves) : 0;
         const buyable = isClerk && tier > 0 ? buyableHeldItems(tier) : [];
@@ -1161,21 +1161,21 @@ export const GameCanvas: React.FC = () => {
           <ShopOverlay onClick={close}>
             <ShopModal onClick={e => e.stopPropagation()}>
               <ShopHeader>
-                <h3>{isClerk ? '🏪 프렌들리숍' : isScout ? '✨ 레어도 칸' : '🎒 지닌 도구'}</h3>
+                <h3>{isClerk ? '🏪 프렌들리숍' : isScout ? '🎀 콘테스트 홀' : '🎒 지닌 도구'}</h3>
                 <ShopCloseBtn onClick={close}>✕</ShopCloseBtn>
               </ShopHeader>
               <ShopSub>
                 <b>{tower.displayName}</b>
                 {isClerk && <ShopGradeBadge>{tier > 0 ? `영업 Lv.${tier}` : '알바 중'}</ShopGradeBadge>}
-                {isScout && <ShopGradeBadge>{tier > 0 ? `레어↑ Lv.${tier}` : '탐색 중'}</ShopGradeBadge>}
+                {isScout && <ShopGradeBadge>{tier > 0 ? `콘테스트 Lv.${tier}` : '준비 중'}</ShopGradeBadge>}
                 <span style={{ marginLeft: 8, color: '#f0b840' }}>💰 {money}원</span>
               </ShopSub>
 
-              {/* 레어도 칸 상태 */}
+              {/* 콘테스트 홀 상태 */}
               {isScout && (
                 tier === 0
-                  ? <ShopLockNote>🔬 탐색 중 — 효과 발동까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
-                  : <ShopGradeNote>누적 {waves}웨이브 근무 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).</ShopGradeNote>
+                  ? <ShopLockNote>🎀 준비 중 — 콘테스트 입상까지 <b>{wavesToNextTier(waves)}</b>웨이브. (출전 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                  : <ShopGradeNote>누적 {waves}웨이브 출전 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).</ShopGradeNote>
               )}
 
               {/* 상점 (점원만) */}

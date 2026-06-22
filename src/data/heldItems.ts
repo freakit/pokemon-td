@@ -46,7 +46,7 @@ export const wavesToNextTier = (waves: number): number => {
 export const buyableHeldItems = (tier: number): HeldItemDef[] =>
   HELD_ITEMS.filter(h => h.grade <= tier);
 
-// 레어도 칸: 근무 누적 웨이브 → 고레어 가중 부스트(조금씩). 5/10/15웨이브 = 약/중/강.
+// 콘테스트 홀: 근무 누적 웨이브 → 고레어 가중 부스트(조금씩). 5/10/15웨이브 = 약/중/강.
 export const rarityBoostFromWaves = (waves: number): number =>
   waves >= 15 ? 1.5 : waves >= 10 ? 0.8 : waves >= 5 ? 0.3 : 0;
 

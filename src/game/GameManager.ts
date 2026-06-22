@@ -41,10 +41,10 @@ export class GameManager {
   private _nextId = 0;
   private nextId(): number { return ++this._nextId; }
 
-  // 알바 칸(프렌들리숍 ∪ 레어도) 점유 여부 — 공격·경험치 차단에 사용.
+  // 알바 칸(프렌들리숍 ∪ 콘테스트 홀) 점유 여부 — 공격·경험치 차단에 사용.
   private isOnWorkTile(tw: GamePokemon, currentMap: string): boolean {
     const map = getMapById(currentMap);
-    const tiles = [...(map?.shopTiles ?? []), ...(map?.rarityTiles ?? [])];
+    const tiles = [...(map?.shopTiles ?? []), ...(map?.contestTiles ?? [])];
     const tx = Math.floor(tw.position.x / 64), ty = Math.floor(tw.position.y / 64);
     return tiles.some(s => s.x === tx && s.y === ty);
   }
@@ -405,7 +405,7 @@ export class GameManager {
 
   private updateTowers(dt: number) {
     const { towers, enemies, updateTower, currentMap } = useGameStore.getState();
-    // 알바 포켓몬(프렌들리숍·레어도 칸 점유)은 근무 중이라 공격하지 않는다.
+    // 알바 포켓몬(프렌들리숍·콘테스트 홀 점유)은 근무 중이라 공격하지 않는다.
     const isWorking = (tw: GamePokemon) => this.isOnWorkTile(tw, currentMap);
     towers.forEach(tower => {
       if (tower.currentHp <= 0 && !tower.isFainted) {
@@ -682,7 +682,7 @@ export class GameManager {
     useGameStore.setState(state => ({ combo: state.combo + 1 }));
 
     // [BUG-1 FIX] isFainted 타워는 XP 지급 제외(쓰러진 상태 레벨업 방지).
-    // 알바 포켓몬(숍·레어도 칸)도 근무 중이라 경험치를 받지 않는다.
+    // 알바 포켓몬(숍·콘테스트 홀)도 근무 중이라 경험치를 받지 않는다.
     const xpAmount = enemy.isBoss ? 50 : 10;
     const curMap = useGameStore.getState().currentMap;
     useGameStore.getState().towers
@@ -760,7 +760,7 @@ export class GameManager {
 
       healAllTowers();
 
-      // [알바] 프렌들리숍·레어도 칸에 올라간 타워의 누적 근무 웨이브 +1 → 상점 등급/레어도 부스트 해금
+      // [알바] 프렌들리숍·콘테스트 홀에 올라간 타워의 누적 근무 웨이브 +1 → 상점 등급/레어도 부스트 해금
       for (const tw of towers) {
         if (this.isOnWorkTile(tw, currentMap)) {
           useGameStore.getState().updateTower(tw.id, { shopWavesHeld: (tw.shopWavesHeld ?? 0) + 1 });

@@ -126,11 +126,11 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
       ids = shuffled.slice(0, 3);
     } else {
       // ── 일반 모드: 기존 랜덤 가중치 방식 ─────────────────────────────────
-      // 레어도 칸에 포켓몬을 올려뒀으면 근무 누적 웨이브만큼 고레어 등장 확률을 끌어올린다.
+      // 콘테스트 홀에 포켓몬을 내보냈으면 근무 누적 웨이브만큼 고레어 등장 확률을 끌어올린다.
       const st = useGameStore.getState();
-      const rarityTiles = getMapById(st.currentMap)?.rarityTiles ?? [];
+      const contestTiles = getMapById(st.currentMap)?.contestTiles ?? [];
       const scout = st.towers.find(t =>
-        rarityTiles.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)));
+        contestTiles.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)));
       const boost = scout ? rarityBoostFromWaves(scout.shopWavesHeld ?? 0) : 0;
       const [id1, id2, id3] = await Promise.all([
         pokeAPI.getRandomPokemonIdWithRarity(boost),

@@ -148,6 +148,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   sellTower: (id) => {
+    // 웨이브 진행 중에는 어떤 포켓몬도 보드에서 뺄 수 없다(재배치 잠금과 일관).
+    if (get().isWaveActive) return false;
     const tower = get().towers.find(t => t.id === id);
     if (!tower) return false;
     const sellPrice = tower.level * 20;

@@ -94,8 +94,8 @@ export interface MapData {
   teraTiles?: { type: string; spots: { x: number; y: number }[] }[];
   /** 프렌들리숍 타일: 포켓몬에게 알바를 시키면(올려두면) 웨이브 누적으로 상점 등급↑, 지닌도구 구매. */
   shopTiles?: { x: number; y: number }[];
-  /** 레어도 칸: 포켓몬을 올려두면 근무 웨이브 누적으로 포켓몬 상점의 고레어 등장 확률↑. */
-  rarityTiles?: { x: number; y: number }[];
+  /** 콘테스트 홀 타일: 포켓몬을 올려 콘테스트에 내보내면 근무 웨이브 누적으로 포켓몬 상점의 고레어 등장 확률↑. */
+  contestTiles?: { x: number; y: number }[];
   /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
   objectiveKeepout?: boolean;
 }

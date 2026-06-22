@@ -30,16 +30,18 @@ const getGenderColor = (gender: Gender) => {
 
 export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
-  const { towers, sellTower, fusePokemon, money } = useGameStore(state => ({
+  const { towers, sellTower, fusePokemon, money, isWaveActive } = useGameStore(state => ({
     towers: state.towers,
     sellTower: state.sellTower,
     fusePokemon: state.fusePokemon,
     money: state.money,
+    isWaveActive: state.isWaveActive,
   }));
   const [fusionMode, setFusionMode] = useState(false);
   const [selectedBase, setSelectedBase] = useState<string | null>(null);
 
   const handleSell = (towerId: string, towerDisplayName: string, level: number) => {
+    if (isWaveActive) { alert('웨이브 진행 중에는 판매할 수 없습니다.'); return; }
     const sellPrice = level * 20;
     const confirmed = window.confirm(
       t('alerts.confirmSell', { name: towerDisplayName, level: level, price: sellPrice })
