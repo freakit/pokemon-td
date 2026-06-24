@@ -32,7 +32,7 @@ export interface LeaderboardEntry {
   rating: number;
 }
 
-export type AIDifficulty = 'easy' | 'normal' | 'hard';
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface Room {
   id: string;

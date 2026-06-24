@@ -165,7 +165,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
                 <MatchVS>VS</MatchVS>
                 <MatchResult><Emoji glyph={!p1Won ? '🏆' : '💀'} size={16} /></MatchResult>
                 <MatchPlayerName $winner={!p1Won}>{getPlayerName(result.player2Id)}</MatchPlayerName>
-                <MatchStats>{result.player1RemainingPokemon} vs {result.player2RemainingPokemon}{'\n'}생존</MatchStats>
+                <MatchStats>{result.player1RemainingPokemon} vs {result.player2RemainingPokemon}{'\n'}{t('arena.survived')}</MatchStats>
               </SummaryMatchCard>
             );
           })}

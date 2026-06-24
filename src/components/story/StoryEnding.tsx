@@ -40,7 +40,7 @@ const BG_IMAGES: Record<string, string> = {
 
 export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete }) => {
   const lines = chapter.endingDialogue;
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const [lineIdx, setLineIdx] = useState(0);
   const [displayed, setDisplayed] = useState('');
   const [typing, setTyping] = useState(false);
@@ -166,8 +166,8 @@ export const StoryEnding: React.FC<StoryEndingProps> = ({ chapter, onComplete })
             ))}
             <AdvanceCue $visible={!typing}>
               {isLastLine
-                ? (chapter.chapterNumber < 8 ? '다음 챕터 해금 ▶' : '완결 ▶')
-                : '다음 ▶'}
+                ? (chapter.chapterNumber < 8 ? t('storyUI.unlockNext') : t('storyUI.finale'))
+                : t('storyUI.next')}
             </AdvanceCue>
           </ProgressRow>
         </TextBox>

@@ -62,7 +62,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
   chapter, onComplete, onSkip,
 }) => {
   const lines = chapter.openingDialogue;
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   const [loading, setLoading]         = useState(true);
   const [loadProgress, setLoadProgress] = useState(0);
   const [phase, setPhase]             = useState<'title' | 'dialogue' | 'done'>('title');
@@ -189,7 +189,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
           <LoadingBarWrap>
             <LoadingBarFill $pct={loadProgress} $accent={chapter.theme.primary} />
           </LoadingBarWrap>
-          <LoadingText>이미지 로딩 중... {loadProgress}%</LoadingText>
+          <LoadingText>{t('storyUI.loadingImages', { progress: loadProgress })}</LoadingText>
         </LoadingContent>
       </LoadingRoot>
     );
@@ -217,7 +217,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
           <TitleChNum>CHAPTER {String(chapter.chapterNumber).padStart(2, '0')}</TitleChNum>
           <TitleName $accent={chapter.theme.primary}>{language === 'en' && chapter.titleEn ? chapter.titleEn : chapter.title}</TitleName>
           <TitleSub>{language === 'en' && chapter.subtitleEn ? chapter.subtitleEn : chapter.subtitle}</TitleSub>
-          <TitleCue>클릭 또는 스페이스바로 계속</TitleCue>
+          <TitleCue>{t('storyUI.clickToContinue')}</TitleCue>
         </TitleScreen>
       )}
 
@@ -251,7 +251,7 @@ export const StoryOpening: React.FC<StoryOpeningProps> = ({
               ))}
               {/* [FIX-2] 타이핑 중일 때는 ▶ 힌트 숨김 — 클릭 유도 없이 완료 후 표시 */}
               <AdvanceCue $visible={!typing}>
-                {lineIdx < lines.length - 1 ? '다음 ▶' : '시작 ▶'}
+                {lineIdx < lines.length - 1 ? t('storyUI.next') : t('storyUI.begin')}
               </AdvanceCue>
             </ProgressRow>
           </TextBox>

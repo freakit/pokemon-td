@@ -114,7 +114,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </BugReportButton>
 
         <DangerZone>
-          <DangerLabel><Emoji glyph="⚠️" size={13} /> 위험 구역</DangerLabel>
+          <DangerLabel><Emoji glyph="⚠️" size={13} /> {t('settings.dangerZone')}</DangerLabel>
           <DangerButton onClick={() => {
             if (confirm(t('alerts.confirmReset'))) {
               saveService.clearSave();

@@ -9,11 +9,10 @@ const DIFFICULTY_MULTIPLIERS: Record<
   { hp: number; attack: number; reward: number }
 > = {
   easiest: { hp: 0.3,  attack: 0.3,  reward: 1.0 },
-  easy:    { hp: 0.6,  attack: 0.6,  reward: 1.0 },
-  medium:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // maps.ts 'medium' 대응
-  normal:  { hp: 0.8,  attack: 0.8,  reward: 1.0 }, // gameStore 기본값 대응
-  hard:    { hp: 1.0,  attack: 1.0,  reward: 1.0 },
-  expert:  { hp: 1.2,  attack: 1.2,  reward: 1.0 },
+  easy:    { hp: 0.5,  attack: 0.5,  reward: 1.0 },
+  medium:  { hp: 0.7,  attack: 0.7,  reward: 1.0 }, // maps.ts 'medium' 대응
+  hard:    { hp: 0.9,  attack: 0.9,  reward: 1.0 },
+  expert:  { hp: 1.1,  attack: 1.1,  reward: 1.0 },
 };
 
 // ─── 스토리 모드 챕터별 난이도 배율 ────────────────────────────────────────────
@@ -111,7 +110,7 @@ export class WaveSystem {
     const { storyChapterNumber } = useGameStore.getState();
     const mult = (storyChapterNumber !== null && STORY_CHAPTER_MULTIPLIERS[storyChapterNumber])
       ? STORY_CHAPTER_MULTIPLIERS[storyChapterNumber]
-      : (DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['normal']);
+      : (DIFFICULTY_MULTIPLIERS[map.difficulty] ?? DIFFICULTY_MULTIPLIERS['medium']);
     const count = this.getEnemyCount(wave);
     const pathsToUse = map.paths;
 

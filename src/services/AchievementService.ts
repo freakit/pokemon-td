@@ -201,6 +201,14 @@ class AchievementService {
     saveService.updateAchievement('all_maps', 1);
   }
 
+  // ─── 스토리 업적 ──────────────────────────────────────────────────────
+  /** 스토리 챕터(1~8) 클리어 시 호출. 챕터별 업적 1개씩 달성. */
+  onStoryClear(chapterNumber: number) {
+    if (chapterNumber >= 1 && chapterNumber <= 8) {
+      saveService.updateAchievement(`story_ch${chapterNumber}`, 1);
+    }
+  }
+
 
   // ─── 멀티플레이 업적 ──────────────────────────────────────────────────
 

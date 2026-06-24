@@ -50,7 +50,7 @@ const StarRating: React.FC<{ stars: number; max?: number }> = ({
 
 export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
   const navigate = useNavigate();
-  const { language } = useTranslation();
+  const { t, language } = useTranslation();
   // 언어별 챕터 텍스트 헬퍼 (En 없으면 Ko 폴백)
   const chTitle = (c: StoryChapter) => (language === 'en' && c.titleEn ? c.titleEn : c.title);
   const chSub = (c: StoryChapter) => (language === 'en' && c.subtitleEn ? c.subtitleEn : c.subtitle);
@@ -160,12 +160,12 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
           {selectedProgress?.cleared && (
             <RecordBox>
               <RecordRow>
-                <RecordLabel>클리어 등급</RecordLabel>
+                <RecordLabel>{t('storyUI.clearGrade')}</RecordLabel>
                 <StarRating stars={selectedProgress.stars} />
               </RecordRow>
               {selectedProgress.bestWave > 0 && (
                 <RecordRow>
-                  <RecordLabel>최고 웨이브</RecordLabel>
+                  <RecordLabel>{t('storyUI.highestWave')}</RecordLabel>
                   <RecordVal>Wave {selectedProgress.bestWave}</RecordVal>
                 </RecordRow>
               )}
@@ -173,7 +173,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
           )}
 
           <Section>
-            <SectionLabel>등장 포켓몬 (상점 우선)</SectionLabel>
+            <SectionLabel>{t('storyUI.appearPokemon')}</SectionLabel>
             <SpriteRow>
               {selected.heroPool.slice(0, 6).map((id) => (
                 <HeroSprite
@@ -187,7 +187,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
           </Section>
 
           <Section>
-            <SectionLabel>체육관 타입</SectionLabel>
+            <SectionLabel>{t('storyUI.gymType')}</SectionLabel>
             <TypeBadgeRow>
               {selected.enemyTypes.map((t) => (
                 <TypeBadge key={t} $type={t}>
@@ -200,16 +200,14 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
           {selected.bossName && (
             <Section>
               <SectionLabel>
-                {language === 'en'
-                  ? `Boss (Appears at Wave ${selected.bossWave})`
-                  : `보스 (${selected.bossWave} 웨이브에 등장)`}
+                {t('storyUI.bossAppears', { wave: selected.bossWave })}
               </SectionLabel>
               <BossName>{selected.bossName}</BossName>
             </Section>
           )}
 
           <Section>
-            <SectionLabel>오프닝 미리보기</SectionLabel>
+            <SectionLabel>{t('storyUI.openingPreview')}</SectionLabel>
             <PreviewDialogue>
               <PreviewSpeaker>{selected.openingDialogue[0].speaker}</PreviewSpeaker>
               <PreviewText>
@@ -223,14 +221,14 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
 
         <DetailFooter>
           <StartBtn onClick={handleStart} $accent={selected.theme.primary}>
-            {selectedProgress?.cleared ? '▶ 다시 플레이' : '▶ 시작하기'}
+            {selectedProgress?.cleared ? t('storyUI.replay') : t('storyUI.start')}
           </StartBtn>
         </DetailFooter>
       </>
     ) : (
       <EmptyDetail>
         <EmptyIcon><Emoji glyph="⚔" size={28} /></EmptyIcon>
-        <EmptyText>챕터를 선택하세요</EmptyText>
+        <EmptyText>{t('storyUI.selectChapter')}</EmptyText>
         <EmptyHint>{language === 'en' ? 'Reclaim Johto\'s 8 gyms with underdogs' : '약캐로 성도 8체육관을 탈환하라'}</EmptyHint>
       </EmptyDetail>
     );
@@ -245,7 +243,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
       </ParticleLayer>
 
       <Header $visible={!showIntro}>
-        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
+        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> {t('common.back')}</span></BackBtn>
         <HeaderCenter>
           <AegisLabel>POKEMON AEGIS</AegisLabel>
           <PageTitle>{language === 'en' ? 'Johto, Where People Vanished' : '사람이 사라진 성도지방'}</PageTitle>
@@ -254,7 +252,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
         <ProgressSummary>
           <ProgressStat>
             <ProgressNum>{clearedCount}</ProgressNum>
-            <ProgressLabel>/ {AEGIS_STORY_CHAPTERS.length} 클리어</ProgressLabel>
+            <ProgressLabel>{t('storyUI.clearedCount', { total: AEGIS_STORY_CHAPTERS.length })}</ProgressLabel>
           </ProgressStat>
           <ProgressStat>
             <ProgressNum>{totalStars}</ProgressNum>
@@ -295,7 +293,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
                 tabIndex={unlocked ? 0 : -1}
                 onKeyDown={(e) => e.key === 'Enter' && handleSelect(idx)}
                 role="button"
-                aria-label={`챕터 ${ch.chapterNumber}: ${ch.title}`}
+                aria-label={t('storyUI.chapterAria', { n: ch.chapterNumber, title: ch.title })}
                 aria-disabled={!unlocked}
               >
                 {/* Map thumbnail */}

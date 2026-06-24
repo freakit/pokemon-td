@@ -763,7 +763,22 @@ export class GameManager {
       // [알바] 프렌들리숍·콘테스트 홀에 올라간 타워의 누적 근무 웨이브 +1 → 상점 등급/레어도 부스트 해금
       for (const tw of towers) {
         if (this.isOnWorkTile(tw, currentMap)) {
-          useGameStore.getState().updateTower(tw.id, { shopWavesHeld: (tw.shopWavesHeld ?? 0) + 1 });
+          const nextWaves = (tw.shopWavesHeld ?? 0) + 1;
+          useGameStore.getState().updateTower(tw.id, { shopWavesHeld: nextWaves });
+
+          if (!isMultiplayer && nextWaves > 0 && nextWaves % 5 === 0) {
+            const fac = getFacilityTiles(getMapById(currentMap));
+            const tx = Math.floor(tw.position.x / 64);
+            const ty = Math.floor(tw.position.y / 64);
+            const isClerk = fac.shopTiles.some(s => s.x === tx && s.y === ty);
+
+            useGameStore.getState().addClerkOrScoutPrompt({
+              towerId: tw.id,
+              waves: nextWaves,
+              pokemonName: tw.displayName,
+              facilityKey: isClerk ? 'shop' : 'contest'
+            });
+          }
         }
       }
 

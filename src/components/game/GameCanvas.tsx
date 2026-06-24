@@ -75,13 +75,7 @@ const TYPE_COLORS: Record<string, string> = {
   steel: '#B8B8D0', fairy: '#EE99AC',
 };
 const typeColor = (t?: string) => (t && TYPE_COLORS[t]) || '#dddddd';
-const TYPE_LABEL_KO: Record<string, string> = {
-  normal: '노말', fire: '불꽃', water: '물', electric: '전기', grass: '풀',
-  ice: '얼음', fighting: '격투', poison: '독', ground: '땅', flying: '비행',
-  psychic: '에스퍼', bug: '벌레', rock: '바위', ghost: '고스트', dragon: '드래곤',
-  dark: '악', steel: '강철', fairy: '페어리',
-};
-const typeLabelKo = (t?: string) => (t && TYPE_LABEL_KO[t]) || t || '';
+// 타입 한글/영문 라벨은 i18n(types.*)으로 처리한다 → 컴포넌트 내 typeLabel() 헬퍼 사용.
 
 // ─── 포켓몬 이미지 렌더링 헬퍼 ───────────────────────────────────────────────
 const PokemonImage: React.FC<{
@@ -503,6 +497,11 @@ export const GameCanvas: React.FC = () => {
   // 시설(프렌들리숍·콘테스트 홀) = 길에서 가장 먼 칸 자동 계산
   const facility = React.useMemo(() => getFacilityTiles(map), [map]);
 
+  // ── i18n 헬퍼 ──────────────────────────────────────────────────────────────
+  const typeLabel = (ty?: string) => (ty ? t(`types.${ty}`) : '');
+  const heldName = (id?: string) => { const it = getHeldItem(id); return it ? t(`heldItems.${it.id}.name`) : ''; };
+  const heldDesc = (id?: string) => { const it = getHeldItem(id); return it ? t(`heldItems.${it.id}.desc`) : ''; };
+
   // 테라스탈 타일 점유 동기화: 타워가 (현재 활성) teraTile 위에 있으면 teraType 세팅, 벗어나면 해제.
   useEffect(() => {
     const updateTower = useGameStore.getState().updateTower;
@@ -726,11 +725,21 @@ export const GameCanvas: React.FC = () => {
     const snappedY = Math.floor(pos.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
 
     if (repositionMode && !pokemonToPlace) {
+      const isOnWork = (tw: GamePokemon) => {
+        const tx = Math.floor(tw.position.x / TILE_SIZE), ty = Math.floor(tw.position.y / TILE_SIZE);
+        const workTiles = [...facility.shopTiles, ...facility.contestTiles];
+        return workTiles.some(s => s.x === tx && s.y === ty);
+      };
+
       if (selectedTowerForReposition) {
         const A = selectedTowerForReposition;
         // 클릭 칸에 다른 타워(B)가 있으면 A·B 위치 교환
         const B = towers.find(t => t.id !== A.id && Math.floor(t.position.x / TILE_SIZE) === Math.floor(snappedX / TILE_SIZE) && Math.floor(t.position.y / TILE_SIZE) === Math.floor(snappedY / TILE_SIZE));
         if (B) {
+          if (isOnWork(A) || isOnWork(B)) {
+            alert(t('facility.alertCannotMoveSwap'));
+            return;
+          }
           const updateTower = useGameStore.getState().updateTower;
           updateTower(A.id, { position: { x: B.position.x, y: B.position.y } });
           updateTower(B.id, { position: { x: A.position.x, y: A.position.y } });
@@ -738,11 +747,19 @@ export const GameCanvas: React.FC = () => {
           return;
         }
         if (!isValidPlacement(snappedX, snappedY, A.id)) { alert(t('alerts.cannotPlaceHere')); return; }
+        if (isOnWork(A)) {
+          alert(t('facility.alertCannotMove'));
+          return;
+        }
         useGameStore.getState().updateTower(A.id, { position: { x: snappedX, y: snappedY } });
         setSelectedTowerForReposition(null);
       } else {
         const clicked = towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32);
         if (clicked) {
+          if (isOnWork(clicked)) {
+            alert(t('facility.alertCannotSelect'));
+            return;
+          }
           setSelectedTowerForReposition(clicked);
           const img = new window.Image(); img.src = clicked.sprite; img.crossOrigin = "Anonymous"; img.onload = () => setPlacementImage(img);
         }
@@ -863,7 +880,7 @@ export const GameCanvas: React.FC = () => {
       const clerk = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
       const waves = clerk?.shopWavesHeld ?? 0;
       const tier = shopTier(waves);
-      const label = !clerk ? '' : tier === 0 ? `알바 ${wavesToNextTier(waves)}` : `영업 Lv${tier}`;
+      const label = !clerk ? '' : tier === 0 ? t('facility.tileWorking', { n: wavesToNextTier(waves) }) : t('facility.tileOpen', { n: tier });
       return (
         <Group key={`shop-${i}`}>
           <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={SHOP} opacity={0.1} cornerRadius={8} />
@@ -889,7 +906,7 @@ export const GameCanvas: React.FC = () => {
       const scout = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
       const waves = scout?.shopWavesHeld ?? 0;
       const tier = shopTier(waves);
-      const label = !scout ? '' : tier === 0 ? `준비 ${wavesToNextTier(waves)}` : `콘테스트 Lv${tier}`;
+      const label = !scout ? '' : tier === 0 ? t('facility.tileContestPrep', { n: wavesToNextTier(waves) }) : t('facility.tileContest', { n: tier });
       return (
         <Group key={`contest-${i}`}>
           <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={CON} opacity={0.1} cornerRadius={8} />
@@ -930,15 +947,15 @@ export const GameCanvas: React.FC = () => {
             {hoveredTower.equippedMoves[0] && <TooltipMove><Emoji glyph="⚔️" size={12} /> {hoveredTower.equippedMoves[0].displayName} ({hoveredTower.equippedMoves[0].power})</TooltipMove>}
             {hoveredTower.teraType && (
               <TooltipMove style={{ color: typeColor(hoveredTower.teraType) }}>
-                <Emoji glyph="💎" size={12} /> 테라스탈: {typeLabelKo(hoveredTower.teraType)}
+                <Emoji glyph="💎" size={12} /> {t('facility.teraInline', { type: typeLabel(hoveredTower.teraType) })}
                 {hoveredTower.equippedMoves.some(m => m.type === hoveredTower.teraType)
-                  ? ' (자속 발동)'
-                  : ' (방어 변환)'}
+                  ? ` ${t('facility.teraStabOn')}`
+                  : ` ${t('facility.teraDefConv')}`}
               </TooltipMove>
             )}
             {hoveredTower.heldItem && getHeldItem(hoveredTower.heldItem) && (
               <TooltipMove style={{ color: '#f0b840' }}>
-                <Emoji glyph={getHeldItem(hoveredTower.heldItem)!.icon} size={12} /> {getHeldItem(hoveredTower.heldItem)!.name}
+                <Emoji glyph={getHeldItem(hoveredTower.heldItem)!.icon} size={12} /> {heldName(hoveredTower.heldItem)}
               </TooltipMove>
             )}
           </TooltipStats>
@@ -952,29 +969,29 @@ export const GameCanvas: React.FC = () => {
           : { left: `${mousePos.x * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }}>
           {hoveredTile.kind === 'tera' ? (
             <>
-              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}><Emoji glyph="💎" size={13} /> 테라스탈 타일</TooltipTitle>
+              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}><Emoji glyph="💎" size={13} /> {t('facility.teraTileTitle')}</TooltipTitle>
               <TooltipStats>
-                <TooltipStatRow>올라간 포켓몬이 <b style={{ color: typeColor(hoveredTile.type) }}>{typeLabelKo(hoveredTile.type)}</b> 타입으로 변환</TooltipStatRow>
-                <TooltipStatRow>같은 타입 기술이면 자속↑, 방어 상성도 변환</TooltipStatRow>
-                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 위치는 5웨이브마다 이동해요</TooltipStatRow>
+                <TooltipStatRow>{t('facility.teraTileL1', { type: typeLabel(hoveredTile.type) })}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.teraTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.teraTileL3')}</TooltipStatRow>
               </TooltipStats>
             </>
           ) : hoveredTile.kind === 'shop' ? (
             <>
-              <TooltipTitle style={{ color: '#f0b840' }}><Emoji glyph="🏪" size={13} /> 프렌들리숍 타일</TooltipTitle>
+              <TooltipTitle style={{ color: '#f0b840' }}><Emoji glyph="🏪" size={13} /> {t('facility.shopTileTitle')}</TooltipTitle>
               <TooltipStats>
-                <TooltipStatRow>포켓몬에게 알바를 시키면 도구 상점이 열려요</TooltipStatRow>
-                <TooltipStatRow>누적 5 / 10 / 15웨이브 → Lv1 / 2 / 3 해금</TooltipStatRow>
-                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 알바 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
+                <TooltipStatRow>{t('facility.shopTileL1')}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.shopTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.shopTileL3')}</TooltipStatRow>
               </TooltipStats>
             </>
           ) : (
             <>
-              <TooltipTitle style={{ color: '#f0a0d0' }}><Emoji glyph="🎀" size={13} /> 콘테스트 홀</TooltipTitle>
+              <TooltipTitle style={{ color: '#f0a0d0' }}><Emoji glyph="🎀" size={13} /> {t('facility.contestTileTitle')}</TooltipTitle>
               <TooltipStats>
-                <TooltipStatRow>포켓몬을 콘테스트에 내보내면 상점에 고레어가 더 잘 나와요</TooltipStatRow>
-                <TooltipStatRow>누적 5 / 10 / 15웨이브 → 확률 조금씩↑</TooltipStatRow>
-                <TooltipStatRow style={{ color: '#9fb0c4' }}>※ 출전 포켓몬은 공격·경험치를 받지 않아요</TooltipStatRow>
+                <TooltipStatRow>{t('facility.contestTileL1')}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.contestTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.contestTileL3')}</TooltipStatRow>
               </TooltipStats>
             </>
           )}
@@ -1165,31 +1182,31 @@ export const GameCanvas: React.FC = () => {
           <ShopOverlay onClick={close}>
             <ShopModal onClick={e => e.stopPropagation()}>
               <ShopHeader>
-                <h3><Emoji glyph={isClerk ? '🏪' : isScout ? '🎀' : '🎒'} size={16} /> {isClerk ? '프렌들리숍' : isScout ? '콘테스트 홀' : '지닌 도구'}</h3>
+                <h3><Emoji glyph={isClerk ? '🏪' : isScout ? '🎀' : '🎒'} size={16} /> {isClerk ? t('facility.shop') : isScout ? t('facility.contest') : t('facility.heldItemsTitle')}</h3>
                 <ShopCloseBtn onClick={close}><Emoji glyph="❌" size={14} /></ShopCloseBtn>
               </ShopHeader>
               <ShopSub>
                 <b>{tower.displayName}</b>
-                {isClerk && <ShopGradeBadge>{tier > 0 ? `영업 Lv.${tier}` : '알바 중'}</ShopGradeBadge>}
-                {isScout && <ShopGradeBadge>{tier > 0 ? `콘테스트 Lv.${tier}` : '준비 중'}</ShopGradeBadge>}
-                <span style={{ marginLeft: 8, color: '#f0b840' }}><Emoji glyph="💰" size={13} /> {money}원</span>
+                {isClerk && <ShopGradeBadge>{tier > 0 ? t('facility.badgeOpen', { n: tier }) : t('facility.badgeWorking')}</ShopGradeBadge>}
+                {isScout && <ShopGradeBadge>{tier > 0 ? t('facility.badgeContest', { n: tier }) : t('facility.badgeContestPrep')}</ShopGradeBadge>}
+                <span style={{ marginLeft: 8, color: '#f0b840' }}><Emoji glyph="💰" size={13} /> {money}{t('common.money')}</span>
               </ShopSub>
 
               {/* 콘테스트 홀 상태 */}
               {isScout && (
                 tier === 0
-                  ? <ShopLockNote><Emoji glyph="🎀" size={13} /> 준비 중 — 콘테스트 입상까지 <b>{wavesToNextTier(waves)}</b>웨이브. (출전 포켓몬은 공격·경험치 없음)</ShopLockNote>
-                  : <ShopGradeNote>누적 {waves}웨이브 출전 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).</ShopGradeNote>
+                  ? <ShopLockNote><Emoji glyph="🎀" size={13} /> {t('facility.contestPrepNote', { n: wavesToNextTier(waves) })}</ShopLockNote>
+                  : <ShopGradeNote>{t('facility.contestActiveNote', { waves, tier })}</ShopGradeNote>
               )}
 
               {/* 상점 (점원만) */}
               {isClerk && (
                 <>
                   {tier === 0 ? (
-                    <ShopLockNote><Emoji glyph="🧹" size={13} /> 알바 중 — 상점 개점까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                    <ShopLockNote><Emoji glyph="🧹" size={13} /> {t('facility.shopLockNote', { n: wavesToNextTier(waves) })}</ShopLockNote>
                   ) : (
                     <ShopGradeNote>
-                      누적 알바 {waves}웨이브 · 더 오래 둘수록 등급↑(Lv2:10, Lv3:15웨이브). 산 도구는 보관함에 들어갑니다.
+                      {t('facility.shopGradeNote', { waves })}
                     </ShopGradeNote>
                   )}
                   {buyable.map(item => {
@@ -1198,10 +1215,10 @@ export const GameCanvas: React.FC = () => {
                       <ShopItemRow key={item.id} $locked={poor}>
                         <span className="icon"><Emoji glyph={item.icon} size={20} /></span>
                         <div className="info">
-                          <div className="name">{item.name} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}{item.consumable ? '·1회' : ''}</span></div>
-                          <div className="desc">{item.desc}</div>
+                          <div className="name">{t(`heldItems.${item.id}.name`)} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}{item.consumable ? `·${t('facility.once')}` : ''}</span></div>
+                          <div className="desc">{t(`heldItems.${item.id}.desc`)}</div>
                         </div>
-                        <ShopBuyBtn $disabled={poor} onClick={() => buy(item.id, item.cost)}>{item.cost}원</ShopBuyBtn>
+                        <ShopBuyBtn $disabled={poor} onClick={() => buy(item.id, item.cost)}>{item.cost}{t('common.money')}</ShopBuyBtn>
                       </ShopItemRow>
                     );
                   })}
@@ -1209,22 +1226,22 @@ export const GameCanvas: React.FC = () => {
               )}
 
               {/* 지닌 도구 (장착/교체/회수) */}
-              <ShopSectionTitle>이 포켓몬의 지닌 도구</ShopSectionTitle>
+              <ShopSectionTitle>{t('facility.equippedTitle')}</ShopSectionTitle>
               <ShopItemRow $owned={!!equipped}>
                 <span className="icon">{equipped ? <Emoji glyph={equipped.icon} size={20} /> : '—'}</span>
                 <div className="info">
-                  <div className="name">{equipped ? equipped.name : '장착된 도구 없음'}</div>
-                  <div className="desc">{equipped ? equipped.desc : '보관함에서 장착하세요'}</div>
+                  <div className="name">{equipped ? heldName(equipped.id) : t('facility.noneEquipped')}</div>
+                  <div className="desc">{equipped ? heldDesc(equipped.id) : t('facility.equipHint')}</div>
                 </div>
                 {equipped && (
                   <ShopGhostBtn disabled={!canEquip} style={{ opacity: canEquip ? 1 : 0.4 }}
-                    onClick={() => canEquip && useGameStore.getState().unequipHeldItem(tower.id)}>회수</ShopGhostBtn>
+                    onClick={() => canEquip && useGameStore.getState().unequipHeldItem(tower.id)}>{t('facility.withdraw')}</ShopGhostBtn>
                 )}
               </ShopItemRow>
 
-              <ShopSectionTitle>보관함 {canEquip ? '' : '(장착은 웨이브 사이에만)'}</ShopSectionTitle>
+              <ShopSectionTitle>{t('facility.inventoryTitle')} {canEquip ? '' : t('facility.inventoryWaveOnly')}</ShopSectionTitle>
               {Object.keys(invCounts).length === 0 ? (
-                <ShopGradeNote>보관함이 비어 있습니다. 프렌들리숍에서 도구를 구매하세요.</ShopGradeNote>
+                <ShopGradeNote>{t('facility.inventoryEmpty')}</ShopGradeNote>
               ) : (
                 Object.entries(invCounts).map(([id, n]) => {
                   const it = getHeldItem(id); if (!it) return null;
@@ -1232,11 +1249,11 @@ export const GameCanvas: React.FC = () => {
                     <ShopItemRow key={id}>
                       <span className="icon"><Emoji glyph={it.icon} size={20} /></span>
                       <div className="info">
-                        <div className="name">{it.name} {n > 1 && <span style={{ color: '#7e8da0' }}>×{n}</span>}</div>
-                        <div className="desc">{it.desc}</div>
+                        <div className="name">{heldName(it.id)} {n > 1 && <span style={{ color: '#7e8da0' }}>×{n}</span>}</div>
+                        <div className="desc">{heldDesc(it.id)}</div>
                       </div>
                       <ShopBuyBtn $disabled={!canEquip} onClick={() => canEquip && useGameStore.getState().equipHeldItem(tower.id, id)}>
-                        {tower.heldItem ? '교체' : '장착'}
+                        {tower.heldItem ? t('facility.swap') : t('facility.equip')}
                       </ShopBuyBtn>
                     </ShopItemRow>
                   );
@@ -1308,9 +1325,16 @@ const ShopOverlay = styled.div`
 `;
 const ShopModal = styled.div`
   width: min(440px, 92%); max-height: 86%; overflow-y: auto;
-  background: rgba(28,35,52,0.96);
-  border: 1px solid rgba(224,160,48,0.3); border-radius: 14px;
-  padding: 16px 18px; color: #e8edf3; box-shadow: 0 10px 28px rgba(0,0,0,0.38);
+  /* 공유 modal.styles 디자인 토큰에 맞춤 (배경 그라디언트 + 상단 골드 액센트 바) */
+  background: linear-gradient(160deg, #0d1117 0%, #080c14 100%);
+  border: 1px solid rgba(255,255,255,0.10); border-top: 3px solid #FFD700;
+  border-radius: 16px;
+  padding: 16px 18px; color: #e8edf3;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
 `;
 const ShopHeader = styled.div`
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
@@ -1339,8 +1363,16 @@ const ShopBuyBtn = styled.button<{ $disabled?: boolean }>`
   white-space: nowrap;
 `;
 const ShopCloseBtn = styled.button`
-  border: none; background: rgba(255,255,255,0.08); color: #cdd7e2; border-radius: 8px;
-  width: 28px; height: 28px; font-size: 16px; cursor: pointer;
+  /* 공유 ModalCloseBtn과 동일한 룩(hover 시 빨강 틴트) */
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 8px;
+  color: rgba(255,255,255,0.45); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  @media (hover: hover) {
+    &:hover { background: rgba(220,60,60,0.22); border-color: rgba(220,60,60,0.40); color: #fff; }
+  }
 `;
 const ShopGradeNote = styled.div`
   font-size: 10px; color: #7e8da0; margin: 6px 0 12px; line-height: 1.4;

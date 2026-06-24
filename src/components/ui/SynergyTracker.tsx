@@ -52,7 +52,7 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
           <EmptyState>
             <EmptyIcon><Emoji glyph="💎" size={20} /></EmptyIcon>
             <EmptyMsg>{t("synergy.empty")}</EmptyMsg>
-            <EmptyHint>포켓몬을 배치하면<br/>시너지가 활성화돼요</EmptyHint>
+            <EmptyHint>{t('synergy.emptyHintL1')}<br/>{t('synergy.emptyHintL2')}</EmptyHint>
           </EmptyState>
         </EmbeddedWrapper>
       );

@@ -209,7 +209,7 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
           <ItemTop>
             <ItemName>
               {t(`items.${item.id}.name`)}
-              {isUsable && <UsableTag>✓ 사용 가능</UsableTag>}
+              {isUsable && <UsableTag>{t('shop.usableTag')}</UsableTag>}
             </ItemName>
             <PriceBadge>{t("shop.itemCost", { cost: item.price })}</PriceBadge>
           </ItemTop>

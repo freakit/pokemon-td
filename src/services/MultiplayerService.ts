@@ -419,7 +419,7 @@ class MultiplayerService {
         userName: `AI (${difficulty})`,
         isReady: true, isAI: true,
         aiDifficulty: difficulty,
-        rating: difficulty === 'easy' ? 800 : difficulty === 'normal' ? 1000 : 1200,
+        rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1000 : 1200,
       };
       return { ...room, players: [...room.players, aiPlayer] };
     });

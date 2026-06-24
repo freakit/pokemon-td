@@ -8,7 +8,14 @@ export type StatusEffectType =
   | "sleep"
   | "confusion";
 export type DamageClass = "physical" | "special" | "status";
-export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
+export type Difficulty = "easiest" | "easy" | "medium" | "hard" | "expert";
+export interface ClerkOrScoutPrompt {
+  towerId: string;
+  waves: number;
+  pokemonName: string;
+  /** 시설 종류(현지화 키 분기용). 'shop'=프렌들리숍, 'contest'=콘테스트 홀. */
+  facilityKey: "shop" | "contest";
+}
 export type PokemonRarity =
   | "Bronze"
   | "Silver"
@@ -300,6 +307,7 @@ export interface GameState {
   heldItemInventory: string[];
   /** 통합 관리/상점 모달을 띄울 타워 id(null이면 닫힘). HUD 버튼·캔버스 클릭이 공유. */
   manageTowerId: string | null;
+  clerkOrScoutPromptQueue: ClerkOrScoutPrompt[];
   currentMap: string;
   difficulty: Difficulty;
   gameSpeed: number;

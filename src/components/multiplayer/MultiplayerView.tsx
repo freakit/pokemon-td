@@ -16,6 +16,7 @@ import { multiplayerService } from '../../services/MultiplayerService';
 import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
 import { useGameStore } from '../../store/gameStore';
+import { useTranslation } from '../../i18n';
 import { lMedia } from '../../utils/responsive.utils';
 import { ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT } from '../shared/modal.styles';
 
@@ -30,6 +31,7 @@ interface MultiplayerViewProps {
 }
 
 export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
+  const { t } = useTranslation();
   const [players, setPlayers] = useState<PlayerGameState[]>([]);
   const [allTowerDetails, setAllTowerDetails] = useState<Map<string, TowerDetail[]>>(new Map());
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -125,12 +127,12 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     <ModalOverlay onClick={(e: React.MouseEvent) => { if (e.target === e.currentTarget) onClose(); }}>
       <ModalBox $size="md" $accent={MODAL_ACCENT.gold} $scroll>
         <Header>
-          <Title><Emoji glyph="🏆" size={16} /> 플레이어 순위</Title>
+          <Title><Emoji glyph="🏆" size={16} /> {t('multiView.playerRank')}</Title>
           <HeaderRight>
             <RefreshInfo $refreshing={isRefreshing}>
-              {isRefreshing ? <><Emoji glyph="🔄" size={12} /> 새로고침 중...</> : <><Emoji glyph="⏱" size={12} /> {refreshedTimeStr}</>}
+              {isRefreshing ? <><Emoji glyph="🔄" size={12} /> {t('multiView.refreshing')}</> : <><Emoji glyph="⏱" size={12} /> {refreshedTimeStr}</>}
             </RefreshInfo>
-            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침"><Emoji glyph="🔃" size={14} /></ManualRefreshBtn>
+            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title={t('multiView.manualRefresh')}><Emoji glyph="🔃" size={14} /></ManualRefreshBtn>
             <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
           </HeaderRight>
         </Header>
@@ -150,7 +152,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                 <PlayerInfo>
                   <PlayerNameRow>
                     {player.userName}
-                    {player.userId === user?.uid && <MeTag>(나)</MeTag>}
+                    {player.userId === user?.uid && <MeTag>{t('multiView.me')}</MeTag>}
                   </PlayerNameRow>
                   <PlayerStats>
                     <StatIcon><Emoji glyph="❤️" size={12} /> {player.lives}</StatIcon>
@@ -174,7 +176,7 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                             src={tower.sprite}
                             alt={tower.name}
                             $isFainted={tower.isFainted}
-                            title={`${tower.name} Lv.${tower.level}${tower.isFainted ? ' (기절)' : ''}`}
+                            title={`${tower.name} Lv.${tower.level}${tower.isFainted ? t('multiView.faintedSuffix') : ''}`}
                           />
                           <MiniHpBar>
                             <MiniHpFill
@@ -189,13 +191,13 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                   </PokemonIcons>
                 </PokemonSection>
 
-                {!player.isAlive && <DeadBadge><Emoji glyph="💀" size={12} /> 탈락</DeadBadge>}
+                {!player.isAlive && <DeadBadge><Emoji glyph="💀" size={12} /> {t('multiView.eliminated')}</DeadBadge>}
               </PlayerRow>
             );
           })}
         </PlayerList>
 
-        <Footer><FooterNote><Emoji glyph="📡" size={12} /> 실시간 동기화 중</FooterNote></Footer>
+        <Footer><FooterNote><Emoji glyph="📡" size={12} /> {t('multiView.liveSync')}</FooterNote></Footer>
       </ModalBox>
     </ModalOverlay>
   );

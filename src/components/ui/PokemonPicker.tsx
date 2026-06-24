@@ -304,15 +304,15 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
       <ModalOverlay>
         <AllPlacedModal>
           <AllPlacedIcon><Emoji glyph="🛡️" size={28} /></AllPlacedIcon>
-          <AllPlacedTitle>모든 대원이 배치됐어!</AllPlacedTitle>
+          <AllPlacedTitle>{t('picker.allPlacedTitle')}</AllPlacedTitle>
           <AllPlacedDesc>
-            이번 챕터에서 등장하는 포켓몬을<br />
-            전부 배치했어. 전원 전선에 나갔다고!
+            {t('picker.allPlacedDesc1L1')}<br />
+            {t('picker.allPlacedDesc1L2')}
           </AllPlacedDesc>
           <AllPlacedSub>
-            진화 아이템이나 강화 아이템을 써서<br />더 강하게 만들어 봐.
+            {t('picker.allPlacedDesc2L1')}<br />{t('picker.allPlacedDesc2L2')}
           </AllPlacedSub>
-          <ModalCloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>닫기</ModalCloseBtn>
+          <ModalCloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>{t('common.close')}</ModalCloseBtn>
         </AllPlacedModal>
       </ModalOverlay>
     );

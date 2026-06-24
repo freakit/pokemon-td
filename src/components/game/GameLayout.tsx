@@ -52,8 +52,10 @@ import { Wave50ClearModal } from "../modals/Wave50ClearModal";
 import { StoryEnding } from "../story/StoryEnding";
 import { BossCutIn } from "./BossCutIn";
 import { storyProgressService } from "../../services/StoryProgressService";
+import { achievementService } from "../../services/AchievementService";
 import { AEGIS_STORY_CHAPTERS } from "../../data/storyChapters";
 import { EvolutionConfirmModal } from "../modals/EvolutionConfirmModal";
+import { WorkMilestoneModal } from "../modals/WorkMilestoneModal";
 
 import { authService } from "../../services/AuthService";
 import { PlayerGameState, TowerDetail, GamePhase } from "../../types/multiplayer";
@@ -214,7 +216,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const {
     money, lives, wave, isWaveActive, towers, gameSpeed,
     timeOfDay, gameTime, skillChoiceQueue, waveEndItemPick, wave50Clear, storyClear, gameOver,
-    nextWave, spendMoney, currentMap,
+    nextWave, spendMoney, currentMap, evolutionConfirmQueue, clerkOrScoutPromptQueue,
   } = useGameStore(s => ({
     money:          s.money,
     currentMap:     s.currentMap,
@@ -232,6 +234,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     gameOver:         s.gameOver,
     nextWave:         s.nextWave,
     spendMoney:       s.spendMoney,
+    evolutionConfirmQueue: s.evolutionConfirmQueue || [],
+    clerkOrScoutPromptQueue: s.clerkOrScoutPromptQueue || [],
   }));
   const setSpeed = useGameStore(s => s.setGameSpeed);
   const setManageTowerId = useGameStore(s => s.setManageTowerId);
@@ -642,6 +646,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       stars: 3, // 기본 3성 (향후 라이프 기반으로 개선 가능)
       bestWave: totalW,
     });
+    // 챕터별 스토리 업적 달성
+    achievementService.onStoryClear(storyChapterNumber);
     // storyClear 플래그 초기화 후 /story 복귀
     useGameStore.setState({ storyClear: false, storyChapterNumber: null, storyTotalWaves: null });
     navigate('/story');
@@ -665,7 +671,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       {/* Portrait guard – mobile/tablet 세로 화면 */}
       <PortraitGuard>
         <RotateEmoji><Emoji glyph="📱" size={40} /></RotateEmoji>
-        <RotateMsg>화면을 가로로 돌려주세요</RotateMsg>
+        <RotateMsg>{t('hud.rotateDevice')}</RotateMsg>
       </PortraitGuard>
 
       {/* Multiplayer loading overlay */}
@@ -693,20 +699,20 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           {/* 시설 등급(프렌들리숍·콘테스트 홀) */}
           <FacilityBox>
             <FacilityRow>
-              <FacilityName><Store size={13} /> 프렌들리숍</FacilityName>
+              <FacilityName><Store size={13} /> {t('facility.shop')}</FacilityName>
               {shopOcc && shopOcc.tier >= 1 && !isWaveActive ? (
                 <FacilityShopBtn onClick={() => setManageTowerId(shopOcc.id)}>
-                  Lv.{shopOcc.tier} 열기
+                  Lv.{shopOcc.tier} {t('facility.open')}
                 </FacilityShopBtn>
               ) : (
                 <FacilityLv $on={!!shopOcc}>{shopOcc ? `Lv.${shopOcc.tier}` : "—"}</FacilityLv>
               )}
             </FacilityRow>
             <FacilityRow>
-              <FacilityName><Award size={13} /> 콘테스트 홀</FacilityName>
+              <FacilityName><Award size={13} /> {t('facility.contest')}</FacilityName>
               {contestOcc && contestOcc.tier >= 1 && !isWaveActive ? (
                 <FacilityShopBtn onClick={() => setManageTowerId(contestOcc.id)}>
-                  Lv.{contestOcc.tier} 보기
+                  Lv.{contestOcc.tier} {t('facility.view')}
                 </FacilityShopBtn>
               ) : (
                 <FacilityLv $on={!!contestOcc}>{contestOcc ? `Lv.${contestOcc.tier}` : "—"}</FacilityLv>
@@ -732,7 +738,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
                 </HudVal>
               </HudTile>
               <HudTile>
-                <HudLbl>포켓몬</HudLbl>
+                <HudLbl>{t('hud.pokemon')}</HudLbl>
                 <HudVal $c="white">{towers.length}<Sub>/6</Sub></HudVal>
               </HudTile>
             </HudGrid>
@@ -776,7 +782,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
                 <DsBtn $v="wave" $pulse={pulseWave}
                   onClick={handleStartWave} disabled={isWaveActive}>
                   <Ico><Emoji glyph="🎯" size={18} /></Ico>
-                  <Lbl>{isWaveActive ? "진행 중" : t("hud.startWave")}</Lbl>
+                  <Lbl>{isWaveActive ? t("hud.inProgress") : t("hud.startWave")}</Lbl>
                 </DsBtn>
               ) : (
                 <DsBtn $v="wave" disabled>
@@ -815,10 +821,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             {/* 유틸 버튼 행 */}
             <UtilRow>
               <HamBtn onClick={() => setShowHamMenu(v => !v)}>
-                <Emoji glyph="☰" size={14} /> 메뉴
+                <Emoji glyph="☰" size={14} /> {t('hud.menu')}
               </HamBtn>
               <CfgBtn onClick={() => setShowSettings(true)}>
-                <Emoji glyph="⚙️" size={14} /> 설정
+                <Emoji glyph="⚙️" size={14} /> {t('nav.settings')}
               </CfgBtn>
             </UtilRow>
           </ActionArea>
@@ -842,7 +848,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             </HamItem>
             {isMultiplayer && (
               <HamItem onClick={() => { setShowMultiView(true);   setShowHamMenu(false); }}>
-                <Emoji glyph="👥" size={15} /> 멀티뷰
+                <Emoji glyph="👥" size={15} /> {t('hud.multiView')}
               </HamItem>
             )}
             <HamDivider />
@@ -885,11 +891,18 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         bossName={isStoryMode ? locationState.bossName : undefined}
       />
       <SynergyDetails />
-      {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
-      <EvolutionConfirmModal />
-      {/* [D1-FIX] 클리어 모달(wave50/스토리)과 동시 표출 방지.
-          wave50Clear "계속" 선택 시 wave50Clear=false가 되면 그때 WaveEndPicker가 보여 보상도 수령. */}
+      {/* ─── Modals 우선순위 시퀀스 제어 ─── */}
+      {/* 1. 웨이브 보상 (최우선) */}
       {waveEndItemPick && !wave50Clear && !storyClear && <WaveEndPicker />}
+
+      {/* 2. 알바 마일스톤 (웨이브 보상 완료 후) */}
+      {clerkOrScoutPromptQueue && clerkOrScoutPromptQueue.length > 0 && !waveEndItemPick && <WorkMilestoneModal />}
+
+      {/* 3. 진화 확인 (알바 마일스톤 완료 후) */}
+      {evolutionConfirmQueue && evolutionConfirmQueue.length > 0 && !waveEndItemPick && clerkOrScoutPromptQueue.length === 0 && <EvolutionConfirmModal />}
+
+      {/* 4. 스킬 픽커 (진화 확인 완료 후) */}
+      {skillChoiceQueue && skillChoiceQueue.length > 0 && !waveEndItemPick && clerkOrScoutPromptQueue.length === 0 && evolutionConfirmQueue.length === 0 && <SkillPicker />}
       {storyClear && storyChapterId && (() => {
         const ch = AEGIS_STORY_CHAPTERS.find(c => c.id === storyChapterId);
         return ch ? (

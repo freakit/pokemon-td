@@ -390,3 +390,29 @@ export const activeTeraTiles = (
     return { x: s.x, y: s.y, type: t.type };
   });
 };
+
+// ─── 자유 배치 가능 타일 ───────────────────────────────────────────────────────
+// 울타리/buildZones 폐기 후의 자유배치 규칙과 동일하게: 길 타일과 입출구 3칸 keepout만
+// 제외하면 어디든 배치 가능(일직선 3연속 제약은 호출부에서 별도 처리).
+// GameCanvas의 buildableTileSet과 동일 규칙을 단일 소스로 공유한다.
+export const getBuildableTiles = (map?: MapData): { x: number; y: number }[] => {
+  if (!map) return [];
+  const path = pathTilesOf(map);
+  const clampT = (p: { x: number; y: number }) => ({
+    tx: Math.max(0, Math.min(FAC_MAP_W - 1, Math.floor(p.x / T))),
+    ty: Math.max(0, Math.min(FAC_MAP_H - 1, Math.floor(p.y / T))),
+  });
+  const endpoints = [
+    ...(map.spawns ?? []).map(clampT),
+    ...(map.objectiveKeepout === false ? [] : (map.objectives ?? []).map(clampT)),
+  ];
+  const out: { x: number; y: number }[] = [];
+  for (let ty = 0; ty < FAC_MAP_H; ty++) {
+    for (let tx = 0; tx < FAC_MAP_W; tx++) {
+      if (path.has(`${tx}-${ty}`)) continue;
+      if (endpoints.some(e => Math.max(Math.abs(tx - e.tx), Math.abs(ty - e.ty)) < 3)) continue;
+      out.push({ x: tx, y: ty });
+    }
+  }
+  return out;
+};

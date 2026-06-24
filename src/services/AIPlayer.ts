@@ -49,7 +49,7 @@ const AI_CONFIG: Record<AIDifficulty, {
   synergyWeight: number;
 }> = {
   easy:   { purchaseIntervalMs: 12000, pickTopN: 999, levelUpChance: 0.15, evolvePriority: 0.1,  upgradeTeam: false, rerollCount: 0, synergyWeight: 0 },
-  normal: { purchaseIntervalMs: 7000,  pickTopN: 3,   levelUpChance: 0.5,  evolvePriority: 0.5,  upgradeTeam: false, rerollCount: 1, synergyWeight: 0.5 },
+  medium: { purchaseIntervalMs: 7000,  pickTopN: 3,   levelUpChance: 0.5,  evolvePriority: 0.5,  upgradeTeam: false, rerollCount: 1, synergyWeight: 0.5 },
   hard:   { purchaseIntervalMs: 3000,  pickTopN: 1,   levelUpChance: 0.9,  evolvePriority: 0.85, upgradeTeam: true,  rerollCount: 3, synergyWeight: 1.0 },
 };
 
@@ -63,11 +63,12 @@ interface AICandidate {
 // ─── 전투 시뮬레이터 (원본 유지) ─────────────────────────────
 function getDiffMult(diff: string): { hp: number; atk: number } {
   switch (diff) {
-    case 'easiest': return { hp: 0.1, atk: 0.1 };
-    case 'easy':    return { hp: 0.7, atk: 0.7 };
-    case 'hard':    return { hp: 1.1, atk: 1.1 };
-    case 'expert':  return { hp: 1.3, atk: 1.3 };
-    default:        return { hp: 0.9, atk: 0.9 };
+    case 'easiest': return { hp: 0.3, atk: 0.3 };
+    case 'easy':    return { hp: 0.5, atk: 0.5 };
+    case 'medium':  return { hp: 0.7, atk: 0.7 };
+    case 'hard':    return { hp: 0.9, atk: 0.9 };
+    case 'expert':  return { hp: 1.1, atk: 1.1 };
+    default:        return { hp: 0.7, atk: 0.7 };
   }
 }
 
@@ -170,7 +171,7 @@ export class AIPlayer {
   private towers: GamePokemon[] = [];
   private isAlive = true;
   private currentPhase: GamePhase | null = null;
-  private roomDifficulty = 'normal';
+  private roomDifficulty = 'medium';
   // [V6-FIX-AI] 배틀 보상/Bye 보너스 중복 방지
   private lastAppliedBattleRound = -1;
   private lastAppliedByeRound = -1;
@@ -178,7 +179,7 @@ export class AIPlayer {
   private waveProcessing = false;
   private lastProcessedRound = -1;
 
-  private cfg: typeof AI_CONFIG['normal'];
+  private cfg: typeof AI_CONFIG['medium'];
   private mapData: ReturnType<typeof getMapById>;
 
   constructor(

@@ -24,7 +24,6 @@ const DIFF_META: Record<string, { label: string; color: string }> = {
   easiest: { label: 'EASIEST', color: '#94a3b8' },
   easy:    { label: 'EASY',    color: '#4ade80' },
   medium:  { label: 'MEDIUM',  color: '#60a5fa' },
-  normal:  { label: 'MEDIUM',  color: '#60a5fa' },
   hard:    { label: 'HARD',    color: '#fb923c' },
   expert:  { label: 'EXPERT',  color: '#f87171' },
 };
@@ -216,7 +215,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             <EmptyState>
               <EmptyIcon><Emoji glyph="🎮" size={28} /></EmptyIcon>
               <EmptyTitle>{t('lobby.emptyList')}</EmptyTitle>
-              <EmptyHint>방을 직접 만들어보세요</EmptyHint>
+              <EmptyHint>{t('lobby.emptyHintCreate')}</EmptyHint>
               <EmptyCreateBtn onClick={() => setView('create')}>+ {t('lobby.createRoom')}</EmptyCreateBtn>
             </EmptyState>
           ) : (
@@ -341,7 +340,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       ? t(`mapData.${currentRoom.mapId}.name`) : currentRoom.mapName}
                   </RoomMapTitle>
                   <PlayerCountBig>
-                    {currentRoom.players.length} / {currentRoom.maxPlayers} 플레이어
+                    {t('lobby.playersCount', { cur: currentRoom.players.length, max: currentRoom.maxPlayers })}
                   </PlayerCountBig>
                 </RoomMapDetails>
               </RoomMapPanel>
@@ -379,7 +378,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   ))}
                   {/* Empty slots */}
                   {Array.from({ length: currentRoom.maxPlayers - currentRoom.players.length }).map((_, i) => (
-                    <EmptySlot key={`empty-${i}`}>— 대기 중 —</EmptySlot>
+                    <EmptySlot key={`empty-${i}`}>{t('lobby.emptySlot')}</EmptySlot>
                   ))}
                 </PlayerGrid>
 
@@ -388,7 +387,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   <AISection>
                     <SectionLabel>{t('lobby.addAI')}</SectionLabel>
                     <AIBtnRow>
-                      {(['easy','normal','hard'] as AIDifficulty[]).map(d => (
+                      {(['easy','medium','hard'] as AIDifficulty[]).map(d => (
                         <AIAddBtn key={d} onClick={() => handleAddAI(d)}>
                           + {d.charAt(0).toUpperCase() + d.slice(1)} AI
                         </AIAddBtn>
