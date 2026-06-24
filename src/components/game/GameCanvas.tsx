@@ -16,7 +16,7 @@ import styled, { keyframes } from "styled-components";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
-import { getMapById, activeTeraTiles } from "../../data/maps";
+import { getMapById, activeTeraTiles, getFacilityTiles } from "../../data/maps";
 import { GamePokemon } from "../../types/game";
 import { lMedia, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
 import { buyableHeldItems, shopTier, wavesToNextTier, getHeldItem } from "../../data/heldItems";
@@ -484,7 +484,8 @@ export const GameCanvas: React.FC = () => {
   const [selectedTowerForReposition, setSelectedTowerForReposition] = useState<GamePokemon | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
   const [mapBgImage, setMapBgImage] = useState<HTMLImageElement | null>(null);
-  const [manageTowerId, setManageTowerId] = useState<string | null>(null);
+  const manageTowerId = useGameStore(s => s.manageTowerId);
+  const setManageTowerId = useGameStore(s => s.setManageTowerId);
   const money = useGameStore(s => s.money);
   const heldItemInventory = useGameStore(s => s.heldItemInventory);
   const wave = useGameStore(s => s.wave);
@@ -498,6 +499,8 @@ export const GameCanvas: React.FC = () => {
     () => activeTeraTiles(map, wave, isWaveActive),
     [map, wave, isWaveActive]
   );
+  // 시설(프렌들리숍·콘테스트 홀) = 길에서 가장 먼 칸 자동 계산
+  const facility = React.useMemo(() => getFacilityTiles(map), [map]);
 
   // 테라스탈 타일 점유 동기화: 타워가 (현재 활성) teraTile 위에 있으면 teraType 세팅, 벗어나면 해제.
   useEffect(() => {
@@ -623,8 +626,8 @@ export const GameCanvas: React.FC = () => {
         if (!tower) {
           const tx = Math.floor(pos.x / TILE_SIZE), ty = Math.floor(pos.y / TILE_SIZE);
           const tera = activeTera.find(t => t.x === tx && t.y === ty);
-          const shop = (map?.shopTiles ?? []).some(s => s.x === tx && s.y === ty);
-          const contest = (map?.contestTiles ?? []).some(s => s.x === tx && s.y === ty);
+          const shop = facility.shopTiles.some(s => s.x === tx && s.y === ty);
+          const contest = facility.contestTiles.some(s => s.x === tx && s.y === ty);
           setHoveredTile(tera ? { kind: 'tera', type: tera.type } : shop ? { kind: 'shop' } : contest ? { kind: 'contest' } : null);
         } else {
           setHoveredTile(null);
@@ -850,7 +853,7 @@ export const GameCanvas: React.FC = () => {
 
   // ─── 프렌들리숍 타일 ───────────────────────────────────────────────────────
   const shopTileNodes = React.useMemo(() => {
-    const tiles = map?.shopTiles ?? [];
+    const tiles = facility.shopTiles;
     if (tiles.length === 0) return null;
     const SHOP = '#e0a030';
     // 은은하게: 얇은 점선 테두리 + 작은 모서리 🏪. 점유 시에만 상태 라벨.
@@ -877,7 +880,7 @@ export const GameCanvas: React.FC = () => {
 
   // ─── 콘테스트 홀 타일 ──────────────────────────────────────────────────────
   const contestTileNodes = React.useMemo(() => {
-    const tiles = map?.contestTiles ?? [];
+    const tiles = facility.contestTiles;
     if (tiles.length === 0) return null;
     const CON = '#e070b0';
     return tiles.map((tile, i) => {
@@ -1142,8 +1145,8 @@ export const GameCanvas: React.FC = () => {
         const tower = towers.find(t => t.id === manageTowerId);
         if (!tower) return null;
         const tTx = Math.floor(tower.position.x / TILE_SIZE), tTy = Math.floor(tower.position.y / TILE_SIZE);
-        const isClerk = (map?.shopTiles ?? []).some(s => s.x === tTx && s.y === tTy);
-        const isScout = (map?.contestTiles ?? []).some(s => s.x === tTx && s.y === tTy);
+        const isClerk = facility.shopTiles.some(s => s.x === tTx && s.y === tTy);
+        const isScout = facility.contestTiles.some(s => s.x === tTx && s.y === tTy);
         const waves = tower.shopWavesHeld ?? 0;
         const tier = (isClerk || isScout) ? shopTier(waves) : 0;
         const buyable = isClerk && tier > 0 ? buyableHeldItems(tier) : [];

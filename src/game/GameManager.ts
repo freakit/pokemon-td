@@ -11,7 +11,7 @@ import { saveService } from '../services/SaveService';
 import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
 import { getBuffedStats } from '../utils/synergyManager';
 import { databaseService } from '../services/DatabaseService';
-import { getMapById } from '../data/maps';
+import { getMapById, getFacilityTiles } from '../data/maps';
 import { pokeAPI } from '../api/pokeapi';
 import { multiplayerService } from '../services/MultiplayerService';
 import { achievementService } from '../services/AchievementService';
@@ -43,8 +43,8 @@ export class GameManager {
 
   // 알바 칸(프렌들리숍 ∪ 콘테스트 홀) 점유 여부 — 공격·경험치 차단에 사용.
   private isOnWorkTile(tw: GamePokemon, currentMap: string): boolean {
-    const map = getMapById(currentMap);
-    const tiles = [...(map?.shopTiles ?? []), ...(map?.contestTiles ?? [])];
+    const fac = getFacilityTiles(getMapById(currentMap));
+    const tiles = [...fac.shopTiles, ...fac.contestTiles];
     const tx = Math.floor(tw.position.x / 64), ty = Math.floor(tw.position.y / 64);
     return tiles.some(s => s.x === tx && s.y === ty);
   }

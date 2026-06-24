@@ -57,6 +57,7 @@ interface GameStore extends GameState {
   addHeldItem: (id: string) => void;
   equipHeldItem: (towerId: string, id: string) => void;
   unequipHeldItem: (towerId: string) => void;
+  setManageTowerId: (id: string | null) => void;
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
   evolvePokemon: (towerId: string, item?: string, targetId?: number) => Promise<boolean>;
@@ -93,6 +94,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedTowerSlot: null,
   availableItems: [],
   heldItemInventory: [],
+  manageTowerId: null,
   currentMap: 'beginner',
   difficulty: 'normal',
   gameSpeed: saveService.load().settings.gameSpeed || 1,
@@ -265,10 +267,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       isPreloading: false,
       isShopDisabled: false,
       heldItemInventory: [],
+      manageTowerId: null,
     });
   },
 
   // ─── 지닌 도구 보관함 ──────────────────────────────────────────────
+  setManageTowerId: (id) => set({ manageTowerId: id }),
   addHeldItem: (id) => set(state => ({ heldItemInventory: [...state.heldItemInventory, id] })),
   equipHeldItem: (towerId, id) => {
     const { towers, heldItemInventory } = get();

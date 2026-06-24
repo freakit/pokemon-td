@@ -39,7 +39,7 @@ import { HallOfFame } from "../modals/HallOfFame";
 import { Rankings } from "../modals/Rankings";
 import { Settings } from "../modals/Settings";
 import { useGameStore } from "../../store/gameStore";
-import { getMapById } from "../../data/maps";
+import { getMapById, getFacilityTiles } from "../../data/maps";
 import { shopTier } from "../../data/heldItems";
 import { WaveSystem } from "../../game/WaveSystem";
 import { multiplayerService } from "../../services/MultiplayerService";
@@ -60,6 +60,8 @@ import { PlayerGameState, TowerDetail, GamePhase } from "../../types/multiplayer
 import { aiPlayerManager } from "../../services/AIPlayer";
 import { getCriticalChance, getAOEDamageMultiplier } from "../../utils/abilities";
 import { lMedia } from "../../utils/responsive.utils";
+import { Emoji } from "../shared/Emoji";
+import { Store, Award } from "lucide-react";
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -232,21 +234,22 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     spendMoney:       s.spendMoney,
   }));
   const setSpeed = useGameStore(s => s.setGameSpeed);
+  const setManageTowerId = useGameStore(s => s.setManageTowerId);
 
   // ── Pulse cues ────────────────────────────────────────────────
   const pulseWave    = !isWaveActive && wave >= 0 && !gameOver;
   const pulsePokemon = towers.length === 0 && !isWaveActive;
 
   // 시설(프렌들리숍·콘테스트 홀) 등급 — 해당 타일에 올라간 알바 포켓몬의 근무 누적 웨이브 기준
-  const facilityMap = getMapById(currentMap);
-  const facilityTier = (tiles?: { x: number; y: number }[]) => {
-    const tw = (tiles ?? []).length
-      ? towers.find(t => tiles!.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)))
+  const facility = getFacilityTiles(getMapById(currentMap));
+  const facilityOccupant = (tiles: { x: number; y: number }[]) => {
+    const tw = tiles.length
+      ? towers.find(t => tiles.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)))
       : undefined;
-    return tw ? shopTier(tw.shopWavesHeld ?? 0) : 0;
+    return tw ? { id: tw.id, tier: shopTier(tw.shopWavesHeld ?? 0) } : null;
   };
-  const shopLv    = facilityTier(facilityMap?.shopTiles);
-  const contestLv = facilityTier(facilityMap?.contestTiles);
+  const shopOcc    = facilityOccupant(facility.shopTiles);
+  const contestOcc = facilityOccupant(facility.contestTiles);
 
   // ── Refs ──────────────────────────────────────────────────────
   const lastAppliedRoundRef    = useRef<number>(-1);
@@ -661,7 +664,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {/* Portrait guard – mobile/tablet 세로 화면 */}
       <PortraitGuard>
-        <RotateEmoji>📱</RotateEmoji>
+        <RotateEmoji><Emoji glyph="📱" size={40} /></RotateEmoji>
         <RotateMsg>화면을 가로로 돌려주세요</RotateMsg>
       </PortraitGuard>
 
@@ -682,7 +685,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
         {/* ▌LEFT: 시너지 + HUD */}
         <LeftPanel>
-          <PanelHdr>💎 {t("synergy.title")}</PanelHdr>
+          <PanelHdr><Emoji glyph="💎" size={14} /> {t("synergy.title")}</PanelHdr>
           <SynergyArea>
             <SynergyTracker embedded />
           </SynergyArea>
@@ -690,12 +693,18 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           {/* 시설 등급(프렌들리숍·콘테스트 홀) */}
           <FacilityBox>
             <FacilityRow>
-              <span>🏪 프렌들리숍</span>
-              <FacilityLv $on={shopLv > 0}>{shopLv > 0 ? `Lv.${shopLv}` : "—"}</FacilityLv>
+              <FacilityName><Store size={13} /> 프렌들리숍</FacilityName>
+              {shopOcc && shopOcc.tier >= 1 && !isWaveActive ? (
+                <FacilityShopBtn onClick={() => setManageTowerId(shopOcc.id)}>
+                  Lv.{shopOcc.tier} 열기
+                </FacilityShopBtn>
+              ) : (
+                <FacilityLv $on={!!shopOcc}>{shopOcc ? `Lv.${shopOcc.tier}` : "—"}</FacilityLv>
+              )}
             </FacilityRow>
             <FacilityRow>
-              <span>🎀 콘테스트 홀</span>
-              <FacilityLv $on={contestLv > 0}>{contestLv > 0 ? `Lv.${contestLv}` : "—"}</FacilityLv>
+              <FacilityName><Award size={13} /> 콘테스트 홀</FacilityName>
+              <FacilityLv $on={!!contestOcc}>{contestOcc ? `Lv.${contestOcc.tier}` : "—"}</FacilityLv>
             </FacilityRow>
           </FacilityBox>
           <HudArea>
@@ -724,11 +733,11 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
             {isMultiplayer ? (
               <PhaseChip $phase={multiPhase}>
-                {phaseEmoji(multiPhase)}{" "}
+                <Emoji glyph={phaseEmoji(multiPhase)} size={13} />{" "}
                 {getPhaseText(multiPhase, multiRound, multiCountdown, t)}
               </PhaseChip>
             ) : (
-              <TimeChip>⏰ {formatTime(gameTime)} {timeOfDay === "day" ? "☀️" : "🌙"}</TimeChip>
+              <TimeChip><Emoji glyph="⏰" size={12} /> {formatTime(gameTime)} <Emoji glyph={timeOfDay === "day" ? "☀️" : "🌙"} size={12} /></TimeChip>
             )}
           </HudArea>
         </LeftPanel>
@@ -745,8 +754,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           {/* 상점 영역 */}
           <ShopWrapper>
             <ShopHdr>
-              <ShopHdrTitle>🏪 {t("shop.title")}</ShopHdrTitle>
-              <GoldBadge>💰 {money}G</GoldBadge>
+              <ShopHdrTitle><Emoji glyph="🏪" size={14} /> {t("shop.title")}</ShopHdrTitle>
+              <GoldBadge><Emoji glyph="💰" size={13} /> {money}G</GoldBadge>
             </ShopHdr>
             <Shop embedded />
           </ShopWrapper>
@@ -760,37 +769,37 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               {!isMultiplayer ? (
                 <DsBtn $v="wave" $pulse={pulseWave}
                   onClick={handleStartWave} disabled={isWaveActive}>
-                  <Ico>🎯</Ico>
+                  <Ico><Emoji glyph="🎯" size={18} /></Ico>
                   <Lbl>{isWaveActive ? "진행 중" : t("hud.startWave")}</Lbl>
                 </DsBtn>
               ) : (
                 <DsBtn $v="wave" disabled>
-                  <Ico>{phaseEmoji(multiPhase)}</Ico>
+                  <Ico><Emoji glyph={phaseEmoji(multiPhase)} size={18} /></Ico>
                   <Lbl>R{multiRound}</Lbl>
                 </DsBtn>
               )}
 
               {/* 포켓몬 구입 */}
               <DsBtn $v="shop" $pulse={pulsePokemon} onClick={handleOpenPicker}>
-                <Ico>🏪</Ico>
+                <Ico><Emoji glyph="🏪" size={18} /></Ico>
                 <Lbl>{t("hud.addPokemon")}</Lbl>
               </DsBtn>
 
               {/* 포켓몬 관리 */}
               <DsBtn $v="manage" onClick={() => setShowPokemonManager(true)}>
-                <Ico>🎒</Ico>
+                <Ico><Emoji glyph="🎒" size={18} /></Ico>
                 <Lbl>{t("hud.managePokemon")} ({towers.length}/6)</Lbl>
               </DsBtn>
 
               {/* 배속 / 상대방 보기 */}
               {!isMultiplayer ? (
                 <DsBtn $v="speed" onClick={handleSpeedToggle}>
-                  <Ico>⚡</Ico>
+                  <Ico><Emoji glyph="⚡" size={18} /></Ico>
                   <Lbl>{gameSpeed}×</Lbl>
                 </DsBtn>
               ) : multiRoomId ? (
                 <DsBtn $v="rival" onClick={() => setShowMultiView(true)}>
-                  <Ico>👁</Ico>
+                  <Ico><Emoji glyph="👁" size={18} /></Ico>
                   <Lbl>{t("hud.rival")}</Lbl>
                 </DsBtn>
               ) : null}
@@ -800,10 +809,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             {/* 유틸 버튼 행 */}
             <UtilRow>
               <HamBtn onClick={() => setShowHamMenu(v => !v)}>
-                ☰ 메뉴
+                <Emoji glyph="☰" size={14} /> 메뉴
               </HamBtn>
               <CfgBtn onClick={() => setShowSettings(true)}>
-                ⚙️ 설정
+                <Emoji glyph="⚙️" size={14} /> 설정
               </CfgBtn>
             </UtilRow>
           </ActionArea>
@@ -815,24 +824,24 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <>
           <HamBackdrop onClick={() => setShowHamMenu(false)} />
           <HamPanel>
-            <HamClose onClick={() => setShowHamMenu(false)}>✕</HamClose>
+            <HamClose onClick={() => setShowHamMenu(false)}><Emoji glyph="❌" size={16} /></HamClose>
             <HamItem onClick={() => { setShowAchievements(true);  setShowHamMenu(false); }}>
-              🏆 {t("gameLayout.navAchievements")}
+              <Emoji glyph="🏆" size={15} /> {t("gameLayout.navAchievements")}
             </HamItem>
             <HamItem onClick={() => { setShowHallOfFame(true);    setShowHamMenu(false); }}>
-              🏛️ {t("gameLayout.navHallOfFame")}
+              <Emoji glyph="🏛️" size={15} /> {t("gameLayout.navHallOfFame")}
             </HamItem>
             <HamItem onClick={() => { setShowRankings(true);      setShowHamMenu(false); }}>
-              📊 {t("gameLayout.navRankings")}
+              <Emoji glyph="📊" size={15} /> {t("gameLayout.navRankings")}
             </HamItem>
             {isMultiplayer && (
               <HamItem onClick={() => { setShowMultiView(true);   setShowHamMenu(false); }}>
-                👥 멀티뷰
+                <Emoji glyph="👥" size={15} /> 멀티뷰
               </HamItem>
             )}
             <HamDivider />
             <HamItem $danger onClick={() => { setShowHamMenu(false); handleResetAndLeave(); }}>
-              🚪 {t("gameLayout.navMainMenu")}
+              <Emoji glyph="🚪" size={15} /> {t("gameLayout.navMainMenu")}
             </HamItem>
           </HamPanel>
         </>
@@ -904,7 +913,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {battleResultToast && isMultiplayer && (
         <ResultToast $won={battleResultToast.won}>
-          <ToastIco>{battleResultToast.won ? "🏆" : "💔"}</ToastIco>
+          <ToastIco><Emoji glyph={battleResultToast.won ? "🏆" : "💔"} size={28} /></ToastIco>
           <ToastBody>
             <ToastTitle>
               {battleResultToast.won ? t("gameLayout.toastWin") : t("gameLayout.toastLose")}
@@ -1067,10 +1076,22 @@ const FacilityRow = styled.div`
   font-size: 11px; color: #a8b8c8; font-weight: 600;
   ${L768} { font-size: 10px; }
 `;
+const FacilityName = styled.span`
+  display: inline-flex; align-items: center; gap: 5px;
+  svg { opacity: 0.85; }
+`;
 const FacilityLv = styled.span<{ $on: boolean }>`
   font-size: 11px; font-weight: 800;
   color: ${p => (p.$on ? "#f0b840" : "#566374")};
   ${L768} { font-size: 10px; }
+`;
+const FacilityShopBtn = styled.button`
+  font-size: 11px; font-weight: 800; color: #0d1520;
+  background: #f0b840; border: none; border-radius: 4px;
+  padding: 2px 8px; cursor: pointer; line-height: 1.4;
+  transition: filter 0.12s;
+  &:hover { filter: brightness(1.12); }
+  ${L768} { font-size: 10px; padding: 2px 6px; }
 `;
 
 const HudGrid = styled.div`

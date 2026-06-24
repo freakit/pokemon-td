@@ -92,10 +92,7 @@ export interface MapData {
   /** 테라스탈 타일: 점유한 타워의 타입을 type으로 변환(원전 충실형: 방어상성+자속).
    *  type은 맵별 고정, 위치는 spots 후보들 사이로 N웨이브마다 순환(쉬는 시간에 이동). */
   teraTiles?: { type: string; spots: { x: number; y: number }[] }[];
-  /** 프렌들리숍 타일: 포켓몬에게 알바를 시키면(올려두면) 웨이브 누적으로 상점 등급↑, 지닌도구 구매. */
-  shopTiles?: { x: number; y: number }[];
-  /** 콘테스트 홀 타일: 포켓몬을 올려 콘테스트에 내보내면 근무 웨이브 누적으로 포켓몬 상점의 고레어 등장 확률↑. */
-  contestTiles?: { x: number; y: number }[];
+  /** 프렌들리숍·콘테스트 홀 타일은 길에서 가장 먼 칸으로 자동 계산된다(data/maps.ts getFacilityTiles). */
   /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
   objectiveKeepout?: boolean;
 }
@@ -301,6 +298,8 @@ export interface GameState {
   availableItems: Item[];
   /** 프렌들리숍에서 구매했지만 아직 장착하지 않은 지닌 도구 id 목록(보관함). */
   heldItemInventory: string[];
+  /** 통합 관리/상점 모달을 띄울 타워 id(null이면 닫힘). HUD 버튼·캔버스 클릭이 공유. */
+  manageTowerId: string | null;
   currentMap: string;
   difficulty: Difficulty;
   gameSpeed: number;
