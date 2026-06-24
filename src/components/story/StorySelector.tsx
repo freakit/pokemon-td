@@ -229,7 +229,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
       </>
     ) : (
       <EmptyDetail>
-        <EmptyIcon>⚔</EmptyIcon>
+        <EmptyIcon><Emoji glyph="⚔" size={28} /></EmptyIcon>
         <EmptyText>챕터를 선택하세요</EmptyText>
         <EmptyHint>{language === 'en' ? 'Reclaim Johto\'s 8 gyms with underdogs' : '약캐로 성도 8체육관을 탈환하라'}</EmptyHint>
       </EmptyDetail>

@@ -63,7 +63,7 @@ export const LoginScreen = () => {
       <ShootingStarsBackground />
       <Root>
         <SettingsBtn onClick={() => setShowSettings(true)}>
-          ⚙ {t('nav.settings')}
+          <Emoji glyph="⚙" size={14} /> {t('nav.settings')}
         </SettingsBtn>
 
         <Layout>

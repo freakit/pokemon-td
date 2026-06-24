@@ -43,7 +43,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <ModalBox $size="sm" $accent={MODAL_ACCENT.cyan} onClick={(e) => e.stopPropagation()}>
 
         <ModalHeader>
-          <ModalTitle>⚙️ {t('settings.title')}</ModalTitle>
+          <ModalTitle><Emoji glyph="⚙️" size={16} /> {t('settings.title')}</ModalTitle>
           <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
         </ModalHeader>
 
@@ -114,7 +114,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </BugReportButton>
 
         <DangerZone>
-          <DangerLabel>⚠️ 위험 구역</DangerLabel>
+          <DangerLabel><Emoji glyph="⚠️" size={13} /> 위험 구역</DangerLabel>
           <DangerButton onClick={() => {
             if (confirm(t('alerts.confirmReset'))) {
               saveService.clearSave();

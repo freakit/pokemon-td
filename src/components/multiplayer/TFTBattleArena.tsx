@@ -933,7 +933,7 @@ export const TFTBattleArena: React.FC<TFTBattleArenaProps> = ({
     <Wrap>
       <Header>
         <TitleRow>
-          <ArenaIcon>⚔️</ArenaIcon>
+          <ArenaIcon><Emoji glyph="⚔️" size={18} /></ArenaIcon>
           <ArenaTitle>{t('battle.arenaTitle')}</ArenaTitle>
           {isPrep && (
             <PhasePill>

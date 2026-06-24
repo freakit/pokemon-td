@@ -303,7 +303,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
     return (
       <ModalOverlay>
         <AllPlacedModal>
-          <AllPlacedIcon>🛡️</AllPlacedIcon>
+          <AllPlacedIcon><Emoji glyph="🛡️" size={28} /></AllPlacedIcon>
           <AllPlacedTitle>모든 대원이 배치됐어!</AllPlacedTitle>
           <AllPlacedDesc>
             이번 챕터에서 등장하는 포켓몬을<br />

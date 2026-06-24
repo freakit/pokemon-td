@@ -1,6 +1,7 @@
 // src/components/modals/Achievements.tsx
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { lMedia, media } from '../../utils/responsive.utils';
 import {
   ACHIEVEMENTS,
@@ -194,7 +195,7 @@ export const AchievementsPanel: React.FC<{ onClose: () => void }> = ({ onClose }
                               $bgColor={meta.bg}
                             >
                               <CardIcon $unlocked={isUnlocked} $tier={tier} $color={meta.color}>
-                                {ach.icon}
+                                <Emoji glyph={ach.icon} size={22} />
                               </CardIcon>
                               <CardBody>
                                 <CardNameRow>

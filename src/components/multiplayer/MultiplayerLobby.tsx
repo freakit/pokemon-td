@@ -425,7 +425,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         {leaveConfirmOpen && (
           <ModalOverlay onClick={() => setLeaveConfirmOpen(false)}>
             <ConfirmModal onClick={e => e.stopPropagation()}>
-              <ConfirmIcon>⚠</ConfirmIcon>
+              <ConfirmIcon><Emoji glyph="⚠" size={24} /></ConfirmIcon>
               <ConfirmTitle>{t('lobby.confirmLeaveTitle')}</ConfirmTitle>
               <ConfirmText>
                 {t('lobby.confirmLeaveMsg')}

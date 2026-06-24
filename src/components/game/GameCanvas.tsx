@@ -1196,7 +1196,7 @@ export const GameCanvas: React.FC = () => {
                     const poor = money < item.cost;
                     return (
                       <ShopItemRow key={item.id} $locked={poor}>
-                        <span className="icon">{item.icon}</span>
+                        <span className="icon"><Emoji glyph={item.icon} size={20} /></span>
                         <div className="info">
                           <div className="name">{item.name} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}{item.consumable ? '·1회' : ''}</span></div>
                           <div className="desc">{item.desc}</div>
@@ -1211,7 +1211,7 @@ export const GameCanvas: React.FC = () => {
               {/* 지닌 도구 (장착/교체/회수) */}
               <ShopSectionTitle>이 포켓몬의 지닌 도구</ShopSectionTitle>
               <ShopItemRow $owned={!!equipped}>
-                <span className="icon">{equipped?.icon ?? '—'}</span>
+                <span className="icon">{equipped ? <Emoji glyph={equipped.icon} size={20} /> : '—'}</span>
                 <div className="info">
                   <div className="name">{equipped ? equipped.name : '장착된 도구 없음'}</div>
                   <div className="desc">{equipped ? equipped.desc : '보관함에서 장착하세요'}</div>
@@ -1230,7 +1230,7 @@ export const GameCanvas: React.FC = () => {
                   const it = getHeldItem(id); if (!it) return null;
                   return (
                     <ShopItemRow key={id}>
-                      <span className="icon">{it.icon}</span>
+                      <span className="icon"><Emoji glyph={it.icon} size={20} /></span>
                       <div className="info">
                         <div className="name">{it.name} {n > 1 && <span style={{ color: '#7e8da0' }}>×{n}</span>}</div>
                         <div className="desc">{it.desc}</div>

@@ -5,6 +5,7 @@
 // 게임 루프를 막지 않는 비차단(pointer-events:none) 오버레이.
 import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { useGameStore } from '../../store/gameStore';
 import { useTranslation } from '../../i18n';
 
@@ -68,7 +69,7 @@ export const BossCutIn: React.FC<BossCutInProps> = ({ chapterNumber, bossName })
       <LightRoot>
         <LightBanner>
           {sprite && <LightArt src={sprite} alt="boss" />}
-          <LightText>⚠ {label}</LightText>
+          <LightText><Emoji glyph="⚠" size={14} /> {label}</LightText>
         </LightBanner>
       </LightRoot>
     );
@@ -88,7 +89,7 @@ export const BossCutIn: React.FC<BossCutInProps> = ({ chapterNumber, bossName })
           {sprite && <Art src={sprite} alt={bossName} />}
         </ArtWrap>
         <TextCol>
-          <Warn>⚠ {warnLabel}</Warn>
+          <Warn><Emoji glyph="⚠" size={16} /> {warnLabel}</Warn>
           <BossName>{bossName}</BossName>
           {taunt && <Taunt>“{taunt}”</Taunt>}
         </TextCol>

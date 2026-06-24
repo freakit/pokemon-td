@@ -170,7 +170,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
 
         {/* ── 데이터 보존 안내 ── */}
         <DataNotice>
-          ⚠️ {t('hallOfFame.dataNotice')}
+          <Emoji glyph="⚠️" size={13} /> {t('hallOfFame.dataNotice')}
         </DataNotice>
 
       </ModalBox>
@@ -297,7 +297,7 @@ const MyRecordList = ({ entries }: { entries: HallOfFameEntry[] }) => {
             </MapBadge>
             <WaveBadge>Wave {e.wave}</WaveBadge>
           </CardTop>
-          <TimeRow>⏱️ {formatTime(e.clearTime, t)}</TimeRow>
+          <TimeRow><Emoji glyph="⏱️" size={12} /> {formatTime(e.clearTime, t)}</TimeRow>
           <PokemonSection>
             <SectionLabel>{t('hallOfFame.pokemonUsed')}</SectionLabel>
             <PokemonGrid>
