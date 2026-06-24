@@ -31,12 +31,13 @@ const getGenderColor = (gender: Gender) => {
 
 export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
-  const { towers, sellTower, fusePokemon, money, isWaveActive } = useGameStore(state => ({
+  const { towers, sellTower, fusePokemon, money, isWaveActive, setManageTowerId } = useGameStore(state => ({
     towers: state.towers,
     sellTower: state.sellTower,
     fusePokemon: state.fusePokemon,
     money: state.money,
     isWaveActive: state.isWaveActive,
+    setManageTowerId: state.setManageTowerId,
   }));
   const [fusionMode, setFusionMode] = useState(false);
   const [selectedBase, setSelectedBase] = useState<string | null>(null);
@@ -227,9 +228,18 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                   </CardBody>
 
                   {!fusionMode && (
-                    <SellBtn onClick={() => handleSell(tower.id, tower.displayName, tower.level)}>
-                      <Emoji glyph="💰" size={13} /> {t('manager.sell', { price: sellPrice })}
-                    </SellBtn>
+                    <ActionButtons>
+                      <ManageItemsBtn
+                        disabled={isWaveActive}
+                        title={isWaveActive ? '웨이브 사이에만 도구를 관리할 수 있습니다' : undefined}
+                        onClick={() => { setManageTowerId(tower.id); onClose(); }}
+                      >
+                        <Emoji glyph="🎒" size={13} /> 도구 관리
+                      </ManageItemsBtn>
+                      <SellBtn onClick={() => handleSell(tower.id, tower.displayName, tower.level)}>
+                        <Emoji glyph="💰" size={13} /> {t('manager.sell', { price: sellPrice })}
+                      </SellBtn>
+                    </ActionButtons>
                   )}
                 </Card>
               );
@@ -463,6 +473,37 @@ const InfoRow = styled.div`
 const InfoValue = styled.span`
   font-weight: bold;
   color: #FFD700;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  width: 100%;
+`;
+
+const ManageItemsBtn = styled.button`
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) { background: linear-gradient(135deg, #2980b9, #2471a3); }
+  }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  ${L1024} { padding: 10px; font-size: 14px; border-radius: 10px; }
+  ${L768}  { padding: 8px;  font-size: 13px; border-radius: 8px; }
+  ${LSm}   { padding: 7px;  font-size: 12px; }
 `;
 
 const SellBtn = styled.button`

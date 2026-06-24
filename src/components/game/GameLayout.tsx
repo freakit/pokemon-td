@@ -704,7 +704,13 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             </FacilityRow>
             <FacilityRow>
               <FacilityName><Award size={13} /> 콘테스트 홀</FacilityName>
-              <FacilityLv $on={!!contestOcc}>{contestOcc ? `Lv.${contestOcc.tier}` : "—"}</FacilityLv>
+              {contestOcc && contestOcc.tier >= 1 && !isWaveActive ? (
+                <FacilityShopBtn onClick={() => setManageTowerId(contestOcc.id)}>
+                  Lv.{contestOcc.tier} 보기
+                </FacilityShopBtn>
+              ) : (
+                <FacilityLv $on={!!contestOcc}>{contestOcc ? `Lv.${contestOcc.tier}` : "—"}</FacilityLv>
+              )}
             </FacilityRow>
           </FacilityBox>
           <HudArea>

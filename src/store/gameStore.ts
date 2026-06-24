@@ -145,6 +145,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   removeTower: (id) => {
+    const tower = get().towers.find(t => t.id === id);
+    if (tower?.heldItem) {
+      set(state => ({ heldItemInventory: [...state.heldItemInventory, tower.heldItem!] }));
+    }
     set(state => ({ towers: state.towers.filter(t => t.id !== id) }));
     get().updateActiveSynergies();
   },
