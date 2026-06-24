@@ -11,6 +11,7 @@ import {
   ChapterProgress,
 } from '../../services/StoryProgressService';
 import { MAPS } from '../../data/maps';
+import { Emoji } from '../shared/Emoji';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { StoryOpening } from './StoryOpening';
 import { useTranslation } from '../../i18n';
@@ -152,7 +153,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
           </DetailChNum>
           <DetailTitle>{chTitle(selected)}</DetailTitle>
           <DetailSubtitle>{chSub(selected)}</DetailSubtitle>
-          <DetailLocation>📍 {chLoc(selected)}</DetailLocation>
+          <DetailLocation><Emoji glyph="📍" size={13} /> {chLoc(selected)}</DetailLocation>
         </DetailHeader>
 
         <DetailBody>
@@ -306,7 +307,7 @@ export const StorySelector: React.FC<StorySelectorProps> = ({ onStart }) => {
                   }}
                   $unlocked={unlocked}
                 >
-                  {!unlocked && <LockIcon>🔒</LockIcon>}
+                  {!unlocked && <LockIcon><Emoji glyph="🔒" size={16} /></LockIcon>}
                   {cp.cleared && <ClearedBadge>CLEAR</ClearedBadge>}
                   {isSuggested && !cp.cleared && (
                     <SuggestedBadge $accent={ch.theme.primary}>

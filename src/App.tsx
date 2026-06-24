@@ -21,6 +21,7 @@ import { saveService } from "./services/SaveService";
 import { pokeAPI } from './api/pokeapi';
 import { getMapById } from './data/maps';
 
+import { Emoji } from "./components/shared/Emoji";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { MainMenu } from "./components/menu/MainMenu";
 import { MultiplayerLobby } from "./components/multiplayer/MultiplayerLobby";
@@ -195,15 +196,16 @@ function App() {
       ? Math.floor((preloadProgress.loaded / preloadProgress.total) * 100)
       : 0;
 
+    const almostDone = loadingStage !== 'map' && pct >= 100;
     const stageText = loadingStage === 'map'
       ? '맵 배경 로딩 중...'
-      : pct >= 100
-        ? '거의 다 됐어요! ✨'
+      : almostDone
+        ? '거의 다 됐어요!'
         : '포켓몬 데이터 로딩 중...';
 
     return (
       <PreloadingOverlay>
-        <LoadingTitle>{stageText}</LoadingTitle>
+        <LoadingTitle>{stageText}{almostDone && <> <Emoji glyph="✨" size={18} /></>}</LoadingTitle>
         <ProgressBarOuter>
           <ProgressBarInner $pct={loadingStage === 'map' ? 100 : pct} />
         </ProgressBarOuter>

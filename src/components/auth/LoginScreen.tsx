@@ -5,6 +5,7 @@ import { authService } from '../../services/AuthService';
 import { ShootingStarsBackground } from '../ui/ShootingStarsBackground';
 import { Settings } from '../modals/Settings';
 import { useTranslation } from '../../i18n';
+import { Emoji } from '../shared/Emoji';
 
 export const LoginScreen = () => {
   const { t } = useTranslation();
@@ -98,7 +99,7 @@ export const LoginScreen = () => {
                   </GoogleBtn>
                   <OrRow><OrLine /><OrText>{t('login.or')}</OrText><OrLine /></OrRow>
                   <GhostBtn onClick={() => { setGuestMode(true); setError(''); }} disabled={loading}>
-                    <GhostIcon>👤</GhostIcon>
+                    <GhostIcon><Emoji glyph="👤" size={16} /></GhostIcon>
                     <span>{t('login.guestBtn')}</span>
                   </GhostBtn>
                 </>

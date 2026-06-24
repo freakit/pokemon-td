@@ -10,6 +10,7 @@ import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { Gender } from '../../types/game';
 import { FUSION_DATA } from '../../data/evolution';
+import { Emoji } from '../shared/Emoji';
 
 // ─── 반응형 헬퍼 → lMedia 사용 ───────────────────────────────────────────────
 const L1024 = lMedia.tablet;   // ≤1024px landscape (iPad 등)
@@ -146,16 +147,18 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         <Header>
           <div>
             <Title>{t('manager.title', { towers: towers.length })}</Title>
-            <MoneyDisplay>💰 {money}{t('common.money')}</MoneyDisplay>
+            <MoneyDisplay><Emoji glyph="💰" size={14} /> {money}{t('common.money')}</MoneyDisplay>
           </div>
           <HeaderButtons>
             <FusionBtn
               onClick={handleFusionClick}
               $fusionMode={fusionMode}
             >
-              {fusionMode ? `❌ ${t('common.cancel')}` : `🧬 ${t('manager.fusion')}`}
+              {fusionMode
+                ? <><Emoji glyph="❌" size={13} /> {t('common.cancel')}</>
+                : <><Emoji glyph="🧬" size={13} /> {t('manager.fusion')}</>}
             </FusionBtn>
-            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
+            <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
           </HeaderButtons>
         </Header>
 
@@ -192,7 +195,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                       <FaintedBadge>{t('manager.fainted')}</FaintedBadge>
                     )}
                     {fusionHint && fusionMode && (
-                      <FusionBadge>{fusionHint}</FusionBadge>
+                      <FusionBadge><Emoji glyph={fusionHint} size={14} /></FusionBadge>
                     )}
                   </CardHeader>
 
@@ -200,7 +203,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     <NameRow>
                       <PokeName>{tower.displayName}</PokeName>
                       <GenderIcon $gender={tower.gender || 'genderless'}>
-                        {getGenderIcon(tower.gender || 'genderless')}
+                        <Emoji glyph={getGenderIcon(tower.gender || 'genderless')} size={13} />
                       </GenderIcon>
                     </NameRow>
                     <InfoRow>
@@ -225,7 +228,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
                   {!fusionMode && (
                     <SellBtn onClick={() => handleSell(tower.id, tower.displayName, tower.level)}>
-                      💰 {t('manager.sell', { price: sellPrice })}
+                      <Emoji glyph="💰" size={13} /> {t('manager.sell', { price: sellPrice })}
                     </SellBtn>
                   )}
                 </Card>

@@ -7,6 +7,7 @@ import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
 import { Difficulty, MapData } from "../../types/game";
 import { useNavigate } from "react-router-dom";
+import { Emoji } from "../shared/Emoji";
 
 type DifficultyFilter = "easiest" | "easy" | "medium" | "hard" | "expert";
 
@@ -74,7 +75,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
             $color={DIFF_META[d].color}
             onClick={() => handleFilter(d)}
           >
-            {DIFF_META[d].dot}&nbsp;{t(`mapSelector.${d}`)}
+            <Emoji glyph={DIFF_META[d].dot} size={11} color={DIFF_META[d].color} />&nbsp;{t(`mapSelector.${d}`)}
           </FilterPill>
         ))}
       </FilterBar>
@@ -102,7 +103,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
 
                   <CardTop>
                     <DiffBadge $color={meta?.color ?? '#fff'}>
-                      {meta?.dot} {meta?.label ?? map.difficulty.toUpperCase()}
+                      <Emoji glyph={meta?.dot} size={11} color={meta?.color} /> {meta?.label ?? map.difficulty.toUpperCase()}
                     </DiffBadge>
                   </CardTop>
 

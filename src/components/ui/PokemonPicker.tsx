@@ -12,6 +12,7 @@ import { getMapById, getFacilityTiles } from '../../data/maps';
 import { rarityBoostFromWaves } from '../../data/heldItems';
 import { mapAbilityToGameEffect } from '../../utils/abilities';
 import { ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT } from '../shared/modal.styles';
+import { Emoji } from '../shared/Emoji';
 
 const REROLL_COST = 20;
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
@@ -347,7 +348,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
                   <NameRow>
                     <Name>{p.displayName}</Name>
                     <GenderIcon $gender={choice.gender}>
-                       {getGenderIcon(choice.gender)}
+                       <Emoji glyph={getGenderIcon(choice.gender)} size={13} />
                     </GenderIcon>
                   </NameRow>
                   
@@ -380,7 +381,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
         <Actions>
           <MoneyDisplay>{t('picker.currentMoney', { money: money })}</MoneyDisplay>
           <RerollBtn onClick={handleReroll} disabled={isLoading}>
-            🔄 {t('picker.reroll')}
+            <Emoji glyph="🔄" size={14} /> {t('picker.reroll')}
           </RerollBtn>
         </Actions>
         </InnerPad>

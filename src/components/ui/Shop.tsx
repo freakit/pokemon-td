@@ -8,6 +8,7 @@ import { media, lMedia, isMobileOrTablet } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { canEvolveWithItem, getEvolvableWithItem } from "../../data/evolution";
+import { Emoji } from "../shared/Emoji";
 import {
   EVOLUTION_ITEMS_BY_CATEGORY,
   EVOLUTION_ITEMS,
@@ -186,7 +187,7 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
                     );
                   })()}
                   {isEvolveTarget && (
-                    <PriceLabel $type="evolve">✨ {t("manager.canEvolve")}</PriceLabel>
+                    <PriceLabel $type="evolve"><Emoji glyph="✨" size={12} /> {t("manager.canEvolve")}</PriceLabel>
                   )}
                 </TowerCard>
               );
@@ -228,10 +229,10 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
       {!isWaveActive && (
         <TabContainer $embedded={embedded}>
           <TabButton $isActive={activeTab === "general"}   onClick={() => setActiveTab("general")}>
-            🛒 {t("shop.tabGeneral")}
+            <Emoji glyph="🛒" size={14} /> {t("shop.tabGeneral")}
           </TabButton>
           <TabButton $isActive={activeTab === "evolution"} onClick={() => setActiveTab("evolution")}>
-            ✨ {t("shop.tabEvolution")}
+            <Emoji glyph="✨" size={14} /> {t("shop.tabEvolution")}
             {usableItemIds.size > 0 && <TabBadge>{usableItemIds.size}</TabBadge>}
           </TabButton>
         </TabContainer>
@@ -288,23 +289,23 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
       {activeTab === "evolution" && (
         <EvolutionTab>
           <CategorySection>
-            <CategoryTitle>🔥 {t("shop.categoryStone")}</CategoryTitle>
+            <CategoryTitle><Emoji glyph="🔥" size={14} /> {t("shop.categoryStone")}</CategoryTitle>
             <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.stone)}</ItemGrid>
           </CategorySection>
           <CategorySection>
-            <CategoryTitle>🔗 {t("shop.categoryTrade")}</CategoryTitle>
+            <CategoryTitle><Emoji glyph="🔗" size={14} /> {t("shop.categoryTrade")}</CategoryTitle>
             <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.trade)}</ItemGrid>
           </CategorySection>
           <CategorySection>
-            <CategoryTitle>💝 {t("shop.categoryFriendship")}</CategoryTitle>
+            <CategoryTitle><Emoji glyph="💝" size={14} /> {t("shop.categoryFriendship")}</CategoryTitle>
             <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.friendship)}</ItemGrid>
           </CategorySection>
           <CategorySection>
-            <CategoryTitle>⭐ {t("shop.categoryOthers")}</CategoryTitle>
+            <CategoryTitle><Emoji glyph="⭐" size={14} /> {t("shop.categoryOthers")}</CategoryTitle>
             <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.others)}</ItemGrid>
           </CategorySection>
           <CategorySection>
-            <CategoryTitle>✨ {t("shop.categorySpecial")}</CategoryTitle>
+            <CategoryTitle><Emoji glyph="✨" size={14} /> {t("shop.categorySpecial")}</CategoryTitle>
             <ItemGrid>{renderEvoItems(EVOLUTION_ITEMS_BY_CATEGORY.special)}</ItemGrid>
           </CategorySection>
         </EvolutionTab>
@@ -328,8 +329,8 @@ export const Shop: React.FC<Props> = ({ embedded = false }) => {
     <ShopOverlay>
       <ShopModal $isCollapsed={isCollapsed}>
         <ShopHeader onClick={() => setIsCollapsed(!isCollapsed)}>
-          <ShopTitle>🏪 {t("shop.title")}</ShopTitle>
-          <ToggleButton>{isCollapsed ? "➕" : "➖"}</ToggleButton>
+          <ShopTitle><Emoji glyph="🏪" size={15} /> {t("shop.title")}</ShopTitle>
+          <ToggleButton><Emoji glyph={isCollapsed ? "➕" : "➖"} size={14} /></ToggleButton>
         </ShopHeader>
         <CollapseContent $isCollapsed={isCollapsed}>
           {shopContent}

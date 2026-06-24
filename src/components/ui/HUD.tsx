@@ -6,6 +6,7 @@ import { useTranslation } from '../../i18n';
 import { lMedia} from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { GamePhase } from '../../types/multiplayer';
+import { Emoji } from '../shared/Emoji';
 
 interface Props {
   onStartWave: () => void;
@@ -91,23 +92,25 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
       <LeftSection>
         <StatGroup>
           <StatItem>
-            <StatIcon>🌊</StatIcon>
+            <StatIcon><Emoji glyph="🌊" size={15} /></StatIcon>
             <StatValue>{displayWave}</StatValue>
           </StatItem>
           <StatItem>
-            <StatIcon>💰</StatIcon>
+            <StatIcon><Emoji glyph="💰" size={15} /></StatIcon>
             <StatValue>{displayMoney}</StatValue>
           </StatItem>
           <StatItem>
-            <StatIcon>❤️</StatIcon>
+            <StatIcon><Emoji glyph="❤️" size={15} /></StatIcon>
             <StatValue>{displayLives}</StatValue>
           </StatItem>
           <StatItem>
-            <StatIcon>⚡</StatIcon>
+            <StatIcon><Emoji glyph="⚡" size={15} /></StatIcon>
             <StatValue>{gameSpeed}x</StatValue>
           </StatItem>
           <TimeIndicator>
-            {timeOfDay === 'day' ? `☀️ ${t('common.day')}` : `🌙 ${t('common.night')}`}
+            {timeOfDay === 'day'
+              ? <><Emoji glyph="☀️" size={14} /> {t('common.day')}</>
+              : <><Emoji glyph="🌙" size={14} /> {t('common.night')}</>}
           </TimeIndicator>
         </StatGroup>
       </LeftSection>
@@ -118,25 +121,25 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
             {getPhaseText(multiPhase, multiRound, multiCountdown, t)}
           </PhaseDisplay>
         ) : (
-          <TimerDisplay>⏰ {formatTime(gameTime)}</TimerDisplay>
+          <TimerDisplay><Emoji glyph="⏰" size={14} /> {formatTime(gameTime)}</TimerDisplay>
         )}
       </CenterSection>
 
       <ButtonSection>
         {!isMultiplayer && (
           <Btn $variant="wave" $pulse={pulseWaveBtn} onClick={onStartWave} disabled={isWaveActive}>
-            🎯 {t('hud.startWave')}
+            <Emoji glyph="🎯" size={15} /> {t('hud.startWave')}
           </Btn>
         )}
         <Btn $variant="pokemon" $pulse={pulsePokemonBtn} onClick={onAddPokemon}>
-          ➕ {t('hud.addPokemon')}
+          <Emoji glyph="➕" size={15} /> {t('hud.addPokemon')}
         </Btn>
         <Btn $variant="manage" onClick={onManagePokemon}>
-          🎒 {t('hud.managePokemon')} ({towers.length}/6)
+          <Emoji glyph="🎒" size={15} /> {t('hud.managePokemon')} ({towers.length}/6)
         </Btn>
         {isMultiplayer && onShowRival && (
           <Btn $variant="rival" onClick={onShowRival}>
-            👁 {t('hud.rival')}
+            <Emoji glyph="👁" size={15} /> {t('hud.rival')}
           </Btn>
         )}
         {!isMultiplayer && (
@@ -144,7 +147,7 @@ export const HUD: React.FC<Props> = ({ onStartWave, onAddPokemon, onManagePokemo
             $variant="speed"
             onClick={() => setSpeed(gameSpeed === 5 ? 1 : gameSpeed === 1 ? 3 : gameSpeed === 3 ? 5 : 1)}
           >
-            ⚡ {gameSpeed}x
+            <Emoji glyph="⚡" size={15} /> {gameSpeed}x
           </Btn>
         )}
       </ButtonSection>

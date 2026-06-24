@@ -20,6 +20,7 @@ import { getMapById, activeTeraTiles, getFacilityTiles } from "../../data/maps";
 import { GamePokemon } from "../../types/game";
 import { lMedia, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
 import { buyableHeldItems, shopTier, wavesToNextTier, getHeldItem } from "../../data/heldItems";
+import { Emoji } from "../shared/Emoji";
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -447,7 +448,7 @@ const AchievementToastDisplay: React.FC = () => {
   const isFirst = achievementToast.isFirstTime;
   return (
     <AchievementToastPill key={achievementToast.timestamp} $color={tierColor} $first={isFirst}>
-      {isFirst ? '🏆 ' : '✓ '}
+      <Emoji glyph={isFirst ? '🏆' : '✅'} size={14} />{' '}
       <AchPillName $first={isFirst}>{achievementToast.name}</AchPillName>
       {isFirst && <AchPillAP $color={tierColor}> +{ap}AP</AchPillAP>}
     </AchievementToastPill>
@@ -908,8 +909,8 @@ export const GameCanvas: React.FC = () => {
     <CanvasContainer ref={containerRef}>
       {evolutionToast && (
         <EvolutionToast>
-          <span>✨ {t('game.evoToast', { fromName: evolutionToast.fromName, toName: evolutionToast.toName })}</span>
-          <EvolutionToastButton onClick={() => useGameStore.setState({ evolutionToast: null })}>✕</EvolutionToastButton>
+          <span><Emoji glyph="✨" size={14} /> {t('game.evoToast', { fromName: evolutionToast.fromName, toName: evolutionToast.toName })}</span>
+          <EvolutionToastButton onClick={() => useGameStore.setState({ evolutionToast: null })}><Emoji glyph="❌" size={13} /></EvolutionToastButton>
         </EvolutionToast>
       )}
 
@@ -926,10 +927,10 @@ export const GameCanvas: React.FC = () => {
             <TooltipStatRow>{t('picker.attack')}: {hoveredTower.attack} | {t('picker.defense')}: {hoveredTower.defense}</TooltipStatRow>
             <TooltipStatRow>{t('picker.spAttack')}: {hoveredTower.specialAttack} | {t('picker.spDefense')}: {hoveredTower.specialDefense}</TooltipStatRow>
             <TooltipStatRow>{t('picker.speed')}: {hoveredTower.speed}</TooltipStatRow>
-            {hoveredTower.equippedMoves[0] && <TooltipMove>⚔️ {hoveredTower.equippedMoves[0].displayName} ({hoveredTower.equippedMoves[0].power})</TooltipMove>}
+            {hoveredTower.equippedMoves[0] && <TooltipMove><Emoji glyph="⚔️" size={12} /> {hoveredTower.equippedMoves[0].displayName} ({hoveredTower.equippedMoves[0].power})</TooltipMove>}
             {hoveredTower.teraType && (
               <TooltipMove style={{ color: typeColor(hoveredTower.teraType) }}>
-                💎 테라스탈: {typeLabelKo(hoveredTower.teraType)}
+                <Emoji glyph="💎" size={12} /> 테라스탈: {typeLabelKo(hoveredTower.teraType)}
                 {hoveredTower.equippedMoves.some(m => m.type === hoveredTower.teraType)
                   ? ' (자속 발동)'
                   : ' (방어 변환)'}
@@ -937,7 +938,7 @@ export const GameCanvas: React.FC = () => {
             )}
             {hoveredTower.heldItem && getHeldItem(hoveredTower.heldItem) && (
               <TooltipMove style={{ color: '#f0b840' }}>
-                {getHeldItem(hoveredTower.heldItem)!.icon} {getHeldItem(hoveredTower.heldItem)!.name}
+                <Emoji glyph={getHeldItem(hoveredTower.heldItem)!.icon} size={12} /> {getHeldItem(hoveredTower.heldItem)!.name}
               </TooltipMove>
             )}
           </TooltipStats>
@@ -951,7 +952,7 @@ export const GameCanvas: React.FC = () => {
           : { left: `${mousePos.x * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }}>
           {hoveredTile.kind === 'tera' ? (
             <>
-              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}>💎 테라스탈 타일</TooltipTitle>
+              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}><Emoji glyph="💎" size={13} /> 테라스탈 타일</TooltipTitle>
               <TooltipStats>
                 <TooltipStatRow>올라간 포켓몬이 <b style={{ color: typeColor(hoveredTile.type) }}>{typeLabelKo(hoveredTile.type)}</b> 타입으로 변환</TooltipStatRow>
                 <TooltipStatRow>같은 타입 기술이면 자속↑, 방어 상성도 변환</TooltipStatRow>
@@ -960,7 +961,7 @@ export const GameCanvas: React.FC = () => {
             </>
           ) : hoveredTile.kind === 'shop' ? (
             <>
-              <TooltipTitle style={{ color: '#f0b840' }}>🏪 프렌들리숍 타일</TooltipTitle>
+              <TooltipTitle style={{ color: '#f0b840' }}><Emoji glyph="🏪" size={13} /> 프렌들리숍 타일</TooltipTitle>
               <TooltipStats>
                 <TooltipStatRow>포켓몬에게 알바를 시키면 도구 상점이 열려요</TooltipStatRow>
                 <TooltipStatRow>누적 5 / 10 / 15웨이브 → Lv1 / 2 / 3 해금</TooltipStatRow>
@@ -969,7 +970,7 @@ export const GameCanvas: React.FC = () => {
             </>
           ) : (
             <>
-              <TooltipTitle style={{ color: '#f0a0d0' }}>🎀 콘테스트 홀</TooltipTitle>
+              <TooltipTitle style={{ color: '#f0a0d0' }}><Emoji glyph="🎀" size={13} /> 콘테스트 홀</TooltipTitle>
               <TooltipStats>
                 <TooltipStatRow>포켓몬을 콘테스트에 내보내면 상점에 고레어가 더 잘 나와요</TooltipStatRow>
                 <TooltipStatRow>누적 5 / 10 / 15웨이브 → 확률 조금씩↑</TooltipStatRow>
@@ -1164,20 +1165,20 @@ export const GameCanvas: React.FC = () => {
           <ShopOverlay onClick={close}>
             <ShopModal onClick={e => e.stopPropagation()}>
               <ShopHeader>
-                <h3>{isClerk ? '🏪 프렌들리숍' : isScout ? '🎀 콘테스트 홀' : '🎒 지닌 도구'}</h3>
-                <ShopCloseBtn onClick={close}>✕</ShopCloseBtn>
+                <h3><Emoji glyph={isClerk ? '🏪' : isScout ? '🎀' : '🎒'} size={16} /> {isClerk ? '프렌들리숍' : isScout ? '콘테스트 홀' : '지닌 도구'}</h3>
+                <ShopCloseBtn onClick={close}><Emoji glyph="❌" size={14} /></ShopCloseBtn>
               </ShopHeader>
               <ShopSub>
                 <b>{tower.displayName}</b>
                 {isClerk && <ShopGradeBadge>{tier > 0 ? `영업 Lv.${tier}` : '알바 중'}</ShopGradeBadge>}
                 {isScout && <ShopGradeBadge>{tier > 0 ? `콘테스트 Lv.${tier}` : '준비 중'}</ShopGradeBadge>}
-                <span style={{ marginLeft: 8, color: '#f0b840' }}>💰 {money}원</span>
+                <span style={{ marginLeft: 8, color: '#f0b840' }}><Emoji glyph="💰" size={13} /> {money}원</span>
               </ShopSub>
 
               {/* 콘테스트 홀 상태 */}
               {isScout && (
                 tier === 0
-                  ? <ShopLockNote>🎀 준비 중 — 콘테스트 입상까지 <b>{wavesToNextTier(waves)}</b>웨이브. (출전 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                  ? <ShopLockNote><Emoji glyph="🎀" size={13} /> 준비 중 — 콘테스트 입상까지 <b>{wavesToNextTier(waves)}</b>웨이브. (출전 포켓몬은 공격·경험치 없음)</ShopLockNote>
                   : <ShopGradeNote>누적 {waves}웨이브 출전 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).</ShopGradeNote>
               )}
 
@@ -1185,7 +1186,7 @@ export const GameCanvas: React.FC = () => {
               {isClerk && (
                 <>
                   {tier === 0 ? (
-                    <ShopLockNote>🧹 알바 중 — 상점 개점까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
+                    <ShopLockNote><Emoji glyph="🧹" size={13} /> 알바 중 — 상점 개점까지 <b>{wavesToNextTier(waves)}</b>웨이브. (알바 포켓몬은 공격·경험치 없음)</ShopLockNote>
                   ) : (
                     <ShopGradeNote>
                       누적 알바 {waves}웨이브 · 더 오래 둘수록 등급↑(Lv2:10, Lv3:15웨이브). 산 도구는 보관함에 들어갑니다.

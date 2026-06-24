@@ -7,6 +7,7 @@ import { media, lMedia, isMobileOrTablet } from "../../utils/responsive.utils";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { SPECIAL_SYNERGY_DEFS } from "../../utils/synergyManager";
+import { Emoji } from "../shared/Emoji";
 
 const TYPE_ICON_API_BASE = "https://www.serebii.net/pokedex-bw/type/";
 
@@ -49,7 +50,7 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
       return (
         <EmbeddedWrapper>
           <EmptyState>
-            <EmptyIcon>💎</EmptyIcon>
+            <EmptyIcon><Emoji glyph="💎" size={20} /></EmptyIcon>
             <EmptyMsg>{t("synergy.empty")}</EmptyMsg>
             <EmptyHint>포켓몬을 배치하면<br/>시너지가 활성화돼요</EmptyHint>
           </EmptyState>
@@ -80,7 +81,7 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
               {si.imageUrl ? (
                 <SynImage src={si.imageUrl} alt={si.name} />
               ) : (
-                <SynIcon $isSpecial={isSpecial}>{si.icon}</SynIcon>
+                <SynIcon $isSpecial={isSpecial}><Emoji glyph={si.icon ?? undefined} size={16} /></SynIcon>
               )}
               <SynInfo>
                 <SynName>{si.name} ({syn.count})</SynName>
@@ -100,8 +101,8 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
       onMouseLeave={() => setHoveredSynergy(null)}
     >
       <FloatTitle onClick={() => setIsCollapsed(!isCollapsed)}>
-        <span>💎 {t("synergy.title")}</span>
-        <ToggleBtn>{isCollapsed ? "➕" : "➖"}</ToggleBtn>
+        <span><Emoji glyph="💎" size={14} /> {t("synergy.title")}</span>
+        <ToggleBtn><Emoji glyph={isCollapsed ? "➕" : "➖"} size={13} /></ToggleBtn>
       </FloatTitle>
       <CollapseContent $isCollapsed={isCollapsed}>
         <List>
@@ -118,7 +119,7 @@ export const SynergyTracker: React.FC<Props> = ({ embedded = false }) => {
                 {si.imageUrl ? (
                   <SynImage src={si.imageUrl} alt={si.name} />
                 ) : (
-                  <SynIcon $isSpecial={isSpecial}>{si.icon}</SynIcon>
+                  <SynIcon $isSpecial={isSpecial}><Emoji glyph={si.icon ?? undefined} size={16} /></SynIcon>
                 )}
                 <SynInfo>
                   <SynName>{si.name} ({syn.count})</SynName>
