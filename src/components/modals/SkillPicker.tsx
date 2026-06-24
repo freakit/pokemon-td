@@ -3,6 +3,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { media, lMedia } from '../../utils/responsive.utils';
+import { Emoji } from '../shared/Emoji';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { modalBoxCss, MODAL_ACCENT } from '../shared/modal.styles';
@@ -60,11 +61,11 @@ export const SkillPicker: React.FC = () => {
   return (
     <Container>
       <Header>
-        <Title>⭐ {t('skillPicker.levelUpName', { name: tower.displayName })}</Title>
+        <Title><Emoji glyph="⭐" size={16} /> {t('skillPicker.levelUpName', { name: tower.displayName })}</Title>
         <PokemonName>{t('skillPicker.pokemonLevel', { level: tower.level })}</PokemonName>
       </Header>
       
-      <Subtitle>🔄 {t('skillPicker.selectSkill')}</Subtitle>
+      <Subtitle><Emoji glyph="🔄" size={14} /> {t('skillPicker.selectSkill')}</Subtitle>
       
       <SkillSection>
         <SectionLabel>{t('skillPicker.current')}</SectionLabel>
@@ -78,28 +79,28 @@ export const SkillPicker: React.FC = () => {
           </SkillName>
           <SkillStats>
             <StatRow>
-              <span>⚔️</span>
+              <span><Emoji glyph="⚔️" size={13} /></span>
               <span>{currentMove.power}</span>
             </StatRow>
             <StatRow>
-              <span>🎯</span>
+              <span><Emoji glyph="🎯" size={13} /></span>
               <span>{currentMove.accuracy}%</span>
             </StatRow>
           </SkillStats>
           {currentMove.effect.statusInflict && currentMove.effect.statusChance != null && currentMove.effect.statusChance > 0 && (
             <EffectBadge $type="status">
-              💫 {t('skillPicker.statusEffect', { status: t(`status.${currentMove.effect.statusInflict}`), chance: currentMove.effect.statusChance })}
+              <Emoji glyph="💫" size={12} /> {t('skillPicker.statusEffect', { status: t(`status.${currentMove.effect.statusInflict}`), chance: currentMove.effect.statusChance })}
             </EffectBadge>
           )}
           {currentMove.effect.drainPercent && (
             <EffectBadge $type="drain">
-              🩸 {t('skillPicker.drain', { percent: currentMove.effect.drainPercent * 100 })}
+              <Emoji glyph="🩸" size={12} /> {t('skillPicker.drain', { percent: currentMove.effect.drainPercent * 100 })}
             </EffectBadge>
           )}
-          {currentMove.isAOE && <EffectBadge $type="aoe">🌀 {t('skillPicker.aoe')}</EffectBadge>}
+          {currentMove.isAOE && <EffectBadge $type="aoe"><Emoji glyph="🌀" size={12} /> {t('skillPicker.aoe')}</EffectBadge>}
         </SkillCard>
         <KeepBtn onClick={handleKeepCurrentMove}>
-          ✅ {t('skillPicker.keep')}
+          <Emoji glyph="✅" size={13} /> {t('skillPicker.keep')}
         </KeepBtn>
       </SkillSection>
 
@@ -117,28 +118,28 @@ export const SkillPicker: React.FC = () => {
           </SkillName>
           <SkillStats>
             <StatRow>
-              <span>⚔️</span>
+              <span><Emoji glyph="⚔️" size={13} /></span>
               <span>{newMove.power}</span>
             </StatRow>
             <StatRow>
-              <span>🎯</span>
+              <span><Emoji glyph="🎯" size={13} /></span>
               <span>{newMove.accuracy}%</span>
             </StatRow>
           </SkillStats>
           {newMove.effect.statusInflict && newMove.effect.statusChance != null && newMove.effect.statusChance > 0 && (
             <EffectBadge $type="status">
-              💫 {t('skillPicker.statusEffect', { status: t(`status.${newMove.effect.statusInflict}`), chance: newMove.effect.statusChance })}
+              <Emoji glyph="💫" size={12} /> {t('skillPicker.statusEffect', { status: t(`status.${newMove.effect.statusInflict}`), chance: newMove.effect.statusChance })}
             </EffectBadge>
           )}
           {newMove.effect.drainPercent && (
             <EffectBadge $type="drain">
-              🩸 {t('skillPicker.drain', { percent: newMove.effect.drainPercent * 100 })}
+              <Emoji glyph="🩸" size={12} /> {t('skillPicker.drain', { percent: newMove.effect.drainPercent * 100 })}
             </EffectBadge>
           )}
-          {newMove.isAOE && <EffectBadge $type="aoe">🌀 {t('skillPicker.aoe')}</EffectBadge>}
+          {newMove.isAOE && <EffectBadge $type="aoe"><Emoji glyph="🌀" size={12} /> {t('skillPicker.aoe')}</EffectBadge>}
         </SkillCard>
         <LearnBtn onClick={handleLearnNewMove}>
-          ⭐ {t('skillPicker.learn')}
+          <Emoji glyph="⭐" size={13} /> {t('skillPicker.learn')}
         </LearnBtn>
       </SkillSection>
 

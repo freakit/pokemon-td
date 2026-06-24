@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { lMedia, media } from '../../utils/responsive.utils';
+import { Emoji } from '../shared/Emoji';
 import { databaseService, APRankingEntry } from '../../services/DatabaseService';
 import { authService } from '../../services/AuthService';
 import { saveService } from '../../services/SaveService';
@@ -64,8 +65,8 @@ export const Rankings = ({ onClose }: RankingsProps) => {
       <ModalBox $size="md" $accent={MODAL_ACCENT.cyan} onClick={(e) => e.stopPropagation()}>
 
         <ModalHeader>
-          <ModalTitle>🏆 {t('rankings.title')}</ModalTitle>
-          <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
+          <ModalTitle><Emoji glyph="🏆" size={16} /> {t('rankings.title')}</ModalTitle>
+          <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
         </ModalHeader>
 
         {/* ── 탭 ── */}
@@ -80,13 +81,13 @@ export const Rankings = ({ onClose }: RankingsProps) => {
 
         {activeTab === 'ap' && (
           <MyRankBadgeWrapper>
-            <MyRankBadge>🎯 {t('rankings.myRank', { rank: myApRank !== null ? myApRank : '-' })} ({saveService.load().totalAP} AP)</MyRankBadge>
+            <MyRankBadge><Emoji glyph="🎯" size={13} /> {t('rankings.myRank', { rank: myApRank !== null ? myApRank : '-' })} ({saveService.load().totalAP} AP)</MyRankBadge>
           </MyRankBadgeWrapper>
         )}
 
         {activeTab === 'pvp' && (
           <MyRankBadgeWrapper>
-            <MyRankBadge>🎯 {t('rankings.myRank', { rank: myPvpRank !== null ? myPvpRank : '-' })} ({authService.getCurrentUser()?.rating ?? 1000} Rating)</MyRankBadge>
+            <MyRankBadge><Emoji glyph="🎯" size={13} /> {t('rankings.myRank', { rank: myPvpRank !== null ? myPvpRank : '-' })} ({authService.getCurrentUser()?.rating ?? 1000} Rating)</MyRankBadge>
           </MyRankBadgeWrapper>
         )}
         
@@ -110,11 +111,12 @@ export const Rankings = ({ onClose }: RankingsProps) => {
                     return (
                       <TableRow key={entry.userId} $top={rank < 3} $isAp={true}>
                         <ColRank $idx={rank}>
-                          {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉'
+                          {rank < 3
+                            ? <Emoji glyph={rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉'} size={16} />
                             : t('rankings.rankSuffix', { rank: rank + 1 })}
                         </ColRank>
                         <ColPlayer>{entry.userName ?? '???'}</ColPlayer>
-                        <ColRating>🏅 {entry.achievementCount}</ColRating>
+                        <ColRating><Emoji glyph="🏅" size={13} /> {entry.achievementCount}</ColRating>
                         <ColScore $accent>{entry.totalAP.toLocaleString()} AP</ColScore>
                       </TableRow>
                     );
@@ -132,11 +134,12 @@ export const Rankings = ({ onClose }: RankingsProps) => {
                     return (
                       <TableRow key={entry.userId} $top={rank < 3} $isAp={false}>
                         <ColRank $idx={rank}>
-                          {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉'
+                          {rank < 3
+                            ? <Emoji glyph={rank === 0 ? '🥇' : rank === 1 ? '🥈' : '🥉'} size={16} />
                             : t('rankings.rankSuffix', { rank: rank + 1 })}
                         </ColRank>
                         <ColPlayer>{entry.userName ?? '???'}</ColPlayer>
-                        <ColScore $accent>⭐ {(entry.rating ?? 1000).toLocaleString()}</ColScore>
+                        <ColScore $accent><Emoji glyph="⭐" size={13} /> {(entry.rating ?? 1000).toLocaleString()}</ColScore>
                       </TableRow>
                     );
                   })}

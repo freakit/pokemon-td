@@ -11,6 +11,7 @@ import { HallOfFameEntry, LeaderboardEntry } from '../../types/multiplayer';
 import { MAPS } from '../../data/maps';
 import { authService } from '../../services/AuthService';
 import { useTranslation } from '../../i18n';
+import { Emoji } from '../shared/Emoji';
 
 type ViewTab = 'global_clear' | 'global_wave' | 'mine';
 type MapFilter = 'all' | string;
@@ -90,7 +91,7 @@ export const HallOfFame = ({ onClose }: HallOfFameProps) => {
         {/* ── 헤더 ── */}
         <HeaderSection>
           <TitleRow>
-            <SectionTitle>🏆 {t('hallOfFame.title')}</SectionTitle>
+            <SectionTitle><Emoji glyph="🏆" size={16} /> {t('hallOfFame.title')}</SectionTitle>
             <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
           </TitleRow>
 
@@ -203,7 +204,7 @@ const GlobalClearList = ({
             const rank = startRank + i;
             return (
               <Tr key={e.id} $isMe={e.userId === myUid} $rank={rank}>
-                <Td $center>{MEDAL[rank] ?? t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
+                <Td $center>{MEDAL[rank] ? <Emoji glyph={MEDAL[rank]} size={16} /> : t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
                 <Td $bold>{e.userName}</Td>
                 <Td className="hide-mobile">
                   {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
@@ -252,7 +253,7 @@ const GlobalWaveList = ({
             const rank = startRank + i;
             return (
               <Tr key={`${e.userId}_${e.mapId}`} $isMe={e.userId === myUid} $rank={rank}>
-                <Td $center>{MEDAL[rank] ?? t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
+                <Td $center>{MEDAL[rank] ? <Emoji glyph={MEDAL[rank]} size={16} /> : t('hallOfFame.rankSuffix', { rank: rank + 1 })}</Td>
                 <Td $bold>{e.userName}</Td>
                 <Td className="hide-mobile">
                   {t(`mapData.${e.mapId}.name`) !== `mapData.${e.mapId}.name`
