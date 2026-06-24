@@ -11,6 +11,7 @@ import React from 'react';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { PlayerGameState, TowerDetail } from '../../types/multiplayer';
 import { authService } from '../../services/AuthService';
@@ -124,13 +125,13 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
     <ModalOverlay onClick={(e: React.MouseEvent) => { if (e.target === e.currentTarget) onClose(); }}>
       <ModalBox $size="md" $accent={MODAL_ACCENT.gold} $scroll>
         <Header>
-          <Title>🏆 플레이어 순위</Title>
+          <Title><Emoji glyph="🏆" size={16} /> 플레이어 순위</Title>
           <HeaderRight>
             <RefreshInfo $refreshing={isRefreshing}>
-              {isRefreshing ? '🔄 새로고침 중...' : `⏱ ${refreshedTimeStr}`}
+              {isRefreshing ? <><Emoji glyph="🔄" size={12} /> 새로고침 중...</> : <><Emoji glyph="⏱" size={12} /> {refreshedTimeStr}</>}
             </RefreshInfo>
-            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침">🔃</ManualRefreshBtn>
-            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
+            <ManualRefreshBtn onClick={fetchTowerDetails} disabled={isRefreshing} title="수동 새로고침"><Emoji glyph="🔃" size={14} /></ManualRefreshBtn>
+            <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
           </HeaderRight>
         </Header>
 
@@ -152,15 +153,15 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                     {player.userId === user?.uid && <MeTag>(나)</MeTag>}
                   </PlayerNameRow>
                   <PlayerStats>
-                    <StatIcon>❤️ {player.lives}</StatIcon>
-                    <StatIcon>💰 {player.money}</StatIcon>
-                    <StatIcon>🌊 {player.wave}</StatIcon>
+                    <StatIcon><Emoji glyph="❤️" size={12} /> {player.lives}</StatIcon>
+                    <StatIcon><Emoji glyph="💰" size={12} /> {player.money}</StatIcon>
+                    <StatIcon><Emoji glyph="🌊" size={12} /> {player.wave}</StatIcon>
                   </PlayerStats>
                 </PlayerInfo>
 
                 <PokemonSection>
                   <PokemonCount>
-                    ⚔️ {alivePokemon}/{totalPokemon}
+                    <Emoji glyph="⚔️" size={12} /> {alivePokemon}/{totalPokemon}
                     {totalPokemon === 0 && player.userId !== user?.uid && <LoadingDot>···</LoadingDot>}
                   </PokemonCount>
                   <PokemonIcons>
@@ -188,13 +189,13 @@ export const MultiplayerView = ({ roomId, onClose }: MultiplayerViewProps) => {
                   </PokemonIcons>
                 </PokemonSection>
 
-                {!player.isAlive && <DeadBadge>💀 탈락</DeadBadge>}
+                {!player.isAlive && <DeadBadge><Emoji glyph="💀" size={12} /> 탈락</DeadBadge>}
               </PlayerRow>
             );
           })}
         </PlayerList>
 
-        <Footer><FooterNote>📡 실시간 동기화 중</FooterNote></Footer>
+        <Footer><FooterNote><Emoji glyph="📡" size={12} /> 실시간 동기화 중</FooterNote></Footer>
       </ModalBox>
     </ModalOverlay>
   );

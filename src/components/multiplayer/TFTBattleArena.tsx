@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import styled, { keyframes, css } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { TowerDetail, PvPBattleResult } from '../../types/multiplayer';
 import { getTypeEffectiveness } from '../../utils/typeEffectiveness';
@@ -1065,7 +1066,7 @@ const AchievementToastDisplay: React.FC = () => {
   const isFirst = achievementToast.isFirstTime;
   return (
     <AchievementToastPill key={achievementToast.timestamp} $color={tierColor} $first={isFirst}>
-      {isFirst ? '🏆 ' : '✓ '}
+      <Emoji glyph={isFirst ? '🏆' : '✅'} size={14} />{' '}
       <AchPillName $first={isFirst}>{achievementToast.name}</AchPillName>
       {isFirst && <AchPillAP $color={tierColor}> +{ap}AP</AchPillAP>}
     </AchievementToastPill>

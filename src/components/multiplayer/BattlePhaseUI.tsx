@@ -32,6 +32,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { lMedia} from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { MultiplayerGameState, TowerDetail, PvPBattleResult } from '../../types/multiplayer';
@@ -135,13 +136,13 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
 
         {iAmSkipped ? (
           <MyResultBanner $win={true}>
-            <MyResultIcon>😴</MyResultIcon>
+            <MyResultIcon><Emoji glyph="😴" size={28} /></MyResultIcon>
             <MyResultText $win={true}>{t('battle.summaryByeTurn')}</MyResultText>
             <MyResultSub>{t('battle.summaryByeDesc')}</MyResultSub>
           </MyResultBanner>
         ) : myResult ? (
           <MyResultBanner $win={myResult.winnerId === myUserId}>
-            <MyResultIcon>{myResult.winnerId === myUserId ? '🏆' : '💀'}</MyResultIcon>
+            <MyResultIcon><Emoji glyph={myResult.winnerId === myUserId ? '🏆' : '💀'} size={28} /></MyResultIcon>
             <MyResultText $win={myResult.winnerId === myUserId}>
               {myResult.winnerId === myUserId ? t('battle.summaryWin') : t('battle.summaryLose')}
             </MyResultText>
@@ -160,9 +161,9 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
             return (
               <SummaryMatchCard key={result.matchId} $isMyMatch={isMyMatch}>
                 <MatchPlayerName $winner={p1Won}>{getPlayerName(result.player1Id)}</MatchPlayerName>
-                <MatchResult>{p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchResult><Emoji glyph={p1Won ? '🏆' : '💀'} size={16} /></MatchResult>
                 <MatchVS>VS</MatchVS>
-                <MatchResult>{!p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchResult><Emoji glyph={!p1Won ? '🏆' : '💀'} size={16} /></MatchResult>
                 <MatchPlayerName $winner={!p1Won}>{getPlayerName(result.player2Id)}</MatchPlayerName>
                 <MatchStats>{result.player1RemainingPokemon} vs {result.player2RemainingPokemon}{'\n'}생존</MatchStats>
               </SummaryMatchCard>
@@ -170,7 +171,7 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
           })}
           {skipPlayerId && (
             <ByeCard>
-              <span>😴</span>
+              <span><Emoji glyph="😴" size={16} /></span>
               <span>{t('battle.byeTurnLabel', { name: getPlayerName(skipPlayerId) })}</span>
             </ByeCard>
           )}
@@ -180,12 +181,12 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
           <StandingsTitle>{t('battle.standingsTitle')}</StandingsTitle>
           {sortedPlayers.map((player, idx) => (
             <StandingRow key={player.userId} $isMe={player.userId === myUserId}>
-              <StandingRank>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</StandingRank>
+              <StandingRank>{idx < 3 ? <Emoji glyph={idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} size={15} /> : `#${idx + 1}`}</StandingRank>
               <StandingName $isMe={player.userId === myUserId}>
-                {player.userName}{player.userId === myUserId ? t('battle.meBracket') : ''}{!player.isAlive ? ' 💀' : ''}
+                {player.userName}{player.userId === myUserId ? t('battle.meBracket') : ''}{!player.isAlive ? <> <Emoji glyph="💀" size={11} /></> : ''}
               </StandingName>
-              <StandingLives>❤️ {player.lives}</StandingLives>
-              <StandingGold>💰 {player.money}G</StandingGold>
+              <StandingLives><Emoji glyph="❤️" size={12} /> {player.lives}</StandingLives>
+              <StandingGold><Emoji glyph="💰" size={12} /> {player.money}G</StandingGold>
             </StandingRow>
           ))}
         </SummaryStandings>
@@ -716,7 +717,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       <>
         <ByeOverlay>
           <ByeContainer>
-            <ByeIcon>😴</ByeIcon>
+            <ByeIcon><Emoji glyph="😴" size={20} /></ByeIcon>
             <ByeTitle>{t('battle.byeTitle')}</ByeTitle>
             <ByeSubtitle>{t('battle.byeSubtitle').split('\n').map((line, i) => <React.Fragment key={i}>{line}{i < 2 && <br />}</React.Fragment>)}</ByeSubtitle>
             <ByeBonusBox>{t('battle.byeBonus')}</ByeBonusBox>

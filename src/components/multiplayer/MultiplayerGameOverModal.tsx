@@ -1,5 +1,6 @@
 // src/components/multiplayer/MultiplayerGameOverModal.tsx
 import styled from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { lMedia} from '../../utils/responsive.utils';
 import { PlayerGameState } from '../../types/multiplayer';
 import { useTranslation } from '../../i18n';
@@ -46,7 +47,7 @@ export const MultiplayerGameOverModal = ({
         <Header>
           <Title>{t('multiGameOver.title')}</Title>
           <MyPlacement placement={myPlacement}>
-            {myPlacement === 1 ? '🏆' : myPlacement === 2 ? '🥈' : myPlacement === 3 ? '🥉' : '📊'} 
+            <Emoji glyph={myPlacement === 1 ? '🏆' : myPlacement === 2 ? '🥈' : myPlacement === 3 ? '🥉' : '📊'} size={18} />{' '}
             {t('multiGameOver.placement', { rank: myPlacement })}
           </MyPlacement>
         </Header>
@@ -69,7 +70,9 @@ export const MultiplayerGameOverModal = ({
               <PlayerRow key={player.userId} isMe={isMe}>
                 <Cell>
                   <Rank placement={placement}>
-                  {placement === 1 ? '🏆' : placement === 2 ? '🥈' : placement === 3 ? '🥉' : t('multiGameOver.rankSuffix', { rank: placement })}
+                  {placement <= 3
+                    ? <Emoji glyph={placement === 1 ? '🏆' : placement === 2 ? '🥈' : '🥉'} size={16} />
+                    : t('multiGameOver.rankSuffix', { rank: placement })}
                   </Rank>
                 </Cell>
                 <Cell>
