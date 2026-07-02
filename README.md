@@ -2,7 +2,7 @@
 
 1세대부터 9세대까지, **1025마리의 모든 포켓몬**이 등장하는 차세대 웹 기반 전략 타워 디펜스 게임입니다.
 
-싱글 플레이의 깊이 있는 전략과 멀티 플레이의 숨막히는 실시간 PvP 배틀을 경험하세요.
+싱글 플레이의 깊이 있는 전략, 멀티 플레이의 숨막히는 실시간 PvP 배틀, 그리고 카드 수집 오토배틀까지 — 세 가지 방식으로 즐기세요.
 
 ---
 
@@ -14,13 +14,25 @@
 - **특별한 클리어 보상**: 스테이지 클리어에 따른 다음 진행 해금 및 특수 보상 제공
 
 ### 🎮 타워 디펜스 및 핵심 플레이
-- **전략적 타워 디펜스**: 자유로운 격자 배치와 적의 경로를 방해하는 미로(Maze) 구축
+- **자유 배치 전략**: 격자 어디에나 자유롭게 타워를 배치 (길·입출구 3칸 keepout 등 최소 규칙만). 맵의 개성은 특수 타일이 담당
+- **테라스탈 타일**: 점유한 타워에 맵별 고정 테라 타입 부여 — 자속(원래 타입과 일치 시 최대 ×2.0) 및 방어 상성 변환. 위치는 5웨이브마다 순환
+- **알바(Part-time) 칸 2종**: 포켓몬을 올려두면 근무 웨이브 누적으로 시설이 등급업 (공격·경험치는 중단)
+  - **프렌들리숍(🏪)**: 지닌도구 상점 해금 (Lv1~3)
+  - **콘테스트 홀(🎀)**: 포켓몬 상점의 고레어도 등장 확률 상승
+- **지닌도구 시스템**: 일회성 열매/딜 증가/피흡 등 12종 지닌도구를 인벤토리로 관리하고 웨이브 사이 자유 장착·교체·회수
 - **완벽한 포켓몬 구현**: PokeAPI 기반 실제 종족값, 타입 상성(18종), 특성(5종), 기술 구현
 - **레어도 시스템**: 종족값 총합 기준 6단계 (Bronze / Silver / Gold / Diamond / Master / Legend)
 - **상태이상**: 화상, 독, 마비, 냉동, 잠듦, 혼란 6종 — 적과 아군 모두 적용
 - **진화 & 성장**: 레벨업 진화, 돌/친밀도/통신 등 아이템 진화(상점), **메가진화(48종)**, **거다이맥스(31종)**, **합체(6종)**
 - **로그라이크 요소**: 매 웨이브 종료 후 **스킬 선택(Skill Picker)** 및 **아이템 보상(WaveEndPicker)** 제공
 - **시너지 시스템**: TFT 스타일의 타입(18종) × 세대(9세대) × 특수 조합(23종) 삼중 시너지 효과
+
+### 🃏 카드 오토배틀 모드 (Card Lab) — TD 본편과 독립
+- **카드 수집**: 코인·별조각으로 팩(일반/타입/고급)을 개봉해 1025종 포켓몬 카드를 수집. 천장·최소 보장 시스템 포함
+- **별 합성**: 같은 카드 중복 시 별 등급 상승(최대 ★5, TFT식 합성), 5성 초과 중복은 코인 환급
+- **덱 편성**: 6칸(전열 3 / 후열 3) 덱에 타입 시너지(2/4/6 브레이크포인트)를 실시간 확인하며 구성
+- **트레이너 타워**: PvE 층별 자동 전투 아레나(배속·스킵 지원). 전열 보호 + 관통 시너지(비행/고스트) 규칙
+- **완전 분리 저장**: 카드 데이터는 `pokemon-td-cards-v1` LocalStorage에 별도 저장 — TD 본편 세이브/업적에 **0 영향**. 보상은 웨이브·맵/스토리 클리어·업적 달성 시 지급
 
 ### 🗺️ 맵 시스템 (8종)
 | 맵 | 난이도 | 특징 |
@@ -61,7 +73,7 @@
 - **견제 공격**: 관전 중 디버프 또는 몬스터를 상대 필드에 직접 투입
 - **ELO 레이팅**: 기본값 1000, 승패·상대 레이팅에 따라 등락
 - **연승/연패 보너스**: 2/3/4연속 시 추가 골드 지급으로 역전 기회 제공
-- **스마트 AI 봇**: Easy / Normal / Hard — 인원 부족 시 호스트가 추가 가능
+- **스마트 AI 봇**: Easy / Medium / Hard — 인원 부족 시 호스트가 추가 가능
 - **매치업 공정성**: 과거 대전 기록(`encounterRecord`) 기반으로 중복 매칭 최소화
 
 ### 🏆 도전과 경쟁
@@ -107,6 +119,12 @@ src/
 │   ├── auth/
 │   │   ├── LoginScreen.tsx      # 로그인 화면 (Google / 게스트 / 오프라인 진입)
 │   │   └── ProtectedRoute.tsx   # 인증 라우트 가드 (오프라인 로컬 유저도 통과)
+│   ├── cards/                   # 🃏 카드 오토배틀 모드 (독립 콘텐츠)
+│   │   ├── CardLabView.tsx      # 카드 연구소 허브 (지갑/팩 상점/도감 + 서브뷰 전환)
+│   │   ├── CardView.tsx         # 카드 렌더 (레어도 프레임 + 홀로그래픽 효과)
+│   │   ├── PackOpening.tsx      # 팩 개봉 연출 (봉인→섬광→공개→요약)
+│   │   ├── DeckBuilder.tsx      # 6칸 덱 편성 + 실시간 시너지 계산
+│   │   └── TrainerTower.tsx     # PvE 트레이너 타워 (층별 자동 전투 아레나)
 │   ├── game/
 │   │   ├── GameCanvas.tsx       # 메인 게임 캔버스 (Konva 기반 렌더링)
 │   │   └── GameLayout.tsx       # 싱글/멀티/스토리 전환 레이아웃 + 게임루프 제어
@@ -151,11 +169,14 @@ src/
 │   ├── achievements.ts      # 65종 업적 정의 (5티어, 8카테고리)
 │   ├── evolution.ts         # 진화 체인 + 메가진화(48종) + 거다이맥스(31종) + 합체(6종)
 │   ├── evolutionItems.ts    # 진화 아이템 정의
-│   ├── maps.ts              # 8종 맵 데이터 (경로, 스폰, 오브젝티브)
+│   ├── heldItems.ts         # 지닌도구 12종 정의 (열매/딜증가/피흡)
+│   ├── maps.ts              # 8종 맵 데이터 (경로, 스폰, 테라 타일, 알바 칸)
 │   └── storyChapters.ts     # 스토리 모드 챕터, 대사, 보상, 난이도 데이터
 ├── game/
 │   ├── GameManager.ts       # 핵심 게임 루프 (적 이동, 타워 공격, 투사체, 웨이브 관리)
 │   └── WaveSystem.ts        # 웨이브 적 스폰 시스템 (보스 포함)
+├── hooks/
+│   └── useCardState.ts      # 카드 모드 상태 구독 훅 (useSyncExternalStore)
 ├── i18n/
 │   ├── I18nProvider.tsx     # React Context 기반 i18n 프로바이더 (자체 구현)
 │   ├── index.ts             # I18nProvider / useTranslation re-export
@@ -166,6 +187,8 @@ src/
 │   ├── AIPlayer.ts          # AI 봇 로직 (Easy/Normal/Hard 전략)
 │   ├── AchievementService.ts # 업적 이벤트 중앙 처리기
 │   ├── AuthService.ts       # Firebase Auth 래퍼 (Google/게스트) + 오프라인 모드 세션
+│   ├── CardService.ts       # 카드 모드 영속(지갑/도감/천장/덱) + 팩깡 로직 (LocalStorage)
+│   ├── CardBattleService.ts # 카드 오토배틀 전투 엔진 (전/후열 + 관통 시너지)
 │   ├── DatabaseService.ts   # Firestore (리더보드, 전당 등록)
 │   ├── MultiplayerService.ts # Firebase RTDB 기반 멀티플레이 동기화 (V7)
 │   ├── PvPBattleService.ts  # PvP 매치업 생성 및 배틀 결과 계산
@@ -175,6 +198,7 @@ src/
 ├── store/
 │   └── gameStore.ts         # Zustand 전역 게임 상태
 ├── types/
+│   ├── cards.ts             # 카드 모드 타입 (CardSaveState, Deck, PackType 등)
 │   ├── game.ts              # 핵심 타입 (GamePokemon, Enemy, Item, Achievement 등)
 │   └── multiplayer.ts       # 멀티플레이 타입 (Room, PlayerGameState, GamePhase 등)
 └── utils/
@@ -223,17 +247,14 @@ npm install
 ```
 
 ### 3. 환경 변수 설정 (`.env`)
-Firebase 프로젝트 설정이 필요합니다. `.env` 파일을 생성하고 아래 내용을 입력하세요.
-```env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_FIREBASE_DATABASE_URL=https://your_project-default-rtdb.firebaseio.com
+저장소에 포함된 [`.env.example`](.env.example)을 복사해 `.env`를 만들고 Firebase 값을 채우세요.
+```bash
+cp .env.example .env
 ```
-> `VITE_FIREBASE_DATABASE_URL`은 멀티플레이(Realtime Database)에 필요합니다.
+값은 **Firebase Console → 프로젝트 설정(⚙) → 일반 → 내 앱 → SDK 설정 및 구성**의
+`firebaseConfig`에서 확인할 수 있습니다. 필요한 키 목록은 `.env.example`을 참고하세요.
+> `VITE_FIREBASE_DATABASE_URL`은 멀티플레이(Realtime Database)용이며, 미지정 시 SDK가 자동 유추합니다.
+> `VITE_` 접두 변수는 클라이언트 번들에 포함됩니다(Firebase 웹 설정은 비밀키가 아니므로 정상).
 
 ### 4. 개발 서버 실행
 ```bash
@@ -242,11 +263,40 @@ npm run dev
 
 ### 5. 프로덕션 빌드
 ```bash
-npm run build
+npm run build   # tsc 타입 검사 후 vite 빌드 → dist/
 ```
 
-### 6. 배포 (Netlify)
-`netlify.toml` 설정이 포함되어 있어 Netlify에 자동 배포가 가능합니다.
+---
+
+## ☁️ 배포 (Deployment)
+
+프론트엔드는 **Netlify**, 백엔드 보안 규칙은 **Firebase CLI**로 배포합니다.
+(`firebase.json`은 Firestore·RTDB 규칙만 관리하며 호스팅은 Netlify가 담당합니다.)
+
+> ⚠️ **배포 순서(중요)**: 반드시 **① 프론트엔드 → ② RTDB 규칙** 순서로.
+> 새 RTDB 규칙은 방 문서의 `memberIds`(멤버십 맵)를 참조하는데 이 필드는 최신 클라이언트만
+> 생성합니다. 규칙을 먼저 올리면 구버전 번들 사용자와 진행 중인 멀티 게임이 권한 오류로 멈춥니다.
+> 프론트 배포 후 몇 분 지나 규칙을 올리세요. (한산한 시간대 권장)
+
+### 1. 프론트엔드 — Netlify
+`netlify.toml`에 SPA 리다이렉트와 팝업 로그인용 COOP 헤더가 포함되어 있습니다.
+- **Git 연동(자동 배포)**: Netlify가 자체 빌드하므로 `VITE_FIREBASE_*` 변수를
+  **Site configuration → Environment variables**에 등록해야 합니다(미등록 시 로그인 깨짐).
+  Build command `npm run build`, Publish directory `dist`.
+- **수동 배포**: 로컬 `dist/`를 업로드 — `npx netlify deploy --dir=dist --prod`
+
+### 2. 백엔드 보안 규칙 — Firebase
+```bash
+firebase login
+firebase deploy --only database    # RTDB 규칙 (database.rules.json)
+firebase deploy --only firestore   # Firestore 규칙 (firestore.rules) — 변경 시에만
+```
+> `.firebaserc`가 없으면 `--project <PROJECT_ID>`로 프로젝트를 지정하거나
+> `firebase use --add`로 기본 프로젝트를 설정하세요.
+
+### 3. Firebase Console 설정
+- **Authentication → Settings → Authorized domains**에 배포 도메인(예: `*.netlify.app`) 추가
+  (누락 시 Google/게스트 로그인이 `auth/unauthorized-domain`으로 실패)
 
 ---
 
@@ -259,10 +309,11 @@ npm run build
 | `/map-select` | `MapSelector` | 싱글 플레이 맵 선택 |
 | `/story` | `StorySelector` | 스토리 챕터 및 스테이지 선택 |
 | `/lobby` | `MultiplayerLobby` | 멀티플레이 로비 |
+| `/cards` | `CardLabView` | 카드 오토배틀 모드 (도감/덱/트레이너 타워) |
 | `/game` | `GameLayout` | 실제 게임 화면 (싱글/멀티/스토리 공통) |
 
 > 모든 라우트는 `ProtectedRoute`로 보호되며, 비인증 사용자는 `/login`으로 리다이렉트됩니다.
-> 오프라인 모드에서는 로컬 유저 세션으로 `/`, `/map-select`, `/story`, `/game`은 이용 가능하나, `/lobby`(멀티)는 차단됩니다.
+> 오프라인 모드에서는 로컬 유저 세션으로 `/`, `/map-select`, `/story`, `/cards`, `/game`은 이용 가능하나, `/lobby`(멀티)는 차단됩니다.
 
 ---
 
@@ -288,12 +339,19 @@ npm run build
       └─ finalizeGame() ───────►│ (게임 종료 + 레이팅 업데이트)
 ```
 
-**주요 Firebase 경로:**
-- `rooms/{roomId}` — 방 메타데이터, 플레이어 목록
+**주요 Firebase RTDB 경로:**
+- `rooms/{roomId}` — 방 메타데이터, 플레이어 목록, `memberIds`(보안 규칙용 멤버십 맵)
 - `gameStates/{roomId}` — 게임 진행 상태 (페이즈, 라이프, 골드, 순위)
 - `towerDetails/{roomId}/{userId}` — 타워 배치 상세 (배틀 시뮬레이션용)
 - `battleResults/{roomId}` — 라운드별 배틀 결과
+- `debuffs/{roomId}/{userId}` — 견제 공격(디버프) 전달
 - `presence/{roomId}` — 연결 상태 (접속 끊김 감지)
+
+### 🔒 보안 규칙
+- **RTDB** (`database.rules.json`): 게임 상태 쓰기는 방 `memberIds`에 속한 참가자로 제한.
+  `towerDetails`·`presence`·`debuffs`의 유저별 경로는 본인(또는 AI) 만 쓰기 가능.
+- **Firestore** (`firestore.rules`): 유저 문서/리더보드/전당/업적은 본인 소유 문서만 쓰기 가능.
+- 무료 사용량 초과·장애 시 **오프라인 모드**로 자동 폴백하여 싱글/스토리/카드 모드는 계속 이용 가능.
 
 ---
 
