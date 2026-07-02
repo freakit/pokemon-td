@@ -840,12 +840,17 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             <HamItem onClick={() => { setShowAchievements(true);  setShowHamMenu(false); }}>
               <Emoji glyph="🏆" size={15} /> {t("gameLayout.navAchievements")}
             </HamItem>
-            <HamItem onClick={() => { setShowHallOfFame(true);    setShowHamMenu(false); }}>
-              <Emoji glyph="🏛️" size={15} /> {t("gameLayout.navHallOfFame")}
-            </HamItem>
-            <HamItem onClick={() => { setShowRankings(true);      setShowHamMenu(false); }}>
-              <Emoji glyph="📊" size={15} /> {t("gameLayout.navRankings")}
-            </HamItem>
+            {/* [FREE-TIER] 오프라인 모드에서는 서버 의존 메뉴(전당/랭킹) 숨김 */}
+            {!authService.isOfflineMode() && (
+              <>
+                <HamItem onClick={() => { setShowHallOfFame(true);    setShowHamMenu(false); }}>
+                  <Emoji glyph="🏛️" size={15} /> {t("gameLayout.navHallOfFame")}
+                </HamItem>
+                <HamItem onClick={() => { setShowRankings(true);      setShowHamMenu(false); }}>
+                  <Emoji glyph="📊" size={15} /> {t("gameLayout.navRankings")}
+                </HamItem>
+              </>
+            )}
             {isMultiplayer && (
               <HamItem onClick={() => { setShowMultiView(true);   setShowHamMenu(false); }}>
                 <Emoji glyph="👥" size={15} /> {t('hud.multiView')}

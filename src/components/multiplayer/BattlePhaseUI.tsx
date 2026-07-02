@@ -48,6 +48,13 @@ interface BattlePhaseUIProps {
 // [V7-FIX-BP-7] 90초로 확장 (prep 30 + reveal 5 + battle 40 + 여유 15)
 const BATTLE_STUCK_TIMEOUT_MS = 90_000;
 
+// [V10-FIX] 웨이브 페이즈 데드락 방지 워치독.
+//   플레이어가 브라우저 종료/크래시로 이탈하면 waveCompleted가 영영 올라오지 않아
+//   markWaveCompleted의 "전원 완료" 조건이 충족되지 않고 전체가 무한 대기하던 문제.
+//   웨이브 길이는 스폰 스케줄로 상한이 있으므로, 첫 완료자가 나온 뒤 이 시간이
+//   지나도 미완료자가 남아 있으면 이탈로 간주하고 강제 완료 처리한다.
+const WAVE_STUCK_TIMEOUT_MS = 120_000;
+
 // ─── 스타일 (원본 유지) ─────────────────────────────────────────
 const fadeIn = keyframes`
   from { opacity: 0; transform: translateY(-20px); }
@@ -450,6 +457,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     }
   }, [roomId]);
 
+  // [V10-FIX] 웨이브 데드락 워치독 — 첫 완료자 관측 시각
+  const waveStuckSinceRef = useRef<number | null>(null);
+
   // ─── 페이즈 체크 루프 ──────────────────────────────────────
   useEffect(() => {
     if (!roomId) return;
@@ -457,6 +467,31 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     const doPhaseCheck = async () => {
       const currentGameState = gameStateRef.current;
       if (!currentGameState || !user) return;
+
+      // [V10-FIX] 웨이브 페이즈 데드락 방지:
+      //   생존자 중 누군가 완료한 뒤 WAVE_STUCK_TIMEOUT_MS가 지나도 미완료자가
+      //   남아 있으면(이탈/크래시 추정) 강제로 완료 처리해 페이즈를 진행시킨다.
+      //   markWaveCompleted는 트랜잭션 멱등이라 여러 클라이언트가 동시에 호출해도 안전.
+      if (currentGameState.currentPhase === 'wave') {
+        const alive = currentGameState.players.filter(p => p.isAlive);
+        const someCompleted = alive.some(p => p.waveCompleted);
+        const stragglers = alive.filter(p => !p.waveCompleted);
+        if (someCompleted && stragglers.length > 0) {
+          if (waveStuckSinceRef.current === null) {
+            waveStuckSinceRef.current = Date.now();
+          } else if (Date.now() - waveStuckSinceRef.current > WAVE_STUCK_TIMEOUT_MS) {
+            waveStuckSinceRef.current = Date.now(); // 재시도 간격 확보
+            console.warn(`[BattlePhaseUI] Wave phase stuck! Force-completing ${stragglers.length} player(s)`);
+            for (const p of stragglers) {
+              multiplayerService.markWaveCompleted(roomId, p.userId).catch(console.error);
+            }
+          }
+        } else {
+          waveStuckSinceRef.current = null;
+        }
+      } else {
+        waveStuckSinceRef.current = null;
+      }
 
       const serverNow = Date.now() + multiplayerService.getServerTimeOffset();
       if (

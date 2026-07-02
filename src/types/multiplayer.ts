@@ -47,6 +47,8 @@ export interface Room {
   createdAt: number;
   /** 강퇴된 유저 ID 목록 — 클라이언트가 자발적 퇴장과 강퇴를 구분하는 데 사용 */
   kickedUserIds?: string[];
+  /** [SEC] RTDB 보안 룰용 멤버십 맵(uid → true). 룰이 players 배열을 검사할 수 없어 별도 유지 */
+  memberIds?: Record<string, boolean>;
 }
 
 export interface RoomPlayer {

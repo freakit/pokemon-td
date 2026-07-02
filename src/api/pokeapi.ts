@@ -313,7 +313,12 @@ class PokeAPIService {
     // 이미 로딩 중이면 같은 Promise 반환 (중복 호출 방지)
     if (this.preloadPromise) return this.preloadPromise;
 
-    this.preloadPromise = this._doPreload(onProgress);
+    // 실패 시 캐시를 비워 다음 호출에서 재시도 가능하게 함
+    // (실패한 Promise가 캐시로 남으면 재시도가 영영 같은 에러만 반환)
+    this.preloadPromise = this._doPreload(onProgress).catch(err => {
+      this.preloadPromise = null;
+      throw err;
+    });
     return this.preloadPromise;
   }
 
