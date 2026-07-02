@@ -53,14 +53,18 @@
   "nav": {
     "achievements": "Achievements",
     "settings": "Settings"
-
   },
   "hud": {
     "startWave": "Start Wave",
     "addPokemon": "Pokémon (20G)",
     "managePokemon": "Manage/Sell",
     "rival": "Rivals",
-    "speed": "Speed"
+    "speed": "Speed",
+    "inProgress": "In Progress",
+    "menu": "Menu",
+    "multiView": "Multi View",
+    "pokemon": "Pokémon",
+    "rotateDevice": "Please rotate your device to landscape"
   },
   "mapSelector": {
     "subtitle": "Made by Team FreakIT @ KAIST",
@@ -75,7 +79,114 @@
     "diffMedium": "Medium",
     "diffHard": "Hard",
     "diffExpert": "Expert",
-    "noMaps": "No maps found for this difficulty."
+    "noMaps": "No maps found for this difficulty.",
+    "clickToSelect": "Click to select →"
+  },
+  "work": {
+    "milestoneTitle": "Work Milestone Reached!",
+    "milestoneDesc": "{name} has worked hard at the {facility} for {waves} waves! Would you like to withdraw this Pokémon, or continue working to reach the next tier?",
+    "btnWithdraw": "Withdraw (Relocate)",
+    "btnContinue": "Continue Working",
+    "facilityShop": "Friendly Shop",
+    "facilityContest": "Contest Hall",
+    "errNotFound": "Pokémon not found.",
+    "errNoTile": "No empty tile available to place on. Free up a space and try again."
+  },
+  "facility": {
+    "shop": "Friendly Shop",
+    "contest": "Contest Hall",
+    "heldItemsTitle": "Held Items",
+    "open": "Open",
+    "view": "View",
+    "tileWorking": "Work {n}",
+    "tileOpen": "Open Lv{n}",
+    "tileContestPrep": "Prep {n}",
+    "tileContest": "Contest Lv{n}",
+    "badgeWorking": "Working",
+    "badgeOpen": "Open Lv.{n}",
+    "badgeContestPrep": "Preparing",
+    "badgeContest": "Contest Lv.{n}",
+    "contestPrepNote": "Preparing — {n} waves until placing in the contest. (Entered Pokémon don't attack or gain EXP)",
+    "contestActiveNote": "On stage for {waves} waves · raises the rate of high-rarity Pokémon in the shop (Lv{tier}). Longer is better (10/15 waves).",
+    "shopLockNote": "Working — {n} waves until the shop opens. (Part-time Pokémon don't attack or gain EXP)",
+    "shopGradeNote": "{waves} waves worked · longer raises the tier (Lv2:10, Lv3:15 waves). Purchased items go to your bag.",
+    "once": "once",
+    "equippedTitle": "This Pokémon's Held Item",
+    "noneEquipped": "No item equipped",
+    "equipHint": "Equip one from your bag",
+    "withdraw": "Unequip",
+    "inventoryTitle": "Bag",
+    "inventoryWaveOnly": "(equip only between waves)",
+    "inventoryEmpty": "Your bag is empty. Buy items at the Friendly Shop.",
+    "swap": "Swap",
+    "equip": "Equip",
+    "manageItems": "Items",
+    "working": "Working",
+    "mItemsDisabledWave": "Items can only be managed between waves",
+    "mItemsDisabledWork": "Working Pokémon can't manage items",
+    "teraInline": "Terastal: {type}",
+    "teraStabOn": "(STAB active)",
+    "teraDefConv": "(defense converted)",
+    "teraTileTitle": "Terastal Tile",
+    "teraTileL1": "A Pokémon on it becomes {type} type",
+    "teraTileL2": "Same-type moves gain more STAB; defensive matchup also converts",
+    "teraTileL3": "※ Moves to a new spot every 5 waves",
+    "shopTileTitle": "Friendly Shop Tile",
+    "shopTileL1": "Put a Pokémon to work to open the item shop",
+    "shopTileL2": "5 / 10 / 15 waves → unlock Lv1 / 2 / 3",
+    "shopTileL3": "※ Part-time Pokémon don't attack or gain EXP",
+    "contestTileTitle": "Contest Hall",
+    "contestTileL1": "Enter a Pokémon to make high-rarity ones appear more in the shop",
+    "contestTileL2": "5 / 10 / 15 waves → odds rise gradually",
+    "contestTileL3": "※ Entered Pokémon don't attack or gain EXP",
+    "alertCannotMoveSwap": "Working Pokémon can't be moved or swapped.",
+    "alertCannotMove": "Working Pokémon can't be moved.",
+    "alertCannotSelect": "Working Pokémon can't be selected to move.",
+    "alertSellDuringWave": "Can't sell during a wave.",
+    "alertCannotSell": "Working or contest Pokémon can't be sold.",
+    "alertCannotFuse": "Working Pokémon can't be fused."
+  },
+  "heldItems": {
+    "sitrus-berry": {
+      "name": "Sitrus Berry",
+      "desc": "Restores 20% HP when HP drops below 50% (once)"
+    },
+    "liechi-berry": {
+      "name": "Liechi Berry",
+      "desc": "Next attack's power ×1.5 (once)"
+    },
+    "enigma-berry": {
+      "name": "Enigma Berry",
+      "desc": "Restores 25% HP when hit by a super-effective attack (once)"
+    },
+    "muscle-band": {
+      "name": "Muscle Band",
+      "desc": "Physical move power ×1.06"
+    },
+    "wise-glasses": {
+      "name": "Wise Glasses",
+      "desc": "Special move power ×1.06"
+    },
+    "expert-belt": {
+      "name": "Expert Belt",
+      "desc": "Super-effective move power ×1.1"
+    },
+    "scope-lens": {
+      "name": "Scope Lens",
+      "desc": "Critical-hit rate +8%"
+    },
+    "shell-bell": {
+      "name": "Shell Bell",
+      "desc": "Heals 8% of damage dealt"
+    },
+    "leftovers": {
+      "name": "Leftovers",
+      "desc": "Restores 2% max HP each second in battle"
+    },
+    "life-orb": {
+      "name": "Life Orb",
+      "desc": "All move power ×1.12, but lose 4% max HP per attack"
+    }
   },
   "picker": {
     "loading": "Loading Pokémon...",
@@ -91,7 +202,12 @@
     "total": "Total",
     "cost": "{cost}G",
     "currentMoney": "Current: {money}G",
-    "reroll": "Reroll (20G)"
+    "reroll": "Reroll (20G)",
+    "allPlacedTitle": "All units deployed!",
+    "allPlacedDesc1L1": "You've placed every Pokémon",
+    "allPlacedDesc1L2": "this chapter offers. The whole squad is out!",
+    "allPlacedDesc2L1": "Use evolution or boost items to",
+    "allPlacedDesc2L2": "make them even stronger."
   },
   "manager": {
     "title": "Pokémon Manage/Sell ({towers}/6)",
@@ -151,7 +267,8 @@
     "categoryOthers": "Other Items",
     "categorySpecial": "Special Items",
     "itemCost": "{cost}G",
-    "badgeUsableNow": " Usable Now!"
+    "badgeUsableNow": " Usable Now!",
+    "usableTag": "✓ Usable"
   },
   "skillPicker": {
     "levelUpName": "{name} Leveled Up!",
@@ -204,7 +321,6 @@
     "methodTime": " ({time})",
     "cancel": "Cancel Evolution"
   },
-
   "achievements": {
     "title": "Achievements",
     "loading": "Loading achievements...",
@@ -231,7 +347,8 @@
     "bugSend": "Submit",
     "bugSending": "Sending...",
     "bugReportSuccess": "Bug report sent successfully!",
-    "bugReportFail": "Failed to send bug report. Please contact us directly at freakit2025@gmail.com."
+    "bugReportFail": "Failed to send bug report. Please contact us directly at freakit2025@gmail.com.",
+    "dangerZone": "Danger Zone"
   },
   "game": {
     "gameOver": "GAME OVER",
@@ -258,7 +375,9 @@
     "typeDesc2": "(2) Stats 1.1x",
     "genDesc6": "(6) Stats 1.3x",
     "genDesc4": "(4) Stats 1.2x",
-    "genDesc2": "(2) Stats 1.1x"
+    "genDesc2": "(2) Stats 1.1x",
+    "emptyHintL1": "Place Pokémon to",
+    "emptyHintL2": "activate synergies"
   },
   "status": {
     "burn": "Burn",
@@ -275,7 +394,8 @@
     "revealPhase": "Reveal",
     "battlePhase": "Battle",
     "myTeam": "My Team",
-    "opponentTeam": "Opponent Team"
+    "opponentTeam": "Opponent Team",
+    "survived": "Survived"
   },
   "types": {
     "normal": "Normal",
@@ -296,106 +416,6 @@
     "dark": "Dark",
     "steel": "Steel",
     "fairy": "Fairy"
-  },
-  "achData": {
-    "wave3":  { "name": "Survivor",        "description": "Reach Wave 3" },
-    "wave5":  { "name": "First Step",      "description": "Reach Wave 5" },
-    "wave10": { "name": "Beginner",        "description": "Reach Wave 10" },
-    "wave20": { "name": "Intermediate",    "description": "Reach Wave 20" },
-    "wave30": { "name": "Advanced",        "description": "Reach Wave 30" },
-    "wave40": { "name": "Veteran",         "description": "Reach Wave 40" },
-    "wave50": { "name": "Master",          "description": "Clear Wave 50!" },
-    "kill50":   { "name": "Rookie Hunter",  "description": "Defeat 50 enemies" },
-    "kill100":  { "name": "Hunter",         "description": "Defeat 100 enemies" },
-    "kill300":  { "name": "Veteran Hunter", "description": "Defeat 300 enemies" },
-    "kill500":  { "name": "Slayer",         "description": "Defeat 500 enemies" },
-    "kill1000": { "name": "God of War",     "description": "Defeat 1000 enemies" },
-    "boss1":    { "name": "Boss Slayer",    "description": "Defeat 1 boss" },
-    "boss5":    { "name": "Boss Hunter",    "description": "Defeat 5 bosses" },
-    "boss15":   { "name": "Boss Killer",    "description": "Defeat 15 bosses" },
-    "boss30":   { "name": "Boss Slaughterer","description": "Defeat 30 bosses" },
-    "crit_kill":{ "name": "Critical Hit",   "description": "Defeat a boss with a critical hit" },
-    "combo10":  { "name": "Combo God",      "description": "Get a 10-combo during a wave" },
-    "combo20":  { "name": "Chain Killer",   "description": "Get a 20-combo during a wave" },
-    "money5k":  { "name": "Thrifty",        "description": "Earn 5,000G in one game" },
-    "money20k": { "name": "Rich",           "description": "Earn 20,000G in one game" },
-    "money50k": { "name": "Tycoon",         "description": "Earn 50,000G in one game" },
-    "money10k": { "name": "Wealthy",        "description": "Earn 10,000G total" },
-    "money100k":{ "name": "Billionaire",    "description": "Earn 100,000G total" },
-    "sell5":    { "name": "Trader",         "description": "Sell 5 Pokémon" },
-    "sell20":   { "name": "Trade Master",   "description": "Sell 20 Pokémon" },
-    "sell50":   { "name": "Pokémon Broker", "description": "Sell 50 Pokémon" },
-    "thrifty":  { "name": "Miser",          "description": "Clear Wave 5 with under 100G" },
-    "allstarters":    { "name": "Starter Trio",       "description": "Collect Bulbasaur, Charmander & Squirtle" },
-    "legendary":      { "name": "Legendary Trainer",  "description": "Collect a Legendary Pokémon" },
-    "all_types":      { "name": "Type Collector",     "description": "Have all 18 types on your team at once" },
-    "evolve1":   { "name": "First Evolution", "description": "Evolve 1 Pokémon" },
-    "evolve5":   { "name": "Evolution Novice","description": "Evolve 5 Pokémon" },
-    "evolve10":  { "name": "Evolution Maniac","description": "Evolve 10 Pokémon" },
-    "evolve20":  { "name": "Evolution Maniac","description": "Evolve 20 Pokémon" },
-    "evolve50":  { "name": "Evolution Expert","description": "Evolve 50 Pokémon" },
-    "mega1":     { "name": "Mega Evolution!", "description": "Achieve Mega Evolution once" },
-    "mega5":     { "name": "Mega Power",      "description": "Achieve Mega Evolution 5 times" },
-    "gigamax1":  { "name": "Gigantamax!",     "description": "Achieve Gigantamax once" },
-    "fusion1":   { "name": "Mythic Fusion",   "description": "Fuse two Pokémon once" },
-    "level50":   { "name": "Level 50",        "description": "Grow a Pokémon to level 50" },
-    "level100":  { "name": "Level MAX!",      "description": "Grow a Pokémon to level 100" },
-    "max_team":  { "name": "Dream Team",      "description": "Have all 6 Pokémon at level 50+" },
-    "synergy_any":    { "name": "Synergy Novice",  "description": "Activate at least 1 synergy" },
-    "synergy_multi3": { "name": "Combo Strategist","description": "Activate 3 synergies simultaneously" },
-    "synergy_multi5": { "name": "Synergy Master",  "description": "Activate 5 synergies simultaneously" },
-    "synergy_lv3":    { "name": "Max Synergy",     "description": "Max out one synergy (6 Pokémon)" },
-    "perfect":      { "name": "Perfect Defense",   "description": "Clear Wave 10 without losing a life" },
-    "perfect30":    { "name": "Iron Wall",          "description": "Clear Wave 30 without losing a life" },
-    "perfect50":    { "name": "Flawless Defense",   "description": "Clear Wave 50 with all 50 lives" },
-    "nofaint10":    { "name": "Indomitable",        "description": "Clear Wave 10 without any Pokémon fainting" },
-    "nolosses":     { "name": "Invincible",         "description": "Reach Wave 30 without any Pokémon fainting" },
-    "speedrun":     { "name": "Speedrunner",        "description": "Clear Wave 20 within 30 minutes" },
-    "speed50":      { "name": "Wave 50 Speedrun",   "description": "Clear Wave 50 within 60 minutes" },
-    "hard_clear":   { "name": "Challenger",         "description": "Clear Wave 30 on Hard difficulty" },
-    "expert_clear": { "name": "Expert",             "description": "Clear Wave 30 on Expert difficulty" },
-    "all_maps":     { "name": "Explorer",           "description": "Reach Wave 20 on every map" },
-    "no_item":      { "name": "Bare Hands",         "description": "Clear Wave 20 without using any items" },
-    "solo_type":    { "name": "Mono-Type Strategy", "description": "Reach Wave 20 using only one type" },
-    "legendary_trio":{ "name": "Legendary Start",  "description": "Place all 3 Gen 1 Legendary Pokémon" },
-    "multi_first_win": { "name": "First Victory",  "description": "Win your first multiplayer match" },
-    "multi_5wins":     { "name": "Contender",       "description": "Win 5 multiplayer matches" },
-    "multi_20wins":    { "name": "Dominator",       "description": "Win 20 multiplayer matches" },
-    "multi_50wins":    { "name": "Champion",        "description": "Win 50 multiplayer matches" },
-    "rating1000":      { "name": "Silver Rank",     "description": "Reach rating 1000" },
-    "rating1200":      { "name": "Gold Rank",       "description": "Reach rating 1200" },
-    "rating1500":      { "name": "Diamond Rank",    "description": "Reach rating 1500" },
-    "rating1800":      { "name": "Legend Rank",     "description": "Reach rating 1800" },
-    "syn_special_baby":              { "name": "Baby Pokémon",         "description": "Activate Baby Pokémon synergy (2+ on board)" },
-    "syn_special_yoonga":            { "name": "Yoonga's Party",       "description": "Activate Yoonga's Party synergy (2+ on board)" },
-    "syn_special_nunparty":          { "name": "Nun Party",            "description": "Activate Nun Party synergy (2+ on board)" },
-    "syn_special_sejun":             { "name": "Sejun's Team",         "description": "Activate Sejun's Team synergy (2+ on board)" },
-    "syn_special_etusha":            { "name": "Etusha's Team",        "description": "Activate Etusha's Team synergy (2+ on board)" },
-    "syn_special_legendary_birds":   { "name": "Legendary Birds",      "description": "Activate Legendary Birds synergy (2+ on board)" },
-    "syn_special_legendary_dogs":    { "name": "Legendary Dogs",       "description": "Activate Legendary Dogs synergy (2+ on board)" },
-    "syn_special_baruki":            { "name": "Baruki Kids",          "description": "Activate Baruki Kids synergy (2+ on board)" },
-    "syn_special_fossil":            { "name": "Fossil Pokémon",       "description": "Activate Fossil synergy (2+ on board)" },
-    "syn_special_legendary_jellyfish":{ "name": "Lake Guardians",     "description": "Activate Lake Guardians synergy (2+ on board)" },
-    "syn_special_three_monkeys":     { "name": "Three Monkeys",        "description": "Activate Three Monkeys synergy (2+ on board)" },
-    "syn_special_lati":              { "name": "Lati Siblings",        "description": "Activate Latias & Latios synergy (2+ on board)" },
-    "syn_special_swords_of_justice": { "name": "Swords of Justice",    "description": "Activate Swords of Justice synergy (2+ on board)" },
-    "syn_special_forces_of_nature":  { "name": "Forces of Nature",     "description": "Activate Forces of Nature synergy (2+ on board)" },
-    "syn_special_ash_no_crown":      { "name": "Ash's Uncrowned Team", "description": "Activate Ash's Uncrowned Team synergy (2+ on board)" },
-    "syn_special_ash_alola_champion":{ "name": "Ash's Alola Team",     "description": "Activate Ash's Alola Champion Team synergy (2+ on board)" },
-    "syn_special_ash_world_champion":{ "name": "Ash's World Champ Team","description": "Activate Ash's World Champion Team synergy (2+ on board)" },
-    "syn_special_volcanion_magearna":{ "name": "Volcanion & Magearna", "description": "Activate Volcanion & Magearna synergy (2+ on board)" },
-    "syn_special_tapu":              { "name": "Tapu Family",          "description": "Activate Tapu Family synergy (2+ on board)" },
-    "syn_special_ultra_beast":       { "name": "Ultra Beasts",         "description": "Activate Ultra Beast synergy (2+ on board)" },
-    "syn_special_regi":              { "name": "Regi Series",          "description": "Activate Regi synergy (2+ on board)" },
-    "syn_special_accelgor_escavalier":{ "name": "Accelgor & Escavalier","description": "Activate Accelgor & Escavalier synergy (2+ on board)" },
-    "syn_special_four_treasures":    { "name": "Treasures of Ruin",    "description": "Activate Treasures of Ruin synergy (2+ on board)" },
-    "syn_special_loyal_three":       { "name": "Loyal Three",          "description": "Activate Loyal Three synergy (2+ on board)" },
-    "pat_type_2": { "name": "{typeName} Duo",     "description": "Place 2 {typeName}-type Pokémon" },
-    "pat_type_4": { "name": "{typeName} Quartet",  "description": "Place 4 {typeName}-type Pokémon" },
-    "pat_type_6": { "name": "{typeName} Legion",   "description": "Activate {typeName} full synergy with 6 Pokémon" },
-    "pat_gen_2":  { "name": "{genName} Combo",    "description": "Place 2 Gen {genNum} Pokémon" },
-    "pat_gen_4":  { "name": "{genName} Party",    "description": "Place 4 Gen {genNum} Pokémon" },
-    "pat_gen_6":  { "name": "{genName} All-Stars", "description": "Activate Gen {genNum} full synergy with 6 Pokémon" }
   },
   "mapData": {
     "easiest_straight": {
@@ -443,45 +463,162 @@
     }
   },
   "items": {
-    "fire-stone":           { "name": "Fire Stone",           "description": "Evolves certain Fire-type Pokémon." },
-    "water-stone":          { "name": "Water Stone",          "description": "Evolves certain Water-type Pokémon." },
-    "thunder-stone":        { "name": "Thunder Stone",        "description": "Evolves certain Electric-type Pokémon." },
-    "leaf-stone":           { "name": "Leaf Stone",           "description": "Evolves certain Grass-type Pokémon." },
-    "moon-stone":           { "name": "Moon Stone",           "description": "Evolves certain Pokémon." },
-    "sun-stone":            { "name": "Sun Stone",            "description": "Evolves certain Pokémon." },
-    "shiny-stone":          { "name": "Shiny Stone",          "description": "Evolves certain Pokémon." },
-    "dusk-stone":           { "name": "Dusk Stone",           "description": "Evolves certain Pokémon." },
-    "dawn-stone":           { "name": "Dawn Stone",           "description": "Evolves certain Pokémon." },
-    "ice-stone":            { "name": "Ice Stone",            "description": "Evolves certain Ice-type Pokémon." },
-    "linking-cord":         { "name": "Linking Cord",         "description": "Evolves Pokémon that normally need trading." },
-    "kings-rock":           { "name": "King's Rock",          "description": "Evolves Slowpoke or Poliwhirl." },
-    "metal-coat":           { "name": "Metal Coat",           "description": "Evolves Onix or Scyther." },
-    "dragon-scale":         { "name": "Dragon Scale",         "description": "Evolves Seadra into Kingdra." },
-    "upgrade":              { "name": "Up-Grade",             "description": "Evolves Porygon into Porygon2." },
-    "protector":            { "name": "Protector",            "description": "Evolves Rhydon into Rhyperior." },
-    "electirizer":          { "name": "Electirizer",          "description": "Evolves Electabuzz into Electivire." },
-    "magmarizer":           { "name": "Magmarizer",           "description": "Evolves Magmar into Magmortar." },
-    "dubious-disc":         { "name": "Dubious Disc",         "description": "Evolves Porygon2 into Porygon-Z." },
-    "reaper-cloth":         { "name": "Reaper Cloth",         "description": "Evolves Dusclops into Dusknoir." },
-    "razor-claw":           { "name": "Razor Claw",           "description": "Evolves Sneasel into Weavile." },
-    "razor-fang":           { "name": "Razor Fang",           "description": "Evolves Gligar into Gliscor." },
-    "friendship-evolution": { "name": "Friendship Orb",       "description": "Evolves Pokémon that evolve through friendship." },
-    "special-evolution":    { "name": "Mystery Powder",       "description": "Evolves Pokémon with special conditions." },
-    "deep-sea-tooth":       { "name": "DeepSeaTooth",         "description": "Evolves Clamperl into Huntail." },
-    "deep-sea-scale":       { "name": "DeepSeaScale",         "description": "Evolves Clamperl into Gorebyss." },
-    "sachet":               { "name": "Sachet",               "description": "Evolves Spritzee into Aromatisse." },
-    "whipped-dream":        { "name": "Whipped Dream",        "description": "Evolves Swirlix into Slurpuff." },
-    "tart-apple":           { "name": "Tart Apple",           "description": "Evolves Applin into Flapple." },
-    "sweet-apple":          { "name": "Sweet Apple",          "description": "Evolves Applin into Appletun." },
-    "galarica-cuff":        { "name": "Galarica Cuff",        "description": "Evolves Galarian Slowpoke into Slowbro." },
-    "galarica-wreath":      { "name": "Galarica Wreath",      "description": "Evolves Galarian Slowpoke into Slowking." },
-    "black-augurite":       { "name": "Black Augurite",       "description": "Evolves Scyther into Kleavor." },
-    "auspicious-armor":     { "name": "Auspicious Armor",     "description": "Evolves Charcadet into Armarouge." },
-    "malicious-armor":      { "name": "Malicious Armor",      "description": "Evolves Charcadet into Ceruledge." },
-    "syrupy-apple":         { "name": "Syrupy Apple",         "description": "Evolves Applin into Dipplin." },
-    "metal-alloy":          { "name": "Metal Alloy",          "description": "Evolves Duraludon into Archaludon." },
-    "water-scroll":         { "name": "Scroll of Waters",     "description": "Evolves Kubfu into Urshifu (Rapid Strike)." },
-    "dark-scroll":          { "name": "Scroll of Darkness",   "description": "Evolves Kubfu into Urshifu (Single Strike)." }
+    "fire-stone": {
+      "name": "Fire Stone",
+      "description": "Evolves certain Fire-type Pokémon."
+    },
+    "water-stone": {
+      "name": "Water Stone",
+      "description": "Evolves certain Water-type Pokémon."
+    },
+    "thunder-stone": {
+      "name": "Thunder Stone",
+      "description": "Evolves certain Electric-type Pokémon."
+    },
+    "leaf-stone": {
+      "name": "Leaf Stone",
+      "description": "Evolves certain Grass-type Pokémon."
+    },
+    "moon-stone": {
+      "name": "Moon Stone",
+      "description": "Evolves certain Pokémon."
+    },
+    "sun-stone": {
+      "name": "Sun Stone",
+      "description": "Evolves certain Pokémon."
+    },
+    "shiny-stone": {
+      "name": "Shiny Stone",
+      "description": "Evolves certain Pokémon."
+    },
+    "dusk-stone": {
+      "name": "Dusk Stone",
+      "description": "Evolves certain Pokémon."
+    },
+    "dawn-stone": {
+      "name": "Dawn Stone",
+      "description": "Evolves certain Pokémon."
+    },
+    "ice-stone": {
+      "name": "Ice Stone",
+      "description": "Evolves certain Ice-type Pokémon."
+    },
+    "linking-cord": {
+      "name": "Linking Cord",
+      "description": "Evolves Pokémon that normally need trading."
+    },
+    "kings-rock": {
+      "name": "King's Rock",
+      "description": "Evolves Slowpoke or Poliwhirl."
+    },
+    "metal-coat": {
+      "name": "Metal Coat",
+      "description": "Evolves Onix or Scyther."
+    },
+    "dragon-scale": {
+      "name": "Dragon Scale",
+      "description": "Evolves Seadra into Kingdra."
+    },
+    "upgrade": {
+      "name": "Up-Grade",
+      "description": "Evolves Porygon into Porygon2."
+    },
+    "protector": {
+      "name": "Protector",
+      "description": "Evolves Rhydon into Rhyperior."
+    },
+    "electirizer": {
+      "name": "Electirizer",
+      "description": "Evolves Electabuzz into Electivire."
+    },
+    "magmarizer": {
+      "name": "Magmarizer",
+      "description": "Evolves Magmar into Magmortar."
+    },
+    "dubious-disc": {
+      "name": "Dubious Disc",
+      "description": "Evolves Porygon2 into Porygon-Z."
+    },
+    "reaper-cloth": {
+      "name": "Reaper Cloth",
+      "description": "Evolves Dusclops into Dusknoir."
+    },
+    "razor-claw": {
+      "name": "Razor Claw",
+      "description": "Evolves Sneasel into Weavile."
+    },
+    "razor-fang": {
+      "name": "Razor Fang",
+      "description": "Evolves Gligar into Gliscor."
+    },
+    "friendship-evolution": {
+      "name": "Friendship Orb",
+      "description": "Evolves Pokémon that evolve through friendship."
+    },
+    "special-evolution": {
+      "name": "Mystery Powder",
+      "description": "Evolves Pokémon with special conditions."
+    },
+    "deep-sea-tooth": {
+      "name": "DeepSeaTooth",
+      "description": "Evolves Clamperl into Huntail."
+    },
+    "deep-sea-scale": {
+      "name": "DeepSeaScale",
+      "description": "Evolves Clamperl into Gorebyss."
+    },
+    "sachet": {
+      "name": "Sachet",
+      "description": "Evolves Spritzee into Aromatisse."
+    },
+    "whipped-dream": {
+      "name": "Whipped Dream",
+      "description": "Evolves Swirlix into Slurpuff."
+    },
+    "tart-apple": {
+      "name": "Tart Apple",
+      "description": "Evolves Applin into Flapple."
+    },
+    "sweet-apple": {
+      "name": "Sweet Apple",
+      "description": "Evolves Applin into Appletun."
+    },
+    "galarica-cuff": {
+      "name": "Galarica Cuff",
+      "description": "Evolves Galarian Slowpoke into Slowbro."
+    },
+    "galarica-wreath": {
+      "name": "Galarica Wreath",
+      "description": "Evolves Galarian Slowpoke into Slowking."
+    },
+    "black-augurite": {
+      "name": "Black Augurite",
+      "description": "Evolves Scyther into Kleavor."
+    },
+    "auspicious-armor": {
+      "name": "Auspicious Armor",
+      "description": "Evolves Charcadet into Armarouge."
+    },
+    "malicious-armor": {
+      "name": "Malicious Armor",
+      "description": "Evolves Charcadet into Ceruledge."
+    },
+    "syrupy-apple": {
+      "name": "Syrupy Apple",
+      "description": "Evolves Applin into Dipplin."
+    },
+    "metal-alloy": {
+      "name": "Metal Alloy",
+      "description": "Evolves Duraludon into Archaludon."
+    },
+    "water-scroll": {
+      "name": "Scroll of Waters",
+      "description": "Evolves Kubfu into Urshifu (Rapid Strike)."
+    },
+    "dark-scroll": {
+      "name": "Scroll of Darkness",
+      "description": "Evolves Kubfu into Urshifu (Single Strike)."
+    }
   },
   "achievementsPanel": {
     "title": " Achievements",
@@ -588,7 +725,10 @@
     "kickConfirmMsg": "Are you sure you want to kick {name}?",
     "kickConfirmYes": "Kick",
     "kickConfirmNo": "Cancel",
-    "kicked": "You have been kicked by the host."
+    "kicked": "You have been kicked by the host.",
+    "emptyHintCreate": "Try creating a room yourself",
+    "playersCount": "{cur} / {max} players",
+    "emptySlot": "— Waiting —"
   },
   "battle": {
     "roundLabel": "ROUND {round}",
@@ -642,24 +782,96 @@
     "start": "Let's Go!",
     "tower": {
       "label": "Single Player",
-      "slide0": { "title": "Pokémon Tower Defense", "desc": "Place Pokémon to stop the incoming enemies!\nSurvive until Wave 50 before your lives run out.", "d0": "Lives: decrease by 1 each time an enemy breaks through", "d1": "Gold: earned by defeating enemies and clearing waves", "d2": "Goal: Clear all 50 waves!" },
-      "slide1": { "title": "Buy & Place Pokémon", "desc": "Use the button on the bottom-right to buy Pokémon,\nthen click a green-highlighted fenced cell to place them.", "d0": "Entry fee 20G + Pokémon cost deducted (up to 6)", "d1": "Place only on each map's fenced cells (up to 10) — not near the path/entrance/exit", "d2": "Reposition freely between waves; pick two towers to swap their spots" },
-      "slide2": { "title": "Type Matchups & Synergies", "desc": "Exploit type weaknesses for bonus damage!\nGroup same-type or same-generation Pokémon for synergy buffs!", "d0": "Attacking a weakness deals up to 2× damage", "d1": "2/4/6 same-type Pokémon  stat buffs", "d2": "Evolve & Mega Evolve for even more power" },
-      "slide3": { "title": "Wave Rewards", "desc": "Choose a reward item after clearing each wave.", "d0": "Rare Candy: level up one Pokémon", "d1": "Ether: revive a fainted Pokémon at 50% HP", "d2": "Mega Stone/Max Soup: Mega Evolve or Gigantamax" }
+      "slide0": {
+        "title": "Pokémon Tower Defense",
+        "desc": "Place Pokémon to stop the incoming enemies!\nSurvive until Wave 50 before your lives run out.",
+        "d0": "Lives: decrease by 1 each time an enemy breaks through",
+        "d1": "Gold: earned by defeating enemies and clearing waves",
+        "d2": "Goal: Clear all 50 waves!"
+      },
+      "slide1": {
+        "title": "Buy & Place Pokémon",
+        "desc": "Use the button on the bottom-right to buy Pokémon,\nthen click any green-highlighted cell to place them freely. (not near the path/entrance/exit)",
+        "d0": "Entry fee 20G + Pokémon cost deducted (up to 6); reposition & swap freely between waves",
+        "d1": "💎 Terastal tile: a Pokémon standing on it changes type, boosting STAB & defensive matchups",
+        "d2": "🏪 Friendly Shop / 🎀 Contest Hall: put a Pokémon on part-time work (no attack/EXP) to unlock the item shop or raise rare-Pokémon odds over waves"
+      },
+      "slide2": {
+        "title": "Type Matchups & Synergies",
+        "desc": "Exploit type weaknesses for bonus damage!\nGroup same-type or same-generation Pokémon for synergy buffs!",
+        "d0": "Attacking a weakness deals up to 2× damage",
+        "d1": "2/4/6 same-type Pokémon  stat buffs",
+        "d2": "Evolve & Mega Evolve for even more power"
+      },
+      "slide3": {
+        "title": "Wave Rewards",
+        "desc": "Choose a reward item after clearing each wave.",
+        "d0": "Rare Candy: level up one Pokémon",
+        "d1": "Ether: revive a fainted Pokémon at 50% HP",
+        "d2": "Mega Stone/Max Soup: Mega Evolve or Gigantamax"
+      }
     },
     "multi": {
       "label": " Multiplayer",
-      "slide0": { "title": "Multiplayer Mode", "desc": "Up to 8 players compete in tower defense simultaneously\nin a PvP battle mode!", "d0": "Create a room or join an existing one", "d1": "Fill slots with AI bots", "d2": "Game starts when all players are ready" },
-      "slide1": { "title": "Phase Flow", "desc": "Shop  Wave  Battle repeats every round.", "d0": "Shop: buy, place on fenced cells, and upgrade Pokémon", "d1": "Wave: all players run tower defense simultaneously", "d2": "Battle: auto-battle your team vs a random opponent" },
-      "slide2": { "title": "Battle & Lives", "desc": "Losing a battle costs lives equal to the opponent's surviving Pokémon.\nReach 0 lives and you're eliminated!", "d0": "Start with 50 lives  reduced each battle loss", "d1": "Last player with lives remaining wins", "d2": "Rating changes based on wins and losses" },
-      "slide3": { "title": "TFT Battle Arena", "desc": "During the battle phase, Pokémon move and fight on a 7×4 board in real time!", "d0": "Top 2 rows: opponent's team / Bottom 2 rows: your team", "d1": "Reposition Pokémon during prep time before battle", "d2": "Type matchups and stats apply  synergies matter!" }
+      "slide0": {
+        "title": "Multiplayer Mode",
+        "desc": "Up to 8 players compete in tower defense simultaneously\nin a PvP battle mode!",
+        "d0": "Create a room or join an existing one",
+        "d1": "Fill slots with AI bots",
+        "d2": "Game starts when all players are ready"
+      },
+      "slide1": {
+        "title": "Phase Flow",
+        "desc": "Shop  Wave  Battle repeats every round.",
+        "d0": "Shop: buy, place freely, and upgrade Pokémon",
+        "d1": "Wave: all players run tower defense simultaneously",
+        "d2": "Battle: auto-battle your team vs a random opponent"
+      },
+      "slide2": {
+        "title": "Battle & Lives",
+        "desc": "Losing a battle costs lives equal to the opponent's surviving Pokémon.\nReach 0 lives and you're eliminated!",
+        "d0": "Start with 50 lives  reduced each battle loss",
+        "d1": "Last player with lives remaining wins",
+        "d2": "Rating changes based on wins and losses"
+      },
+      "slide3": {
+        "title": "TFT Battle Arena",
+        "desc": "During the battle phase, Pokémon move and fight on a 7×4 board in real time!",
+        "d0": "Top 2 rows: opponent's team / Bottom 2 rows: your team",
+        "d1": "Reposition Pokémon during prep time before battle",
+        "d2": "Type matchups and stats apply  synergies matter!"
+      }
     },
     "story": {
       "label": "Story Mode",
-      "slide0": { "title": "Johto, Where People Vanished", "desc": "The Captain's Johto Drift — reclaim its 8 gyms (chapters)\none by one from rampaging wild Pokémon!", "d0": "A story campaign played chapter by chapter, in order", "d1": "Clear a chapter by surviving its set number of waves", "d2": "A rampaging 'wild' boss appears on certain waves" },
-      "slide1": { "title": "Captain Yun & Friends", "desc": "Fight alongside Captain Yun and his Pokémon partners.\nEach chapter has its own set of usable Pokémon (heroes).", "d0": "The shop only offers that chapter's hero Pokémon", "d1": "Story dialogue plays at the start and on clear", "d2": "Type synergies are disabled in Story Mode" },
-      "slide2": { "title": "Each Gym's Enemy Type", "desc": "Each gym is overrun by a specific Pokémon type.\nPrepare the right type matchups in advance!", "d0": "Build a team strong against the chapter's enemy type", "d1": "Hit a weakness for up to 2× damage", "d2": "The boss is that gym ace's rampaging form — very tanky" },
-      "slide3": { "title": "Progress & Basics", "desc": "Clearing a chapter unlocks the next one.\nPlacement, evolution, and controls match Single Play.", "d0": "Clear the previous chapter to unlock the next", "d1": "Place only on each map's fenced cells (same as Single)", "d2": "Strengthen heroes via level-ups, evolution, and moves" }
+      "slide0": {
+        "title": "Johto, Where People Vanished",
+        "desc": "The Captain's Johto Drift — reclaim its 8 gyms (chapters)\none by one from rampaging wild Pokémon!",
+        "d0": "A story campaign played chapter by chapter, in order",
+        "d1": "Clear a chapter by surviving its set number of waves",
+        "d2": "A rampaging 'wild' boss appears on certain waves"
+      },
+      "slide1": {
+        "title": "Captain Yun & Friends",
+        "desc": "Fight alongside Captain Yun and his Pokémon partners.\nEach chapter has its own set of usable Pokémon (heroes).",
+        "d0": "The shop only offers that chapter's hero Pokémon",
+        "d1": "Story dialogue plays at the start and on clear",
+        "d2": "Type synergies are disabled in Story Mode"
+      },
+      "slide2": {
+        "title": "Each Gym's Enemy Type",
+        "desc": "Each gym is overrun by a specific Pokémon type.\nPrepare the right type matchups in advance!",
+        "d0": "Build a team strong against the chapter's enemy type",
+        "d1": "Hit a weakness for up to 2× damage",
+        "d2": "The boss is that gym ace's rampaging form — very tanky"
+      },
+      "slide3": {
+        "title": "Progress & Basics",
+        "desc": "Clearing a chapter unlocks the next one.\nPlacement, evolution, and controls match Single Play.",
+        "d0": "Clear the previous chapter to unlock the next",
+        "d1": "Free placement except near path/entrance/exit; use Terastal & Friendly Shop tiles (same as Single)",
+        "d2": "Strengthen heroes via level-ups, evolution, and moves"
+      }
     }
   },
   "mainMenu": {
@@ -749,6 +961,41 @@
     "serverLimitedTitle": "⚠️ Free Server Limit Reached",
     "serverLimitedDesc": "The free server usage has been exceeded, so login is unavailable right now. For today, only Single Player and Story Mode can be played.",
     "offlinePlay": "Play Offline (Single / Story)",
-    "offlineHint": "Enjoy Single Player and Story Mode without logging in."
+    "offlineHint": "Enjoy Single Player and Story Mode without logging in.",
+    "brandTagline": "War of the Protectors",
+    "feat1": "1025 Pokémon Tower Defense",
+    "feat2": "Real-time Multiplayer Battles",
+    "feat3": "Synergy & Evolution System",
+    "feat4": "Global Ranking Leaderboard",
+    "signInHeading": "Sign In",
+    "checkingUser": "Checking user info..."
+  },
+  "multiView": {
+    "playerRank": "Player Rankings",
+    "refreshing": "Refreshing...",
+    "manualRefresh": "Manual refresh",
+    "me": "(You)",
+    "faintedSuffix": " (Fainted)",
+    "eliminated": "Eliminated",
+    "liveSync": "Live sync"
+  },
+  "storyUI": {
+    "clearGrade": "Clear Grade",
+    "highestWave": "Highest Wave",
+    "appearPokemon": "Available Pokémon (shop priority)",
+    "gymType": "Gym Type",
+    "bossAppears": "Boss (appears at wave {wave})",
+    "openingPreview": "Opening Preview",
+    "replay": "▶ Replay",
+    "start": "▶ Start",
+    "selectChapter": "Select a chapter",
+    "clearedCount": "/ {total} cleared",
+    "chapterAria": "Chapter {n}: {title}",
+    "loadingImages": "Loading images... {progress}%",
+    "clickToContinue": "Click or press Space to continue",
+    "next": "Next ▶",
+    "begin": "Start ▶",
+    "unlockNext": "Unlock Next Chapter ▶",
+    "finale": "Finale ▶"
   }
 }

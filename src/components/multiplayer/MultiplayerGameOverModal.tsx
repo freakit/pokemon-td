@@ -1,9 +1,12 @@
 // src/components/multiplayer/MultiplayerGameOverModal.tsx
+import { useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { lMedia} from '../../utils/responsive.utils';
 import { PlayerGameState } from '../../types/multiplayer';
 import { useTranslation } from '../../i18n';
 import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
+import { cardService } from '../../services/CardService';
 
 interface MultiplayerGameOverModalProps {
   players: PlayerGameState[];
@@ -40,13 +43,23 @@ export const MultiplayerGameOverModal = ({
   const myPlayer = sortedPlayers.find(p => p.userId === myUserId);
   const myPlacement = sortedPlayers.findIndex(p => p.userId === myUserId) + 1;
 
+  // [카드모드] 멀티 결과 보상 — 1회만. 순위 비례, 최하위도 위로금(0 방지).
+  const rewardGiven = useRef(false);
+  useEffect(() => {
+    if (rewardGiven.current || myPlacement < 1) return;
+    rewardGiven.current = true;
+    const coins = Math.max(30, 120 - (myPlacement - 1) * 20);
+    const starShards = myPlacement === 1 ? 15 : myPlacement <= 3 ? 8 : 0;
+    cardService.grantRewards({ coins, starShards });
+  }, [myPlacement]);
+
   return (
     <ModalOverlay>
       <ModalBox $size="lg" $accent={MODAL_ACCENT.blue} $animate="slideUp" $scroll>
         <Header>
           <Title>{t('multiGameOver.title')}</Title>
           <MyPlacement placement={myPlacement}>
-            {myPlacement === 1 ? '🏆' : myPlacement === 2 ? '🥈' : myPlacement === 3 ? '🥉' : '📊'} 
+            <Emoji glyph={myPlacement === 1 ? '🏆' : myPlacement === 2 ? '🥈' : myPlacement === 3 ? '🥉' : '📊'} size={18} />{' '}
             {t('multiGameOver.placement', { rank: myPlacement })}
           </MyPlacement>
         </Header>
@@ -69,7 +82,9 @@ export const MultiplayerGameOverModal = ({
               <PlayerRow key={player.userId} isMe={isMe}>
                 <Cell>
                   <Rank placement={placement}>
-                  {placement === 1 ? '🏆' : placement === 2 ? '🥈' : placement === 3 ? '🥉' : t('multiGameOver.rankSuffix', { rank: placement })}
+                  {placement <= 3
+                    ? <Emoji glyph={placement === 1 ? '🏆' : placement === 2 ? '🥈' : '🥉'} size={16} />
+                    : t('multiGameOver.rankSuffix', { rank: placement })}
                   </Rank>
                 </Cell>
                 <Cell>

@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { Room, AIDifficulty } from '../../types/multiplayer';
@@ -23,7 +24,6 @@ const DIFF_META: Record<string, { label: string; color: string }> = {
   easiest: { label: 'EASIEST', color: '#94a3b8' },
   easy:    { label: 'EASY',    color: '#4ade80' },
   medium:  { label: 'MEDIUM',  color: '#60a5fa' },
-  normal:  { label: 'MEDIUM',  color: '#60a5fa' },
   hard:    { label: 'HARD',    color: '#fb923c' },
   expert:  { label: 'EXPERT',  color: '#f87171' },
 };
@@ -203,9 +203,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           <BackBtn onClick={onBack}>←<span className="back-text"> {t('lobby.back')}</span></BackBtn>
           <PageTitle>{t('lobby.title')}</PageTitle>
           <HeaderActions>
-            <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
-            <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
-            <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+            <ActionBtn onClick={() => setShowAchievements(true)}><Emoji glyph="🏅" size={16} /></ActionBtn>
+            <ActionBtn onClick={() => setShowHallOfFame(true)}><Emoji glyph="🏆" size={16} /></ActionBtn>
+            <ActionBtn onClick={() => setShowRankings(true)}><Emoji glyph="📊" size={16} /></ActionBtn>
             <CreateRoomBtn onClick={() => setView('create')}>+ {t('lobby.createRoom')}</CreateRoomBtn>
           </HeaderActions>
         </PageHeader>
@@ -213,9 +213,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         <Content>
           {rooms.length === 0 ? (
             <EmptyState>
-              <EmptyIcon>🎮</EmptyIcon>
+              <EmptyIcon><Emoji glyph="🎮" size={28} /></EmptyIcon>
               <EmptyTitle>{t('lobby.emptyList')}</EmptyTitle>
-              <EmptyHint>방을 직접 만들어보세요</EmptyHint>
+              <EmptyHint>{t('lobby.emptyHintCreate')}</EmptyHint>
               <EmptyCreateBtn onClick={() => setView('create')}>+ {t('lobby.createRoom')}</EmptyCreateBtn>
             </EmptyState>
           ) : (
@@ -269,9 +269,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
           <BackBtn onClick={() => setView('list')}>←<span className="back-text"> {t('lobby.back')}</span></BackBtn>
           <PageTitle>{t('lobby.createTitle')}</PageTitle>
           <HeaderActions>
-            <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
-            <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
-            <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+            <ActionBtn onClick={() => setShowAchievements(true)}><Emoji glyph="🏅" size={16} /></ActionBtn>
+            <ActionBtn onClick={() => setShowHallOfFame(true)}><Emoji glyph="🏆" size={16} /></ActionBtn>
+            <ActionBtn onClick={() => setShowRankings(true)}><Emoji glyph="📊" size={16} /></ActionBtn>
           </HeaderActions>
         </PageHeader>
         <Content>
@@ -322,9 +322,9 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
             <BackBtn onClick={() => setLeaveConfirmOpen(true)}>←<span className="back-text"> {t('lobby.leave')}</span></BackBtn>
             <PageTitle>{currentRoom.name}</PageTitle>
             <HeaderActions>
-              <ActionBtn onClick={() => setShowAchievements(true)}>🏅</ActionBtn>
-              <ActionBtn onClick={() => setShowHallOfFame(true)}>🏆</ActionBtn>
-              <ActionBtn onClick={() => setShowRankings(true)}>📊</ActionBtn>
+              <ActionBtn onClick={() => setShowAchievements(true)}><Emoji glyph="🏅" size={16} /></ActionBtn>
+              <ActionBtn onClick={() => setShowHallOfFame(true)}><Emoji glyph="🏆" size={16} /></ActionBtn>
+              <ActionBtn onClick={() => setShowRankings(true)}><Emoji glyph="📊" size={16} /></ActionBtn>
             </HeaderActions>
           </PageHeader>
 
@@ -340,7 +340,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       ? t(`mapData.${currentRoom.mapId}.name`) : currentRoom.mapName}
                   </RoomMapTitle>
                   <PlayerCountBig>
-                    {currentRoom.players.length} / {currentRoom.maxPlayers} 플레이어
+                    {t('lobby.playersCount', { cur: currentRoom.players.length, max: currentRoom.maxPlayers })}
                   </PlayerCountBig>
                 </RoomMapDetails>
               </RoomMapPanel>
@@ -357,8 +357,8 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                       <PlayerInfo>
                         <PlayerNameRow>
                           {p.userName}
-                          {p.userId === currentRoom.hostId && <HostBadge>👑 HOST</HostBadge>}
-                          {p.isAI && <AIBadge>🤖 AI</AIBadge>}
+                          {p.userId === currentRoom.hostId && <HostBadge><Emoji glyph="👑" size={11} /> HOST</HostBadge>}
+                          {p.isAI && <AIBadge><Emoji glyph="🤖" size={11} /> AI</AIBadge>}
                         </PlayerNameRow>
                         <PlayerRatingRow>Rating {p.rating}</PlayerRatingRow>
                       </PlayerInfo>
@@ -378,7 +378,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   ))}
                   {/* Empty slots */}
                   {Array.from({ length: currentRoom.maxPlayers - currentRoom.players.length }).map((_, i) => (
-                    <EmptySlot key={`empty-${i}`}>— 대기 중 —</EmptySlot>
+                    <EmptySlot key={`empty-${i}`}>{t('lobby.emptySlot')}</EmptySlot>
                   ))}
                 </PlayerGrid>
 
@@ -387,7 +387,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
                   <AISection>
                     <SectionLabel>{t('lobby.addAI')}</SectionLabel>
                     <AIBtnRow>
-                      {(['easy','normal','hard'] as AIDifficulty[]).map(d => (
+                      {(['easy','medium','hard'] as AIDifficulty[]).map(d => (
                         <AIAddBtn key={d} onClick={() => handleAddAI(d)}>
                           + {d.charAt(0).toUpperCase() + d.slice(1)} AI
                         </AIAddBtn>
@@ -424,7 +424,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         {leaveConfirmOpen && (
           <ModalOverlay onClick={() => setLeaveConfirmOpen(false)}>
             <ConfirmModal onClick={e => e.stopPropagation()}>
-              <ConfirmIcon>⚠</ConfirmIcon>
+              <ConfirmIcon><Emoji glyph="⚠" size={24} /></ConfirmIcon>
               <ConfirmTitle>{t('lobby.confirmLeaveTitle')}</ConfirmTitle>
               <ConfirmText>
                 {t('lobby.confirmLeaveMsg')}
@@ -442,7 +442,7 @@ export const MultiplayerLobby = ({ onBack, onStartGame }: MultiplayerLobbyProps)
         {kickConfirm.open && kickConfirm.player && (
           <ModalOverlay onClick={() => setKickConfirm({ open: false, player: null })}>
             <ConfirmModal onClick={e => e.stopPropagation()}>
-              <ConfirmIcon style={{ color: '#f87171' }}>🚫</ConfirmIcon>
+              <ConfirmIcon style={{ color: '#f87171' }}><Emoji glyph="🚫" size={24} /></ConfirmIcon>
               <ConfirmTitle style={{ color: '#f87171' }}>{t('lobby.kickConfirmTitle')}</ConfirmTitle>
               <ConfirmText>
                 {t('lobby.kickConfirmMsg', { name: kickConfirm.player.userName })}
@@ -886,7 +886,7 @@ function RejoinPrompt({ roomName, onRejoin, onAbandon }: RejoinPromptProps) {
     <Root>
       <ModalOverlay>
         <ConfirmModal style={{borderColor:'rgba(59,130,246,0.25)'}}>
-          <ConfirmIcon style={{color:'#60a5fa'}}>🎮</ConfirmIcon>
+          <ConfirmIcon style={{color:'#60a5fa'}}><Emoji glyph="🎮" size={24} /></ConfirmIcon>
           <ConfirmTitle style={{color:'#60a5fa'}}>{t('lobby.rejoinTitle')}</ConfirmTitle>
           <ConfirmText>
             {t('lobby.rejoinMsg', { name: roomName }).split('\n').map((line, i) => (

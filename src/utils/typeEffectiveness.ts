@@ -202,23 +202,41 @@ export function hasSTAB(attackerTypes: string[], moveType: string): boolean {
   return attackerTypes.includes(moveType);
 }
 
+// 테라스탈 반영 자속 배율 (원전 충실형).
+//  - 테라 없음:           기술타입 ∈ 원래타입 → 1.5, 아니면 1.0
+//  - 테라 == 원래타입:    그 타입 기술 → 2.0 (1.5×1.5), 다른 원래타입 기술 → 1.5
+//  - 테라 != 원래타입(새):테라타입 기술 → 1.5, 원래타입 기술도 1.5 (둘 다 자속)
+export function stabMultiplier(
+  originalTypes: string[],
+  teraType: string | undefined,
+  moveType: string
+): number {
+  const matchesOrig = originalTypes.includes(moveType);
+  if (!teraType) return matchesOrig ? 1.5 : 1.0;
+  const matchesTera = moveType === teraType;
+  if (matchesTera && originalTypes.includes(teraType)) return 2.0; // 자속 테라스탈
+  if (matchesTera) return 1.5; // 새 타입 테라
+  if (matchesOrig) return 1.5; // 원래 타입 기술 자속 유지
+  return 1.0;
+}
+
 export function calculateDamage(
   attackerAttack: number,
   defenderDefense: number,
   movePower: number,
   typeEffectiveness: number,
   isCrit: boolean = false,
-  stab: boolean = false // 자속 보정 여부
+  stab: number = 1 // 자속 보정 배율 (1=없음, 1.5/2.0=자속·테라)
 ): number {
   const level = 50;
   const base = ((2 * level / 5 + 2) * movePower * attackerAttack / defenderDefense / 50 + 2);
   let damage = base * typeEffectiveness;
-  
-  // 자속 보정 적용 (1.5배)
-  if (stab) damage *= 1.5;
-  
+
+  // 자속 보정 적용 (배율)
+  damage *= stab;
+
   // 크리티컬 (1.5배)
   if (isCrit) damage *= 1.5;
-  
+
   return Math.max(1, Math.floor(damage));
 }

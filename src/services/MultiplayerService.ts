@@ -126,6 +126,12 @@ class MultiplayerService {
 
       for (const roomId of roomsToDelete) await this.deleteRoom(roomId);
 
+      // [FREE-TIER] 고아 노드 스캔은 25% 확률로만 실행.
+      //   로비에 있는 모든 클라이언트가 10분마다 gameStates/towerDetails/battleResults
+      //   전체를 다운로드하면 무료 플랜 대역폭(10GB/월)을 잠식함.
+      //   고아는 드물게 생기므로 확률 스캔으로도 충분히 수렴.
+      if (Math.random() >= 0.25) return;
+
       // [V5-FIX-MS-2] 고아 gameStates 정리
       const gsSnap = await get(ref(rtdb, 'gameStates'));
       if (gsSnap.exists()) {
@@ -178,8 +184,10 @@ class MultiplayerService {
    */
   private async deleteRoom(roomId: string): Promise<void> {
     try {
+      // [SEC] rooms를 먼저 삭제해야 함 — 새 보안 룰에서 하위 경로(towerDetails 등)의
+      // 전체 삭제는 "방이 없거나 만료/종료됨"일 때만 허용되므로 순서가 중요.
+      await remove(ref(rtdb, `rooms/${roomId}`));
       await Promise.allSettled([
-        remove(ref(rtdb, `rooms/${roomId}`)),
         remove(ref(rtdb, `gameStates/${roomId}`)),
         remove(ref(rtdb, `towerDetails/${roomId}`)),
         remove(ref(rtdb, `battleResults/${roomId}`)),
@@ -250,6 +258,8 @@ class MultiplayerService {
       maxPlayers: 8,
       status: 'waiting',
       createdAt: Date.now(),
+      // [SEC] 보안 룰 멤버십 맵 — 방 관련 쓰기는 이 맵에 있는 uid만 허용
+      memberIds: { [user.uid]: true },
     };
     await set(newRoomRef, room);
     this.setCurrentRoom(roomId);
@@ -280,7 +290,12 @@ class MultiplayerService {
         userId: user.uid, userName: user.displayName,
         isReady: false, isAI: false, rating: user.rating,
       };
-      return { ...room, players: [...room.players, newPlayer] };
+      return {
+        ...room,
+        players: [...room.players, newPlayer],
+        // [SEC] 멤버십 맵 갱신 — 이후 게임 중 쓰기 권한의 근거
+        memberIds: { ...(room.memberIds ?? {}), [user.uid]: true },
+      };
     });
     if (joinError) throw joinError;
     this.setCurrentRoom(roomId);
@@ -335,6 +350,8 @@ class MultiplayerService {
     let shouldDelete = false;
     await runTransaction(roomRef, (room: Room | null) => {
       if (!room) return room;
+      // [SEC] 이미 나갔거나 강퇴된 유저의 no-op 쓰기 방지 — 트랜잭션 중단(권한 오류 회피)
+      if (!room.players.some(p => p.userId === user.uid)) return undefined;
       const updatedPlayers = room.players.filter(p => p.userId !== user.uid);
       if (updatedPlayers.length === 0) {
         shouldDelete = true;
@@ -348,6 +365,10 @@ class MultiplayerService {
         shouldDelete = true;
         return room;
       }
+
+      // [SEC] memberIds에서 제거하지 않음(톰스톤 유지) — 직후의 gameStates
+      // isAlive:false 쓰기와 이후 정리 작업이 보안 룰을 통과해야 하기 때문.
+      // 게임 중 참가자였던 uid의 쓰기 권한이 방 만료까지 유지되는 것은 의도된 동작.
 
       let newHostId = room.hostId;
       let newHostName = room.hostName;
@@ -367,6 +388,8 @@ class MultiplayerService {
       const gsRef = ref(rtdb, `gameStates/${roomId}`);
       await runTransaction(gsRef, (gs: MultiplayerGameState | null) => {
         if (!gs) return gs;
+        // [SEC] 게임 참가자가 아니면 no-op 쓰기 대신 트랜잭션 중단
+        if (!gs.players?.some(p => p.userId === user.uid)) return undefined;
         const updatedPlayers = gs.players.map(p =>
           p.userId === user.uid ? { ...p, isAlive: false } : p
         );
@@ -399,7 +422,10 @@ class MultiplayerService {
       const updatedPlayers = room.players.filter(p => p.userId !== targetUserId);
       // kickedUserIds에 기록 → 강퇴된 클라이언트가 자발적 퇴장과 구분 가능
       const kickedUserIds: string[] = [...(room.kickedUserIds ?? []), targetUserId];
-      return { ...room, players: updatedPlayers, kickedUserIds };
+      // [SEC] 강퇴된 유저는 멤버십 맵에서도 제거 — 게임 시작 후 쓰기 권한 차단
+      const memberIds = { ...(room.memberIds ?? {}) };
+      delete memberIds[targetUserId];
+      return { ...room, players: updatedPlayers, kickedUserIds, memberIds };
     });
 
     if (kickError) throw kickError;
@@ -419,7 +445,7 @@ class MultiplayerService {
         userName: `AI (${difficulty})`,
         isReady: true, isAI: true,
         aiDifficulty: difficulty,
-        rating: difficulty === 'easy' ? 800 : difficulty === 'normal' ? 1000 : 1200,
+        rating: difficulty === 'easy' ? 800 : difficulty === 'medium' ? 1000 : 1200,
       };
       return { ...room, players: [...room.players, aiPlayer] };
     });
@@ -994,14 +1020,20 @@ class MultiplayerService {
     });
 
     // [V5] 배틀 종료 → tftPlacements 정리 (다음 라운드 혼동 방지)
+    // [SEC] 보안 룰상 타 유저 경로에는 쓸 수 없으므로 본인 + AI 경로만 정리.
+    //   모든 클라이언트가 이 함수를 호출하므로 인간 플레이어는 각자 자신의 것을,
+    //   AI 것은 먼저 도달한 클라이언트가 정리하게 됨(멱등).
     try {
+      const me = authService.getCurrentUser();
       const tdRef = ref(rtdb, `towerDetails/${roomId}`);
       const snap = await get(tdRef);
       if (snap.exists()) {
         const updates: Record<string, any> = {};
         snap.forEach((child) => {
           const userId = child.key!;
-          updates[`${userId}/tftPlacements`] = null;
+          if (userId.startsWith('ai_') || userId === me?.uid) {
+            updates[`${userId}/tftPlacements`] = null;
+          }
         });
         if (Object.keys(updates).length > 0) {
           await update(tdRef, updates);
@@ -1049,6 +1081,15 @@ class MultiplayerService {
    * [A1] updateRatings 전면 교체
    *   - AI 플레이어를 ELO 계산에서 제외 (AI 대전 승리로 레이팅 팽창 방지)
    *   - 각 플레이어의 ratingChange를 Firebase gameState.players에 기록 (모달 UI 표시용)
+   *
+   * [SEC-ELO] 중복 적용 방지 재설계:
+   *   - finalizeGame은 각 클라이언트가 게임오버 모달을 닫을 때마다 호출됨.
+   *   - 계산은 "게임 시작 시점 rating + placement"만 사용하는 순수 함수로,
+   *     누가 몇 번 실행해도 동일한 결과 → gameState의 rating 필드는 절대 변경하지 않음
+   *     (기존에는 rating을 덮어써서 두 번째 실행 시 변화량이 이중 적용됐음).
+   *   - Firestore 보안 룰상 본인 users 문서만 쓸 수 있으므로 본인 rating만 갱신
+   *     (타인 문서 쓰기는 어차피 permission-denied — 불필요한 실패 요청 제거).
+   *   - ratingChange 기록은 이미 기록돼 있으면 트랜잭션 중단(1회만 기록).
    */
   private async updateRatings(gs: MultiplayerGameState): Promise<void> {
     const humanPlayers = gs.players.filter(p => !p.userId.startsWith('ai_'));
@@ -1067,21 +1108,31 @@ class MultiplayerService {
       }
       const newRating = Math.max(0, player.rating + ratingChange);
       updates.push({ userId: player.userId, newRating, ratingChange });
-      try { await databaseService.updateUserRating(player.userId, newRating); }
-      catch (err) { console.warn('[MS] rating update failed:', err); }
-      if (currentUser && player.userId === currentUser.uid) {
-        achievementService.onRatingUpdate(newRating);
+    }
+
+    // 본인 rating만 Firestore에 반영 (같은 값 재기록은 무해 — 멱등)
+    const myUpdate = currentUser ? updates.find(u => u.userId === currentUser.uid) : undefined;
+    if (myUpdate) {
+      try {
+        await databaseService.updateUserRating(myUpdate.userId, myUpdate.newRating);
+        achievementService.onRatingUpdate(myUpdate.newRating);
+      } catch (err) {
+        console.warn('[MS] rating update failed:', err);
       }
     }
 
-    // [A1] gameState.players[i].ratingChange 기록 — MultiplayerGameOverModal 표시용
+    // ratingChange 기록 — 이미 기록돼 있으면 중단. rating 필드는 건드리지 않음.
     if (updates.length > 0) {
       const gsRef = ref(rtdb, `gameStates/${gs.roomId}`);
       await runTransaction(gsRef, (state: MultiplayerGameState | null) => {
         if (!state) return state;
+        const alreadyApplied = state.players.some(
+          p => p.ratingChange !== undefined && p.ratingChange !== null
+        );
+        if (alreadyApplied) return undefined; // 트랜잭션 중단(no-op)
         const updatedPlayers = state.players.map(p => {
           const u = updates.find(x => x.userId === p.userId);
-          return u ? { ...p, rating: u.newRating, ratingChange: u.ratingChange } : p;
+          return u ? { ...p, ratingChange: u.ratingChange } : p;
         });
         return { ...state, players: updatedPlayers };
       }).catch(err => console.warn('[MS] gameState ratingChange write failed:', err));

@@ -5,6 +5,7 @@ import { authService } from '../../services/AuthService';
 import { ShootingStarsBackground } from '../ui/ShootingStarsBackground';
 import { Settings } from '../modals/Settings';
 import { useTranslation } from '../../i18n';
+import { Emoji } from '../shared/Emoji';
 
 export const LoginScreen = () => {
   const { t } = useTranslation();
@@ -62,7 +63,7 @@ export const LoginScreen = () => {
       <ShootingStarsBackground />
       <Root>
         <SettingsBtn onClick={() => setShowSettings(true)}>
-          ⚙ {t('nav.settings')}
+          <Emoji glyph="⚙" size={14} /> {t('nav.settings')}
         </SettingsBtn>
 
         <Layout>
@@ -70,13 +71,13 @@ export const LoginScreen = () => {
             <BrandContent>
               <BrandEyebrow>POKEMON</BrandEyebrow>
               <BrandTitle>AEGIS</BrandTitle>
-              <BrandTagline>지키는 자들의 전쟁</BrandTagline>
+              <BrandTagline>{t('login.brandTagline')}</BrandTagline>
               <BrandDivider />
               <BrandFeatures>
-                <Feature><FeatureDot />1025종 포켓몬 타워 디펜스</Feature>
-                <Feature><FeatureDot />실시간 멀티플레이 배틀</Feature>
-                <Feature><FeatureDot />시너지 &amp; 진화 시스템</Feature>
-                <Feature><FeatureDot />글로벌 랭킹 리더보드</Feature>
+                <Feature><FeatureDot />{t('login.feat1')}</Feature>
+                <Feature><FeatureDot />{t('login.feat2')}</Feature>
+                <Feature><FeatureDot />{t('login.feat3')}</Feature>
+                <Feature><FeatureDot />{t('login.feat4')}</Feature>
               </BrandFeatures>
             </BrandContent>
             <BrandLogoWrap>
@@ -87,7 +88,7 @@ export const LoginScreen = () => {
           <FormPanel>
             <FormCard>
               <MobileLogo src="/images/pokemon-aegis.png" alt="Pokemon Aegis" />
-              <FormHeading>로그인</FormHeading>
+              <FormHeading>{t('login.signInHeading')}</FormHeading>
               <FormSubheading>{t('login.title')}</FormSubheading>
 
               {!guestMode ? (
@@ -98,7 +99,7 @@ export const LoginScreen = () => {
                   </GoogleBtn>
                   <OrRow><OrLine /><OrText>{t('login.or')}</OrText><OrLine /></OrRow>
                   <GhostBtn onClick={() => { setGuestMode(true); setError(''); }} disabled={loading}>
-                    <GhostIcon>👤</GhostIcon>
+                    <GhostIcon><Emoji glyph="👤" size={16} /></GhostIcon>
                     <span>{t('login.guestBtn')}</span>
                   </GhostBtn>
                 </>

@@ -3,6 +3,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
+import { Emoji } from '../shared/Emoji';
 import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
@@ -23,7 +24,7 @@ export const Wave50ClearModal: React.FC<Wave50ClearModalProps> = ({ onContinue, 
     <ModalOverlay $zIndex={1002}>
       <ModalBox $size="sm" $accent={MODAL_ACCENT.gold} $animate="slideUp" $scroll>
         <Header>
-          <Title>🎉 {t('waveClear.title')}! 🎉</Title>
+          <Title><Emoji glyph="🎉" size={18} /> {t('waveClear.title')}! <Emoji glyph="🎉" size={18} /></Title>
         </Header>
         <Content>
           <CongratsText>
@@ -34,10 +35,10 @@ export const Wave50ClearModal: React.FC<Wave50ClearModalProps> = ({ onContinue, 
           </Subtitle>
           <ButtonContainer>
             <ContinueBtn onClick={onContinue}>
-              🎮 {t('waveClear.continue')}
+              <Emoji glyph="🎮" size={14} /> {t('waveClear.continue')}
             </ContinueBtn>
             <RestartBtn onClick={onRestart}>
-              🔄 {t('waveClear.restart')}
+              <Emoji glyph="🔄" size={14} /> {t('waveClear.restart')}
             </RestartBtn>
           </ButtonContainer>
         </Content>

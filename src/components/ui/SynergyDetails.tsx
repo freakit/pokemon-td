@@ -5,6 +5,7 @@ import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { getGenerationById, SPECIAL_SYNERGY_DEFS } from '../../utils/synergyManager';
+import { Emoji } from '../shared/Emoji';
 import { GamePokemon } from '../../types/game';
 
 export const SynergyDetails: React.FC = () => {
@@ -18,7 +19,7 @@ export const SynergyDetails: React.FC = () => {
 
   const [type, value] = hoveredSynergy.id.split(':');
 
-  let synergyName = '';
+  let synergyName: React.ReactNode = '';
   const activeTowers = towers.filter(t => !t.isFainted);
   let matchingPokemon: GamePokemon[] = [];
 
@@ -30,7 +31,7 @@ export const SynergyDetails: React.FC = () => {
     matchingPokemon = activeTowers.filter(t => getGenerationById(t.pokemonId) === Number(value));
   } else if (type === 'special') {
     const def = SPECIAL_SYNERGY_DEFS.find(d => d.id === hoveredSynergy.id);
-    synergyName = def ? `${def.icon} ${def.name}` : hoveredSynergy.name;
+    synergyName = def ? <><Emoji glyph={def.icon} size={14} /> {def.name}</> : hoveredSynergy.name;
     const idSet = new Set(def?.pokemonIds ?? []);
     matchingPokemon = activeTowers.filter(t => idSet.has(t.pokemonId));
   }

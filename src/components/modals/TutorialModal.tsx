@@ -11,6 +11,7 @@
 import React, { useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { ModalOverlay, ModalBox, modalSlideUp, modalFadeIn } from '../shared/modal.styles';
+import { Emoji } from '../shared/Emoji';
 import { lMedia, media } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 
@@ -222,12 +223,12 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
 
   const slide = slides[page];
 
-  // 모드 태그 라벨 — 번역값 앞뒤 공백 제거 후 이모지 결합
+  // 모드 태그 라벨 — 번역값 앞뒤 공백 제거 후 아이콘 결합
   const modeLabel = mode === 'tower'
-    ? `🏰 ${t('tutorial.tower.label').trim()}`
+    ? <><Emoji glyph="🏰" size={13} /> {t('tutorial.tower.label').trim()}</>
     : mode === 'multi'
-    ? `👥 ${t('tutorial.multi.label').trim()}`
-    : `📖 ${t('tutorial.story.label').trim()}`;
+    ? <><Emoji glyph="👥" size={13} /> {t('tutorial.multi.label').trim()}</>
+    : <><Emoji glyph="📖" size={13} /> {t('tutorial.story.label').trim()}</>;
 
   return (
     <AnimatedOverlay $exiting={exiting} onClick={() => close()}>
@@ -243,17 +244,17 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
             {modeLabel}
           </ModeTag>
           <PageInfo $color={accent}>{page + 1} / {slides.length}</PageInfo>
-          <CloseX onClick={() => close()}>✕</CloseX>
+          <CloseX onClick={() => close()}><Emoji glyph="❌" size={14} /></CloseX>
         </Header>
 
         <SlideArea $dir={dir} key={page}>
-          <SlideIcon>{slide.icon}</SlideIcon>
+          <SlideIcon><Emoji glyph={slide.icon} size={40} /></SlideIcon>
           <SlideTitle>{slide.title}</SlideTitle>
           <SlideDesc>{slide.desc}</SlideDesc>
           <DetailList>
             {slide.details.map((d, i) => (
               <DetailRow key={i} $delay={i}>
-                <DetailIcon>{d.icon}</DetailIcon>
+                <DetailIcon><Emoji glyph={d.icon} size={16} /></DetailIcon>
                 <DetailText>{d.text}</DetailText>
               </DetailRow>
             ))}
@@ -288,7 +289,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ mode, onClose, onP
               onClick={() => isLast ? close(true) : go(page + 1)}
             >
               {isLast
-                ? (onProceed ? `${t('tutorial.start')} 🚀` : t('tutorial.next'))
+                ? (onProceed ? <>{t('tutorial.start')} <Emoji glyph="🚀" size={14} /></> : t('tutorial.next'))
                 : t('tutorial.next')}
             </NextBtn>
           </NavButtons>

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useTranslation } from '../../i18n';
+import { Emoji } from '../shared/Emoji';
 import {
   ModalOverlay, ModalBox, ModalHeader, ModalTitle, ModalCloseBtn,
   ModalScrollBody, MODAL_ACCENT,
@@ -57,8 +58,8 @@ export const BugReport: React.FC<BugReportProps> = ({ onClose }) => {
     <ModalOverlay onClick={onClose}>
       <ModalBox $size="sm" $accent={MODAL_ACCENT.cyan} onClick={(e) => e.stopPropagation()}>
         <ModalHeader>
-          <ModalTitle>🐛 {t('settings.bugReportTitle')}</ModalTitle>
-          <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
+          <ModalTitle><Emoji glyph="🐛" size={16} /> {t('settings.bugReportTitle')}</ModalTitle>
+          <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
         </ModalHeader>
 
         <ModalScrollBody>

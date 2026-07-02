@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { lMedia, media } from '../../utils/responsive.utils';
+import { Emoji } from '../shared/Emoji';
 import {
   ModalOverlay, ModalBox, ModalHeader, ModalTitle, ModalCloseBtn,
   ModalScrollBody, MODAL_ACCENT,
@@ -42,7 +43,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <ModalBox $size="sm" $accent={MODAL_ACCENT.cyan} onClick={(e) => e.stopPropagation()}>
 
         <ModalHeader>
-          <ModalTitle>⚙️ {t('settings.title')}</ModalTitle>
+          <ModalTitle><Emoji glyph="⚙️" size={16} /> {t('settings.title')}</ModalTitle>
           <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
         </ModalHeader>
 
@@ -51,7 +52,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <SettingsList>
           <SettingItem>
             <SettingLabel>
-              <LabelIcon>🎵</LabelIcon>
+              <LabelIcon><Emoji glyph="🎵" size={15} /></LabelIcon>
               <LabelText>{t('settings.musicVolume')}</LabelText>
             </SettingLabel>
             <SliderWrapper>
@@ -69,7 +70,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           <SettingItem>
             <SettingLabel>
-              <LabelIcon>🎯</LabelIcon>
+              <LabelIcon><Emoji glyph="🎯" size={15} /></LabelIcon>
               <LabelText>{t('settings.showDamage')}</LabelText>
             </SettingLabel>
             <ToggleWrapper>
@@ -82,7 +83,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           <SettingItem>
             <SettingLabel>
-              <LabelIcon>🗺️</LabelIcon>
+              <LabelIcon><Emoji glyph="🗺️" size={15} /></LabelIcon>
               <LabelText>{t('settings.showGrid')}</LabelText>
             </SettingLabel>
             <ToggleWrapper>
@@ -95,7 +96,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           <SettingItem>
             <SettingLabel>
-              <LabelIcon>🌐</LabelIcon>
+              <LabelIcon><Emoji glyph="🌐" size={15} /></LabelIcon>
               <LabelText>{t('settings.language')}</LabelText>
             </SettingLabel>
             <Select
@@ -109,11 +110,11 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </SettingsList>
 
         <BugReportButton onClick={() => setShowBugReport(true)}>
-          🐛 {t('settings.bugReport')}
+          <Emoji glyph="🐛" size={14} /> {t('settings.bugReport')}
         </BugReportButton>
 
         <DangerZone>
-          <DangerLabel>⚠️ 위험 구역</DangerLabel>
+          <DangerLabel><Emoji glyph="⚠️" size={13} /> {t('settings.dangerZone')}</DangerLabel>
           <DangerButton onClick={() => {
             if (confirm(t('alerts.confirmReset'))) {
               saveService.clearSave();

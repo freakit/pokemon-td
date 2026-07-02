@@ -7,6 +7,7 @@ import { MAPS } from "../../data/maps";
 import { useGameStore } from "../../store/gameStore";
 import { Difficulty, MapData } from "../../types/game";
 import { useNavigate } from "react-router-dom";
+import { Emoji } from "../shared/Emoji";
 
 type DifficultyFilter = "easiest" | "easy" | "medium" | "hard" | "expert";
 
@@ -29,13 +30,13 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
 
   const handleFilter = (d: DifficultyFilter) => {
     setFilter(prev => prev === d ? null : d);
-    const gd: Difficulty = d === "medium" ? "normal" : d as Difficulty;
+    const gd: Difficulty = d as Difficulty;
     setDifficulty(gd);
   };
 
   const handleSelect = (map: MapData) => {
     setMap(map.id);
-    const gd: Difficulty = map.difficulty === "medium" ? "normal" : map.difficulty as Difficulty;
+    const gd: Difficulty = map.difficulty as Difficulty;
     setDifficulty(gd);
     onSelect(map.id);
   };
@@ -54,7 +55,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
     <Root>
       {/* ── Header ── */}
       <Header>
-        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> 돌아가기</span></BackBtn>
+        <BackBtn onClick={() => navigate('/')}>←<span className="back-text"> {t('common.back')}</span></BackBtn>
         <HeaderCenter>
           <HeaderEyebrow>POKEMON AEGIS</HeaderEyebrow>
           <HeaderTitle>{t('mapSelector.subtitle')}</HeaderTitle>
@@ -65,7 +66,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
       {/* ── Filter pills ── */}
       <FilterBar>
         <FilterPill $active={filter === null} $color="#f8fafc" onClick={() => setFilter(null)}>
-          전체
+          {t('mapSelector.filterAll')}
         </FilterPill>
         {(Object.keys(DIFF_META) as DifficultyFilter[]).map(d => (
           <FilterPill
@@ -74,7 +75,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
             $color={DIFF_META[d].color}
             onClick={() => handleFilter(d)}
           >
-            {DIFF_META[d].dot}&nbsp;{t(`mapSelector.${d}`)}
+            <Emoji glyph={DIFF_META[d].dot} size={11} color={DIFF_META[d].color} />&nbsp;{t(`mapSelector.${d}`)}
           </FilterPill>
         ))}
       </FilterBar>
@@ -102,7 +103,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
 
                   <CardTop>
                     <DiffBadge $color={meta?.color ?? '#fff'}>
-                      {meta?.dot} {meta?.label ?? map.difficulty.toUpperCase()}
+                      <Emoji glyph={meta?.dot} size={11} color={meta?.color} /> {meta?.label ?? map.difficulty.toUpperCase()}
                     </DiffBadge>
                   </CardTop>
 
@@ -110,7 +111,7 @@ export const MapSelector: React.FC<{ onSelect: (mapId: string) => void }> = ({ o
                     <CardTitle>{mapName(map)}</CardTitle>
                     <CardDesc>{mapDesc(map)}</CardDesc>
                     <SelectHint $active={hovered === map.id}>
-                      클릭하여 선택 →
+                      {t('mapSelector.clickToSelect')}
                     </SelectHint>
                   </CardBottom>
                 </Card>

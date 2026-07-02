@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import {
   GameState, GamePokemon, Enemy, Projectile, DamageNumber,
-  Difficulty, Item, GameMove, Synergy
+  Difficulty, Item, GameMove, Synergy, ClerkOrScoutPrompt
 } from '../types/game';
 import {
   EVOLUTION_CHAINS, FUSION_DATA,
@@ -12,6 +12,7 @@ import {
 import { pokeAPI } from '../api/pokeapi';
 import { saveService } from '../services/SaveService';
 import { calculateActiveSynergies } from '../utils/synergyManager';
+import { getMapById, getFacilityTiles, getBuildableTiles } from '../data/maps';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { achievementService } from '../services/AchievementService';
 
@@ -54,6 +55,12 @@ interface GameStore extends GameState {
   setWaveEndItemPick: (items: Item[] | null) => void;
   useItem: (itemType: string, targetTowerId?: string) => boolean;
   useRewardItem: (itemType: string, targetTowerId: string) => boolean;
+  addHeldItem: (id: string) => void;
+  equipHeldItem: (towerId: string, id: string) => void;
+  unequipHeldItem: (towerId: string) => void;
+  setManageTowerId: (id: string | null) => void;
+  addClerkOrScoutPrompt: (prompt: ClerkOrScoutPrompt) => void;
+  resolveClerkOrScoutPrompt: (towerId: string, withdraw: boolean) => { success: boolean; message?: string };
   healAllTowers: () => void;
   addXpToTower: (towerId: string, xp: number) => void;
   evolvePokemon: (towerId: string, item?: string, targetId?: number) => Promise<boolean>;
@@ -89,8 +96,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
   victory: false,
   selectedTowerSlot: null,
   availableItems: [],
+  heldItemInventory: [],
+  manageTowerId: null,
+  clerkOrScoutPromptQueue: [],
   currentMap: 'beginner',
-  difficulty: 'normal',
+  difficulty: 'medium',
   gameSpeed: saveService.load().settings.gameSpeed || 1,
   combo: 0,
   gameTime: 0,
@@ -139,13 +149,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   removeTower: (id) => {
+    const tower = get().towers.find(t => t.id === id);
+    if (tower?.heldItem) {
+      set(state => ({ heldItemInventory: [...state.heldItemInventory, tower.heldItem!] }));
+    }
     set(state => ({ towers: state.towers.filter(t => t.id !== id) }));
     get().updateActiveSynergies();
   },
 
   sellTower: (id) => {
+    // 웨이브 진행 중에는 어떤 포켓몬도 보드에서 뺄 수 없다(재배치 잠금과 일관).
+    if (get().isWaveActive) return false;
     const tower = get().towers.find(t => t.id === id);
     if (!tower) return false;
+
+    // 알바 타일(프렌들리숍 ∪ 콘테스트 홀)에 갇혀있을 때에는 판매 불가
+    const currentMap = get().currentMap;
+    const fac = getFacilityTiles(getMapById(currentMap));
+    const workTiles = [...fac.shopTiles, ...fac.contestTiles];
+    const tx = Math.floor(tower.position.x / 64);
+    const ty = Math.floor(tower.position.y / 64);
+    const isOnWork = workTiles.some(s => s.x === tx && s.y === ty);
+    if (isOnWork) return false;
+
     const sellPrice = tower.level * 20;
     get().addMoney(sellPrice);
     get().removeTower(id);
@@ -258,7 +284,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
       hoveredSynergy: null,
       isPreloading: false,
       isShopDisabled: false,
+      heldItemInventory: [],
+      manageTowerId: null,
+      clerkOrScoutPromptQueue: [],
     });
+  },
+
+  // ─── 지닌 도구 보관함 ──────────────────────────────────────────────
+  setManageTowerId: (id) => set({ manageTowerId: id }),
+  addHeldItem: (id) => set(state => ({ heldItemInventory: [...state.heldItemInventory, id] })),
+  equipHeldItem: (towerId, id) => {
+    const { towers, heldItemInventory } = get();
+    const idx = heldItemInventory.indexOf(id);
+    if (idx === -1) return;
+    const tower = towers.find(t => t.id === towerId);
+    if (!tower) return;
+    // 보관함에서 1개 빼고, 기존 장착품이 있으면 보관함으로 되돌린다.
+    const nextInv = [...heldItemInventory];
+    nextInv.splice(idx, 1);
+    if (tower.heldItem) nextInv.push(tower.heldItem);
+    set({ heldItemInventory: nextInv });
+    get().updateTower(towerId, { heldItem: id });
+  },
+  unequipHeldItem: (towerId) => {
+    const tower = get().towers.find(t => t.id === towerId);
+    if (!tower?.heldItem) return;
+    set(state => ({ heldItemInventory: [...state.heldItemInventory, tower.heldItem!] }));
+    get().updateTower(towerId, { heldItem: undefined });
   },
 
   incrementGameTime: (dt) =>
@@ -760,4 +812,88 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setHoveredSynergy: (synergy) => set({ hoveredSynergy: synergy }),
   setPreloading: (isLoading) => set({ isPreloading: isLoading }),
+
+  addClerkOrScoutPrompt: (prompt) => set(state => ({
+    clerkOrScoutPromptQueue: [...state.clerkOrScoutPromptQueue, prompt]
+  })),
+
+  resolveClerkOrScoutPrompt: (towerId, withdraw) => {
+    const { towers, currentMap, updateTower } = get();
+    const tower = towers.find(t => t.id === towerId);
+    if (!tower) {
+      set(state => ({
+        clerkOrScoutPromptQueue: state.clerkOrScoutPromptQueue.filter(q => q.towerId !== towerId)
+      }));
+      return { success: false, message: 'work.errNotFound' };
+    }
+
+    if (withdraw) {
+      const emptyPos = findEmptyBuildZoneTile(currentMap, towers);
+      if (!emptyPos) {
+        return { success: false, message: 'work.errNoTile' };
+      }
+      updateTower(towerId, {
+        position: emptyPos,
+        shopWavesHeld: 0
+      });
+    }
+
+    set(state => ({
+      clerkOrScoutPromptQueue: state.clerkOrScoutPromptQueue.filter(q => q.towerId !== towerId)
+    }));
+
+    return { success: true };
+  },
 }));
+
+function findEmptyBuildZoneTile(
+  mapId: string,
+  towers: Array<{ position: { x: number; y: number } }>
+): { x: number; y: number } | null {
+  const map = getMapById(mapId);
+  if (!map) return null;
+
+  const facility = getFacilityTiles(map);
+  const workTiles = [...facility.shopTiles, ...facility.contestTiles];
+
+  // [buildZones 폐기] 자유배치 규칙(길·입출구 keepout 제외)으로 빈 칸을 찾는다.
+  // GameCanvas 배치 검증과 동일 소스(getBuildableTiles)를 사용해 일관성을 유지.
+  const buildablePoints = getBuildableTiles(map);
+
+  // 현재 타워들이 점유하고 있는 타일 좌표
+  const occupiedComma = new Set(
+    towers.map(t => `${Math.floor(t.position.x / 64)},${Math.floor(t.position.y / 64)}`)
+  );
+  const occupiedDash = new Set(
+    towers.map(t => `${Math.floor(t.position.x / 64)}-${Math.floor(t.position.y / 64)}`)
+  );
+  // 알바 타일 좌표
+  const workTileSet = new Set(workTiles.map(w => `${w.x},${w.y}`));
+
+  // 자유배치와 동일하게 좌우/상하 3연속(일직선) 형성 타일은 피한다.
+  const wouldFormLine = (tx: number, ty: number) => {
+    const run = (dx: number, dy: number) => {
+      let n = 0, cx = tx + dx, cy = ty + dy;
+      while (occupiedDash.has(`${cx}-${cy}`)) { n++; cx += dx; cy += dy; }
+      return n;
+    };
+    return (1 + run(-1, 0) + run(1, 0) >= 3) || (1 + run(0, -1) + run(0, 1) >= 3);
+  };
+
+  const isFree = (p: { x: number; y: number }) => {
+    const key = `${p.x},${p.y}`;
+    return !occupiedComma.has(key) && !workTileSet.has(key);
+  };
+
+  // 1순위: 일직선 제약까지 만족하는 빈 칸. 없으면 2순위: 일직선 허용한 빈 칸(갇힘 방지).
+  let pool = buildablePoints.filter(p => isFree(p) && !wouldFormLine(p.x, p.y));
+  if (pool.length === 0) pool = buildablePoints.filter(isFree);
+  if (pool.length === 0) return null;
+
+  // 무작위 빈 타일 좌표 반환 (snapped: x * 64 + 32, y * 64 + 32)
+  const chosen = pool[Math.floor(Math.random() * pool.length)];
+  return {
+    x: chosen.x * 64 + 32,
+    y: chosen.y * 64 + 32
+  };
+}

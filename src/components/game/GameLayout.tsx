@@ -39,6 +39,8 @@ import { HallOfFame } from "../modals/HallOfFame";
 import { Rankings } from "../modals/Rankings";
 import { Settings } from "../modals/Settings";
 import { useGameStore } from "../../store/gameStore";
+import { getMapById, getFacilityTiles } from "../../data/maps";
+import { shopTier } from "../../data/heldItems";
 import { WaveSystem } from "../../game/WaveSystem";
 import { multiplayerService } from "../../services/MultiplayerService";
 import { MultiplayerView } from "../multiplayer/MultiplayerView";
@@ -50,14 +52,18 @@ import { Wave50ClearModal } from "../modals/Wave50ClearModal";
 import { StoryEnding } from "../story/StoryEnding";
 import { BossCutIn } from "./BossCutIn";
 import { storyProgressService } from "../../services/StoryProgressService";
+import { achievementService } from "../../services/AchievementService";
 import { AEGIS_STORY_CHAPTERS } from "../../data/storyChapters";
 import { EvolutionConfirmModal } from "../modals/EvolutionConfirmModal";
+import { WorkMilestoneModal } from "../modals/WorkMilestoneModal";
 
 import { authService } from "../../services/AuthService";
 import { PlayerGameState, TowerDetail, GamePhase } from "../../types/multiplayer";
 import { aiPlayerManager } from "../../services/AIPlayer";
 import { getCriticalChance, getAOEDamageMultiplier } from "../../utils/abilities";
 import { lMedia } from "../../utils/responsive.utils";
+import { Emoji } from "../shared/Emoji";
+import { Store, Award } from "lucide-react";
 
 interface GameLayoutProps {
   onLeaveGame: () => void;
@@ -210,9 +216,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
   const {
     money, lives, wave, isWaveActive, towers, gameSpeed,
     timeOfDay, gameTime, skillChoiceQueue, waveEndItemPick, wave50Clear, storyClear, gameOver,
-    nextWave, spendMoney,
+    nextWave, spendMoney, currentMap, evolutionConfirmQueue, clerkOrScoutPromptQueue,
   } = useGameStore(s => ({
     money:          s.money,
+    currentMap:     s.currentMap,
     lives:          s.lives,
     wave:           s.wave,
     isWaveActive:   s.isWaveActive,
@@ -227,12 +234,26 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
     gameOver:         s.gameOver,
     nextWave:         s.nextWave,
     spendMoney:       s.spendMoney,
+    evolutionConfirmQueue: s.evolutionConfirmQueue || [],
+    clerkOrScoutPromptQueue: s.clerkOrScoutPromptQueue || [],
   }));
   const setSpeed = useGameStore(s => s.setGameSpeed);
+  const setManageTowerId = useGameStore(s => s.setManageTowerId);
 
   // ── Pulse cues ────────────────────────────────────────────────
   const pulseWave    = !isWaveActive && wave >= 0 && !gameOver;
   const pulsePokemon = towers.length === 0 && !isWaveActive;
+
+  // 시설(프렌들리숍·콘테스트 홀) 등급 — 해당 타일에 올라간 알바 포켓몬의 근무 누적 웨이브 기준
+  const facility = getFacilityTiles(getMapById(currentMap));
+  const facilityOccupant = (tiles: { x: number; y: number }[]) => {
+    const tw = tiles.length
+      ? towers.find(t => tiles.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)))
+      : undefined;
+    return tw ? { id: tw.id, tier: shopTier(tw.shopWavesHeld ?? 0) } : null;
+  };
+  const shopOcc    = facilityOccupant(facility.shopTiles);
+  const contestOcc = facilityOccupant(facility.contestTiles);
 
   // ── Refs ──────────────────────────────────────────────────────
   const lastAppliedRoundRef    = useRef<number>(-1);
@@ -625,6 +646,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
       stars: 3, // 기본 3성 (향후 라이프 기반으로 개선 가능)
       bestWave: totalW,
     });
+    // 챕터별 스토리 업적 달성
+    achievementService.onStoryClear(storyChapterNumber);
     // storyClear 플래그 초기화 후 /story 복귀
     useGameStore.setState({ storyClear: false, storyChapterNumber: null, storyTotalWaves: null });
     navigate('/story');
@@ -647,8 +670,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {/* Portrait guard – mobile/tablet 세로 화면 */}
       <PortraitGuard>
-        <RotateEmoji>📱</RotateEmoji>
-        <RotateMsg>화면을 가로로 돌려주세요</RotateMsg>
+        <RotateEmoji><Emoji glyph="📱" size={40} /></RotateEmoji>
+        <RotateMsg>{t('hud.rotateDevice')}</RotateMsg>
       </PortraitGuard>
 
       {/* Multiplayer loading overlay */}
@@ -668,11 +691,34 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
         {/* ▌LEFT: 시너지 + HUD */}
         <LeftPanel>
-          <PanelHdr>💎 {t("synergy.title")}</PanelHdr>
+          <PanelHdr><Emoji glyph="💎" size={14} /> {t("synergy.title")}</PanelHdr>
           <SynergyArea>
             <SynergyTracker embedded />
           </SynergyArea>
           <HudSep />
+          {/* 시설 등급(프렌들리숍·콘테스트 홀) */}
+          <FacilityBox>
+            <FacilityRow>
+              <FacilityName><Store size={13} /> {t('facility.shop')}</FacilityName>
+              {shopOcc && shopOcc.tier >= 1 && !isWaveActive ? (
+                <FacilityShopBtn onClick={() => setManageTowerId(shopOcc.id)}>
+                  Lv.{shopOcc.tier} {t('facility.open')}
+                </FacilityShopBtn>
+              ) : (
+                <FacilityLv $on={!!shopOcc}>{shopOcc ? `Lv.${shopOcc.tier}` : "—"}</FacilityLv>
+              )}
+            </FacilityRow>
+            <FacilityRow>
+              <FacilityName><Award size={13} /> {t('facility.contest')}</FacilityName>
+              {contestOcc && contestOcc.tier >= 1 && !isWaveActive ? (
+                <FacilityShopBtn onClick={() => setManageTowerId(contestOcc.id)}>
+                  Lv.{contestOcc.tier} {t('facility.view')}
+                </FacilityShopBtn>
+              ) : (
+                <FacilityLv $on={!!contestOcc}>{contestOcc ? `Lv.${contestOcc.tier}` : "—"}</FacilityLv>
+              )}
+            </FacilityRow>
+          </FacilityBox>
           <HudArea>
             <HudGrid>
               <HudTile>
@@ -692,18 +738,18 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
                 </HudVal>
               </HudTile>
               <HudTile>
-                <HudLbl>포켓몬</HudLbl>
+                <HudLbl>{t('hud.pokemon')}</HudLbl>
                 <HudVal $c="white">{towers.length}<Sub>/6</Sub></HudVal>
               </HudTile>
             </HudGrid>
 
             {isMultiplayer ? (
               <PhaseChip $phase={multiPhase}>
-                {phaseEmoji(multiPhase)}{" "}
+                <Emoji glyph={phaseEmoji(multiPhase)} size={13} />{" "}
                 {getPhaseText(multiPhase, multiRound, multiCountdown, t)}
               </PhaseChip>
             ) : (
-              <TimeChip>⏰ {formatTime(gameTime)} {timeOfDay === "day" ? "☀️" : "🌙"}</TimeChip>
+              <TimeChip><Emoji glyph="⏰" size={12} /> {formatTime(gameTime)} <Emoji glyph={timeOfDay === "day" ? "☀️" : "🌙"} size={12} /></TimeChip>
             )}
           </HudArea>
         </LeftPanel>
@@ -720,8 +766,8 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
           {/* 상점 영역 */}
           <ShopWrapper>
             <ShopHdr>
-              <ShopHdrTitle>🏪 {t("shop.title")}</ShopHdrTitle>
-              <GoldBadge>💰 {money}G</GoldBadge>
+              <ShopHdrTitle><Emoji glyph="🏪" size={14} /> {t("shop.title")}</ShopHdrTitle>
+              <GoldBadge><Emoji glyph="💰" size={13} /> {money}G</GoldBadge>
             </ShopHdr>
             <Shop embedded />
           </ShopWrapper>
@@ -735,37 +781,37 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
               {!isMultiplayer ? (
                 <DsBtn $v="wave" $pulse={pulseWave}
                   onClick={handleStartWave} disabled={isWaveActive}>
-                  <Ico>🎯</Ico>
-                  <Lbl>{isWaveActive ? "진행 중" : t("hud.startWave")}</Lbl>
+                  <Ico><Emoji glyph="🎯" size={18} /></Ico>
+                  <Lbl>{isWaveActive ? t("hud.inProgress") : t("hud.startWave")}</Lbl>
                 </DsBtn>
               ) : (
                 <DsBtn $v="wave" disabled>
-                  <Ico>{phaseEmoji(multiPhase)}</Ico>
+                  <Ico><Emoji glyph={phaseEmoji(multiPhase)} size={18} /></Ico>
                   <Lbl>R{multiRound}</Lbl>
                 </DsBtn>
               )}
 
               {/* 포켓몬 구입 */}
               <DsBtn $v="shop" $pulse={pulsePokemon} onClick={handleOpenPicker}>
-                <Ico>🏪</Ico>
+                <Ico><Emoji glyph="🏪" size={18} /></Ico>
                 <Lbl>{t("hud.addPokemon")}</Lbl>
               </DsBtn>
 
               {/* 포켓몬 관리 */}
               <DsBtn $v="manage" onClick={() => setShowPokemonManager(true)}>
-                <Ico>🎒</Ico>
+                <Ico><Emoji glyph="🎒" size={18} /></Ico>
                 <Lbl>{t("hud.managePokemon")} ({towers.length}/6)</Lbl>
               </DsBtn>
 
               {/* 배속 / 상대방 보기 */}
               {!isMultiplayer ? (
                 <DsBtn $v="speed" onClick={handleSpeedToggle}>
-                  <Ico>⚡</Ico>
+                  <Ico><Emoji glyph="⚡" size={18} /></Ico>
                   <Lbl>{gameSpeed}×</Lbl>
                 </DsBtn>
               ) : multiRoomId ? (
                 <DsBtn $v="rival" onClick={() => setShowMultiView(true)}>
-                  <Ico>👁</Ico>
+                  <Ico><Emoji glyph="👁" size={18} /></Ico>
                   <Lbl>{t("hud.rival")}</Lbl>
                 </DsBtn>
               ) : null}
@@ -775,10 +821,10 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
             {/* 유틸 버튼 행 */}
             <UtilRow>
               <HamBtn onClick={() => setShowHamMenu(v => !v)}>
-                ☰ 메뉴
+                <Emoji glyph="☰" size={14} /> {t('hud.menu')}
               </HamBtn>
               <CfgBtn onClick={() => setShowSettings(true)}>
-                ⚙️ 설정
+                <Emoji glyph="⚙️" size={14} /> {t('nav.settings')}
               </CfgBtn>
             </UtilRow>
           </ActionArea>
@@ -790,24 +836,29 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         <>
           <HamBackdrop onClick={() => setShowHamMenu(false)} />
           <HamPanel>
-            <HamClose onClick={() => setShowHamMenu(false)}>✕</HamClose>
+            <HamClose onClick={() => setShowHamMenu(false)}><Emoji glyph="❌" size={16} /></HamClose>
             <HamItem onClick={() => { setShowAchievements(true);  setShowHamMenu(false); }}>
-              🏆 {t("gameLayout.navAchievements")}
+              <Emoji glyph="🏆" size={15} /> {t("gameLayout.navAchievements")}
             </HamItem>
-            <HamItem onClick={() => { setShowHallOfFame(true);    setShowHamMenu(false); }}>
-              🏛️ {t("gameLayout.navHallOfFame")}
-            </HamItem>
-            <HamItem onClick={() => { setShowRankings(true);      setShowHamMenu(false); }}>
-              📊 {t("gameLayout.navRankings")}
-            </HamItem>
+            {/* [FREE-TIER] 오프라인 모드에서는 서버 의존 메뉴(전당/랭킹) 숨김 */}
+            {!authService.isOfflineMode() && (
+              <>
+                <HamItem onClick={() => { setShowHallOfFame(true);    setShowHamMenu(false); }}>
+                  <Emoji glyph="🏛️" size={15} /> {t("gameLayout.navHallOfFame")}
+                </HamItem>
+                <HamItem onClick={() => { setShowRankings(true);      setShowHamMenu(false); }}>
+                  <Emoji glyph="📊" size={15} /> {t("gameLayout.navRankings")}
+                </HamItem>
+              </>
+            )}
             {isMultiplayer && (
               <HamItem onClick={() => { setShowMultiView(true);   setShowHamMenu(false); }}>
-                👥 멀티뷰
+                <Emoji glyph="👥" size={15} /> {t('hud.multiView')}
               </HamItem>
             )}
             <HamDivider />
             <HamItem $danger onClick={() => { setShowHamMenu(false); handleResetAndLeave(); }}>
-              🚪 {t("gameLayout.navMainMenu")}
+              <Emoji glyph="🚪" size={15} /> {t("gameLayout.navMainMenu")}
             </HamItem>
           </HamPanel>
         </>
@@ -845,11 +896,18 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
         bossName={isStoryMode ? locationState.bossName : undefined}
       />
       <SynergyDetails />
-      {skillChoiceQueue && skillChoiceQueue.length > 0 && <SkillPicker />}
-      <EvolutionConfirmModal />
-      {/* [D1-FIX] 클리어 모달(wave50/스토리)과 동시 표출 방지.
-          wave50Clear "계속" 선택 시 wave50Clear=false가 되면 그때 WaveEndPicker가 보여 보상도 수령. */}
+      {/* ─── Modals 우선순위 시퀀스 제어 ─── */}
+      {/* 1. 웨이브 보상 (최우선) */}
       {waveEndItemPick && !wave50Clear && !storyClear && <WaveEndPicker />}
+
+      {/* 2. 알바 마일스톤 (웨이브 보상 완료 후) */}
+      {clerkOrScoutPromptQueue && clerkOrScoutPromptQueue.length > 0 && !waveEndItemPick && <WorkMilestoneModal />}
+
+      {/* 3. 진화 확인 (알바 마일스톤 완료 후) */}
+      {evolutionConfirmQueue && evolutionConfirmQueue.length > 0 && !waveEndItemPick && clerkOrScoutPromptQueue.length === 0 && <EvolutionConfirmModal />}
+
+      {/* 4. 스킬 픽커 (진화 확인 완료 후) */}
+      {skillChoiceQueue && skillChoiceQueue.length > 0 && !waveEndItemPick && clerkOrScoutPromptQueue.length === 0 && evolutionConfirmQueue.length === 0 && <SkillPicker />}
       {storyClear && storyChapterId && (() => {
         const ch = AEGIS_STORY_CHAPTERS.find(c => c.id === storyChapterId);
         return ch ? (
@@ -879,7 +937,7 @@ export const GameLayout: React.FC<GameLayoutProps> = ({ onLeaveGame }) => {
 
       {battleResultToast && isMultiplayer && (
         <ResultToast $won={battleResultToast.won}>
-          <ToastIco>{battleResultToast.won ? "🏆" : "💔"}</ToastIco>
+          <ToastIco><Emoji glyph={battleResultToast.won ? "🏆" : "💔"} size={28} /></ToastIco>
           <ToastBody>
             <ToastTitle>
               {battleResultToast.won ? t("gameLayout.toastWin") : t("gameLayout.toastLose")}
@@ -1026,6 +1084,38 @@ const HudArea = styled.div`
   display: flex; flex-direction: column; gap: 6px;
   ${L1024} { padding: 7px 8px; gap: 5px; }
   ${L768}  { padding: 4px 5px; gap: 3px; }
+`;
+
+const FacilityBox = styled.div`
+  flex-shrink: 0;
+  background: #0d1520;
+  padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 5px;
+  border-top: 1px solid rgba(80,140,220,0.1);
+  ${L1024} { padding: 6px 8px; gap: 4px; }
+  ${L768}  { padding: 4px 6px; gap: 3px; }
+`;
+const FacilityRow = styled.div`
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: #a8b8c8; font-weight: 600;
+  ${L768} { font-size: 10px; }
+`;
+const FacilityName = styled.span`
+  display: inline-flex; align-items: center; gap: 5px;
+  svg { opacity: 0.85; }
+`;
+const FacilityLv = styled.span<{ $on: boolean }>`
+  font-size: 11px; font-weight: 800;
+  color: ${p => (p.$on ? "#f0b840" : "#566374")};
+  ${L768} { font-size: 10px; }
+`;
+const FacilityShopBtn = styled.button`
+  font-size: 11px; font-weight: 800; color: #0d1520;
+  background: #f0b840; border: none; border-radius: 4px;
+  padding: 2px 8px; cursor: pointer; line-height: 1.4;
+  transition: filter 0.12s;
+  &:hover { filter: brightness(1.12); }
+  ${L768} { font-size: 10px; padding: 2px 6px; }
 `;
 
 const HudGrid = styled.div`

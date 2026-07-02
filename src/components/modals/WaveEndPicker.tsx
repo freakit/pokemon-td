@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import styled, { css } from 'styled-components';
 import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
+import { Emoji } from '../shared/Emoji';
 import { media, lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
@@ -96,7 +97,7 @@ export const WaveEndPicker: React.FC = () => {
       <ModalOverlay>
         <ModalBox $size="xl" $accent={MODAL_ACCENT.green} $animate="slideUp" $scroll>
           <Header>
-            <Title>🎯 {t('waveEnd.targetTitle', { name: getItemName(selectedItem) })}</Title>
+            <Title><Emoji glyph="🎯" size={16} /> {t('waveEnd.targetTitle', { name: getItemName(selectedItem) })}</Title>
           </Header>
           <Subtitle>
             {selectedItem.type === 'candy'  && t('waveEnd.targetCandy')}
@@ -136,9 +137,9 @@ export const WaveEndPicker: React.FC = () => {
     <ModalOverlay>
       <ModalBox $size="xl" $accent={MODAL_ACCENT.green} $animate="slideUp" $scroll>
         <Header>
-          <Title>🎉 {t('waveEnd.clearTitle', { wave })}</Title>
+          <Title><Emoji glyph="🎉" size={16} /> {t('waveEnd.clearTitle', { wave })}</Title>
         </Header>
-        <Subtitle>✨ {t('waveEnd.clearSubtitle')}</Subtitle>
+        <Subtitle><Emoji glyph="✨" size={14} /> {t('waveEnd.clearSubtitle')}</Subtitle>
         <Grid>
           {waveEndItemPick.map((item, idx) => {
             const isSpecial = item.type === 'mega-stone' || item.type === 'max-mushroom';
@@ -146,14 +147,14 @@ export const WaveEndPicker: React.FC = () => {
               <Card key={idx} $isSpecial={isSpecial} onClick={() => handleSelect(item)}>
                 <CardGlow />
                 <ItemName $isSpecial={isSpecial}>
-                  {isSpecial && '✨ '}{getItemName(item)}
+                  {isSpecial && <><Emoji glyph="✨" size={12} /> </>}{getItemName(item)}
                 </ItemName>
                 <ItemEffect>{getItemEffect(item)}</ItemEffect>
               </Card>
             );
           })}
         </Grid>
-        <CancelBtn onClick={handleSkip}>❌ {t('waveEnd.skip')}</CancelBtn>
+        <CancelBtn onClick={handleSkip}><Emoji glyph="❌" size={13} /> {t('waveEnd.skip')}</CancelBtn>
       </ModalBox>
     </ModalOverlay>
   );

@@ -6,6 +6,7 @@ import { authService } from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { ShootingStarsBackground } from '../ui/ShootingStarsBackground';
 import { useTranslation } from '../../i18n';
+import { Emoji } from '../shared/Emoji';
 import { AchievementsPanel } from '../modals/Achievements';
 import { HallOfFame } from '../modals/HallOfFame';
 import { Rankings } from '../modals/Rankings';
@@ -42,6 +43,9 @@ export const MainMenu = () => {
     if (!hasMultiTutorialSeen()) { setPendingNav('/lobby'); setTutorial('multi'); }
     else navigate('/lobby');
   };
+
+  // 카드 연구소 — 오프라인에서도 동작(로컬 수집/팩깡)
+  const handleCards = () => navigate('/cards');
 
   // [FREE-TIER] 오프라인 모드: 서버 의존 기능(랭킹/전당) 차단
   const handleRankings = () => {
@@ -103,7 +107,7 @@ export const MainMenu = () => {
           {/* [FREE-TIER] 오프라인 모드 안내 배너 */}
           {isOffline && (
             <OfflineBanner>
-              <OfflineBadge>🔌 {t('mainMenu.offlineBadge')}</OfflineBadge>
+              <OfflineBadge><Emoji glyph="🔌" size={14} /> {t('mainMenu.offlineBadge')}</OfflineBadge>
               <OfflineDesc>{t('mainMenu.offlineBannerDesc')}</OfflineDesc>
             </OfflineBanner>
           )}
@@ -114,7 +118,7 @@ export const MainMenu = () => {
               <ModeCardBg $color="rgba(59,130,246,0.06)" />
               <ModeCardBorder $color="#3b82f6" />
               <ModeIconWrap $bg="rgba(59,130,246,0.1)">
-                <ModeEmoji>👤</ModeEmoji>
+                <ModeEmoji><Emoji glyph="👤" size={26} /></ModeEmoji>
               </ModeIconWrap>
               <ModeInfo>
                 <ModeName>{t('mainMenu.singlePlay')}</ModeName>
@@ -127,7 +131,7 @@ export const MainMenu = () => {
               <ModeCardBg $color="rgba(245,158,11,0.06)" />
               <ModeCardBorder $color="#f59e0b" />
               <ModeIconWrap $bg="rgba(245,158,11,0.1)">
-                <ModeEmoji>⚔</ModeEmoji>
+                <ModeEmoji><Emoji glyph="⚔️" size={26} /></ModeEmoji>
               </ModeIconWrap>
               <ModeInfo>
                 <ModeName>{t('mainMenu.storyPlay')}</ModeName>
@@ -140,11 +144,24 @@ export const MainMenu = () => {
               <ModeCardBg $color="rgba(16,185,129,0.06)" />
               <ModeCardBorder $color="#10b981" />
               <ModeIconWrap $bg="rgba(16,185,129,0.1)">
-                <ModeEmoji>👥</ModeEmoji>
+                <ModeEmoji><Emoji glyph="👥" size={26} /></ModeEmoji>
               </ModeIconWrap>
               <ModeInfo>
                 <ModeName>{t('mainMenu.multiPlay')}</ModeName>
-                <ModeDesc>{isOffline ? `🔒 ${t('mainMenu.offlineBadge')}` : t('mainMenu.multiPlayDesc')}</ModeDesc>
+                <ModeDesc>{isOffline ? <><Emoji glyph="🔒" size={12} /> {t('mainMenu.offlineBadge')}</> : t('mainMenu.multiPlayDesc')}</ModeDesc>
+              </ModeInfo>
+              <ModeArrow>→</ModeArrow>
+            </ModeCard>
+
+            <ModeCard $accent="#c084fc" onClick={handleCards}>
+              <ModeCardBg $color="rgba(192,132,252,0.06)" />
+              <ModeCardBorder $color="#c084fc" />
+              <ModeIconWrap $bg="rgba(192,132,252,0.1)">
+                <ModeEmoji><Emoji glyph="🃏" size={26} /></ModeEmoji>
+              </ModeIconWrap>
+              <ModeInfo>
+                <ModeName>카드 연구소</ModeName>
+                <ModeDesc>카드를 모으고 오토배틀에 도전하세요</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>
@@ -155,13 +172,13 @@ export const MainMenu = () => {
             <UtilLabel>{t('mainMenu.myInfo')}</UtilLabel>
             <UtilRow>
               <UtilBtn onClick={() => setShowAchievements(true)}>
-                <UtilIcon>🏅</UtilIcon>{t('mainMenu.achievements')}
+                <UtilIcon><Emoji glyph="🏅" size={16} /></UtilIcon>{t('mainMenu.achievements')}
               </UtilBtn>
               <UtilBtn onClick={handleHallOfFame} $dim={isOffline}>
-                <UtilIcon>🏆</UtilIcon>{t('mainMenu.hallOfFame')}
+                <UtilIcon><Emoji glyph="🏆" size={16} /></UtilIcon>{t('mainMenu.hallOfFame')}
               </UtilBtn>
               <UtilBtn onClick={handleRankings} $dim={isOffline}>
-                <UtilIcon>📊</UtilIcon>{t('mainMenu.rankings')}
+                <UtilIcon><Emoji glyph="📊" size={16} /></UtilIcon>{t('mainMenu.rankings')}
               </UtilBtn>
             </UtilRow>
           </UtilSection>

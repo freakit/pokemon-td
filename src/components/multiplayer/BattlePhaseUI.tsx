@@ -32,6 +32,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { Emoji } from '../shared/Emoji';
 import { lMedia} from '../../utils/responsive.utils';
 import { multiplayerService } from '../../services/MultiplayerService';
 import { MultiplayerGameState, TowerDetail, PvPBattleResult } from '../../types/multiplayer';
@@ -46,6 +47,13 @@ interface BattlePhaseUIProps {
 
 // [V7-FIX-BP-7] 90초로 확장 (prep 30 + reveal 5 + battle 40 + 여유 15)
 const BATTLE_STUCK_TIMEOUT_MS = 90_000;
+
+// [V10-FIX] 웨이브 페이즈 데드락 방지 워치독.
+//   플레이어가 브라우저 종료/크래시로 이탈하면 waveCompleted가 영영 올라오지 않아
+//   markWaveCompleted의 "전원 완료" 조건이 충족되지 않고 전체가 무한 대기하던 문제.
+//   웨이브 길이는 스폰 스케줄로 상한이 있으므로, 첫 완료자가 나온 뒤 이 시간이
+//   지나도 미완료자가 남아 있으면 이탈로 간주하고 강제 완료 처리한다.
+const WAVE_STUCK_TIMEOUT_MS = 120_000;
 
 // ─── 스타일 (원본 유지) ─────────────────────────────────────────
 const fadeIn = keyframes`
@@ -135,13 +143,13 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
 
         {iAmSkipped ? (
           <MyResultBanner $win={true}>
-            <MyResultIcon>😴</MyResultIcon>
+            <MyResultIcon><Emoji glyph="😴" size={28} /></MyResultIcon>
             <MyResultText $win={true}>{t('battle.summaryByeTurn')}</MyResultText>
             <MyResultSub>{t('battle.summaryByeDesc')}</MyResultSub>
           </MyResultBanner>
         ) : myResult ? (
           <MyResultBanner $win={myResult.winnerId === myUserId}>
-            <MyResultIcon>{myResult.winnerId === myUserId ? '🏆' : '💀'}</MyResultIcon>
+            <MyResultIcon><Emoji glyph={myResult.winnerId === myUserId ? '🏆' : '💀'} size={28} /></MyResultIcon>
             <MyResultText $win={myResult.winnerId === myUserId}>
               {myResult.winnerId === myUserId ? t('battle.summaryWin') : t('battle.summaryLose')}
             </MyResultText>
@@ -160,17 +168,17 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
             return (
               <SummaryMatchCard key={result.matchId} $isMyMatch={isMyMatch}>
                 <MatchPlayerName $winner={p1Won}>{getPlayerName(result.player1Id)}</MatchPlayerName>
-                <MatchResult>{p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchResult><Emoji glyph={p1Won ? '🏆' : '💀'} size={16} /></MatchResult>
                 <MatchVS>VS</MatchVS>
-                <MatchResult>{!p1Won ? '🏆' : '💀'}</MatchResult>
+                <MatchResult><Emoji glyph={!p1Won ? '🏆' : '💀'} size={16} /></MatchResult>
                 <MatchPlayerName $winner={!p1Won}>{getPlayerName(result.player2Id)}</MatchPlayerName>
-                <MatchStats>{result.player1RemainingPokemon} vs {result.player2RemainingPokemon}{'\n'}생존</MatchStats>
+                <MatchStats>{result.player1RemainingPokemon} vs {result.player2RemainingPokemon}{'\n'}{t('arena.survived')}</MatchStats>
               </SummaryMatchCard>
             );
           })}
           {skipPlayerId && (
             <ByeCard>
-              <span>😴</span>
+              <span><Emoji glyph="😴" size={16} /></span>
               <span>{t('battle.byeTurnLabel', { name: getPlayerName(skipPlayerId) })}</span>
             </ByeCard>
           )}
@@ -180,12 +188,12 @@ const RoundSummaryModal: React.FC<RoundSummaryModalProps> = ({ gameState, myUser
           <StandingsTitle>{t('battle.standingsTitle')}</StandingsTitle>
           {sortedPlayers.map((player, idx) => (
             <StandingRow key={player.userId} $isMe={player.userId === myUserId}>
-              <StandingRank>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</StandingRank>
+              <StandingRank>{idx < 3 ? <Emoji glyph={idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'} size={15} /> : `#${idx + 1}`}</StandingRank>
               <StandingName $isMe={player.userId === myUserId}>
-                {player.userName}{player.userId === myUserId ? t('battle.meBracket') : ''}{!player.isAlive ? ' 💀' : ''}
+                {player.userName}{player.userId === myUserId ? t('battle.meBracket') : ''}{!player.isAlive ? <> <Emoji glyph="💀" size={11} /></> : ''}
               </StandingName>
-              <StandingLives>❤️ {player.lives}</StandingLives>
-              <StandingGold>💰 {player.money}G</StandingGold>
+              <StandingLives><Emoji glyph="❤️" size={12} /> {player.lives}</StandingLives>
+              <StandingGold><Emoji glyph="💰" size={12} /> {player.money}G</StandingGold>
             </StandingRow>
           ))}
         </SummaryStandings>
@@ -449,6 +457,9 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     }
   }, [roomId]);
 
+  // [V10-FIX] 웨이브 데드락 워치독 — 첫 완료자 관측 시각
+  const waveStuckSinceRef = useRef<number | null>(null);
+
   // ─── 페이즈 체크 루프 ──────────────────────────────────────
   useEffect(() => {
     if (!roomId) return;
@@ -456,6 +467,31 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
     const doPhaseCheck = async () => {
       const currentGameState = gameStateRef.current;
       if (!currentGameState || !user) return;
+
+      // [V10-FIX] 웨이브 페이즈 데드락 방지:
+      //   생존자 중 누군가 완료한 뒤 WAVE_STUCK_TIMEOUT_MS가 지나도 미완료자가
+      //   남아 있으면(이탈/크래시 추정) 강제로 완료 처리해 페이즈를 진행시킨다.
+      //   markWaveCompleted는 트랜잭션 멱등이라 여러 클라이언트가 동시에 호출해도 안전.
+      if (currentGameState.currentPhase === 'wave') {
+        const alive = currentGameState.players.filter(p => p.isAlive);
+        const someCompleted = alive.some(p => p.waveCompleted);
+        const stragglers = alive.filter(p => !p.waveCompleted);
+        if (someCompleted && stragglers.length > 0) {
+          if (waveStuckSinceRef.current === null) {
+            waveStuckSinceRef.current = Date.now();
+          } else if (Date.now() - waveStuckSinceRef.current > WAVE_STUCK_TIMEOUT_MS) {
+            waveStuckSinceRef.current = Date.now(); // 재시도 간격 확보
+            console.warn(`[BattlePhaseUI] Wave phase stuck! Force-completing ${stragglers.length} player(s)`);
+            for (const p of stragglers) {
+              multiplayerService.markWaveCompleted(roomId, p.userId).catch(console.error);
+            }
+          }
+        } else {
+          waveStuckSinceRef.current = null;
+        }
+      } else {
+        waveStuckSinceRef.current = null;
+      }
 
       const serverNow = Date.now() + multiplayerService.getServerTimeOffset();
       if (
@@ -716,7 +752,7 @@ export const BattlePhaseUI: React.FC<BattlePhaseUIProps> = ({ roomId }) => {
       <>
         <ByeOverlay>
           <ByeContainer>
-            <ByeIcon>😴</ByeIcon>
+            <ByeIcon><Emoji glyph="😴" size={20} /></ByeIcon>
             <ByeTitle>{t('battle.byeTitle')}</ByeTitle>
             <ByeSubtitle>{t('battle.byeSubtitle').split('\n').map((line, i) => <React.Fragment key={i}>{line}{i < 2 && <br />}</React.Fragment>)}</ByeSubtitle>
             <ByeBonusBox>{t('battle.byeBonus')}</ByeBonusBox>

@@ -59,7 +59,12 @@
     "addPokemon": "포켓몬 (20원)",
     "managePokemon": "관리/판매",
     "rival": "라이벌",
-    "speed": "속도"
+    "speed": "속도",
+    "inProgress": "진행 중",
+    "menu": "메뉴",
+    "multiView": "멀티뷰",
+    "pokemon": "포켓몬",
+    "rotateDevice": "화면을 가로로 돌려주세요"
   },
   "mapSelector": {
     "subtitle": "Made by Team FreakIT @ KAIST",
@@ -74,7 +79,114 @@
     "diffMedium": "보통",
     "diffHard": "어려움",
     "diffExpert": "전문가",
-    "noMaps": "해당 난이도의 맵이 없습니다."
+    "noMaps": "해당 난이도의 맵이 없습니다.",
+    "clickToSelect": "클릭하여 선택 →"
+  },
+  "work": {
+    "milestoneTitle": "근무 마일스톤 달성!",
+    "milestoneDesc": "{name} 포켓몬이 {facility}에서 {waves}웨이브 동안 열심히 일했습니다! 이제 포켓몬을 알바에서 회수하시겠습니까, 아니면 계속해서 다음 레벨로 가시겠습니까?",
+    "btnWithdraw": "회수하기 (빈 칸으로 이동)",
+    "btnContinue": "계속 근무하기",
+    "facilityShop": "프렌들리숍",
+    "facilityContest": "콘테스트 홀",
+    "errNotFound": "포켓몬을 찾을 수 없습니다.",
+    "errNoTile": "배치할 수 있는 빈 타일이 없습니다. 자리를 비운 뒤 해제해 주세요."
+  },
+  "facility": {
+    "shop": "프렌들리숍",
+    "contest": "콘테스트 홀",
+    "heldItemsTitle": "지닌 도구",
+    "open": "열기",
+    "view": "보기",
+    "tileWorking": "알바 {n}",
+    "tileOpen": "영업 Lv{n}",
+    "tileContestPrep": "준비 {n}",
+    "tileContest": "콘테스트 Lv{n}",
+    "badgeWorking": "알바 중",
+    "badgeOpen": "영업 Lv.{n}",
+    "badgeContestPrep": "준비 중",
+    "badgeContest": "콘테스트 Lv.{n}",
+    "contestPrepNote": "준비 중 — 콘테스트 입상까지 {n}웨이브. (출전 포켓몬은 공격·경험치 없음)",
+    "contestActiveNote": "누적 {waves}웨이브 출전 중 · 포켓몬 상점의 고레어 등장 확률을 끌어올립니다(Lv{tier}). 더 오래 둘수록↑(10·15웨이브).",
+    "shopLockNote": "알바 중 — 상점 개점까지 {n}웨이브. (알바 포켓몬은 공격·경험치 없음)",
+    "shopGradeNote": "누적 알바 {waves}웨이브 · 더 오래 둘수록 등급↑(Lv2:10, Lv3:15웨이브). 산 도구는 보관함에 들어갑니다.",
+    "once": "1회",
+    "equippedTitle": "이 포켓몬의 지닌 도구",
+    "noneEquipped": "장착된 도구 없음",
+    "equipHint": "보관함에서 장착하세요",
+    "withdraw": "회수",
+    "inventoryTitle": "보관함",
+    "inventoryWaveOnly": "(장착은 웨이브 사이에만)",
+    "inventoryEmpty": "보관함이 비어 있습니다. 프렌들리숍에서 도구를 구매하세요.",
+    "swap": "교체",
+    "equip": "장착",
+    "manageItems": "도구 관리",
+    "working": "근무 중",
+    "mItemsDisabledWave": "웨이브 사이에만 도구를 관리할 수 있습니다",
+    "mItemsDisabledWork": "근무 중인 포켓몬은 도구를 관리할 수 없습니다",
+    "teraInline": "테라스탈: {type}",
+    "teraStabOn": "(자속 발동)",
+    "teraDefConv": "(방어 변환)",
+    "teraTileTitle": "테라스탈 타일",
+    "teraTileL1": "올라간 포켓몬이 {type} 타입으로 변환",
+    "teraTileL2": "같은 타입 기술이면 자속↑, 방어 상성도 변환",
+    "teraTileL3": "※ 위치는 5웨이브마다 이동해요",
+    "shopTileTitle": "프렌들리숍 타일",
+    "shopTileL1": "포켓몬에게 알바를 시키면 도구 상점이 열려요",
+    "shopTileL2": "누적 5 / 10 / 15웨이브 → Lv1 / 2 / 3 해금",
+    "shopTileL3": "※ 알바 포켓몬은 공격·경험치를 받지 않아요",
+    "contestTileTitle": "콘테스트 홀",
+    "contestTileL1": "포켓몬을 콘테스트에 내보내면 상점에 고레어가 더 잘 나와요",
+    "contestTileL2": "누적 5 / 10 / 15웨이브 → 확률 조금씩↑",
+    "contestTileL3": "※ 출전 포켓몬은 공격·경험치를 받지 않아요",
+    "alertCannotMoveSwap": "근무 중인 포켓몬은 이동하거나 교환할 수 없습니다.",
+    "alertCannotMove": "근무 중인 포켓몬은 이동할 수 없습니다.",
+    "alertCannotSelect": "근무 중인 포켓몬은 선택하여 이동할 수 없습니다.",
+    "alertSellDuringWave": "웨이브 진행 중에는 판매할 수 없습니다.",
+    "alertCannotSell": "알바 또는 콘테스트 중인 포켓몬은 판매할 수 없습니다.",
+    "alertCannotFuse": "근무 중인 포켓몬은 융합할 수 없습니다."
+  },
+  "heldItems": {
+    "sitrus-berry": {
+      "name": "자뭉열매",
+      "desc": "HP 50% 이하로 떨어지면 20% 회복(1회)"
+    },
+    "liechi-berry": {
+      "name": "리샘열매",
+      "desc": "다음 공격 1회의 위력 ×1.5(1회)"
+    },
+    "enigma-berry": {
+      "name": "한카포열매",
+      "desc": "효과가 굉장한 공격을 맞으면 HP 25% 회복(1회)"
+    },
+    "muscle-band": {
+      "name": "근육밴드",
+      "desc": "물리 기술 위력 ×1.06"
+    },
+    "wise-glasses": {
+      "name": "신비의구슬",
+      "desc": "특수 기술 위력 ×1.06"
+    },
+    "expert-belt": {
+      "name": "달인의띠",
+      "desc": "효과가 굉장한(상성 우위) 기술 위력 ×1.1"
+    },
+    "scope-lens": {
+      "name": "초점렌즈",
+      "desc": "크리티컬 확률 +8%"
+    },
+    "shell-bell": {
+      "name": "조개껍질방울",
+      "desc": "준 데미지의 8%만큼 HP 흡혈"
+    },
+    "leftovers": {
+      "name": "먹다남은음식",
+      "desc": "전투 중 매초 최대 HP 2% 회복"
+    },
+    "life-orb": {
+      "name": "생명의구슬",
+      "desc": "전 기술 위력 ×1.12, 단 공격마다 최대 HP 4% 소모"
+    }
   },
   "picker": {
     "loading": "포켓몬 정보 로딩 중...",
@@ -90,7 +202,12 @@
     "total": "총합",
     "cost": "{cost}원",
     "currentMoney": "현재 {money}원",
-    "reroll": "리롤 (20원)"
+    "reroll": "리롤 (20원)",
+    "allPlacedTitle": "모든 대원이 배치됐어!",
+    "allPlacedDesc1L1": "이번 챕터에서 등장하는 포켓몬을",
+    "allPlacedDesc1L2": "전부 배치했어. 전원 전선에 나갔다고!",
+    "allPlacedDesc2L1": "진화 아이템이나 강화 아이템을 써서",
+    "allPlacedDesc2L2": "더 강하게 만들어 봐."
   },
   "manager": {
     "title": "포켓몬 관리/판매 ({towers}/6)",
@@ -150,7 +267,8 @@
     "categoryOthers": "기타 아이템",
     "categorySpecial": "특수 아이템",
     "itemCost": "{cost}원",
-    "badgeUsableNow": " 지금 사용 가능!"
+    "badgeUsableNow": " 지금 사용 가능!",
+    "usableTag": "✓ 사용 가능"
   },
   "skillPicker": {
     "levelUpName": "{name} 레벨업!",
@@ -203,7 +321,6 @@
     "methodTime": " ({time})",
     "cancel": "진화 취소"
   },
-
   "achievements": {
     "title": "업적",
     "loading": "업적 정보를 불러오는 중...",
@@ -230,7 +347,8 @@
     "bugSend": "제보하기",
     "bugSending": "전송 중...",
     "bugReportSuccess": "버그 제보가 성공적으로 전송되었습니다!",
-    "bugReportFail": "버그 제보 전송에 실패했습니다. 이메일(freakit2025@gmail.com)로 직접 제보해 주시면 감사하겠습니다."
+    "bugReportFail": "버그 제보 전송에 실패했습니다. 이메일(freakit2025@gmail.com)로 직접 제보해 주시면 감사하겠습니다.",
+    "dangerZone": "위험 구역"
   },
   "game": {
     "gameOver": "게임 오버",
@@ -257,7 +375,9 @@
     "typeDesc2": "(2) 스탯 1.1배",
     "genDesc6": "(6) 스탯 1.3배",
     "genDesc4": "(4) 스탯 1.2배",
-    "genDesc2": "(2) 스탯 1.1배"
+    "genDesc2": "(2) 스탯 1.1배",
+    "emptyHintL1": "포켓몬을 배치하면",
+    "emptyHintL2": "시너지가 활성화돼요"
   },
   "status": {
     "burn": "화상",
@@ -274,7 +394,8 @@
     "revealPhase": "공개",
     "battlePhase": "전투",
     "myTeam": "내 팀",
-    "opponentTeam": "상대 팀"
+    "opponentTeam": "상대 팀",
+    "survived": "생존"
   },
   "types": {
     "normal": "노말",
@@ -295,115 +416,6 @@
     "dark": "악",
     "steel": "강철",
     "fairy": "페어리"
-  },
-  "achData": {
-    "wave3":  { "name": "생존자",       "description": "웨이브 3 도달" },
-    "wave5":  { "name": "첫 걸음",      "description": "웨이브 5 도달" },
-    "wave10": { "name": "초보 탈출",    "description": "웨이브 10 도달" },
-    "wave20": { "name": "중급자",       "description": "웨이브 20 도달" },
-    "wave30": { "name": "고급자",       "description": "웨이브 30 도달" },
-    "wave40": { "name": "베테랑",       "description": "웨이브 40 도달" },
-    "wave50": { "name": "마스터",       "description": "웨이브 50 클리어!" },
-
-    "kill50":   { "name": "신참 사냥꾼",   "description": "적 50마리 처치" },
-    "kill100":  { "name": "사냥꾼",        "description": "적 100마리 처치" },
-    "kill300":  { "name": "베테랑 사냥꾼", "description": "적 300마리 처치" },
-    "kill500":  { "name": "학살자",        "description": "적 500마리 처치" },
-    "kill1000": { "name": "전쟁의 신",     "description": "적 1000마리 처치" },
-    "boss1":    { "name": "보스 사냥 시작","description": "보스 1마리 처치" },
-    "boss5":    { "name": "보스 헌터",     "description": "보스 5마리 처치" },
-    "boss15":   { "name": "보스 킬러",     "description": "보스 15마리 처치" },
-    "boss30":   { "name": "보스 학살자",   "description": "보스 30마리 처치" },
-    "crit_kill":{ "name": "급소 한 방",    "description": "크리티컬로 보스 처치" },
-    "combo10":  { "name": "콤보의 신",     "description": "웨이브 중 10콤보 달성" },
-    "combo20":  { "name": "연속 학살",     "description": "웨이브 중 20콤보 달성" },
-
-    "money5k":  { "name": "알뜰살뜰",      "description": "한 게임에서 총 5,000원 획득" },
-    "money20k": { "name": "부자",           "description": "한 게임에서 총 20,000원 획득" },
-    "money50k": { "name": "재벌",           "description": "한 게임에서 총 50,000원 획득" },
-    "money10k": { "name": "부자",           "description": "총 10000원 획득" },
-    "money100k":{ "name": "재벌",           "description": "총 100000원 획득" },
-    "sell5":    { "name": "거래 입문",      "description": "포켓몬 5마리 판매" },
-    "sell20":   { "name": "거래의 달인",    "description": "포켓몬 20마리 판매" },
-    "sell50":   { "name": "포켓몬 브로커", "description": "포켓몬 50마리 판매" },
-    "thrifty":  { "name": "절약가",         "description": "웨이브 5을 골드 100 미만으로 클리어" },
-
-    "allstarters":    { "name": "스타터 트리오",    "description": "이상해씨, 파이리, 꼬부기 모두 수집" },
-    "legendary":      { "name": "전설의 트레이너", "description": "전설 포켓몬 수집" },
-    "all_types":      { "name": "타입 컬렉터",      "description": "18종 타입을 모두 보유한 적 있음" },
-
-    "evolve1":   { "name": "첫 진화",     "description": "포켓몬 1마리 진화" },
-    "evolve5":   { "name": "진화 입문",   "description": "포켓몬 5마리 진화" },
-    "evolve10":  { "name": "진화 마니아", "description": "포켓몬 10마리 진화" },
-    "evolve20":  { "name": "진화 마니아", "description": "포켓몬 20마리 진화" },
-    "evolve50":  { "name": "진화의 달인", "description": "포켓몬 50마리 진화" },
-    "mega1":     { "name": "메가진화!",   "description": "메가진화 1회 달성" },
-    "mega5":     { "name": "메가 파워",   "description": "메가진화 5회 달성" },
-    "gigamax1":  { "name": "거다이맥스!", "description": "거다이맥스 1회 달성" },
-    "fusion1":   { "name": "신화의 합체", "description": "포켓몬 합체 1회 달성" },
-    "level50":   { "name": "레벨 50",     "description": "포켓몬을 레벨 50으로 성장" },
-    "level100":  { "name": "레벨 MAX!",   "description": "포켓몬을 레벨 100으로 성장" },
-    "max_team":  { "name": "최강 전대",   "description": "포켓몬 6마리 모두 레벨 50+" },
-
-    "synergy_any":    { "name": "시너지 입문",   "description": "시너지 1가지 이상 활성화" },
-    "synergy_multi3": { "name": "복합 전략가",   "description": "시너지 3가지 동시 활성화" },
-    "synergy_multi5": { "name": "시너지 마스터", "description": "시너지 5가지 동시 활성화" },
-    "synergy_lv3":    { "name": "최대 시너지",   "description": "한 시너지를 최대 레벨(6마리)로 달성" },
-
-    "perfect":      { "name": "완벽한 방어",   "description": "라이프 손실 없이 웨이브 10 클리어" },
-    "perfect30":    { "name": "철벽",           "description": "라이프 손실 없이 웨이브 30 클리어" },
-    "perfect50":    { "name": "무결점 방어선", "description": "라이프 50 유지로 웨이브 50 클리어" },
-    "nofaint10":    { "name": "불굴의 의지",    "description": "포켓몬 기절 없이 웨이브 10 클리어" },
-    "nolosses":     { "name": "불패신화",       "description": "포켓몬 기절 없이 웨이브 30 도달" },
-    "speedrun":     { "name": "스피드러너",     "description": "웨이브 20을 30분 안에 클리어" },
-    "speed50":      { "name": "50파 스피드런", "description": "웨이브 50을 60분 안에 클리어" },
-    "hard_clear":   { "name": "도전자",         "description": "Hard 난이도 웨이브 30 클리어" },
-    "expert_clear": { "name": "전문가",         "description": "Expert 난이도 웨이브 30 클리어" },
-    "all_maps":     { "name": "탐험가",         "description": "모든 맵에서 웨이브 20 이상 도달" },
-    "no_item":      { "name": "맨몸 클리어",    "description": "아이템 미사용으로 웨이브 20 클리어" },
-    "solo_type":    { "name": "단일 타입 전략","description": "같은 타입 포켓몬만으로 웨이브 20 도달" },
-    "legendary_trio":{ "name": "전설의 시작",  "description": "1세대 전설 포켓몬 3종 동시 배치" },
-
-    "multi_first_win": { "name": "첫 승리",  "description": "멀티플레이 첫 승리" },
-    "multi_5wins":     { "name": "승부사",   "description": "멀티플레이 5승" },
-    "multi_20wins":    { "name": "지배자",   "description": "멀티플레이 20승" },
-    "multi_50wins":    { "name": "최강자",   "description": "멀티플레이 50승" },
-    "rating1000":      { "name": "실버 등급","description": "레이팅 1000 달성" },
-    "rating1200":      { "name": "골드 등급","description": "레이팅 1200 달성" },
-    "rating1500":      { "name": "다이아 등급","description": "레이팅 1500 달성" },
-    "rating1800":      { "name": "전설 등급","description": "레이팅 1800 달성" },
-
-    "syn_special_baby":             { "name": "베이비 포켓몬",      "description": "베이비 포켓몬 시너지 발동 (2마리 이상)" },
-    "syn_special_yoonga":           { "name": "윤가놈 파티",        "description": "윤가놈 파티 시너지 발동 (2마리 이상)" },
-    "syn_special_nunparty":         { "name": "눈파티 파티",        "description": "눈파티 파티 시너지 발동 (2마리 이상)" },
-    "syn_special_sejun":            { "name": "박세준 파티",        "description": "박세준 파티 시너지 발동 (2마리 이상)" },
-    "syn_special_etusha":           { "name": "에투샤 파티",        "description": "에투샤 파티 시너지 발동 (2마리 이상)" },
-    "syn_special_legendary_birds":  { "name": "전설의 새",          "description": "전설의 새 시너지 발동 (2마리 이상)" },
-    "syn_special_legendary_dogs":   { "name": "전설의 개",          "description": "전설의 개 시너지 발동 (2마리 이상)" },
-    "syn_special_baruki":           { "name": "배루키즈",           "description": "배루키즈 시너지 발동 (2마리 이상)" },
-    "syn_special_fossil":           { "name": "화석",               "description": "화석 포켓몬 시너지 발동 (2마리 이상)" },
-    "syn_special_legendary_jellyfish":{ "name": "전설의 해파리",   "description": "전설의 해파리 시너지 발동 (2마리 이상)" },
-    "syn_special_three_monkeys":    { "name": "3숭이",              "description": "3숭이 시너지 발동 (2마리 이상)" },
-    "syn_special_lati":             { "name": "라티 형제",          "description": "라티아스라티오스 시너지 발동 (2마리 이상)" },
-    "syn_special_swords_of_justice":{ "name": "성검사 4마리",       "description": "성검사 시너지 발동 (2마리 이상)" },
-    "syn_special_forces_of_nature": { "name": "로스 4형제",         "description": "로스 4형제 시너지 발동 (2마리 이상)" },
-    "syn_special_ash_no_crown":     { "name": "지우 무관 팀",       "description": "지우 무관 팀 시너지 발동 (2마리 이상)" },
-    "syn_special_ash_alola_champion":{ "name": "지우 리그 우승 팀","description": "지우 리그 우승 팀 시너지 발동 (2마리 이상)" },
-    "syn_special_ash_world_champion":{ "name": "지우 월챔 우승 팀","description": "지우 월챔 우승 팀 시너지 발동 (2마리 이상)" },
-    "syn_special_volcanion_magearna":{ "name": "볼케니온마기아나","description": "볼케니온마기아나 시너지 발동 (2마리 이상)" },
-    "syn_special_tapu":             { "name": "카푸 4형제",          "description": "카푸 4형제 시너지 발동 (2마리 이상)" },
-    "syn_special_ultra_beast":      { "name": "울트라비스트",        "description": "울트라비스트 시너지 발동 (2마리 이상)" },
-    "syn_special_regi":             { "name": "레지 시리즈",         "description": "레지 시리즈 시너지 발동 (2마리 이상)" },
-    "syn_special_accelgor_escavalier":{ "name": "어써러셔 & 싸리용","description": "어써러셔싸리용 시너지 발동 (2마리 이상)" },
-    "syn_special_four_treasures":   { "name": "사흉수",             "description": "사흉수 시너지 발동 (2마리 이상)" },
-    "syn_special_loyal_three":      { "name": "개추 4형제",          "description": "개추 4형제 시너지 발동 (2마리 이상)" },
-
-    "pat_type_2": { "name": "{typeName} 듀오",   "description": "{typeName} 타입 포켓몬 2마리 배치" },
-    "pat_type_4": { "name": "{typeName} 쿼텟",   "description": "{typeName} 타입 포켓몬 4마리 배치" },
-    "pat_type_6": { "name": "{typeName} 군단",   "description": "{typeName} 타입 6마리 풀 시너지 달성" },
-    "pat_gen_2":  { "name": "{genName} 콤비",    "description": "{genNum}세대 포켓몬 2마리 배치" },
-    "pat_gen_4":  { "name": "{genName} 파티",    "description": "{genNum}세대 포켓몬 4마리 배치" },
-    "pat_gen_6":  { "name": "{genName} 올스타",  "description": "{genNum}세대 포켓몬 6마리 풀 시너지 달성" }
   },
   "mapData": {
     "easiest_straight": {
@@ -439,47 +451,163 @@
       "description": "네 방향에서 적들이 생성되어 중앙으로 돌격합니다."
     }
   },
-
   "items": {
-    "fire-stone":           { "name": "불꽃의 돌",      "description": "불꽃 타입 포켓몬을 진화시키는 붉은 돌" },
-    "water-stone":          { "name": "물의 돌",        "description": "물 타입 포켓몬을 진화시키는 푸른 돌" },
-    "thunder-stone":        { "name": "천둥의 돌",      "description": "전기 타입 포켓몬을 진화시키는 노란 돌" },
-    "leaf-stone":           { "name": "리프의 돌",      "description": "풀 타입 포켓몬을 진화시키는 초록 돌" },
-    "moon-stone":           { "name": "달의 돌",        "description": "특정 포켓몬을 진화시키는 검은 돌" },
-    "sun-stone":            { "name": "태양의 돌",      "description": "특정 포켓몬을 진화시키는 밝은 돌" },
-    "shiny-stone":          { "name": "빛의 돌",        "description": "특정 포켓몬을 진화시키는 빛나는 돌" },
-    "dusk-stone":           { "name": "어둠의 돌",      "description": "특정 포켓몬을 진화시키는 어두운 돌" },
-    "dawn-stone":           { "name": "각성의 돌",      "description": "특정 포켓몬을 진화시키는 새벽의 돌" },
-    "ice-stone":            { "name": "얼음의 돌",      "description": "얼음 타입 포켓몬을 진화시키는 차가운 돌" },
-    "linking-cord":         { "name": "연결의 끈",      "description": "통신교환으로 진화하는 포켓몬을 진화시킴" },
-    "kings-rock":           { "name": "왕의징표석",     "description": "야돈이나 수륙챙이를 진화시키는 왕관 모양 돌" },
-    "metal-coat":           { "name": "금속코트",       "description": "롱스톤이나 스라크를 진화시키는 금속 장비" },
-    "dragon-scale":         { "name": "용의비늘",       "description": "시드라를 킹드라로 진화시키는 용의 비늘" },
-    "upgrade":              { "name": "업그레이드",     "description": "폴리곤을 폴리곤2로 진화시키는 장치" },
-    "protector":            { "name": "프로텍터",       "description": "코뿌리를 거대코뿌리로 진화시키는 보호구" },
-    "electirizer":          { "name": "에레키부스터",   "description": "에레브를 에레키블로 진화시키는 전기 장치" },
-    "magmarizer":           { "name": "마그마부스터",   "description": "마그마를 마그마번으로 진화시키는 마그마 장치" },
-    "dubious-disc":         { "name": "괴상한패치",     "description": "폴리곤2를 폴리곤Z로 진화시키는 디스크" },
-    "reaper-cloth":         { "name": "영계의천",       "description": "미라몽을 야느와르몽으로 진화시키는 천" },
-    "razor-claw":           { "name": "예리한손톱",     "description": "포푸니를 포푸니라로 진화시키는 날카로운 손톱" },
-    "razor-fang":           { "name": "예리한이빨",     "description": "글라이거를 글라이온으로 진화시키는 날카로운 이빨" },
-    "friendship-evolution": { "name": "우정의 구슬",    "description": "친밀도로 진화하는 포켓몬을 진화시키는 구슬" },
-    "special-evolution":    { "name": "신비한 가루",    "description": "특수 조건으로 진화하는 포켓몬을 진화시키는 가루" },
-    "deep-sea-tooth":       { "name": "심해의이빨",     "description": "진주몽을 헌테일로 진화시키는 이빨" },
-    "deep-sea-scale":       { "name": "심해의비늘",     "description": "진주몽을 분홍장이로 진화시키는 비늘" },
-    "sachet":               { "name": "향기주머니",     "description": "슈쁘를 프레프티르로 진화시키는 향기주머니" },
-    "whipped-dream":        { "name": "휘핑팝",         "description": "나룸퍼프를 나루림으로 진화시키는 휘핑크림" },
-    "tart-apple":           { "name": "새콤한사과",     "description": "과사삭벌레를 애프룡으로 진화시키는 사과" },
-    "sweet-apple":          { "name": "달콤한사과",     "description": "과사삭벌레를 단지래플으로 진화시키는 사과" },
-    "galarica-cuff":        { "name": "가라르팔찌",     "description": "가라르 야돈을 야도란으로 진화시키는 팔찌" },
-    "galarica-wreath":      { "name": "가라르목걸이",   "description": "가라르 야돈을 야도킹으로 진화시키는 목걸이" },
-    "black-augurite":       { "name": "검은휘석",       "description": "스라크를 사마자르로 진화시키는 검은 광석" },
-    "auspicious-armor":     { "name": "길조의 갑옷",    "description": "카르본을 카디나르마로 진화시키는 갑옷" },
-    "malicious-armor":      { "name": "흉조의 갑옷",    "description": "카르본을 파라블레이즈로 진화시키는 갑옷" },
-    "syrupy-apple":         { "name": "과즙한 사과",    "description": "과사삭벌레를 과미드라로 진화시키는 사과" },
-    "metal-alloy":          { "name": "금속합금",       "description": "두랄루돈을 브리두라스로 진화시키는 합금" },
-    "water-scroll":         { "name": "물의 족자",      "description": "치고마를 우라오스(연격의 태세)로 진화시키는 족자" },
-    "dark-scroll":          { "name": "악의 족자",      "description": "치고마를 우라오스(일격의 태세)로 진화시키는 족자" }
+    "fire-stone": {
+      "name": "불꽃의 돌",
+      "description": "불꽃 타입 포켓몬을 진화시키는 붉은 돌"
+    },
+    "water-stone": {
+      "name": "물의 돌",
+      "description": "물 타입 포켓몬을 진화시키는 푸른 돌"
+    },
+    "thunder-stone": {
+      "name": "천둥의 돌",
+      "description": "전기 타입 포켓몬을 진화시키는 노란 돌"
+    },
+    "leaf-stone": {
+      "name": "리프의 돌",
+      "description": "풀 타입 포켓몬을 진화시키는 초록 돌"
+    },
+    "moon-stone": {
+      "name": "달의 돌",
+      "description": "특정 포켓몬을 진화시키는 검은 돌"
+    },
+    "sun-stone": {
+      "name": "태양의 돌",
+      "description": "특정 포켓몬을 진화시키는 밝은 돌"
+    },
+    "shiny-stone": {
+      "name": "빛의 돌",
+      "description": "특정 포켓몬을 진화시키는 빛나는 돌"
+    },
+    "dusk-stone": {
+      "name": "어둠의 돌",
+      "description": "특정 포켓몬을 진화시키는 어두운 돌"
+    },
+    "dawn-stone": {
+      "name": "각성의 돌",
+      "description": "특정 포켓몬을 진화시키는 새벽의 돌"
+    },
+    "ice-stone": {
+      "name": "얼음의 돌",
+      "description": "얼음 타입 포켓몬을 진화시키는 차가운 돌"
+    },
+    "linking-cord": {
+      "name": "연결의 끈",
+      "description": "통신교환으로 진화하는 포켓몬을 진화시킴"
+    },
+    "kings-rock": {
+      "name": "왕의징표석",
+      "description": "야돈이나 수륙챙이를 진화시키는 왕관 모양 돌"
+    },
+    "metal-coat": {
+      "name": "금속코트",
+      "description": "롱스톤이나 스라크를 진화시키는 금속 장비"
+    },
+    "dragon-scale": {
+      "name": "용의비늘",
+      "description": "시드라를 킹드라로 진화시키는 용의 비늘"
+    },
+    "upgrade": {
+      "name": "업그레이드",
+      "description": "폴리곤을 폴리곤2로 진화시키는 장치"
+    },
+    "protector": {
+      "name": "프로텍터",
+      "description": "코뿌리를 거대코뿌리로 진화시키는 보호구"
+    },
+    "electirizer": {
+      "name": "에레키부스터",
+      "description": "에레브를 에레키블로 진화시키는 전기 장치"
+    },
+    "magmarizer": {
+      "name": "마그마부스터",
+      "description": "마그마를 마그마번으로 진화시키는 마그마 장치"
+    },
+    "dubious-disc": {
+      "name": "괴상한패치",
+      "description": "폴리곤2를 폴리곤Z로 진화시키는 디스크"
+    },
+    "reaper-cloth": {
+      "name": "영계의천",
+      "description": "미라몽을 야느와르몽으로 진화시키는 천"
+    },
+    "razor-claw": {
+      "name": "예리한손톱",
+      "description": "포푸니를 포푸니라로 진화시키는 날카로운 손톱"
+    },
+    "razor-fang": {
+      "name": "예리한이빨",
+      "description": "글라이거를 글라이온으로 진화시키는 날카로운 이빨"
+    },
+    "friendship-evolution": {
+      "name": "우정의 구슬",
+      "description": "친밀도로 진화하는 포켓몬을 진화시키는 구슬"
+    },
+    "special-evolution": {
+      "name": "신비한 가루",
+      "description": "특수 조건으로 진화하는 포켓몬을 진화시키는 가루"
+    },
+    "deep-sea-tooth": {
+      "name": "심해의이빨",
+      "description": "진주몽을 헌테일로 진화시키는 이빨"
+    },
+    "deep-sea-scale": {
+      "name": "심해의비늘",
+      "description": "진주몽을 분홍장이로 진화시키는 비늘"
+    },
+    "sachet": {
+      "name": "향기주머니",
+      "description": "슈쁘를 프레프티르로 진화시키는 향기주머니"
+    },
+    "whipped-dream": {
+      "name": "휘핑팝",
+      "description": "나룸퍼프를 나루림으로 진화시키는 휘핑크림"
+    },
+    "tart-apple": {
+      "name": "새콤한사과",
+      "description": "과사삭벌레를 애프룡으로 진화시키는 사과"
+    },
+    "sweet-apple": {
+      "name": "달콤한사과",
+      "description": "과사삭벌레를 단지래플으로 진화시키는 사과"
+    },
+    "galarica-cuff": {
+      "name": "가라르팔찌",
+      "description": "가라르 야돈을 야도란으로 진화시키는 팔찌"
+    },
+    "galarica-wreath": {
+      "name": "가라르목걸이",
+      "description": "가라르 야돈을 야도킹으로 진화시키는 목걸이"
+    },
+    "black-augurite": {
+      "name": "검은휘석",
+      "description": "스라크를 사마자르로 진화시키는 검은 광석"
+    },
+    "auspicious-armor": {
+      "name": "길조의 갑옷",
+      "description": "카르본을 카디나르마로 진화시키는 갑옷"
+    },
+    "malicious-armor": {
+      "name": "흉조의 갑옷",
+      "description": "카르본을 파라블레이즈로 진화시키는 갑옷"
+    },
+    "syrupy-apple": {
+      "name": "과즙한 사과",
+      "description": "과사삭벌레를 과미드라로 진화시키는 사과"
+    },
+    "metal-alloy": {
+      "name": "금속합금",
+      "description": "두랄루돈을 브리두라스로 진화시키는 합금"
+    },
+    "water-scroll": {
+      "name": "물의 족자",
+      "description": "치고마를 우라오스(연격의 태세)로 진화시키는 족자"
+    },
+    "dark-scroll": {
+      "name": "악의 족자",
+      "description": "치고마를 우라오스(일격의 태세)로 진화시키는 족자"
+    }
   },
   "achievementsPanel": {
     "title": " 업적",
@@ -573,7 +701,14 @@
     "serverLimitedTitle": "⚠️ 무료 서버 한계 도달",
     "serverLimitedDesc": "현재 무료 서버 사용량을 초과하여 로그인할 수 없습니다. 오늘은 싱글 플레이와 스토리 모드만 이용할 수 있습니다.",
     "offlinePlay": "오프라인으로 플레이 (싱글·스토리)",
-    "offlineHint": "로그인 없이 싱글 플레이와 스토리 모드를 즐길 수 있어요"
+    "offlineHint": "로그인 없이 싱글 플레이와 스토리 모드를 즐길 수 있어요",
+    "brandTagline": "지키는 자들의 전쟁",
+    "feat1": "1025종 포켓몬 타워 디펜스",
+    "feat2": "실시간 멀티플레이 배틀",
+    "feat3": "시너지 & 진화 시스템",
+    "feat4": "글로벌 랭킹 리더보드",
+    "signInHeading": "로그인",
+    "checkingUser": "유저 정보 확인 중..."
   },
   "multiplayer": {
     "phase": {
@@ -621,7 +756,10 @@
     "kickConfirmMsg": "{name}님을 방에서 강퇴하시겠습니까?",
     "kickConfirmYes": "강퇴",
     "kickConfirmNo": "취소",
-    "kicked": "방장에 의해 강퇴되었습니다."
+    "kicked": "방장에 의해 강퇴되었습니다.",
+    "emptyHintCreate": "방을 직접 만들어보세요",
+    "playersCount": "{cur} / {max} 플레이어",
+    "emptySlot": "— 대기 중 —"
   },
   "battle": {
     "roundLabel": "ROUND {round}",
@@ -675,24 +813,96 @@
     "start": "시작하기",
     "tower": {
       "label": "싱글 플레이",
-      "slide0": { "title": "포켓몬 타워 디펜스", "desc": "포켓몬을 배치해 밀려오는 적을 막으세요!\n라이프가 0이 되기 전에 웨이브 50을 버텨야 합니다.", "d0": "라이프: 적이 끝까지 돌파하면 1씩 감소", "d1": "골드: 적 처치웨이브 클리어 시 획득", "d2": "목표: 웨이브 50을 모두 클리어!" },
-      "slide1": { "title": "포켓몬 구매 & 배치", "desc": "하단 우측 버튼으로 포켓몬을 구매하고,\n초록색으로 표시되는 울타리 칸을 클릭해 배치하세요.", "d0": "진입 비용 20G + 등급 비용 차감 (최대 6마리)", "d1": "맵마다 정해진 울타리 칸(최대 10곳)에만 배치 — 길·입출구 근처는 불가", "d2": "웨이브 사이엔 자유 재배치, 타워 둘을 차례로 고르면 위치 교환" },
-      "slide2": { "title": "타입 상성 & 시너지", "desc": "포켓몬 타입 상성으로 더 큰 피해를 주세요!\n같은 타입세대를 모으면 시너지 보너스 발동!", "d0": "약점 타입 공격 시 최대 2배 피해", "d1": "같은 타입 2/4/6마리  능력치 버프", "d2": "진화메가진화로 더욱 강력하게 성장" },
-      "slide3": { "title": "웨이브 보상", "desc": "웨이브 클리어 후 보상 아이템을 선택하세요.", "d0": "이상한 사탕: 포켓몬 1마리 레벨업", "d1": "기력의 조각: 기절 포켓몬 50% HP로 부활", "d2": "메가스톤/다이버섯: 메가진화거다이맥스" }
+      "slide0": {
+        "title": "포켓몬 타워 디펜스",
+        "desc": "포켓몬을 배치해 밀려오는 적을 막으세요!\n라이프가 0이 되기 전에 웨이브 50을 버텨야 합니다.",
+        "d0": "라이프: 적이 끝까지 돌파하면 1씩 감소",
+        "d1": "골드: 적 처치웨이브 클리어 시 획득",
+        "d2": "목표: 웨이브 50을 모두 클리어!"
+      },
+      "slide1": {
+        "title": "포켓몬 구매 & 배치",
+        "desc": "하단 우측 버튼으로 포켓몬을 구매하고,\n초록색으로 표시되는 빈 칸을 클릭해 자유롭게 배치하세요. (길·입출구 근처는 불가)",
+        "d0": "진입 비용 20G + 등급 비용 차감 (최대 6마리), 웨이브 사이 자유 재배치·위치 교환",
+        "d1": "💎 테라스탈 타일: 올라간 포켓몬의 타입이 변해 자속·방어 상성이 강화돼요",
+        "d2": "🏪 프렌들리숍 / 🎀 콘테스트 홀: 포켓몬에게 알바를 시키면(공격·경험치 X) 누적 웨이브로 도구 상점·고레어 확률 해금"
+      },
+      "slide2": {
+        "title": "타입 상성 & 시너지",
+        "desc": "포켓몬 타입 상성으로 더 큰 피해를 주세요!\n같은 타입세대를 모으면 시너지 보너스 발동!",
+        "d0": "약점 타입 공격 시 최대 2배 피해",
+        "d1": "같은 타입 2/4/6마리  능력치 버프",
+        "d2": "진화메가진화로 더욱 강력하게 성장"
+      },
+      "slide3": {
+        "title": "웨이브 보상",
+        "desc": "웨이브 클리어 후 보상 아이템을 선택하세요.",
+        "d0": "이상한 사탕: 포켓몬 1마리 레벨업",
+        "d1": "기력의 조각: 기절 포켓몬 50% HP로 부활",
+        "d2": "메가스톤/다이버섯: 메가진화거다이맥스"
+      }
     },
     "multi": {
       "label": " 멀티 플레이",
-      "slide0": { "title": "멀티플레이 모드", "desc": "최대 8인이 동시에 타워 디펜스를 진행하며\n서로 경쟁하는 PvP 배틀 모드입니다!", "d0": "방 만들기 또는 기존 방 참가", "d1": "AI 봇으로 인원 자동 채움 가능", "d2": "모든 플레이어 준비 완료 시 게임 시작" },
-      "slide1": { "title": "페이즈 흐름", "desc": "쇼핑  웨이브  배틀, 이 세 페이즈가 매 라운드 반복됩니다.", "d0": "쇼핑: 포켓몬 구매·울타리 칸 배치·업그레이드", "d1": "웨이브: 모든 플레이어 동시에 타워 디펜스 진행", "d2": "배틀: 무작위 상대와 내 팀 vs 상대 팀 자동 전투" },
-      "slide2": { "title": "배틀 & 라이프", "desc": "배틀에서 지면 상대 생존 포켓몬 수만큼 라이프가 깎입니다.\n라이프 0이 되면 탈락!", "d0": "시작 라이프 50  배틀 패배마다 감소", "d1": "마지막까지 라이프가 남은 1인이 우승", "d2": "승패에 따라 레이팅이 변동됨" },
-      "slide3": { "title": "TFT 배틀 아레나", "desc": "배틀 페이즈엔 포켓몬들이 7×4 보드 위에서\n직접 이동하며 싸우는 실시간 전투입니다!", "d0": "상단 2행: 상대 팀 / 하단 2행: 내 팀", "d1": "배틀 전 준비 시간에 포켓몬 위치 재배치 가능", "d2": "타입 상성스탯 그대로 반영  시너지 맞출수록 유리!" }
+      "slide0": {
+        "title": "멀티플레이 모드",
+        "desc": "최대 8인이 동시에 타워 디펜스를 진행하며\n서로 경쟁하는 PvP 배틀 모드입니다!",
+        "d0": "방 만들기 또는 기존 방 참가",
+        "d1": "AI 봇으로 인원 자동 채움 가능",
+        "d2": "모든 플레이어 준비 완료 시 게임 시작"
+      },
+      "slide1": {
+        "title": "페이즈 흐름",
+        "desc": "쇼핑  웨이브  배틀, 이 세 페이즈가 매 라운드 반복됩니다.",
+        "d0": "쇼핑: 포켓몬 구매·자유 배치·업그레이드",
+        "d1": "웨이브: 모든 플레이어 동시에 타워 디펜스 진행",
+        "d2": "배틀: 무작위 상대와 내 팀 vs 상대 팀 자동 전투"
+      },
+      "slide2": {
+        "title": "배틀 & 라이프",
+        "desc": "배틀에서 지면 상대 생존 포켓몬 수만큼 라이프가 깎입니다.\n라이프 0이 되면 탈락!",
+        "d0": "시작 라이프 50  배틀 패배마다 감소",
+        "d1": "마지막까지 라이프가 남은 1인이 우승",
+        "d2": "승패에 따라 레이팅이 변동됨"
+      },
+      "slide3": {
+        "title": "TFT 배틀 아레나",
+        "desc": "배틀 페이즈엔 포켓몬들이 7×4 보드 위에서\n직접 이동하며 싸우는 실시간 전투입니다!",
+        "d0": "상단 2행: 상대 팀 / 하단 2행: 내 팀",
+        "d1": "배틀 전 준비 시간에 포켓몬 위치 재배치 가능",
+        "d2": "타입 상성스탯 그대로 반영  시너지 맞출수록 유리!"
+      }
     },
     "story": {
       "label": "스토리 모드",
-      "slide0": { "title": "사람이 사라진 성도지방", "desc": "포대장의 성도 표류기 — 폭주한 야생 포켓몬에게서\n8개 체육관(챕터)을 차례로 되찾으세요!", "d0": "챕터를 순서대로 진행하는 스토리 캠페인", "d1": "챕터마다 정해진 웨이브를 버티면 클리어", "d2": "특정 웨이브엔 '야생 폭주' 보스가 등장" },
-      "slide1": { "title": "윤가놈과 동료들", "desc": "포대장 윤가놈과 포켓몬 동료들로 싸웁니다.\n챕터마다 쓸 수 있는 포켓몬(영웅)이 정해져 있어요.", "d0": "상점엔 그 챕터의 영웅 포켓몬만 등장", "d1": "시작·클리어 시 스토리 대화가 펼쳐짐", "d2": "스토리 모드에선 타입 시너지가 비활성" },
-      "slide2": { "title": "체육관별 적 타입", "desc": "각 체육관은 특정 타입 포켓몬이 폭주 중입니다.\n타입 상성을 미리 맞춰 대비하세요!", "d0": "챕터 적 타입에 강한 포켓몬으로 구성", "d1": "약점 타입 공격 시 최대 2배 피해", "d2": "보스는 그 체육관 에이스의 폭주 개체 — 매우 단단함" },
-      "slide3": { "title": "진행 & 기본 규칙", "desc": "챕터를 클리어하면 다음 챕터가 열립니다.\n배치·진화 등 기본 조작은 싱글 플레이와 같아요.", "d0": "이전 챕터를 클리어해야 다음 챕터 해금", "d1": "맵마다 정해진 울타리 칸에만 배치 (싱글과 동일)", "d2": "레벨업·진화·기술 습득으로 영웅을 강화" }
+      "slide0": {
+        "title": "사람이 사라진 성도지방",
+        "desc": "포대장의 성도 표류기 — 폭주한 야생 포켓몬에게서\n8개 체육관(챕터)을 차례로 되찾으세요!",
+        "d0": "챕터를 순서대로 진행하는 스토리 캠페인",
+        "d1": "챕터마다 정해진 웨이브를 버티면 클리어",
+        "d2": "특정 웨이브엔 '야생 폭주' 보스가 등장"
+      },
+      "slide1": {
+        "title": "윤가놈과 동료들",
+        "desc": "포대장 윤가놈과 포켓몬 동료들로 싸웁니다.\n챕터마다 쓸 수 있는 포켓몬(영웅)이 정해져 있어요.",
+        "d0": "상점엔 그 챕터의 영웅 포켓몬만 등장",
+        "d1": "시작·클리어 시 스토리 대화가 펼쳐짐",
+        "d2": "스토리 모드에선 타입 시너지가 비활성"
+      },
+      "slide2": {
+        "title": "체육관별 적 타입",
+        "desc": "각 체육관은 특정 타입 포켓몬이 폭주 중입니다.\n타입 상성을 미리 맞춰 대비하세요!",
+        "d0": "챕터 적 타입에 강한 포켓몬으로 구성",
+        "d1": "약점 타입 공격 시 최대 2배 피해",
+        "d2": "보스는 그 체육관 에이스의 폭주 개체 — 매우 단단함"
+      },
+      "slide3": {
+        "title": "진행 & 기본 규칙",
+        "desc": "챕터를 클리어하면 다음 챕터가 열립니다.\n배치·진화 등 기본 조작은 싱글 플레이와 같아요.",
+        "d0": "이전 챕터를 클리어해야 다음 챕터 해금",
+        "d1": "길·입출구 근처만 빼면 자유 배치, 테라스탈·프렌들리숍 타일 활용 (싱글과 동일)",
+        "d2": "레벨업·진화·기술 습득으로 영웅을 강화"
+      }
     }
   },
   "mainMenu": {
@@ -759,5 +969,33 @@
     "achUnlocked": "업적 달성",
     "achFirstTime": " (첫 달성!)",
     "notEnoughMoneyPicker": "골드가 부족합니다!"
+  },
+  "multiView": {
+    "playerRank": "플레이어 순위",
+    "refreshing": "새로고침 중...",
+    "manualRefresh": "수동 새로고침",
+    "me": "(나)",
+    "faintedSuffix": " (기절)",
+    "eliminated": "탈락",
+    "liveSync": "실시간 동기화 중"
+  },
+  "storyUI": {
+    "clearGrade": "클리어 등급",
+    "highestWave": "최고 웨이브",
+    "appearPokemon": "등장 포켓몬 (상점 우선)",
+    "gymType": "체육관 타입",
+    "bossAppears": "보스 ({wave} 웨이브에 등장)",
+    "openingPreview": "오프닝 미리보기",
+    "replay": "▶ 다시 플레이",
+    "start": "▶ 시작하기",
+    "selectChapter": "챕터를 선택하세요",
+    "clearedCount": "/ {total} 클리어",
+    "chapterAria": "챕터 {n}: {title}",
+    "loadingImages": "이미지 로딩 중... {progress}%",
+    "clickToContinue": "클릭 또는 스페이스바로 계속",
+    "next": "다음 ▶",
+    "begin": "시작 ▶",
+    "unlockNext": "다음 챕터 해금 ▶",
+    "finale": "완결 ▶"
   }
 }

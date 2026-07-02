@@ -8,8 +8,11 @@ import { pokeAPI, PokemonData } from '../../api/pokeapi';
 import { useGameStore } from '../../store/gameStore';
 import { GameMove, MoveEffect, Gender } from '../../types/game';
 import { Rarity, RARITY_COLORS } from '../../data/evolution';
+import { getMapById, getFacilityTiles } from '../../data/maps';
+import { rarityBoostFromWaves } from '../../data/heldItems';
 import { mapAbilityToGameEffect } from '../../utils/abilities';
 import { ModalOverlay, ModalBox, ModalCloseBtn, MODAL_ACCENT } from '../shared/modal.styles';
+import { Emoji } from '../shared/Emoji';
 
 const REROLL_COST = 20;
 const TYPE_ICON_API_BASE = 'https://www.serebii.net/pokedex-bw/type/';
@@ -124,10 +127,16 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
       ids = shuffled.slice(0, 3);
     } else {
       // ── 일반 모드: 기존 랜덤 가중치 방식 ─────────────────────────────────
+      // 콘테스트 홀에 포켓몬을 내보냈으면 근무 누적 웨이브만큼 고레어 등장 확률을 끌어올린다.
+      const st = useGameStore.getState();
+      const contestTiles = getFacilityTiles(getMapById(st.currentMap)).contestTiles;
+      const scout = st.towers.find(t =>
+        contestTiles.some(s => s.x === Math.floor(t.position.x / 64) && s.y === Math.floor(t.position.y / 64)));
+      const boost = scout ? rarityBoostFromWaves(scout.shopWavesHeld ?? 0) : 0;
       const [id1, id2, id3] = await Promise.all([
-        pokeAPI.getRandomPokemonIdWithRarity(),
-        pokeAPI.getRandomPokemonIdWithRarity(),
-        pokeAPI.getRandomPokemonIdWithRarity(),
+        pokeAPI.getRandomPokemonIdWithRarity(boost),
+        pokeAPI.getRandomPokemonIdWithRarity(boost),
+        pokeAPI.getRandomPokemonIdWithRarity(boost),
       ]);
       ids = [id1, id2, id3];
     }
@@ -294,16 +303,16 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
     return (
       <ModalOverlay>
         <AllPlacedModal>
-          <AllPlacedIcon>🛡️</AllPlacedIcon>
-          <AllPlacedTitle>모든 대원이 배치됐어!</AllPlacedTitle>
+          <AllPlacedIcon><Emoji glyph="🛡️" size={28} /></AllPlacedIcon>
+          <AllPlacedTitle>{t('picker.allPlacedTitle')}</AllPlacedTitle>
           <AllPlacedDesc>
-            이번 챕터에서 등장하는 포켓몬을<br />
-            전부 배치했어. 전원 전선에 나갔다고!
+            {t('picker.allPlacedDesc1L1')}<br />
+            {t('picker.allPlacedDesc1L2')}
           </AllPlacedDesc>
           <AllPlacedSub>
-            진화 아이템이나 강화 아이템을 써서<br />더 강하게 만들어 봐.
+            {t('picker.allPlacedDesc2L1')}<br />{t('picker.allPlacedDesc2L2')}
           </AllPlacedSub>
-          <ModalCloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>닫기</ModalCloseBtn>
+          <ModalCloseBtn onClick={onClose} style={{ fontSize: '16px', padding: '10px 28px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '10px', cursor: 'pointer', color: '#fff', marginTop: '8px' }}>{t('common.close')}</ModalCloseBtn>
         </AllPlacedModal>
       </ModalOverlay>
     );
@@ -339,7 +348,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
                   <NameRow>
                     <Name>{p.displayName}</Name>
                     <GenderIcon $gender={choice.gender}>
-                       {getGenderIcon(choice.gender)}
+                       <Emoji glyph={getGenderIcon(choice.gender)} size={13} />
                     </GenderIcon>
                   </NameRow>
                   
@@ -372,7 +381,7 @@ export const PokemonPicker: React.FC<{ onClose: () => void; storyHeroPool?: numb
         <Actions>
           <MoneyDisplay>{t('picker.currentMoney', { money: money })}</MoneyDisplay>
           <RerollBtn onClick={handleReroll} disabled={isLoading}>
-            🔄 {t('picker.reroll')}
+            <Emoji glyph="🔄" size={14} /> {t('picker.reroll')}
           </RerollBtn>
         </Actions>
         </InnerPad>

@@ -8,7 +8,14 @@ export type StatusEffectType =
   | "sleep"
   | "confusion";
 export type DamageClass = "physical" | "special" | "status";
-export type Difficulty = "easiest" | "easy" | "normal" | "hard" | "expert";
+export type Difficulty = "easiest" | "easy" | "medium" | "hard" | "expert";
+export interface ClerkOrScoutPrompt {
+  towerId: string;
+  waves: number;
+  pokemonName: string;
+  /** 시설 종류(현지화 키 분기용). 'shop'=프렌들리숍, 'contest'=콘테스트 홀. */
+  facilityKey: "shop" | "contest";
+}
 export type PokemonRarity =
   | "Bronze"
   | "Silver"
@@ -87,9 +94,12 @@ export interface MapData {
   description: string;
   backgroundType: "grass" | "desert" | "snow" | "cave" | "water";
   backgroundImage?: string;
-  /** 타워 배치 가능 구역 (타일 단위 사각형들). 미지정 시 길 제외 전역 허용.
-   *  길 타일과 겹치는 부분은 자동 제외된다. */
+  /** @deprecated 울타리 배치제한 폐기(자유배치 전환). 데이터는 남아있으나 미사용. */
   buildZones?: { x: number; y: number; w: number; h: number }[];
+  /** 테라스탈 타일: 점유한 타워의 타입을 type으로 변환(원전 충실형: 방어상성+자속).
+   *  type은 맵별 고정, 위치는 spots 후보들 사이로 N웨이브마다 순환(쉬는 시간에 이동). */
+  teraTiles?: { type: string; spots: { x: number; y: number }[] }[];
+  /** 프렌들리숍·콘테스트 홀 타일은 길에서 가장 먼 칸으로 자동 계산된다(data/maps.ts getFacilityTiles). */
   /** false면 출구(objectives) 3칸 keepout 미적용 (중앙 방어형 맵용). 기본 true. */
   objectiveKeepout?: boolean;
 }
@@ -130,6 +140,12 @@ export interface GamePokemon {
   critDamage?: number;
   lifesteal?: number;
   aoeBonus?: number;
+  /** 테라스탈 타일 점유 시 세팅되는 변환 타입. 타일을 떠나면 제거된다. */
+  teraType?: string;
+  /** 장착한 지닌 도구 id(프렌들리숍에서 구매). 1포켓몬 1도구. */
+  heldItem?: string;
+  /** 알바 칸(프렌들리숍·레어도)에서 근무한 누적 웨이브 수(상점 등급·레어도 부스트 산정용). */
+  shopWavesHeld?: number;
 }
 
 export interface Enemy {
@@ -287,6 +303,11 @@ export interface GameState {
   victory: boolean;
   selectedTowerSlot: Position | null;
   availableItems: Item[];
+  /** 프렌들리숍에서 구매했지만 아직 장착하지 않은 지닌 도구 id 목록(보관함). */
+  heldItemInventory: string[];
+  /** 통합 관리/상점 모달을 띄울 타워 id(null이면 닫힘). HUD 버튼·캔버스 클릭이 공유. */
+  manageTowerId: string | null;
+  clerkOrScoutPromptQueue: ClerkOrScoutPrompt[];
   currentMap: string;
   difficulty: Difficulty;
   gameSpeed: number;

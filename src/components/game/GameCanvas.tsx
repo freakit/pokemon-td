@@ -16,9 +16,11 @@ import styled, { keyframes } from "styled-components";
 import { useTranslation } from "../../i18n";
 import { useGameStore } from "../../store/gameStore";
 import { GameManager } from "../../game/GameManager";
-import { getMapById } from "../../data/maps";
+import { getMapById, activeTeraTiles, getFacilityTiles } from "../../data/maps";
 import { GamePokemon } from "../../types/game";
 import { lMedia, isMobileOrTablet, isTouchDevice } from "../../utils/responsive.utils";
+import { buyableHeldItems, shopTier, wavesToNextTier, getHeldItem } from "../../data/heldItems";
+import { Emoji } from "../shared/Emoji";
 
 const TILE_SIZE = 64;
 const MAP_WIDTH = 15;
@@ -63,6 +65,17 @@ const TILE_THEMES: Record<BackgroundType, TileTheme> = {
 
 const getTileTheme = (bgType?: string): TileTheme =>
   TILE_THEMES[(bgType as BackgroundType) ?? 'grass'] ?? TILE_THEMES.grass;
+
+// ─── 포켓몬 타입 색상 (테라스탈 타일·뱃지용) ────────────────────────────────
+const TYPE_COLORS: Record<string, string> = {
+  normal: '#A8A878', fire: '#F08030', water: '#6890F0', electric: '#F8D030',
+  grass: '#78C850', ice: '#98D8D8', fighting: '#C03028', poison: '#A040A0',
+  ground: '#E0C068', flying: '#A890F0', psychic: '#F85888', bug: '#A8B820',
+  rock: '#B8A038', ghost: '#705898', dragon: '#7038F8', dark: '#705848',
+  steel: '#B8B8D0', fairy: '#EE99AC',
+};
+const typeColor = (t?: string) => (t && TYPE_COLORS[t]) || '#dddddd';
+// 타입 한글/영문 라벨은 i18n(types.*)으로 처리한다 → 컴포넌트 내 typeLabel() 헬퍼 사용.
 
 // ─── 포켓몬 이미지 렌더링 헬퍼 ───────────────────────────────────────────────
 const PokemonImage: React.FC<{
@@ -429,7 +442,7 @@ const AchievementToastDisplay: React.FC = () => {
   const isFirst = achievementToast.isFirstTime;
   return (
     <AchievementToastPill key={achievementToast.timestamp} $color={tierColor} $first={isFirst}>
-      {isFirst ? '🏆 ' : '✓ '}
+      <Emoji glyph={isFirst ? '🏆' : '✅'} size={14} />{' '}
       <AchPillName $first={isFirst}>{achievementToast.name}</AchPillName>
       {isFirst && <AchPillAP $color={tierColor}> +{ap}AP</AchPillAP>}
     </AchievementToastPill>
@@ -461,15 +474,44 @@ export const GameCanvas: React.FC = () => {
   const [placementImage, setPlacementImage] = useState<HTMLImageElement | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [hoveredTower, setHoveredTower] = useState<GamePokemon | null>(null);
+  const [hoveredTile, setHoveredTile] = useState<{ kind: 'tera' | 'shop' | 'contest'; type?: string } | null>(null);
   const [repositionMode, setRepositionMode] = useState(false);
   const [selectedTowerForReposition, setSelectedTowerForReposition] = useState<GamePokemon | null>(null);
   const [touchStartPos, setTouchStartPos] = useState<{ x: number; y: number } | null>(null);
   const [mapBgImage, setMapBgImage] = useState<HTMLImageElement | null>(null);
+  const manageTowerId = useGameStore(s => s.manageTowerId);
+  const setManageTowerId = useGameStore(s => s.setManageTowerId);
+  const money = useGameStore(s => s.money);
+  const heldItemInventory = useGameStore(s => s.heldItemInventory);
+  const wave = useGameStore(s => s.wave);
 
   const lastTimeRef = useRef(Date.now());
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
   const map = React.useMemo(() => getMapById(currentMap), [currentMap]);
+  // 활성 테라 타일(위치는 N웨이브마다 후보 spots 사이로 순환; 쉬는 시간에 미리 이동)
+  const activeTera = React.useMemo(
+    () => activeTeraTiles(map, wave, isWaveActive),
+    [map, wave, isWaveActive]
+  );
+  // 시설(프렌들리숍·콘테스트 홀) = 길에서 가장 먼 칸 자동 계산
+  const facility = React.useMemo(() => getFacilityTiles(map), [map]);
+
+  // ── i18n 헬퍼 ──────────────────────────────────────────────────────────────
+  const typeLabel = (ty?: string) => (ty ? t(`types.${ty}`) : '');
+  const heldName = (id?: string) => { const it = getHeldItem(id); return it ? t(`heldItems.${it.id}.name`) : ''; };
+  const heldDesc = (id?: string) => { const it = getHeldItem(id); return it ? t(`heldItems.${it.id}.desc`) : ''; };
+
+  // 테라스탈 타일 점유 동기화: 타워가 (현재 활성) teraTile 위에 있으면 teraType 세팅, 벗어나면 해제.
+  useEffect(() => {
+    const updateTower = useGameStore.getState().updateTower;
+    for (const tower of towers) {
+      const tx = Math.floor(tower.position.x / TILE_SIZE);
+      const ty = Math.floor(tower.position.y / TILE_SIZE);
+      const want = activeTera.find((t) => t.x === tx && t.y === ty)?.type;
+      if (tower.teraType !== want) updateTower(tower.id, { teraType: want });
+    }
+  }, [towers, activeTera]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -577,7 +619,20 @@ export const GameCanvas: React.FC = () => {
       setMousePos({ x: Math.floor(pos.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2, y: Math.floor(pos.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2 });
     } else {
       setMousePos(pos || { x: 0, y: 0 });
-      if (pos) setHoveredTower(towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32) || null);
+      if (pos) {
+        const tower = towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32) || null;
+        setHoveredTower(tower);
+        // 타워가 없을 때만 특수 타일(테라/숍) 힌트 표시
+        if (!tower) {
+          const tx = Math.floor(pos.x / TILE_SIZE), ty = Math.floor(pos.y / TILE_SIZE);
+          const tera = activeTera.find(t => t.x === tx && t.y === ty);
+          const shop = facility.shopTiles.some(s => s.x === tx && s.y === ty);
+          const contest = facility.contestTiles.some(s => s.x === tx && s.y === ty);
+          setHoveredTile(tera ? { kind: 'tera', type: tera.type } : shop ? { kind: 'shop' } : contest ? { kind: 'contest' } : null);
+        } else {
+          setHoveredTile(null);
+        }
+      }
     }
   };
 
@@ -604,11 +659,10 @@ export const GameCanvas: React.FC = () => {
     return set;
   }, [map]);
 
-  // 배치 가능 구역(타일). buildZones 지정 시 그 안에서만, 미지정 시 길 제외 전역.
-  // 입구(spawns)·출구(objectives)에서 3칸(체비셰프) 이내는 항상 제외.
+  // 자유 배치(울타리 폐기): 길 타일과 입구/출구 3칸 keepout만 제외하면 어디든 배치 가능.
+  // 길에서 먼 '잉여 타일'도 허용해야 프렌들리숍 타일 운용이 가능하므로 길-인접 규칙은 두지 않는다.
   const buildableTileSet = React.useMemo(() => {
     const set = new Set<string>();
-    const zones = map?.buildZones;
     // 입구/출구 타일 (맵 밖 좌표는 화면상 마커처럼 맵 안으로 클램프해서 거리 측정)
     // objectiveKeepout === false 면 출구 3칸 제한 미적용(중앙 방어형 맵)
     const clamp = (p: { x: number; y: number }) => ({
@@ -619,16 +673,11 @@ export const GameCanvas: React.FC = () => {
       ...(map?.spawns ?? []).map(clamp),
       ...(map?.objectiveKeepout === false ? [] : (map?.objectives ?? []).map(clamp)),
     ];
-    const pathEdgeAdjacent = (tx: number, ty: number) =>
-      pathTileSet.has(`${tx-1}-${ty}`) || pathTileSet.has(`${tx+1}-${ty}`) ||
-      pathTileSet.has(`${tx}-${ty-1}`) || pathTileSet.has(`${tx}-${ty+1}`);
     for (let ty = 0; ty < MAP_HEIGHT; ty++) {
       for (let tx = 0; tx < MAP_WIDTH; tx++) {
         const key = `${tx}-${ty}`;
         if (pathTileSet.has(key)) continue; // 길은 항상 제외
-        if (zones && !zones.some(z => tx >= z.x && tx < z.x + z.w && ty >= z.y && ty < z.y + z.h)) continue;
         if (endpoints.some(e => Math.max(Math.abs(tx - e.tx), Math.abs(ty - e.ty)) < 3)) continue; // 입출구 3칸 이내 금지
-        if (!pathEdgeAdjacent(tx, ty)) continue; // 길과 변(상하좌우)으로 인접한 칸만 (꼭짓점 인접 제외)
         set.add(key);
       }
     }
@@ -669,17 +718,28 @@ export const GameCanvas: React.FC = () => {
   };
 
   const handleClick = (e: any) => {
-    const pos = e.target.getStage().getPointerPosition();
+    // getPointerPosition()이 null인 경우(일부 터치/합성 이벤트) 직전 hover 좌표로 폴백
+    const pos = e.target.getStage().getPointerPosition() || rawMousePos;
     if (!pos) return;
     const snappedX = Math.floor(pos.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
     const snappedY = Math.floor(pos.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
 
     if (repositionMode && !pokemonToPlace) {
+      const isOnWork = (tw: GamePokemon) => {
+        const tx = Math.floor(tw.position.x / TILE_SIZE), ty = Math.floor(tw.position.y / TILE_SIZE);
+        const workTiles = [...facility.shopTiles, ...facility.contestTiles];
+        return workTiles.some(s => s.x === tx && s.y === ty);
+      };
+
       if (selectedTowerForReposition) {
         const A = selectedTowerForReposition;
         // 클릭 칸에 다른 타워(B)가 있으면 A·B 위치 교환
         const B = towers.find(t => t.id !== A.id && Math.floor(t.position.x / TILE_SIZE) === Math.floor(snappedX / TILE_SIZE) && Math.floor(t.position.y / TILE_SIZE) === Math.floor(snappedY / TILE_SIZE));
         if (B) {
+          if (isOnWork(A) || isOnWork(B)) {
+            alert(t('facility.alertCannotMoveSwap'));
+            return;
+          }
           const updateTower = useGameStore.getState().updateTower;
           updateTower(A.id, { position: { x: B.position.x, y: B.position.y } });
           updateTower(B.id, { position: { x: A.position.x, y: A.position.y } });
@@ -687,16 +747,31 @@ export const GameCanvas: React.FC = () => {
           return;
         }
         if (!isValidPlacement(snappedX, snappedY, A.id)) { alert(t('alerts.cannotPlaceHere')); return; }
+        if (isOnWork(A)) {
+          alert(t('facility.alertCannotMove'));
+          return;
+        }
         useGameStore.getState().updateTower(A.id, { position: { x: snappedX, y: snappedY } });
         setSelectedTowerForReposition(null);
       } else {
         const clicked = towers.find(t => Math.abs(t.position.x - pos.x) < 32 && Math.abs(t.position.y - pos.y) < 32);
         if (clicked) {
+          if (isOnWork(clicked)) {
+            alert(t('facility.alertCannotSelect'));
+            return;
+          }
           setSelectedTowerForReposition(clicked);
           const img = new window.Image(); img.src = clicked.sprite; img.crossOrigin = "Anonymous"; img.onload = () => setPlacementImage(img);
         }
       }
       return;
+    }
+
+    // 배치/재배치 중이 아닐 때 타워 클릭 → 관리 모달(상점/지닌도구). 점원이면 상점 섹션 노출.
+    if (!pokemonToPlace && !repositionMode) {
+      const ctx = Math.floor(snappedX / TILE_SIZE), cty = Math.floor(snappedY / TILE_SIZE);
+      const clicked = towers.find(tw => Math.floor(tw.position.x / TILE_SIZE) === ctx && Math.floor(tw.position.y / TILE_SIZE) === cty);
+      if (clicked) { setManageTowerId(clicked.id); return; }
     }
 
     if (!pokemonToPlace) return;
@@ -773,67 +848,86 @@ export const GameCanvas: React.FC = () => {
     return overlays;
   }, [pokemonToPlace, selectedTowerForReposition, buildableTileSet, validPlacementSet]);
 
-  // 모든 맵 = 초원 울타리(말뚝+가로대) 디자인, 색만 테마별.
-  // 말뚝: 그라데이션+그림자로 입체감. 가로대(변): 살짝 투명. 길과 맞닿은 변·그 꼭짓점은 생략.
-  const markerNodes = React.useMemo(() => {
-    if (buildableTileSet.size === 0) return null;
-    const bgType = (map?.backgroundType ?? 'grass') as BackgroundType;
-    // pLight/pBase/pDark = 말뚝 입체 그라데이션, rail = 가로대 색
-    const STYLE: Record<BackgroundType, { rail: string; pLight: string; pBase: string; pDark: string }> = {
-      grass:  { rail: '#5e421f', pLight: '#a9793f', pBase: '#7d5630', pDark: '#432c14' },
-      desert: { rail: '#8a6332', pLight: '#e2c388', pBase: '#c2924f', pDark: '#7c5526' },
-      snow:   { rail: '#6f93ad', pLight: '#eaf5fc', pBase: '#bcd6e6', pDark: '#6a8ba3' },
-      cave:   { rail: '#33414a', pLight: '#7c8794', pBase: '#565d68', pDark: '#2b313a' },
-      water:  { rail: '#4a3217', pLight: '#9b7341', pBase: '#6b4f2c', pDark: '#382712' },
-    };
-    const S = STYLE[bgType];
-    const nodes: React.ReactNode[] = [];
-    const has = (tx: number, ty: number) => buildableTileSet.has(`${tx}-${ty}`);
-    const isPath = (tx: number, ty: number) => pathTileSet.has(`${tx}-${ty}`);
-    const cornerSet = new Set<string>();
-    const suppress = new Set<string>(); // 길과 맞닿는 변의 꼭짓점 → 말뚝 금지
-    // 가로대(변): 두꺼운 어두운 선 + 밝은 하이라이트, 둘 다 살짝 투명
-    const rail = (k: string, pts: number[]) => {
-      nodes.push(<Line key={`rl${k}`} points={pts} stroke={S.rail}   strokeWidth={5} lineCap="round" opacity={0.72} />);
-      nodes.push(<Line key={`rh${k}`} points={pts} stroke={S.pLight} strokeWidth={2} lineCap="round" opacity={0.6} />);
-    };
-    for (const key of buildableTileSet) {
-      const [tx, ty] = key.split('-').map(Number);
-      const x0 = tx*TILE_SIZE, y0 = ty*TILE_SIZE, x1 = x0+TILE_SIZE, y1 = y0+TILE_SIZE;
-      const open = (dx: number, dy: number) => !has(tx+dx, ty+dy) && !isPath(tx+dx, ty+dy);
-      if (open(0,-1)) { rail(`t${key}`, [x0,y0,x1,y0]); cornerSet.add(`${x0},${y0}`); cornerSet.add(`${x1},${y0}`); }
-      if (open(0, 1)) { rail(`b${key}`, [x0,y1,x1,y1]); cornerSet.add(`${x0},${y1}`); cornerSet.add(`${x1},${y1}`); }
-      if (open(-1,0)) { rail(`l${key}`, [x0,y0,x0,y1]); cornerSet.add(`${x0},${y0}`); cornerSet.add(`${x0},${y1}`); }
-      if (open( 1,0)) { rail(`r${key}`, [x1,y0,x1,y1]); cornerSet.add(`${x1},${y0}`); cornerSet.add(`${x1},${y1}`); }
-      if (isPath(tx,ty-1)) { suppress.add(`${x0},${y0}`); suppress.add(`${x1},${y0}`); }
-      if (isPath(tx,ty+1)) { suppress.add(`${x0},${y1}`); suppress.add(`${x1},${y1}`); }
-      if (isPath(tx-1,ty)) { suppress.add(`${x0},${y0}`); suppress.add(`${x0},${y1}`); }
-      if (isPath(tx+1,ty)) { suppress.add(`${x1},${y0}`); suppress.add(`${x1},${y1}`); }
-    }
-    // 말뚝(입체): 가로 그라데이션(밝음→기본→어둠) + 드롭섀도 + 상단 하이라이트
-    for (const c of cornerSet) {
-      if (suppress.has(c)) continue;
-      const [cx, cy] = c.split(',').map(Number);
-      nodes.push(
-        <React.Fragment key={`c${c}`}>
-          <Rect x={cx-4} y={cy-9} width={8} height={18} cornerRadius={3}
-            fillLinearGradientStartPoint={{x:0,y:0}} fillLinearGradientEndPoint={{x:8,y:0}}
-            fillLinearGradientColorStops={[0, S.pLight, 0.42, S.pBase, 1, S.pDark]}
-            stroke={S.pDark} strokeWidth={1}
-            shadowColor="black" shadowBlur={2.5} shadowOffsetX={1.2} shadowOffsetY={2.5} shadowOpacity={0.45} />
-          <Rect x={cx-2.5} y={cy-8} width={2} height={5} cornerRadius={1} fill={S.pLight} opacity={0.85} />
-        </React.Fragment>
+  // ─── 테라스탈 타일 (크리스털) ──────────────────────────────────────────────
+  const teraTileNodes = React.useMemo(() => {
+    const tiles = activeTera;
+    if (tiles.length === 0) return null;
+    // 은은하게: 얇은 점선 테두리 + 작은 모서리 결정만.
+    return tiles.map((tile, i) => {
+      const c = typeColor(tile.type);
+      const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
+      const gx = x0 + 11, gy = y0 + 11; // 좌상단 모서리 결정
+      return (
+        <Group key={`tera-${i}`}>
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={c} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={c} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Line points={[gx, gy - 6, gx + 5, gy, gx, gy + 6, gx - 5, gy]} closed
+            fill={c} stroke="#ffffff" strokeWidth={0.8} opacity={0.9} shadowColor={c} shadowBlur={5} />
+        </Group>
       );
-    }
-    return nodes;
-  }, [buildableTileSet, pathTileSet, map]);
+    });
+  }, [activeTera]);
+
+  // ─── 프렌들리숍 타일 ───────────────────────────────────────────────────────
+  const shopTileNodes = React.useMemo(() => {
+    const tiles = facility.shopTiles;
+    if (tiles.length === 0) return null;
+    const SHOP = '#e0a030';
+    // 은은하게: 얇은 점선 테두리 + 작은 모서리 🏪. 점유 시에만 상태 라벨.
+    return tiles.map((tile, i) => {
+      const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
+      const clerk = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
+      const waves = clerk?.shopWavesHeld ?? 0;
+      const tier = shopTier(waves);
+      const label = !clerk ? '' : tier === 0 ? t('facility.tileWorking', { n: wavesToNextTier(waves) }) : t('facility.tileOpen', { n: tier });
+      return (
+        <Group key={`shop-${i}`}>
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={SHOP} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={SHOP} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Text text="🏪" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
+          {label && (
+            <Text text={label} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
+              fill={tier === 0 ? '#ffb0b0' : '#ffe9b0'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
+          )}
+        </Group>
+      );
+    });
+  }, [map, towers]);
+
+  // ─── 콘테스트 홀 타일 ──────────────────────────────────────────────────────
+  const contestTileNodes = React.useMemo(() => {
+    const tiles = facility.contestTiles;
+    if (tiles.length === 0) return null;
+    const CON = '#e070b0';
+    return tiles.map((tile, i) => {
+      const x0 = tile.x * TILE_SIZE, y0 = tile.y * TILE_SIZE;
+      const scout = towers.find(t => Math.floor(t.position.x / TILE_SIZE) === tile.x && Math.floor(t.position.y / TILE_SIZE) === tile.y);
+      const waves = scout?.shopWavesHeld ?? 0;
+      const tier = shopTier(waves);
+      const label = !scout ? '' : tier === 0 ? t('facility.tileContestPrep', { n: wavesToNextTier(waves) }) : t('facility.tileContest', { n: tier });
+      return (
+        <Group key={`contest-${i}`}>
+          <Rect x={x0} y={y0} width={TILE_SIZE} height={TILE_SIZE} fill={CON} opacity={0.1} cornerRadius={8} />
+          <Rect x={x0 + 1.5} y={y0 + 1.5} width={TILE_SIZE - 3} height={TILE_SIZE - 3}
+            stroke={CON} strokeWidth={1.5} cornerRadius={8} opacity={0.6} dash={[4, 4]} />
+          <Text text="🎀" fontSize={14} x={x0 + TILE_SIZE - 19} y={y0 + 3} shadowColor="#000" shadowBlur={3} />
+          {label && (
+            <Text text={label} fontSize={10} x={x0 - 8} y={y0 + TILE_SIZE - 13} width={TILE_SIZE + 16} align="center"
+              fill={tier === 0 ? '#ffc0e0' : '#ffd6ec'} fontStyle="bold" shadowColor="#000" shadowBlur={3} />
+          )}
+        </Group>
+      );
+    });
+  }, [map, towers]);
 
   return (
     <CanvasContainer ref={containerRef}>
       {evolutionToast && (
         <EvolutionToast>
-          <span>✨ {t('game.evoToast', { fromName: evolutionToast.fromName, toName: evolutionToast.toName })}</span>
-          <EvolutionToastButton onClick={() => useGameStore.setState({ evolutionToast: null })}>✕</EvolutionToastButton>
+          <span><Emoji glyph="✨" size={14} /> {t('game.evoToast', { fromName: evolutionToast.fromName, toName: evolutionToast.toName })}</span>
+          <EvolutionToastButton onClick={() => useGameStore.setState({ evolutionToast: null })}><Emoji glyph="❌" size={13} /></EvolutionToastButton>
         </EvolutionToast>
       )}
 
@@ -850,8 +944,57 @@ export const GameCanvas: React.FC = () => {
             <TooltipStatRow>{t('picker.attack')}: {hoveredTower.attack} | {t('picker.defense')}: {hoveredTower.defense}</TooltipStatRow>
             <TooltipStatRow>{t('picker.spAttack')}: {hoveredTower.specialAttack} | {t('picker.spDefense')}: {hoveredTower.specialDefense}</TooltipStatRow>
             <TooltipStatRow>{t('picker.speed')}: {hoveredTower.speed}</TooltipStatRow>
-            {hoveredTower.equippedMoves[0] && <TooltipMove>⚔️ {hoveredTower.equippedMoves[0].displayName} ({hoveredTower.equippedMoves[0].power})</TooltipMove>}
+            {hoveredTower.equippedMoves[0] && <TooltipMove><Emoji glyph="⚔️" size={12} /> {hoveredTower.equippedMoves[0].displayName} ({hoveredTower.equippedMoves[0].power})</TooltipMove>}
+            {hoveredTower.teraType && (
+              <TooltipMove style={{ color: typeColor(hoveredTower.teraType) }}>
+                <Emoji glyph="💎" size={12} /> {t('facility.teraInline', { type: typeLabel(hoveredTower.teraType) })}
+                {hoveredTower.equippedMoves.some(m => m.type === hoveredTower.teraType)
+                  ? ` ${t('facility.teraStabOn')}`
+                  : ` ${t('facility.teraDefConv')}`}
+              </TooltipMove>
+            )}
+            {hoveredTower.heldItem && getHeldItem(hoveredTower.heldItem) && (
+              <TooltipMove style={{ color: '#f0b840' }}>
+                <Emoji glyph={getHeldItem(hoveredTower.heldItem)!.icon} size={12} /> {heldName(hoveredTower.heldItem)}
+              </TooltipMove>
+            )}
           </TooltipStats>
+        </Tooltip>
+      )}
+
+      {/* 특수 타일 호버 힌트 (테라/숍) — 타워가 없을 때만. 우측 타일은 툴팁을 왼쪽으로 띄워 패널에 안 가리게. */}
+      {hoveredTile && !hoveredTower && !pokemonToPlace && !selectedTowerForReposition && (
+        <Tooltip style={mousePos.x > MAP_WIDTH * TILE_SIZE * 0.6
+          ? { right: `${(MAP_WIDTH * TILE_SIZE - mousePos.x) * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }
+          : { left: `${mousePos.x * canvasScale + 80}px`, top: `${mousePos.y * canvasScale - 20}px` }}>
+          {hoveredTile.kind === 'tera' ? (
+            <>
+              <TooltipTitle style={{ color: typeColor(hoveredTile.type) }}><Emoji glyph="💎" size={13} /> {t('facility.teraTileTitle')}</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>{t('facility.teraTileL1', { type: typeLabel(hoveredTile.type) })}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.teraTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.teraTileL3')}</TooltipStatRow>
+              </TooltipStats>
+            </>
+          ) : hoveredTile.kind === 'shop' ? (
+            <>
+              <TooltipTitle style={{ color: '#f0b840' }}><Emoji glyph="🏪" size={13} /> {t('facility.shopTileTitle')}</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>{t('facility.shopTileL1')}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.shopTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.shopTileL3')}</TooltipStatRow>
+              </TooltipStats>
+            </>
+          ) : (
+            <>
+              <TooltipTitle style={{ color: '#f0a0d0' }}><Emoji glyph="🎀" size={13} /> {t('facility.contestTileTitle')}</TooltipTitle>
+              <TooltipStats>
+                <TooltipStatRow>{t('facility.contestTileL1')}</TooltipStatRow>
+                <TooltipStatRow>{t('facility.contestTileL2')}</TooltipStatRow>
+                <TooltipStatRow style={{ color: '#9fb0c4' }}>{t('facility.contestTileL3')}</TooltipStatRow>
+              </TooltipStats>
+            </>
+          )}
         </Tooltip>
       )}
 
@@ -876,8 +1019,14 @@ export const GameCanvas: React.FC = () => {
               </>
             )}
 
-            {/* 배치 구역 테마 마커 (초록 오버레이 아래) */}
-            {markerNodes}
+            {/* 테라스탈 타일 */}
+            {teraTileNodes}
+
+            {/* 프렌들리숍 타일 */}
+            {shopTileNodes}
+
+            {/* 콘테스트 홀 타일 */}
+            {contestTileNodes}
 
             {placementOverlay}
 
@@ -923,6 +1072,24 @@ export const GameCanvas: React.FC = () => {
                 )}
                 <PokemonImage src={tower.sprite} x={tower.position.x} y={tower.position.y} isFainted={tower.isFainted} />
                 <HPBar x={tower.position.x} y={tower.position.y} current={tower.currentHp} max={tower.maxHp} level={tower.level} />
+                {/* 지닌 도구 뱃지(좌하단 이모지) */}
+                {tower.heldItem && (
+                  <Text text={getHeldItem(tower.heldItem)?.icon ?? '🎒'} fontSize={16}
+                    x={tower.position.x - TILE_SIZE / 2 + 1} y={tower.position.y + TILE_SIZE / 2 - 17}
+                    shadowColor="#000" shadowBlur={3} />
+                )}
+                {/* 테라스탈 변환 뱃지(왕관형 결정) — 변환 타입을 한눈에 표시 */}
+                {tower.teraType && (() => {
+                  const c = typeColor(tower.teraType);
+                  const bx = tower.position.x + TILE_SIZE / 2 - 9;
+                  const by = tower.position.y - TILE_SIZE / 2 + 9;
+                  return (
+                    <React.Fragment>
+                      <Circle x={bx} y={by} radius={9} fill="#1a1a22" stroke={c} strokeWidth={1.5} shadowColor={c} shadowBlur={6} />
+                      <Line points={[bx, by - 6, bx + 5, by, bx, by + 6, bx - 5, by]} closed fill={c} stroke="#fff" strokeWidth={0.8} />
+                    </React.Fragment>
+                  );
+                })()}
               </React.Fragment>
             ))}
 
@@ -990,6 +1157,112 @@ export const GameCanvas: React.FC = () => {
 
       {/* [수정③] 투사체 유리구슬 오버레이 */}
       <ProjectileOverlay projectiles={projectiles} canvasScale={canvasScale} />
+
+      {/* 포켓몬 관리: 프렌들리숍(점원) + 지닌 도구 장착 */}
+      {(() => {
+        const tower = towers.find(t => t.id === manageTowerId);
+        if (!tower) return null;
+        const tTx = Math.floor(tower.position.x / TILE_SIZE), tTy = Math.floor(tower.position.y / TILE_SIZE);
+        const isClerk = facility.shopTiles.some(s => s.x === tTx && s.y === tTy);
+        const isScout = facility.contestTiles.some(s => s.x === tTx && s.y === tTy);
+        const waves = tower.shopWavesHeld ?? 0;
+        const tier = (isClerk || isScout) ? shopTier(waves) : 0;
+        const buyable = isClerk && tier > 0 ? buyableHeldItems(tier) : [];
+        const canEquip = !isWaveActive;
+        const close = () => setManageTowerId(null);
+        const buy = (id: string, cost: number) => {
+          if (money < cost) { alert(t('alerts.notEnoughMoneyWithCost', { cost })); return; }
+          if (!spendMoney(cost)) return;
+          useGameStore.getState().addHeldItem(id);
+        };
+        // 보관함을 id별로 그룹화
+        const invCounts = heldItemInventory.reduce<Record<string, number>>((m, id) => { m[id] = (m[id] ?? 0) + 1; return m; }, {});
+        const equipped = getHeldItem(tower.heldItem);
+        return (
+          <ShopOverlay onClick={close}>
+            <ShopModal onClick={e => e.stopPropagation()}>
+              <ShopHeader>
+                <h3><Emoji glyph={isClerk ? '🏪' : isScout ? '🎀' : '🎒'} size={16} /> {isClerk ? t('facility.shop') : isScout ? t('facility.contest') : t('facility.heldItemsTitle')}</h3>
+                <ShopCloseBtn onClick={close}><Emoji glyph="❌" size={14} /></ShopCloseBtn>
+              </ShopHeader>
+              <ShopSub>
+                <b>{tower.displayName}</b>
+                {isClerk && <ShopGradeBadge>{tier > 0 ? t('facility.badgeOpen', { n: tier }) : t('facility.badgeWorking')}</ShopGradeBadge>}
+                {isScout && <ShopGradeBadge>{tier > 0 ? t('facility.badgeContest', { n: tier }) : t('facility.badgeContestPrep')}</ShopGradeBadge>}
+                <span style={{ marginLeft: 8, color: '#f0b840' }}><Emoji glyph="💰" size={13} /> {money}{t('common.money')}</span>
+              </ShopSub>
+
+              {/* 콘테스트 홀 상태 */}
+              {isScout && (
+                tier === 0
+                  ? <ShopLockNote><Emoji glyph="🎀" size={13} /> {t('facility.contestPrepNote', { n: wavesToNextTier(waves) })}</ShopLockNote>
+                  : <ShopGradeNote>{t('facility.contestActiveNote', { waves, tier })}</ShopGradeNote>
+              )}
+
+              {/* 상점 (점원만) */}
+              {isClerk && (
+                <>
+                  {tier === 0 ? (
+                    <ShopLockNote><Emoji glyph="🧹" size={13} /> {t('facility.shopLockNote', { n: wavesToNextTier(waves) })}</ShopLockNote>
+                  ) : (
+                    <ShopGradeNote>
+                      {t('facility.shopGradeNote', { waves })}
+                    </ShopGradeNote>
+                  )}
+                  {buyable.map(item => {
+                    const poor = money < item.cost;
+                    return (
+                      <ShopItemRow key={item.id} $locked={poor}>
+                        <span className="icon"><Emoji glyph={item.icon} size={20} /></span>
+                        <div className="info">
+                          <div className="name">{t(`heldItems.${item.id}.name`)} <span style={{ color: '#7e8da0', fontWeight: 'normal' }}>Lv.{item.grade}{item.consumable ? `·${t('facility.once')}` : ''}</span></div>
+                          <div className="desc">{t(`heldItems.${item.id}.desc`)}</div>
+                        </div>
+                        <ShopBuyBtn $disabled={poor} onClick={() => buy(item.id, item.cost)}>{item.cost}{t('common.money')}</ShopBuyBtn>
+                      </ShopItemRow>
+                    );
+                  })}
+                </>
+              )}
+
+              {/* 지닌 도구 (장착/교체/회수) */}
+              <ShopSectionTitle>{t('facility.equippedTitle')}</ShopSectionTitle>
+              <ShopItemRow $owned={!!equipped}>
+                <span className="icon">{equipped ? <Emoji glyph={equipped.icon} size={20} /> : '—'}</span>
+                <div className="info">
+                  <div className="name">{equipped ? heldName(equipped.id) : t('facility.noneEquipped')}</div>
+                  <div className="desc">{equipped ? heldDesc(equipped.id) : t('facility.equipHint')}</div>
+                </div>
+                {equipped && (
+                  <ShopGhostBtn disabled={!canEquip} style={{ opacity: canEquip ? 1 : 0.4 }}
+                    onClick={() => canEquip && useGameStore.getState().unequipHeldItem(tower.id)}>{t('facility.withdraw')}</ShopGhostBtn>
+                )}
+              </ShopItemRow>
+
+              <ShopSectionTitle>{t('facility.inventoryTitle')} {canEquip ? '' : t('facility.inventoryWaveOnly')}</ShopSectionTitle>
+              {Object.keys(invCounts).length === 0 ? (
+                <ShopGradeNote>{t('facility.inventoryEmpty')}</ShopGradeNote>
+              ) : (
+                Object.entries(invCounts).map(([id, n]) => {
+                  const it = getHeldItem(id); if (!it) return null;
+                  return (
+                    <ShopItemRow key={id}>
+                      <span className="icon"><Emoji glyph={it.icon} size={20} /></span>
+                      <div className="info">
+                        <div className="name">{heldName(it.id)} {n > 1 && <span style={{ color: '#7e8da0' }}>×{n}</span>}</div>
+                        <div className="desc">{heldDesc(it.id)}</div>
+                      </div>
+                      <ShopBuyBtn $disabled={!canEquip} onClick={() => canEquip && useGameStore.getState().equipHeldItem(tower.id, id)}>
+                        {tower.heldItem ? t('facility.swap') : t('facility.equip')}
+                      </ShopBuyBtn>
+                    </ShopItemRow>
+                  );
+                })
+              )}
+            </ShopModal>
+          </ShopOverlay>
+        );
+      })()}
     </CanvasContainer>
   );
 };
@@ -1024,12 +1297,12 @@ const EvolutionToastButton = styled.button`
 
 const Tooltip = styled.div`
   position: absolute;
-  background: linear-gradient(145deg, rgba(30,40,60,0.98), rgba(15,20,35,0.98));
-  border: 2px solid rgba(76,175,255,0.5); border-radius: 10px; padding: 6px 10px;
-  color: #e8edf3; font-size: 10px; font-weight: bold;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6); pointer-events: none; z-index: 1001;
+  background: rgba(22,28,42,0.92);
+  border: 1px solid rgba(120,150,190,0.28); border-radius: 10px; padding: 7px 11px;
+  color: #e8edf3; font-size: 10px; font-weight: 400;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35); pointer-events: none; z-index: 1001;
   min-width: 160px; max-width: 200px;
-  ${lMedia.phoneSm} { font-size: 9px; padding: 4px 8px; min-width: 140px; }
+  ${lMedia.phoneSm} { font-size: 9px; padding: 5px 9px; min-width: 140px; }
 `;
 
 const TooltipTitle = styled.div`
@@ -1044,6 +1317,78 @@ const TooltipTypeIcon = styled.img`height: 10px; object-fit: contain; ${lMedia.p
 const TooltipStats = styled.div`font-size: 9px; line-height: 1.4; ${lMedia.phoneSm} { font-size: 8px; }`;
 const TooltipStatRow = styled.div``;
 const TooltipMove = styled.div`margin-top: 3px; color: #f39c12; ${lMedia.phoneSm} { font-size: 8px; }`;
+
+// ─── 프렌들리숍(지닌 도구) 모달 ──────────────────────────────────────────────
+const ShopOverlay = styled.div`
+  position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 1200;
+`;
+const ShopModal = styled.div`
+  width: min(440px, 92%); max-height: 86%; overflow-y: auto;
+  /* 공유 modal.styles 디자인 토큰에 맞춤 (배경 그라디언트 + 상단 골드 액센트 바) */
+  background: linear-gradient(160deg, #0d1117 0%, #080c14 100%);
+  border: 1px solid rgba(255,255,255,0.10); border-top: 3px solid #FFD700;
+  border-radius: 16px;
+  padding: 16px 18px; color: #e8edf3;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+`;
+const ShopHeader = styled.div`
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+  h3 { margin: 0; font-size: 16px; color: #f0b840; }
+`;
+const ShopSub = styled.div`font-size: 11px; color: #9fb0c4; margin-bottom: 12px;`;
+const ShopGradeBadge = styled.span`
+  display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px;
+  background: rgba(224,160,48,0.18); color: #f0b840; font-size: 11px; font-weight: bold;
+`;
+const ShopItemRow = styled.div<{ $owned?: boolean; $locked?: boolean }>`
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 7px;
+  border-radius: 10px; background: rgba(255,255,255,0.04);
+  border: 1px solid ${p => (p.$owned ? 'rgba(46,204,113,0.6)' : 'rgba(255,255,255,0.07)')};
+  opacity: ${p => (p.$locked ? 0.45 : 1)};
+  .icon { font-size: 22px; width: 28px; text-align: center; }
+  .info { flex: 1; }
+  .name { font-size: 13px; font-weight: bold; }
+  .desc { font-size: 10px; color: #9fb0c4; line-height: 1.3; }
+`;
+const ShopBuyBtn = styled.button<{ $disabled?: boolean }>`
+  border: none; border-radius: 8px; padding: 7px 12px; font-weight: bold; font-size: 12px;
+  cursor: ${p => (p.$disabled ? 'not-allowed' : 'pointer')};
+  background: ${p => (p.$disabled ? 'rgba(120,130,140,0.3)' : 'linear-gradient(135deg,#f0b840,#d4941f)')};
+  color: ${p => (p.$disabled ? '#8a96a4' : '#1a1206')};
+  white-space: nowrap;
+`;
+const ShopCloseBtn = styled.button`
+  /* 공유 ModalCloseBtn과 동일한 룩(hover 시 빨강 틴트) */
+  width: 32px; height: 32px; flex-shrink: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 8px;
+  color: rgba(255,255,255,0.45); font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  @media (hover: hover) {
+    &:hover { background: rgba(220,60,60,0.22); border-color: rgba(220,60,60,0.40); color: #fff; }
+  }
+`;
+const ShopGradeNote = styled.div`
+  font-size: 10px; color: #7e8da0; margin: 6px 0 12px; line-height: 1.4;
+`;
+const ShopSectionTitle = styled.div`
+  font-size: 12px; font-weight: bold; color: #cdd7e2; margin: 14px 0 8px;
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px;
+`;
+const ShopGhostBtn = styled.button`
+  border: 1px solid rgba(255,255,255,0.18); background: transparent; color: #cdd7e2;
+  border-radius: 8px; padding: 6px 10px; font-size: 11px; cursor: pointer; white-space: nowrap;
+`;
+const ShopLockNote = styled.div`
+  font-size: 12px; color: #ffb0b0; background: rgba(192,57,43,0.12);
+  border: 1px solid rgba(192,57,43,0.4); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+`;
 
 const StageWrapper = styled.div`
   /* [FIX] position:absolute → 레이아웃 흐름에서 제거, 960px 고정 크기가 부모를 밀지 않음 */

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/AuthService';
 import { User } from '../../types/multiplayer';
+import { useTranslation } from '../../i18n';
 import styled from 'styled-components';
 
 const LoadingOverlay = styled.div`
@@ -18,6 +19,7 @@ const LoadingOverlay = styled.div`
 `;
 
 export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
@@ -33,7 +35,7 @@ export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 
   if (isLoading) {
     console.log('ProtectedRoute: 로딩 중...');
-    return <LoadingOverlay>유저 정보 확인 중...</LoadingOverlay>;
+    return <LoadingOverlay>{t('login.checkingUser')}</LoadingOverlay>;
   }
 
   if (!user) {

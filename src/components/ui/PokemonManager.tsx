@@ -8,8 +8,10 @@ import {
 import { lMedia } from '../../utils/responsive.utils';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
+import { getMapById, getFacilityTiles } from '../../data/maps';
 import { Gender } from '../../types/game';
 import { FUSION_DATA } from '../../data/evolution';
+import { Emoji } from '../shared/Emoji';
 
 // ─── 반응형 헬퍼 → lMedia 사용 ───────────────────────────────────────────────
 const L1024 = lMedia.tablet;   // ≤1024px landscape (iPad 등)
@@ -30,16 +32,33 @@ const getGenderColor = (gender: Gender) => {
 
 export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { t } = useTranslation();
-  const { towers, sellTower, fusePokemon, money } = useGameStore(state => ({
+  const { towers, sellTower, fusePokemon, money, isWaveActive, setManageTowerId, currentMap } = useGameStore(state => ({
     towers: state.towers,
     sellTower: state.sellTower,
     fusePokemon: state.fusePokemon,
     money: state.money,
+    isWaveActive: state.isWaveActive,
+    setManageTowerId: state.setManageTowerId,
+    currentMap: state.currentMap,
   }));
   const [fusionMode, setFusionMode] = useState(false);
   const [selectedBase, setSelectedBase] = useState<string | null>(null);
 
+  const checkIsOnWork = (tower: any) => {
+    const fac = getFacilityTiles(getMapById(currentMap));
+    const workTiles = [...fac.shopTiles, ...fac.contestTiles];
+    const tx = Math.floor(tower.position.x / 64);
+    const ty = Math.floor(tower.position.y / 64);
+    return workTiles.some(s => s.x === tx && s.y === ty);
+  };
+
   const handleSell = (towerId: string, towerDisplayName: string, level: number) => {
+    if (isWaveActive) { alert(t('facility.alertSellDuringWave')); return; }
+    const tower = towers.find(t => t.id === towerId);
+    if (tower && checkIsOnWork(tower)) {
+      alert(t('facility.alertCannotSell'));
+      return;
+    }
     const sellPrice = level * 20;
     const confirmed = window.confirm(
       t('alerts.confirmSell', { name: towerDisplayName, level: level, price: sellPrice })
@@ -59,6 +78,11 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
 
     const tower = towers.find(t => t.id === towerId);
     if (!tower) return;
+
+    if (checkIsOnWork(tower)) {
+      alert(t('facility.alertCannotFuse'));
+      return;
+    }
 
     if (!selectedBase) {
       const canBeBase = FUSION_DATA.some(f => f.base === tower.pokemonId);
@@ -144,16 +168,18 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
         <Header>
           <div>
             <Title>{t('manager.title', { towers: towers.length })}</Title>
-            <MoneyDisplay>💰 {money}{t('common.money')}</MoneyDisplay>
+            <MoneyDisplay><Emoji glyph="💰" size={14} /> {money}{t('common.money')}</MoneyDisplay>
           </div>
           <HeaderButtons>
             <FusionBtn
               onClick={handleFusionClick}
               $fusionMode={fusionMode}
             >
-              {fusionMode ? `❌ ${t('common.cancel')}` : `🧬 ${t('manager.fusion')}`}
+              {fusionMode
+                ? <><Emoji glyph="❌" size={13} /> {t('common.cancel')}</>
+                : <><Emoji glyph="🧬" size={13} /> {t('manager.fusion')}</>}
             </FusionBtn>
-            <ModalCloseBtn onClick={onClose}>✕</ModalCloseBtn>
+            <ModalCloseBtn onClick={onClose}><Emoji glyph="❌" size={14} /></ModalCloseBtn>
           </HeaderButtons>
         </Header>
 
@@ -189,8 +215,11 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     {tower.isFainted && (
                       <FaintedBadge>{t('manager.fainted')}</FaintedBadge>
                     )}
+                    {checkIsOnWork(tower) && (
+                      <WorkBadge><Emoji glyph="🏪" size={11} /> {t('facility.working')}</WorkBadge>
+                    )}
                     {fusionHint && fusionMode && (
-                      <FusionBadge>{fusionHint}</FusionBadge>
+                      <FusionBadge><Emoji glyph={fusionHint} size={14} /></FusionBadge>
                     )}
                   </CardHeader>
 
@@ -198,7 +227,7 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     <NameRow>
                       <PokeName>{tower.displayName}</PokeName>
                       <GenderIcon $gender={tower.gender || 'genderless'}>
-                        {getGenderIcon(tower.gender || 'genderless')}
+                        <Emoji glyph={getGenderIcon(tower.gender || 'genderless')} size={13} />
                       </GenderIcon>
                     </NameRow>
                     <InfoRow>
@@ -222,9 +251,23 @@ export const PokemonManager: React.FC<{ onClose: () => void }> = ({ onClose }) =
                   </CardBody>
 
                   {!fusionMode && (
-                    <SellBtn onClick={() => handleSell(tower.id, tower.displayName, tower.level)}>
-                      💰 {t('manager.sell', { price: sellPrice })}
-                    </SellBtn>
+                    <ActionButtons>
+                      <ManageItemsBtn
+                        disabled={isWaveActive || checkIsOnWork(tower)}
+                        title={isWaveActive ? t('facility.mItemsDisabledWave') : checkIsOnWork(tower) ? t('facility.mItemsDisabledWork') : undefined}
+                        onClick={() => { if (!checkIsOnWork(tower)) { setManageTowerId(tower.id); onClose(); } }}
+                        style={checkIsOnWork(tower) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                      >
+                        <Emoji glyph="🎒" size={13} /> {t('facility.manageItems')}
+                      </ManageItemsBtn>
+                      <SellBtn
+                        disabled={checkIsOnWork(tower)}
+                        onClick={() => !checkIsOnWork(tower) && handleSell(tower.id, tower.displayName, tower.level)}
+                        style={checkIsOnWork(tower) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                      >
+                        <Emoji glyph="💰" size={13} /> {t('manager.sell', { price: sellPrice })}
+                      </SellBtn>
+                    </ActionButtons>
                   )}
                 </Card>
               );
@@ -395,6 +438,20 @@ const FaintedBadge = styled.div`
   ${LSm}  { font-size: 9px;  padding: 2px 5px; }
 `;
 
+const WorkBadge = styled.div`
+  position: absolute;
+  top: 5px; left: 5px;
+  background: #f39c12;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 8px;
+
+  ${L768} { font-size: 9px; padding: 3px 6px; }
+  ${LSm}  { font-size: 8px;  padding: 2px 5px; }
+`;
+
 const FusionBadge = styled.div`
   position: absolute;
   top: 5px; left: 5px;
@@ -458,6 +515,37 @@ const InfoRow = styled.div`
 const InfoValue = styled.span`
   font-weight: bold;
   color: #FFD700;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  width: 100%;
+`;
+
+const ManageItemsBtn = styled.button`
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  @media (hover: hover) {
+    &:hover:not(:disabled) { background: linear-gradient(135deg, #2980b9, #2471a3); }
+  }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  ${L1024} { padding: 10px; font-size: 14px; border-radius: 10px; }
+  ${L768}  { padding: 8px;  font-size: 13px; border-radius: 8px; }
+  ${LSm}   { padding: 7px;  font-size: 12px; }
 `;
 
 const SellBtn = styled.button`

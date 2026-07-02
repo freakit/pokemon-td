@@ -3,6 +3,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { lMedia } from '../../utils/responsive.utils';
+import { Emoji } from '../shared/Emoji';
 import { useTranslation } from '../../i18n';
 import { useGameStore } from '../../store/gameStore';
 import { ModalOverlay, ModalBox, MODAL_ACCENT } from '../shared/modal.styles';
@@ -38,7 +39,7 @@ export const EvolutionConfirmModal: React.FC = () => {
   return (
     <ModalOverlay>
       <ModalBox $size="sm" $accent={MODAL_ACCENT.gold} $animate="slideUp" $scroll>
-        <Title>✨ {t('evoConfirm.title')}</Title>
+        <Title><Emoji glyph="✨" size={16} /> {t('evoConfirm.title')}</Title>
         <Sprite src={tower.sprite} alt={tower.displayName} />
         <Message>
           <strong>{tower.displayName}</strong>{t('evoConfirm.messageSuffix')}
@@ -51,7 +52,7 @@ export const EvolutionConfirmModal: React.FC = () => {
               onClick={() => handleEvolve(option.targetId)}
             >
               <EvolveBtnContent>
-                <EvolveBtnTitle>✨ {t('evoConfirm.evolveTo', { name: option.targetName })}</EvolveBtnTitle>
+                <EvolveBtnTitle><Emoji glyph="✨" size={13} /> {t('evoConfirm.evolveTo', { name: option.targetName })}</EvolveBtnTitle>
                 <EvolveBtnMethod>{option.method}</EvolveBtnMethod>
               </EvolveBtnContent>
             </EvolveBtn>
@@ -59,7 +60,7 @@ export const EvolutionConfirmModal: React.FC = () => {
         </Options>
 
         <CancelBtn onClick={handleCancel}>
-          ❌ {t('evoConfirm.cancel')}
+          <Emoji glyph="❌" size={13} /> {t('evoConfirm.cancel')}
         </CancelBtn>
       </ModalBox>
     </ModalOverlay>

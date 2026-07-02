@@ -10,6 +10,7 @@ export type AchievementCategory =
   | 'growth'
   | 'synergy'
   | 'challenge'
+  | 'story'
   | 'multi';
 
 export interface AchievementWithCategory extends Achievement {
@@ -246,12 +247,26 @@ const fixedAchievements: AchievementWithCategory[] = [
   mkAch({ id: 'rating1800',      name: '전설 등급',   description: '레이팅 1800 달성',            icon: '👑', category: 'multi', condition: 'rating',    target: 1800, tier: 'legendary', hidden: true }),
 ];
 
+// ─── 스토리 모드 업적 (8체육관 = 8챕터, 클리어 시 1개씩) ──────────────────────
+// AchievementService.onStoryClear(chapterNumber)에서 `story_ch{n}` id로 갱신.
+const storyAchievements: AchievementWithCategory[] = [
+  mkAch({ id: 'story_ch1', name: '도라지시티 탈환',         description: '스토리 1챕터 "눈을 떠보니 귀뚤뚜기" 클리어 (비행 타입)',   icon: '🦅', category: 'story', condition: 'story_clear_ch1', target: 1, tier: 'bronze' }),
+  mkAch({ id: 'story_ch2', name: '고동마을 탈환',           description: '스토리 2챕터 "벌레의 마을, 그리고 깃털" 클리어 (벌레 타입)', icon: '🐛', category: 'story', condition: 'story_clear_ch2', target: 1, tier: 'bronze' }),
+  mkAch({ id: 'story_ch3', name: '금빛시티 탈환',           description: '스토리 3챕터 "구르기, 그리고 난입" 클리어 (노말 타입)',     icon: '⬜', category: 'story', condition: 'story_clear_ch3', target: 1, tier: 'silver' }),
+  mkAch({ id: 'story_ch4', name: '인주시티 탈환',           description: '스토리 4챕터 "탑에서 새어나오는 빛" 클리어 (고스트 타입)',   icon: '👻', category: 'story', condition: 'story_clear_ch4', target: 1, tier: 'silver' }),
+  mkAch({ id: 'story_ch5', name: '진청시티 탈환',           description: '스토리 5챕터 "먹물 한 발의 등장" 클리어 (격투 타입)',       icon: '🥊', category: 'story', condition: 'story_clear_ch5', target: 1, tier: 'gold' }),
+  mkAch({ id: 'story_ch6', name: '담청시티 탈환',           description: '스토리 6챕터 "일곱 빛이 모이다" 클리어 (강철 타입)',       icon: '⚙️', category: 'story', condition: 'story_clear_ch6', target: 1, tier: 'gold' }),
+  mkAch({ id: 'story_ch7', name: '황토마을 탈환',           description: '스토리 7챕터 클리어 — 눈보라의 엄니 야생 메꾸리 격파 (얼음 타입)', icon: '❄️', category: 'story', condition: 'story_clear_ch7', target: 1, tier: 'diamond' }),
+  mkAch({ id: 'story_ch8', name: '성도 해방 — 검은먹시티 탈환', description: '스토리 최종 챕터 클리어 — 심해의 용 야생 킹드라 격파 (드래곤 타입)', icon: '🐉', category: 'story', condition: 'story_clear_ch8', target: 1, tier: 'legendary' }),
+];
+
 // ─── 최종 목록 ───────────────────────────────────────────────────────────────
 export const ACHIEVEMENTS: AchievementWithCategory[] = [
   ...fixedAchievements,
   ...typeSynergyAchievements,
   ...genSynergyAchievements,
   ...specialSynergyAchievements,
+  ...storyAchievements,
 ];
 
 // ─── 카테고리 메타데이터 ──────────────────────────────────────────────────────
@@ -263,6 +278,7 @@ export const ACHIEVEMENT_CATEGORIES: Record<AchievementCategory, { label: string
   growth:    { label: '성장',       icon: '🧬' },
   synergy:   { label: '시너지',     icon: '🔥' },
   challenge: { label: '도전',       icon: '🎯' },
+  story:     { label: '스토리',     icon: '📖' },
   multi:     { label: '멀티플레이', icon: '👥' },
 };
 

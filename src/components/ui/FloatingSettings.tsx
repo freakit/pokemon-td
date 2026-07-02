@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { lMedia} from '../../utils/responsive.utils';
 import { Settings } from '../modals/Settings';
+import { Emoji } from '../shared/Emoji';
+import { useTranslation } from '../../i18n';
 
 const FloatingBtn = styled.button`
   position: fixed;
@@ -41,12 +43,13 @@ const FloatingBtn = styled.button`
 `;
 
 export const FloatingSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
-  
+
   return (
     <>
-      <FloatingBtn onClick={() => setShow(true)} title="설정 (Settings)">
-        ⚙️
+      <FloatingBtn onClick={() => setShow(true)} title={t('settings.title')}>
+        <Emoji glyph="⚙️" size={18} />
       </FloatingBtn>
       {show && <Settings onClose={() => setShow(false)} />}
     </>

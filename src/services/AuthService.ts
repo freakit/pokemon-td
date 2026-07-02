@@ -161,8 +161,11 @@ class AuthService {
         // [수정 1] 신규 유저: Firebase Auth의 displayName 우선 사용 (게스트 닉네임 보존)
         const newUser: User = this.buildFallbackUser(firebaseUser);
         // [FREE-TIER] 쓰기는 fire-and-forget — 실패/지연해도 로그인은 즉시 진행
+        // [SEC-PII] users 문서는 보안 룰상 모든 로그인 유저가 읽을 수 있으므로
+        //   이메일을 절대 저장하지 않음 (랭킹 표시에는 displayName/rating만 필요)
         setDoc(doc(db, 'users', firebaseUser.uid), {
           ...newUser,
+          email: '',
           lastLogin: serverTimestamp()
         })
           .then(() => this.markLastLoginWritten(firebaseUser.uid))
@@ -173,6 +176,12 @@ class AuthService {
       // [수정 2] 기존 유저: Firestore 데이터 기반으로 반환하되,
       // displayName이 비어있거나 'Anonymous'이면 Firebase Auth 값으로 보완
       const userData = userDoc.data() as User;
+
+      // [SEC-PII] 과거 버전이 저장해 둔 이메일을 발견하면 지움 (레거시 문서 1회 정리)
+      if (userData.email) {
+        setDoc(doc(db, 'users', firebaseUser.uid), { email: '' }, { merge: true })
+          .catch(() => {});
+      }
       const resolvedDisplayName =
         (userData.displayName && userData.displayName !== 'Anonymous')
           ? userData.displayName
