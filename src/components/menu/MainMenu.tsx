@@ -44,6 +44,9 @@ export const MainMenu = () => {
     else navigate('/lobby');
   };
 
+  // 카드 연구소 — 오프라인에서도 동작(로컬 수집/팩깡)
+  const handleCards = () => navigate('/cards');
+
   // [FREE-TIER] 오프라인 모드: 서버 의존 기능(랭킹/전당) 차단
   const handleRankings = () => {
     if (isOffline) { alert(t('mainMenu.offlineRankingBlocked')); return; }
@@ -146,6 +149,19 @@ export const MainMenu = () => {
               <ModeInfo>
                 <ModeName>{t('mainMenu.multiPlay')}</ModeName>
                 <ModeDesc>{isOffline ? <><Emoji glyph="🔒" size={12} /> {t('mainMenu.offlineBadge')}</> : t('mainMenu.multiPlayDesc')}</ModeDesc>
+              </ModeInfo>
+              <ModeArrow>→</ModeArrow>
+            </ModeCard>
+
+            <ModeCard $accent="#c084fc" onClick={handleCards}>
+              <ModeCardBg $color="rgba(192,132,252,0.06)" />
+              <ModeCardBorder $color="#c084fc" />
+              <ModeIconWrap $bg="rgba(192,132,252,0.1)">
+                <ModeEmoji><Emoji glyph="🃏" size={26} /></ModeEmoji>
+              </ModeIconWrap>
+              <ModeInfo>
+                <ModeName>카드 연구소</ModeName>
+                <ModeDesc>카드를 모으고 오토배틀에 도전하세요</ModeDesc>
               </ModeInfo>
               <ModeArrow>→</ModeArrow>
             </ModeCard>

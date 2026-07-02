@@ -8,6 +8,7 @@ import {
 } from '../data/heldItems';
 import { hasMegaEvolution, hasGigantamax, MEGA_EVOLUTIONS, GIGANTAMAX_FORMS } from '../data/evolution';
 import { saveService } from '../services/SaveService';
+import { cardService } from '../services/CardService';
 import { getCriticalChance, getAOEDamageMultiplier } from '../utils/abilities';
 import { getBuffedStats } from '../utils/synergyManager';
 import { databaseService } from '../services/DatabaseService';
@@ -785,6 +786,11 @@ export class GameManager {
       const itemChoices = this.buildWaveEndItems(towers, wave);
       setWaveEndItemPick(itemChoices);
 
+      // [카드모드] 웨이브 클리어 코인 — 싱글 전용, 도달 웨이브 비례 소량(져도 도달분 적립됨)
+      if (!isMultiplayer) {
+        cardService.grantRewards({ coins: 2 + Math.floor(wave / 10) });
+      }
+
       // 웨이브 클리어 (싱글플레이 전용)
       // 멀티플레이는 PvP 모드라 "50웨이브 클리어" 개념 자체가 없다.
       // 스토리 모드: storyTotalWaves 기준 / 일반 모드: 50웨이브
@@ -798,6 +804,8 @@ export class GameManager {
           wave50Clear: !isStoryClear,  // 일반 모드만 wave50Clear
           storyClear: isStoryClear,    // 스토리 모드 클리어
         });
+        // [카드모드] 클리어 보너스 — 일반/스토리 모두 코인+별조각 지급
+        cardService.grantRewards({ coins: 200, starShards: 30 });
         // [전당등록] 싱글 플레이(일반 모드) 결과만 전당/리더보드에 반영.
         // 스토리 모드 클리어는 전당등록 대상이 아니다.
         if (isNormalClear) {

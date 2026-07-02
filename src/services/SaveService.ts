@@ -150,6 +150,14 @@ class SaveService {
         import('../store/gameStore')
           .then(m => m.useGameStore.getState().showAchievementToast(achievement!.name, pointsPerCompletion, true))
           .catch(() => {});
+
+        // [카드모드] 업적 최초 달성 시 티어별 별조각 지급
+        import('./CardService')
+          .then(({ cardService }) => {
+            const shardByTier: Record<string, number> = { bronze: 2, silver: 5, gold: 12, diamond: 25, legendary: 50 };
+            cardService.grantRewards({ starShards: shardByTier[achievement!.tier] ?? 2 });
+          })
+          .catch(() => {});
       }
     } else {
       // 이미 달성되었음에도 혹시 카운트가 잘못되어 있다면 정규화

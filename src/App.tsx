@@ -29,6 +29,7 @@ import { MapSelector } from "./components/ui/MapSelector";
 import { GameLayout } from "./components/game/GameLayout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { StorySelector } from './components/story/StorySelector';
+import { CardLabView } from "./components/cards/CardLabView";
 import { FloatingSettings } from "./components/ui/FloatingSettings";
 
 const fadeIn = keyframes`from { opacity: 0; } to { opacity: 1; }`;
@@ -146,11 +147,14 @@ function App() {
 
         setLoadingStage('done');
         navigate('/game', { state: storyData ? { ...storyData, mode: 'story' } : undefined });
+        setIsGamePreloading(false);
       } catch (err) {
         console.error('Failed to preload game data', err);
-        alert('게임 데이터 로드에 실패했습니다. 새로고침 해주세요.');
-      } finally {
         setIsGamePreloading(false);
+        // 네트워크 일시 장애 대응: 새로고침 없이 즉시 재시도 가능하게
+        if (window.confirm('게임 데이터 로드에 실패했습니다. 다시 시도할까요?')) {
+          return handlePreloadAndNavigate(mapId, gameMode, storyData);
+        }
       }
     },
     [resetGame, navigate]
@@ -257,6 +261,12 @@ function App() {
               handlePreloadAndNavigate(data.mapId, 'single', data);
             }}
           />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/cards" element={
+        <ProtectedRoute>
+          <CardLabView />
         </ProtectedRoute>
       } />
 
